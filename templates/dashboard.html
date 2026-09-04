@@ -137,10 +137,13 @@
                         <div class="flex-1">
                             <div class="flex items-center justify-between mb-1.5">
                                 <label for="audit-url" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider">Target Webpage URL</label>
-                                <span class="inline-flex items-center text-[11px] text-brand-700 font-medium bg-brand-50 px-2 py-0.5 rounded-md border border-brand-200">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-brand-500 mr-1 animate-pulse"></span>
-                                    Domain Auto-Detection Active
-                                </span>
+                                <div class="flex items-center gap-2">
+                                    <button type="button" onclick="loadSampleAudit('https://www.ordwaylabs.com')" class="text-xs text-brand-600 hover:text-brand-800 font-semibold hover:underline">⚡ Load Demo (Ordway)</button>
+                                    <span class="inline-flex items-center text-[11px] text-brand-700 font-medium bg-brand-50 px-2 py-0.5 rounded-md border border-brand-200">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-brand-500 mr-1 animate-pulse"></span>
+                                        Domain Auto-Detection Active
+                                    </span>
+                                </div>
                             </div>
                             <div class="relative rounded-xl shadow-sm">
                                 <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -148,7 +151,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path>
                                     </svg>
                                 </div>
-                                <input type="url" id="audit-url" required value="https://www.ordwaylabs.com" placeholder="https://example.com" class="block w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white text-slate-900 transition">
+                                <input type="url" id="audit-url" required value="" placeholder="https://yourcompany.com" class="block w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white text-slate-900 transition">
                             </div>
                         </div>
                         <div class="sm:self-end flex items-center gap-3">
@@ -375,16 +378,19 @@
 
                 <form onsubmit="handleBenchmark(event)" class="space-y-4">
                     <div>
-                        <label for="bench-primary-url" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                            Target Your Domain (Primary Audit)
-                        </label>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label for="bench-primary-url" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                                Target Your Domain (Primary Audit)
+                            </label>
+                            <button type="button" onclick="loadSampleBench()" class="text-xs text-brand-600 hover:text-brand-800 font-semibold hover:underline">⚡ Load Demo Competitor Set</button>
+                        </div>
                         <div class="relative rounded-xl shadow-sm">
                             <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
                                 </svg>
                             </div>
-                            <input type="url" id="bench-primary-url" required value="https://www.ordwaylabs.com" placeholder="https://yourcompany.com" class="block w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white text-slate-900 transition font-medium">
+                            <input type="url" id="bench-primary-url" required value="" placeholder="https://yourcompany.com" class="block w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white text-slate-900 transition font-medium">
                         </div>
                     </div>
 
@@ -392,9 +398,7 @@
                         <label for="bench-comp-urls" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                             Competitor URLs (One per line)
                         </label>
-                        <textarea id="bench-comp-urls" rows="3" required class="block w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white text-slate-900 transition">https://www.chargebee.com
-https://www.maxio.com
-https://stripe.com/billing</textarea>
+                        <textarea id="bench-comp-urls" rows="3" required placeholder="https://competitor-one.com&#10;https://competitor-two.com&#10;https://competitor-three.com" class="block w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white text-slate-900 transition"></textarea>
                     </div>
 
                     <div class="flex items-center justify-between pt-1">
@@ -557,12 +561,15 @@ https://stripe.com/billing</textarea>
 
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                         <div class="md:col-span-3 space-y-1.5">
-                            <label for="linking-sitemap-url" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider">Target XML Sitemap URL</label>
+                            <div class="flex items-center justify-between">
+                                <label for="linking-sitemap-url" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider">Target XML Sitemap URL</label>
+                                <button type="button" onclick="loadSampleLinking('https://www.ordwaylabs.com/sitemap.xml')" class="text-xs text-brand-600 hover:text-brand-800 font-semibold hover:underline">⚡ Load Demo Sitemap</button>
+                            </div>
                             <input
                                 type="url"
                                 id="linking-sitemap-url"
                                 required
-                                placeholder="https://www.ordwaylabs.com/sitemap.xml"
+                                placeholder="https://yourcompany.com/sitemap.xml"
                                 class="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition"
                             />
                         </div>
@@ -604,7 +611,7 @@ https://stripe.com/billing</textarea>
                         <textarea
                             id="linking-custom-urls"
                             rows="4"
-                            placeholder="https://www.ordwaylabs.com/&#10;https://www.ordwaylabs.com/solutions/billing-automation&#10;https://www.ordwaylabs.com/pricing"
+                            placeholder="https://yourcompany.com/&#10;https://yourcompany.com/solutions/billing-automation&#10;https://yourcompany.com/pricing"
                             class="block w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition"
                         ></textarea>
                     </div>
@@ -617,7 +624,7 @@ https://stripe.com/billing</textarea>
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
                     <div>
                         <div class="flex items-center gap-2">
-                            <h2 class="text-xl font-bold text-slate-900" id="linking-res-domain">ordwaylabs.com</h2>
+                            <h2 class="text-xl font-bold text-slate-900" id="linking-res-domain">Site Domain Analysis</h2>
                             <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-800">Topic Silo Analysis</span>
                         </div>
                         <p class="text-xs text-slate-500 mt-1">Cross-page ontology evaluation, topic authority hubs, and internal link optimization matrix.</p>
@@ -1145,6 +1152,49 @@ https://stripe.com/billing</textarea>
                 .replace(/'/g, '&#039;');
         }
 
+        async function getApiErrorMessage(response, defaultMsg) {
+            try {
+                const err = await response.json();
+                if (err && (err.detail || err.message)) {
+                    return err.detail || err.message;
+                }
+                return typeof err === 'string' ? err : JSON.stringify(err);
+            } catch {
+                try {
+                    const txt = await response.text();
+                    if (txt && txt.trim()) {
+                        const cleaned = txt.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+                        if (cleaned) return cleaned.slice(0, 300);
+                    }
+                } catch {}
+                return `${defaultMsg} (HTTP ${response.status} ${response.statusText || ''})`.trim();
+            }
+        }
+
+        function loadSampleAudit(url = 'https://www.ordwaylabs.com') {
+            const input = document.getElementById('audit-url');
+            if (input) {
+                input.value = url;
+                input.focus();
+            }
+        }
+
+        function loadSampleBench() {
+            const prim = document.getElementById('bench-primary-url');
+            const comps = document.getElementById('bench-comp-urls');
+            if (prim) prim.value = 'https://www.ordwaylabs.com';
+            if (comps) comps.value = 'https://www.chargebee.com\nhttps://www.maxio.com\nhttps://stripe.com/billing';
+            if (prim) prim.focus();
+        }
+
+        function loadSampleLinking(url = 'https://www.ordwaylabs.com/sitemap.xml') {
+            const input = document.getElementById('linking-sitemap-url');
+            if (input) {
+                input.value = url;
+                input.focus();
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const hostEl = document.getElementById('server-host-code');
             if (hostEl && window.location.origin) {
@@ -1205,8 +1255,8 @@ https://stripe.com/billing</textarea>
                 });
 
                 if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.detail || 'Audit request failed');
+                    const errMsg = await getApiErrorMessage(response, 'Audit request failed');
+                    throw new Error(errMsg);
                 }
 
                 const data = await response.json();
@@ -1492,8 +1542,8 @@ https://stripe.com/billing</textarea>
                 });
 
                 if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.detail || 'Benchmark request failed');
+                    const errMsg = await getApiErrorMessage(response, 'Benchmark request failed');
+                    throw new Error(errMsg);
                 }
 
                 const data = await response.json();
@@ -1960,8 +2010,8 @@ https://stripe.com/billing</textarea>
                 });
 
                 if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.detail || 'Internal link audit failed');
+                    const errMsg = await getApiErrorMessage(response, 'Internal link audit failed');
+                    throw new Error(errMsg);
                 }
 
                 const data = await response.json();
@@ -2739,8 +2789,8 @@ https://stripe.com/billing</textarea>
                 });
 
                 if (!resp.ok) {
-                    const err = await resp.json();
-                    throw new Error(err.detail || 'Simulation request failed');
+                    const errMsg = await getApiErrorMessage(resp, 'Simulation request failed');
+                    throw new Error(errMsg);
                 }
 
                 const simData = await resp.json();
