@@ -1175,6 +1175,12 @@
                                     onclick="switchSiteGraphTab('turtle')"
                                     class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer"
                                 >W3C Turtle (.ttl)</button>
+                                <button
+                                    type="button"
+                                    id="tab-btn-graph-sparql"
+                                    onclick="switchSiteGraphTab('sparql')"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer"
+                                >SPARQL Console</button>
                             </div>
 
                             <button
@@ -1198,11 +1204,73 @@
                                 <svg class="w-3.5 h-3.5 mr-1.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                                 <span>Download Turtle (.ttl)</span>
                             </button>
+
+                            <button
+                                type="button"
+                                onclick="downloadNTriples()"
+                                id="site-nt-dl-btn"
+                                class="inline-flex items-center justify-center px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold shadow-sm transition cursor-pointer"
+                            >
+                                <svg class="w-3.5 h-3.5 mr-1.5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                <span>N-Triples (.nt)</span>
+                            </button>
                         </div>
                     </div>
 
+                    <!-- Panel 1: JSON-LD -->
                     <pre id="site-graph-pre" class="bg-slate-900 text-slate-100 p-4 rounded-xl text-xs overflow-x-auto max-h-80 font-mono"><code id="site-graph-code">Loading site-wide schema graph...</code></pre>
+
+                    <!-- Panel 2: W3C Turtle -->
                     <pre id="site-turtle-pre" class="hidden bg-slate-900 text-purple-300 p-4 rounded-xl text-xs overflow-x-auto max-h-80 font-mono"><code id="site-turtle-code">Loading W3C RDF Turtle ontology...</code></pre>
+
+                    <!-- Panel 3: Interactive SPARQL Query Engine Console -->
+                    <div id="site-sparql-panel" class="hidden space-y-3 pt-1">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <span class="text-xs text-slate-600 font-medium">Quick SPARQL Presets:</span>
+                            <div class="flex items-center gap-1.5 flex-wrap text-xs">
+                                <button type="button" onclick="loadSampleSparql('capabilities')" class="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 font-semibold rounded-lg border border-purple-200 transition cursor-pointer">Platform Capabilities</button>
+                                <button type="button" onclick="loadSampleSparql('integrations')" class="px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 font-semibold rounded-lg border border-sky-200 transition cursor-pointer">Integrations</button>
+                                <button type="button" onclick="loadSampleSparql('hubs')" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold rounded-lg border border-emerald-200 transition cursor-pointer">Topic Hubs</button>
+                                <button type="button" onclick="loadSampleSparql('all')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg border border-slate-200 transition cursor-pointer">All Triples</button>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <textarea
+                                id="sparql-query-input"
+                                rows="5"
+                                class="w-full p-3 font-mono text-xs bg-slate-900 text-cyan-300 rounded-xl border border-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                placeholder="Write or edit a W3C SPARQL 1.1 query..."
+                            >PREFIX schema: &lt;https://schema.org/&gt;
+PREFIX onto: &lt;https://ontology/&gt;
+SELECT ?capability ?evidence WHERE {
+    ?subject schema:potentialAction ?capNode .
+    OPTIONAL { ?capNode schema:description ?evidence } .
+    OPTIONAL { ?capNode rdfs:label ?capability } .
+} LIMIT 25</textarea>
+
+                            <div class="flex items-center justify-between">
+                                <button
+                                    type="button"
+                                    onclick="runSparqlQuery()"
+                                    id="sparql-run-btn"
+                                    class="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold shadow-sm transition cursor-pointer"
+                                >
+                                    <svg id="sparql-spinner" class="animate-spin -ml-1 mr-2 h-3.5 w-3.5 text-white hidden" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                    <span id="sparql-btn-text">Execute SPARQL Query</span>
+                                </button>
+                                <span id="sparql-status-label" class="text-xs text-slate-500 font-mono">Ready to query</span>
+                            </div>
+                        </div>
+
+                        <!-- Tabular SPARQL Results Table -->
+                        <div id="sparql-results-container" class="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-inner max-h-72">
+                            <table class="w-full text-left text-xs border-collapse min-w-[500px]">
+                                <thead id="sparql-thead" class="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 sticky top-0"></thead>
+                                <tbody id="sparql-tbody" class="divide-y divide-slate-100 font-mono text-[11px]"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
             </div>
@@ -1227,6 +1295,7 @@
         let currentLinkingData = null;
         let currentSiteGraphJson = '';
         let currentSiteGraphTurtle = '';
+        let currentSiteGraphNTriples = '';
         let currentSiteGraphTab = 'json';
 
         function escapeHtml(str) {
@@ -2399,6 +2468,7 @@
                 currentSiteGraphTurtle = '# No RDF Turtle generated';
                 document.getElementById('site-turtle-code').innerText = currentSiteGraphTurtle;
             }
+            currentSiteGraphNTriples = data.rdf_ntriples || '';
 
             // Render Autonomous /llms.txt and robots.txt AI rules
             if (data.llms_txt) {
@@ -2823,32 +2893,38 @@
 
         function switchSiteGraphTab(tab) {
             currentSiteGraphTab = tab;
-            const isJson = tab === 'json';
-            document.getElementById('site-graph-pre').classList.toggle('hidden', !isJson);
-            document.getElementById('site-turtle-pre').classList.toggle('hidden', isJson);
+            document.getElementById('site-graph-pre').classList.toggle('hidden', tab !== 'json');
+            document.getElementById('site-turtle-pre').classList.toggle('hidden', tab !== 'turtle');
+            document.getElementById('site-sparql-panel').classList.toggle('hidden', tab !== 'sparql');
 
             const btnJson = document.getElementById('tab-btn-graph-json');
             const btnTurtle = document.getElementById('tab-btn-graph-turtle');
-            if (isJson) {
-                btnJson.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-purple-700 shadow-sm border border-purple-200 transition cursor-pointer';
-                btnTurtle.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer';
-            } else {
-                btnTurtle.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-purple-700 shadow-sm border border-purple-200 transition cursor-pointer';
-                btnJson.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer';
-            }
+            const btnSparql = document.getElementById('tab-btn-graph-sparql');
+
+            const activeClass = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-purple-700 shadow-sm border border-purple-200 transition cursor-pointer';
+            const inactiveClass = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer';
+
+            if (btnJson) btnJson.className = (tab === 'json') ? activeClass : inactiveClass;
+            if (btnTurtle) btnTurtle.className = (tab === 'turtle') ? activeClass : inactiveClass;
+            if (btnSparql) btnSparql.className = (tab === 'sparql') ? activeClass : inactiveClass;
         }
 
         async function copySiteGraphJson() {
-            const content = currentSiteGraphTab === 'turtle'
-                ? (currentSiteGraphTurtle || document.getElementById('site-turtle-code').innerText)
-                : (currentSiteGraphJson || document.getElementById('site-graph-code').innerText);
+            let content = '';
+            if (currentSiteGraphTab === 'turtle') {
+                content = currentSiteGraphTurtle || document.getElementById('site-turtle-code').innerText;
+            } else if (currentSiteGraphTab === 'sparql') {
+                content = document.getElementById('sparql-query-input').value;
+            } else {
+                content = currentSiteGraphJson || document.getElementById('site-graph-code').innerText;
+            }
             if (!content) return;
             try {
                 await navigator.clipboard.writeText(content);
                 const txt = document.getElementById('site-graph-copy-text');
                 txt.innerText = 'Copied!';
                 setTimeout(() => { txt.innerText = 'Copy Graph'; }, 2000);
-            } catch(e) {
+            } catch (e) {
                 alert('Copy failed.');
             }
         }
@@ -2869,6 +2945,154 @@
             document.body.appendChild(a);
             a.click();
             setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+        }
+
+        async function downloadNTriples() {
+            let ntriples = currentSiteGraphNTriples || (currentLinkingData && currentLinkingData.rdf_ntriples) || '';
+            const turtle = currentSiteGraphTurtle || (currentLinkingData && currentLinkingData.rdf_turtle) || '';
+            if (!ntriples && (!turtle || turtle.startsWith('# No RDF Turtle'))) {
+                alert('No RDF knowledge graph available to download. Please run an internal links audit first.');
+                return;
+            }
+            if (!ntriples && turtle) {
+                try {
+                    const resp = await fetch('/api/export-ntriples', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ rdf_turtle: turtle })
+                    });
+                    if (resp.ok) {
+                        ntriples = await resp.text();
+                        currentSiteGraphNTriples = ntriples;
+                    }
+                } catch (e) {
+                    console.warn('Failed to fetch N-Triples export:', e);
+                }
+            }
+            if (!ntriples) {
+                alert('No N-Triples content available to download.');
+                return;
+            }
+            const domain = (currentLinkingData && currentLinkingData.root_domain) || 'site';
+            const cleanDomain = domain.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const blob = new Blob([ntriples], { type: 'application/n-triples;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${cleanDomain}-triples.nt`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+        }
+
+        async function runSparqlQuery() {
+            const query = document.getElementById('sparql-query-input').value.trim();
+            if (!query) {
+                alert('Please enter a SPARQL query.');
+                return;
+            }
+            const turtle = currentSiteGraphTurtle || (currentLinkingData && currentLinkingData.rdf_turtle) || '';
+            if (!turtle || turtle.startsWith('# No RDF Turtle')) {
+                alert('No RDF Turtle knowledge graph loaded yet. Please run an internal links audit first.');
+                return;
+            }
+
+            const btn = document.getElementById('sparql-run-btn');
+            const spinner = document.getElementById('sparql-spinner');
+            const btnText = document.getElementById('sparql-btn-text');
+            const statusLabel = document.getElementById('sparql-status-label');
+            const container = document.getElementById('sparql-results-container');
+            const thead = document.getElementById('sparql-thead');
+            const tbody = document.getElementById('sparql-tbody');
+
+            btn.disabled = true;
+            spinner.classList.remove('hidden');
+            btnText.innerText = 'Executing...';
+            statusLabel.innerText = 'Querying in-memory RDFLib triple store...';
+            statusLabel.className = 'text-xs text-slate-500 font-mono';
+
+            try {
+                const resp = await fetch('/api/sparql', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        query: query,
+                        root_domain: (currentLinkingData && currentLinkingData.root_domain) || 'site',
+                        rdf_turtle: turtle
+                    })
+                });
+
+                if (!resp.ok) {
+                    const errMsg = await getApiErrorMessage(resp, 'SPARQL execution failed');
+                    throw new Error(errMsg);
+                }
+
+                const data = await resp.json();
+                if (data.execution_status === 'failed' || data.error) {
+                    throw new Error(data.error || 'SPARQL query failed to execute');
+                }
+
+                container.classList.remove('hidden');
+                thead.innerHTML = '';
+                tbody.innerHTML = '';
+
+                // Build table header
+                const trHead = document.createElement('tr');
+                trHead.className = 'border-b border-slate-200';
+                (data.columns || []).forEach(col => {
+                    const th = document.createElement('th');
+                    th.className = 'py-2 px-3 text-purple-900 font-bold';
+                    th.innerText = `?${col}`;
+                    trHead.appendChild(th);
+                });
+                thead.appendChild(trHead);
+
+                // Build table body
+                if (!data.rows || data.rows.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="${Math.max(1, (data.columns || []).length)}" class="py-4 text-center text-slate-400">Query returned 0 matching triples.</td></tr>`;
+                } else {
+                    data.rows.forEach(row => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'hover:bg-slate-50 transition';
+                        row.forEach(val => {
+                            const td = document.createElement('td');
+                            td.className = 'py-2 px-3 text-slate-700 max-w-[280px] truncate';
+                            td.title = val;
+                            if (val.startsWith('http://') || val.startsWith('https://')) {
+                                td.innerHTML = `<a href="${escapeHtml(val)}" target="_blank" class="text-brand-600 hover:underline truncate block">${escapeHtml(val)}</a>`;
+                            } else {
+                                td.innerText = val;
+                            }
+                            tr.appendChild(td);
+                        });
+                        tbody.appendChild(tr);
+                    });
+                }
+
+                statusLabel.innerText = `✓ Query returned ${data.row_count} row${data.row_count === 1 ? '' : 's'}`;
+                statusLabel.className = 'text-xs text-emerald-600 font-semibold font-mono';
+            } catch (err) {
+                statusLabel.innerText = `Error: ${err.message}`;
+                statusLabel.className = 'text-xs text-rose-600 font-semibold font-mono';
+                alert('SPARQL Query Error: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                spinner.classList.add('hidden');
+                btnText.innerText = 'Execute SPARQL Query';
+            }
+        }
+
+        function loadSampleSparql(type) {
+            const input = document.getElementById('sparql-query-input');
+            if (type === 'capabilities') {
+                input.value = `PREFIX schema: <https://schema.org/>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nSELECT ?capability ?evidence WHERE {\n    ?subject schema:potentialAction ?capNode .\n    OPTIONAL { ?capNode rdfs:label ?capability } .\n    OPTIONAL { ?capNode schema:description ?evidence } .\n} LIMIT 25`;
+            } else if (type === 'integrations') {
+                input.value = `PREFIX schema: <https://schema.org/>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nSELECT ?integration ?sameAs WHERE {\n    ?subject schema:isRelatedTo ?intNode .\n    ?intNode rdfs:label ?integration .\n    OPTIONAL { ?intNode schema:sameAs ?sameAs } .\n} LIMIT 25`;
+            } else if (type === 'hubs') {
+                input.value = `PREFIX schema: <https://schema.org/>\nSELECT ?hubLandingPage ?concept WHERE {\n    ?subject schema:hasPart ?hubLandingPage .\n    ?hubLandingPage a schema:WebPage ;\n                    schema:about ?concept .\n} LIMIT 25`;
+            } else if (type === 'all') {
+                input.value = `PREFIX schema: <https://schema.org/>\nSELECT ?subject ?predicate ?object WHERE {\n    ?subject ?predicate ?object .\n} LIMIT 30`;
+            }
         }
 
         function exportLinksCsv() {

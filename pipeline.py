@@ -1,3 +1,20 @@
+"""
+GainARK OntoLeap — Core Ontology Extraction & Semantic Ingestion Pipeline
+
+This module executes the multi-stage ontology extraction and analysis pipeline:
+1. Multi-Syntax Schema.org Extraction: Employs `extruct` and `BeautifulSoup` to parse JSON-LD,
+   Microdata, RDFa, and OpenGraph structured data blocks.
+2. Zero-Shot Named Entity Recognition: Leverages `GLiNER` (urchade/gliner_small-v2.1) bidirectional
+   transformer to recognize custom vertical entities (features, integrations, standards, pricing).
+3. Core Seed Concept Density: Evaluates domain-specific vocabulary presence and frequency.
+4. Rule-Based Relational Semantic Triple Extraction: Mines structured subject-predicate-object
+   statements (`automates`, `integratesWith`, `compliesWith`, `supportsPricingModel`).
+5. Deep Sub-Page Crawling: Automatically discovers and parses high-signal subpages (/pricing,
+   /features, /integrations, /solutions) to enrich entity coverage.
+6. Multi-Page XML Sitemap Crawler: Crawls full sitemaps and indexes, consolidating deduplicated
+   triples into a unified multi-page `@graph` JSON-LD schema with Wikidata entity grounding.
+"""
+
 import json
 import re
 import xml.etree.ElementTree as ET
@@ -689,34 +706,84 @@ def deduplicate_site_triples(all_triples: List[SemanticTriple]) -> List[Semantic
     return list(seen.values())
 
 
+WIKIDATA_MAP: Dict[str, str] = {
+    "asc 606": "https://www.wikidata.org/wiki/Q2819869",
+    "ifrs 15": "https://www.wikidata.org/wiki/Q16996614",
+    "soc 1": "https://www.wikidata.org/wiki/Q105822363",
+    "soc 2": "https://www.wikidata.org/wiki/Q105822363",
+    "soc 2 type ii": "https://www.wikidata.org/wiki/Q105822363",
+    "soc 1 type ii": "https://www.wikidata.org/wiki/Q105822363",
+    "gaap": "https://www.wikidata.org/wiki/Q478440",
+    "us gaap": "https://www.wikidata.org/wiki/Q478440",
+    "gdpr": "https://www.wikidata.org/wiki/Q11723205",
+    "pci-dss": "https://www.wikidata.org/wiki/Q1051515",
+    "iso 27001": "https://www.wikidata.org/wiki/Q1135272",
+    "hipaa": "https://www.wikidata.org/wiki/Q1586524",
+    "ccpa": "https://www.wikidata.org/wiki/Q55606411",
+    "salesforce": "https://www.wikidata.org/wiki/Q760814",
+    "netsuite": "https://www.wikidata.org/wiki/Q1978731",
+    "quickbooks": "https://www.wikidata.org/wiki/Q7271981",
+    "stripe": "https://www.wikidata.org/wiki/Q7624119",
+    "workday": "https://www.wikidata.org/wiki/Q2592881",
+    "hubspot": "https://www.wikidata.org/wiki/Q17055745",
+    "sage intacct": "https://www.wikidata.org/wiki/Q28956947",
+    "sage": "https://www.wikidata.org/wiki/Q1197415",
+    "xero": "https://www.wikidata.org/wiki/Q8043818",
+    "avalara": "https://www.wikidata.org/wiki/Q16836798",
+    "taxjar": "https://www.wikidata.org/wiki/Q106726884",
+    "sap": "https://www.wikidata.org/wiki/Q5528",
+    "oracle": "https://www.wikidata.org/wiki/Q19900",
+    "zendesk": "https://www.wikidata.org/wiki/Q8069151",
+    "slack": "https://www.wikidata.org/wiki/Q16202723",
+    "plaid": "https://www.wikidata.org/wiki/Q65069792",
+    "snowflake": "https://www.wikidata.org/wiki/Q104862415",
+    "microsoft dynamics": "https://www.wikidata.org/wiki/Q1050212"
+}
+
+
 def build_site_wide_schema_graph(domain: str, triples: List[SemanticTriple], entities: List[str]) -> Dict:
     """
-    Builds a unified @graph JSON-LD node representing the organization and software ecosystem.
+    Builds a unified @graph JSON-LD node representing the organization and software ecosystem,
+    enriched with canonical Wikidata sameAs entity reconciliation for search crawlers and LLMs.
     """
     clean_domain = domain.replace("www.", "") if domain else "example.com"
     brand_name = clean_domain.split('.')[0].capitalize()
-    
-    integrations = [
-        {"@type": "SoftwareApplication", "name": t.object}
-        for t in triples if t.predicate == "integratesWith"
-    ]
+
+    integrations = []
+    for t in triples:
+        if t.predicate == "integratesWith":
+            item = {"@type": "SoftwareApplication", "name": t.object}
+            w_url = WIKIDATA_MAP.get(t.object.lower().strip())
+            if w_url:
+                item["sameAs"] = w_url
+            integrations.append(item)
+
     capabilities = [t.object for t in triples if t.predicate == "automates"]
     pricing_models = [t.object for t in triples if t.predicate == "supportsPricingModel"]
-    compliance = [
-        {"@type": "DefinedTerm", "name": t.object, "termCode": t.object}
-        for t in triples if t.predicate == "compliesWith"
-    ]
+
+    compliance = []
+    for t in triples:
+        if t.predicate == "compliesWith":
+            item = {"@type": "DefinedTerm", "name": t.object, "termCode": t.object}
+            w_url = WIKIDATA_MAP.get(t.object.lower().strip())
+            if w_url:
+                item["sameAs"] = w_url
+            compliance.append(item)
+
+    org_node: Dict[str, Any] = {
+        "@type": "Organization",
+        "@id": f"https://{domain}/#organization",
+        "name": brand_name,
+        "url": f"https://{domain}/",
+        "knowsAbout": capabilities + [c["name"] for c in compliance]
+    }
+    if brand_name.lower() in WIKIDATA_MAP:
+        org_node["sameAs"] = [WIKIDATA_MAP[brand_name.lower()]]
 
     return {
         "@context": "https://schema.org",
         "@graph": [
-            {
-                "@type": "Organization",
-                "@id": f"https://{domain}/#organization",
-                "name": brand_name,
-                "url": f"https://{domain}/",
-                "knowsAbout": capabilities + [c["name"] for c in compliance]
-            },
+            org_node,
             {
                 "@type": "SoftwareApplication",
                 "@id": f"https://{domain}/#software",

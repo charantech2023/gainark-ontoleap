@@ -1,3 +1,12 @@
+"""
+GainARK OntoLeap — Enterprise Domain Models & Schema Definitions
+
+This module defines Pydantic data models representing the full lifecycle of
+ontological SEO analysis, structured data extraction, semantic knowledge graphs,
+topic silo clustering, NetworkX topological metrics, generative AI search simulations,
+and W3C standard RDF/SPARQL representations.
+"""
+
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
@@ -210,6 +219,7 @@ class SiteAuditAndLinkResult(BaseModel):
     llms_txt: Optional[str] = None
     robots_txt_ai: Optional[str] = None
     rdf_turtle: Optional[str] = None
+    rdf_ntriples: Optional[str] = Field(default=None, description="Serialized W3C N-Triples (.nt) triple store dump")
     validation_report: Optional[SchemaValidationReport] = None
 
 
@@ -221,20 +231,52 @@ class CitationSource(BaseModel):
 
 
 class SearchSimulationRequest(BaseModel):
+    """
+    Request model for simulating Perplexity / SearchGPT generative query answering.
+    """
     query: str = Field(..., description="User search query, e.g., 'What accounting standards does the platform comply with?'")
     root_domain: str = Field(..., description="The audited domain")
-    triples: List[SemanticTriple] = Field(default_factory=list)
-    topic_hubs: Dict[str, str] = Field(default_factory=dict)
-    entities: List[str] = Field(default_factory=list)
+    triples: List[SemanticTriple] = Field(default_factory=list, description="Extracted domain triples")
+    topic_hubs: Dict[str, str] = Field(default_factory=dict, description="Canonical topic hubs map")
+    entities: List[str] = Field(default_factory=list, description="Extracted key entities")
 
 
 class SearchSimulationResponse(BaseModel):
+    """
+    Simulated AI engine generative response grounded in domain ontology triples.
+    """
     query: str
     synthesized_answer: str
     citations: List[CitationSource] = Field(default_factory=list)
     grounding_confidence: float = 0.95
     hallucination_risk: str = "Zero Hallucination Risk (100% Schema & Triple Grounded)"
     attributed_capabilities: List[str] = Field(default_factory=list)
+
+
+class SparqlQueryRequest(BaseModel):
+    """
+    Request model for querying the RDF knowledge graph via W3C SPARQL 1.1.
+    """
+    query: str = Field(
+        ...,
+        description="W3C SPARQL 1.1 query string",
+        example="PREFIX schema: <https://schema.org/>\nSELECT ?pred ?obj WHERE { ?sub ?pred ?obj } LIMIT 25"
+    )
+    root_domain: Optional[str] = Field(default="site", description="Target domain context")
+    rdf_turtle: Optional[str] = Field(default=None, description="Turtle RDF string to query against")
+
+
+class SparqlQueryResponse(BaseModel):
+    """
+    Structured response containing tabular results from a SPARQL 1.1 execution.
+    """
+    query: str
+    columns: List[str] = Field(default_factory=list, description="Bound variable column names")
+    rows: List[List[str]] = Field(default_factory=list, description="Row values for each bound variable")
+    row_count: int = Field(default=0, description="Total rows returned")
+    execution_status: str = Field(default="success", description="'success' or 'failed'")
+    error: Optional[str] = Field(default=None, description="Detailed error message if query execution failed")
+
 
 
 

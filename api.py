@@ -1,13 +1,22 @@
+"""
+GainARK OntoLeap — FastAPI Enterprise REST API & Semantic Service Gateway
+
+Provides REST API endpoints for ontology extraction, competitor benchmarking,
+sitemap crawling, internal link discovery, generative search simulation,
+W3C RDF Turtle and N-Triples exports, and interactive SPARQL 1.1 querying.
+"""
+
 import os
 import json
 from typing import List, Dict, Any, Optional
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from rdflib import Graph
 
 from pipeline import OntologyPipeline, crawl_and_build_unified_graph
-from linking import audit_internal_links, simulate_search_response
+from linking import audit_internal_links, simulate_search_response, execute_sparql_query_on_ttl
 from models import (
     ReadinessBreakdown,
     EntityMatch,
@@ -21,7 +30,9 @@ from models import (
     InternalLinkOpportunity,
     SiteAuditAndLinkResult,
     SearchSimulationRequest,
-    SearchSimulationResponse
+    SearchSimulationResponse,
+    SparqlQueryRequest,
+    SparqlQueryResponse
 )
 
 app = FastAPI(
@@ -181,7 +192,11 @@ def api_info():
             "perplexity_searchgpt_simulator": True,
             "topic_silo_canvas": True,
             "visual_diff_modal": True,
-            "wordpress_cms_hook": True
+            "wordpress_cms_hook": True,
+            "sparql_query_engine": True,
+            "w3c_rdf_turtle_export": True,
+            "w3c_ntriples_export": True,
+            "wikidata_entity_grounding": True
         },
         "endpoints": {
             "dashboard": "GET /dashboard",
@@ -190,6 +205,8 @@ def api_info():
             "batch-crawl": "POST /api/batch-crawl",
             "internal-links": "POST /api/internal-links",
             "simulate-search": "POST /api/simulate-search",
+            "sparql": "POST /api/sparql",
+            "export-ntriples": "POST /api/export-ntriples",
             "health": "GET /api/health"
         }
     }
@@ -247,6 +264,56 @@ def api_simulate_search(req: SearchSimulationRequest):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search simulation failed: {str(e)}")
+
+
+@app.post("/api/sparql", response_model=SparqlQueryResponse, summary="Execute SPARQL 1.1 Query on Knowledge Graph")
+def api_execute_sparql(req: SparqlQueryRequest):
+    """
+    Executes a W3C SPARQL 1.1 query against an in-memory RDF knowledge graph
+    using RDFLib's native SPARQL engine and returns structured column and row bindings.
+    """
+    if not req.rdf_turtle or not req.rdf_turtle.strip():
+        raise HTTPException(status_code=400, detail="Must provide 'rdf_turtle' to query against. Please run an internal links audit first.")
+    try:
+        res = execute_sparql_query_on_ttl(req.rdf_turtle, req.query)
+        return SparqlQueryResponse(
+            query=req.query,
+            columns=res["columns"],
+            rows=res["rows"],
+            row_count=res["row_count"],
+            execution_status="success"
+        )
+    except Exception as e:
+        return SparqlQueryResponse(
+            query=req.query,
+            columns=[],
+            rows=[],
+            row_count=0,
+            execution_status="failed",
+            error=str(e)
+        )
+
+
+class NTriplesExportRequest(BaseModel):
+    rdf_turtle: str = Field(..., description="RDF Turtle serialization to convert into N-Triples")
+
+
+@app.post("/api/export-ntriples", summary="Convert RDF Turtle to W3C N-Triples")
+def api_export_ntriples(req: NTriplesExportRequest):
+    """
+    Parses an RDF Turtle knowledge graph and converts it to W3C N-Triples (.nt) format.
+    Ideal for triple-store ingestion, SPARQL endpoints, and streaming graph analytics.
+    """
+    if not req.rdf_turtle or not req.rdf_turtle.strip():
+        raise HTTPException(status_code=400, detail="Must provide 'rdf_turtle' string.")
+    try:
+        g = Graph()
+        g.parse(data=req.rdf_turtle, format="turtle")
+        nt_data = g.serialize(format="nt")
+        return PlainTextResponse(content=nt_data, media_type="application/n-triples")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to serialize N-Triples: {str(e)}")
+
 
 
 @app.post("/api/audit", response_model=AuditResponse)

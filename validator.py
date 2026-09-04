@@ -1,3 +1,13 @@
+"""
+GainARK OntoLeap — Schema.org & Google Rich Results Validation Engine
+
+This module validates generated and audited Schema.org JSON-LD payloads against
+Google Search Central Rich Results and Knowledge Graph structured data specifications.
+It inspects required and recommended properties for SoftwareApplication, Organization,
+Offer, and DefinedTerm nodes, computing an empirical compliance score (0-100%) and
+highlighting blocking syntax errors versus non-critical best practice warnings.
+"""
+
 from typing import Dict, Any, List
 from models import SchemaValidationReport
 

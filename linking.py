@@ -1,3 +1,27 @@
+"""
+GainARK OntoLeap — Semantic Linking, Topic Cluster Silos & Knowledge Graph Engine
+
+This module provides enterprise-grade semantic SEO and knowledge graph capabilities:
+1. Topic Cluster Authority Discovery: Identifies canonical topic authority hubs using URL slug
+   matching, title semantics, and entity density.
+2. In-Content Internal Link Opportunity Mining: Detects unlinked entity and predicate mentions
+   across pages, generating contextual, high-intent anchor text suggestions and CMS code snippets.
+3. NetworkX Graph Topologies & Link Analysis: Computes internal PageRank (damping factor α=0.85)
+   and betweenness centrality to isolate topic silos, authority anchors, and orphan subpages.
+4. Keyword & Topic Cannibalization Guard: Identifies competing pages diluting organic signals
+   for the same concept and generates canonical consolidation rules.
+5. AI Search Citation Readiness Index: Scores pages across entity grounding, relational triple
+   density, silo integrity, and Schema.org coverage for Perplexity & SearchGPT readiness.
+6. Perplexity / SearchGPT Query Simulator: Synthesizes generative answers grounded strictly in
+   verified domain ontology triples with footnoted topic hub citations.
+7. Autonomous Manifest Generation: Produces standardized /llms.txt manifests and AI crawler
+   directives for GPTBot, PerplexityBot, ClaudeBot, and Google-Extended.
+8. W3C RDF Turtle & N-Triples Serialization: Exports the complete multi-page knowledge graph
+   using RDFLib with Schema.org vocabulary and canonical Wikidata sameAs entity grounding.
+9. Interactive W3C SPARQL 1.1 Query Engine: Executes arbitrary SPARQL SELECT queries directly
+   against the in-memory RDF triple store.
+"""
+
 import re
 import asyncio
 from typing import List, Dict, Any, Optional, Set, Tuple
@@ -489,8 +513,9 @@ async def audit_internal_links(
     llms_manifest = generate_llms_txt(domain, hubs, deduped_triples, list(collected_entities))
     robots_manifest = generate_robots_txt_ai(domain, hubs)
 
-    # Generate Enterprise RDF Turtle Knowledge Graph
+    # Generate Enterprise RDF Turtle Knowledge Graph & N-Triples Dump
     rdf_turtle = export_to_rdf_turtle(domain, deduped_triples, hubs, list(collected_entities))
+    rdf_ntriples = export_to_rdf_ntriples(domain, deduped_triples, hubs, list(collected_entities))
 
     return SiteAuditAndLinkResult(
         root_domain=domain,
@@ -508,6 +533,7 @@ async def audit_internal_links(
         llms_txt=llms_manifest,
         robots_txt_ai=robots_manifest,
         rdf_turtle=rdf_turtle,
+        rdf_ntriples=rdf_ntriples,
         validation_report=validation_rep
     )
 
@@ -878,15 +904,66 @@ def compute_graph_pagerank(G: nx.DiGraph, alpha: float = 0.85) -> Dict[str, floa
             return {node: round(1.0 / n, 4) for node in G.nodes()}
 
 
-def export_to_rdf_turtle(
+# ---------------------------------------------------------------------------
+# Canonical Wikidata Knowledge Base for Zero-Latency Entity Grounding
+# ---------------------------------------------------------------------------
+WIKIDATA_KNOWLEDGE_BASE: Dict[str, str] = {
+    # Compliance, Standards & Accounting
+    "asc 606": "https://www.wikidata.org/wiki/Q2819869",
+    "ifrs 15": "https://www.wikidata.org/wiki/Q16996614",
+    "soc 1": "https://www.wikidata.org/wiki/Q105822363",
+    "soc 2": "https://www.wikidata.org/wiki/Q105822363",
+    "soc 2 type ii": "https://www.wikidata.org/wiki/Q105822363",
+    "soc 1 type ii": "https://www.wikidata.org/wiki/Q105822363",
+    "gaap": "https://www.wikidata.org/wiki/Q478440",
+    "us gaap": "https://www.wikidata.org/wiki/Q478440",
+    "gdpr": "https://www.wikidata.org/wiki/Q11723205",
+    "pci-dss": "https://www.wikidata.org/wiki/Q1051515",
+    "iso 27001": "https://www.wikidata.org/wiki/Q1135272",
+    "hipaa": "https://www.wikidata.org/wiki/Q1586524",
+    "ccpa": "https://www.wikidata.org/wiki/Q55606411",
+
+    # Software Integrations & Enterprise Ecosystem
+    "salesforce": "https://www.wikidata.org/wiki/Q760814",
+    "netsuite": "https://www.wikidata.org/wiki/Q1978731",
+    "quickbooks": "https://www.wikidata.org/wiki/Q7271981",
+    "stripe": "https://www.wikidata.org/wiki/Q7624119",
+    "workday": "https://www.wikidata.org/wiki/Q2592881",
+    "hubspot": "https://www.wikidata.org/wiki/Q17055745",
+    "sage intacct": "https://www.wikidata.org/wiki/Q28956947",
+    "sage": "https://www.wikidata.org/wiki/Q1197415",
+    "xero": "https://www.wikidata.org/wiki/Q8043818",
+    "avalara": "https://www.wikidata.org/wiki/Q16836798",
+    "taxjar": "https://www.wikidata.org/wiki/Q106726884",
+    "sap": "https://www.wikidata.org/wiki/Q5528",
+    "oracle": "https://www.wikidata.org/wiki/Q19900",
+    "zendesk": "https://www.wikidata.org/wiki/Q8069151",
+    "slack": "https://www.wikidata.org/wiki/Q16202723",
+    "plaid": "https://www.wikidata.org/wiki/Q65069792",
+    "snowflake": "https://www.wikidata.org/wiki/Q104862415",
+    "microsoft dynamics": "https://www.wikidata.org/wiki/Q1050212",
+
+    # Core Architectural Concepts & Capabilities
+    "revenue recognition": "https://www.wikidata.org/wiki/Q7318047",
+    "accounts receivable": "https://www.wikidata.org/wiki/Q478440",
+    "billing": "https://www.wikidata.org/wiki/Q185794",
+    "subscription business model": "https://www.wikidata.org/wiki/Q1066060",
+    "saas": "https://www.wikidata.org/wiki/Q211246",
+    "cloud computing": "https://www.wikidata.org/wiki/Q483639",
+    "enterprise resource planning": "https://www.wikidata.org/wiki/Q14620",
+    "erp": "https://www.wikidata.org/wiki/Q14620"
+}
+
+
+def build_rdf_graph(
     domain: str,
     triples: List[SemanticTriple],
     hubs: Dict[str, str],
     entities: List[str]
-) -> str:
+) -> Graph:
     """
-    Serializes the unified site knowledge graph, semantic triples, and canonical topic hubs
-    into W3C standard RDF Turtle (.ttl) format using RDFLib.
+    Constructs an in-memory RDFLib Graph with standard W3C and Schema.org namespaces,
+    connecting the organization root, capabilities, integrations, and canonical topic hubs.
     """
     g = Graph()
     SCHEMA = Namespace("https://schema.org/")
@@ -901,10 +978,15 @@ def export_to_rdf_turtle(
     brand_clean = re.sub(r'[^a-zA-Z0-9]+', '', brand) or "Platform"
     root_uri = URIRef(f"https://{domain}/#{brand_clean}")
 
+    # Root Organization & Software Application definitions
     g.add((root_uri, RDF.type, SCHEMA.SoftwareApplication))
     g.add((root_uri, RDF.type, SCHEMA.Organization))
     g.add((root_uri, SCHEMA.name, Literal(brand)))
     g.add((root_uri, SCHEMA.url, URIRef(f"https://{domain}/")))
+
+    # Check if brand matches Wikidata
+    if brand.lower() in WIKIDATA_KNOWLEDGE_BASE:
+        g.add((root_uri, SCHEMA.sameAs, URIRef(WIKIDATA_KNOWLEDGE_BASE[brand.lower()])))
 
     pred_map = {
         "automates": SCHEMA.potentialAction,
@@ -932,10 +1014,15 @@ def export_to_rdf_turtle(
                 g.add((obj_uri, RDF.type, LOCAL[t.predicate.capitalize()]))
             if t.evidence_sentence:
                 g.add((obj_uri, SCHEMA.description, Literal(t.evidence_sentence)))
+
+            # Canonical Wikidata Entity Grounding
+            obj_lower = t.object.lower().strip()
+            if obj_lower in WIKIDATA_KNOWLEDGE_BASE:
+                g.add((obj_uri, SCHEMA.sameAs, URIRef(WIKIDATA_KNOWLEDGE_BASE[obj_lower])))
         else:
             g.add((root_uri, rel, Literal(t.object)))
 
-    # Add Topic Hubs as WebPage nodes linked to root
+    # Canonical Topic Hubs as WebPage nodes linked to root Organization
     for concept, hub_url in hubs.items():
         try:
             hub_uri = URIRef(hub_url)
@@ -944,14 +1031,75 @@ def export_to_rdf_turtle(
             g.add((hub_uri, SCHEMA.about, Literal(concept)))
             g.add((hub_uri, SCHEMA.name, Literal(f"{concept} Canonical Authority Hub")))
             g.add((hub_uri, SCHEMA.url, hub_uri))
+
+            concept_lower = concept.lower().strip()
+            if concept_lower in WIKIDATA_KNOWLEDGE_BASE:
+                g.add((hub_uri, SCHEMA.sameAs, URIRef(WIKIDATA_KNOWLEDGE_BASE[concept_lower])))
         except Exception:
             continue
 
-    # Add top entities as schema:knowsAbout
+    # Core Grounded Entities linked to root via schema:knowsAbout
     for ent in entities[:25]:
         g.add((root_uri, SCHEMA.knowsAbout, Literal(ent)))
 
+    return g
+
+
+def export_to_rdf_turtle(
+    domain: str,
+    triples: List[SemanticTriple],
+    hubs: Dict[str, str],
+    entities: List[str]
+) -> str:
+    """
+    Serializes the unified site knowledge graph, semantic triples, and canonical topic hubs
+    into W3C standard RDF Turtle (.ttl) format with canonical Wikidata entity grounding.
+    """
+    g = build_rdf_graph(domain, triples, hubs, entities)
     return g.serialize(format="turtle")
+
+
+def export_to_rdf_ntriples(
+    domain: str,
+    triples: List[SemanticTriple],
+    hubs: Dict[str, str],
+    entities: List[str]
+) -> str:
+    """
+    Serializes the unified site knowledge graph into W3C standard N-Triples (.nt) format.
+    Ideal for high-throughput streaming triple stores and bulk database ingestion.
+    """
+    g = build_rdf_graph(domain, triples, hubs, entities)
+    return g.serialize(format="nt")
+
+
+def execute_sparql_query_on_ttl(turtle_data: str, sparql_query: str) -> Dict[str, Any]:
+    """
+    Executes a W3C SPARQL 1.1 query against an RDF Turtle knowledge graph
+    using RDFLib's native SPARQL engine and returns structured tabular results.
+    """
+    g = Graph()
+    g.parse(data=turtle_data, format="turtle")
+    qres = g.query(sparql_query)
+
+    cols = [str(v) for v in qres.vars] if hasattr(qres, "vars") and qres.vars else []
+    rows: List[List[str]] = []
+    for row in qres:
+        if hasattr(row, "__iter__"):
+            rows.append([str(item) if item is not None else "" for item in row])
+        else:
+            rows.append([str(row)])
+
+    if not cols and rows:
+        cols = [f"col_{i+1}" for i in range(len(rows[0]))]
+
+    return {
+        "columns": cols,
+        "rows": rows,
+        "row_count": len(rows),
+        "status": "success"
+    }
+
 
 
 
