@@ -952,6 +952,55 @@
                     </div>
                 </div>
 
+                <!-- AI Knowledge Graph Link Prediction & Completion Card (PyKEEN Paradigm) -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h3 class="text-base font-bold text-slate-900">AI Knowledge Graph Link Prediction &amp; Completion</h3>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-800">PyKEEN Paradigm · TransE / ComplEx</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">Infers missing high-confidence relational triples from ontological priors, calculates relational completeness, and grounds predicted entities to Wikidata Q-IDs.</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="text-right">
+                                <span class="text-[11px] text-slate-500 font-medium">KG Completeness:</span>
+                                <span id="kg-completeness-score" class="ml-1 text-sm font-bold text-cyan-600 font-mono">100%</span>
+                            </div>
+                            <button
+                                type="button"
+                                onclick="runLinkPrediction()"
+                                id="run-link-pred-btn"
+                                class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs font-semibold shadow-sm transition cursor-pointer flex items-center gap-1.5"
+                            >
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                                <span>Re-Predict Links</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse min-w-[950px]">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                                    <th class="py-2.5 px-3 w-36">Subject Entity</th>
+                                    <th class="py-2.5 px-3 w-40">Inferred Predicate</th>
+                                    <th class="py-2.5 px-3 w-48">Predicted Object &amp; Wikidata</th>
+                                    <th class="py-2.5 px-3 w-32 text-center">Confidence Score</th>
+                                    <th class="py-2.5 px-3">Ontological Rationale &amp; Recommended Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="predicted-links-tbody" class="divide-y divide-slate-100 text-slate-700">
+                                <tr>
+                                    <td colspan="5" class="py-4 text-center text-slate-400">
+                                        Run an internal links audit to infer missing knowledge graph links.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <!-- Prioritized Internal Link Matrix Table Card -->
                 <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
@@ -1276,6 +1325,16 @@
                             >
                                 <svg class="w-3.5 h-3.5 mr-1.5 text-amber-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                                 <span>OWL 2 (.owl)</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onclick="downloadInteractiveGraphHtml()"
+                                id="site-vis-dl-btn"
+                                class="inline-flex items-center justify-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition cursor-pointer"
+                            >
+                                <svg class="w-3.5 h-3.5 mr-1.5 text-indigo-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                                <span>Interactive Graph (.html)</span>
                             </button>
                         </div>
                     </div>
@@ -2569,6 +2628,9 @@ SELECT ?capability ?evidence WHERE {
                 renderSemanticClusters(data.semantic_clustering);
             }
 
+            // Render AI Link Predictions & Graph Completion (PyKEEN Paradigm)
+            renderPredictedLinks(data.predicted_links || []);
+
             // Render Autonomous /llms.txt and robots.txt AI rules
             if (data.llms_txt) {
                 document.getElementById('llms-txt-code').innerText = data.llms_txt;
@@ -3214,6 +3276,137 @@ SELECT ?capability ?evidence WHERE {
                     `;
                     tbody.appendChild(tr);
                 });
+            }
+        }
+
+        async function downloadInteractiveGraphHtml() {
+            if (!currentLinkingData && !currentAuditData) {
+                alert('Please run an internal links or site audit first.');
+                return;
+            }
+            const dataObj = currentLinkingData || currentAuditData;
+            const btn = document.getElementById('site-vis-dl-btn');
+            const originalHtml = btn ? btn.innerHTML : '';
+            if (btn) btn.innerHTML = '<span>Generating Graph HTML...</span>';
+            try {
+                const payload = {
+                    domain: dataObj.root_domain || dataObj.url || 'example.com',
+                    cluster_topology: dataObj.cluster_topology,
+                    triples: (dataObj.unified_site_graph && dataObj.unified_site_graph.site_wide_triples) || dataObj.triples || [],
+                    topic_hubs: dataObj.topic_hubs || {},
+                    predicted_links: dataObj.predicted_links || []
+                };
+                const res = await fetch('/api/export-graph-html', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) throw new Error('Failed to generate interactive graph HTML');
+                const htmlContent = await res.text();
+                const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const domainSlug = (dataObj.root_domain || 'site').replace(/[^a-zA-Z0-9]/g, '_');
+                a.download = `${domainSlug}_knowledge_graph.html`;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+            } catch (err) {
+                alert('Interactive Graph Export failed: ' + err.message);
+            } finally {
+                if (btn) btn.innerHTML = originalHtml;
+            }
+        }
+
+        function renderPredictedLinks(links, completenessScore) {
+            const tbody = document.getElementById('predicted-links-tbody');
+            const compEl = document.getElementById('kg-completeness-score');
+            if (compEl && completenessScore !== undefined) {
+                compEl.innerText = `${completenessScore}%`;
+            }
+            if (!tbody) return;
+            if (!links || links.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-400">Knowledge graph is 100% complete — No missing relational triples detected.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = links.map(pl => {
+                const confPct = Math.round(pl.confidence * 100);
+                let predBadgeClass = 'bg-indigo-50 text-indigo-700 border border-indigo-200';
+                const pLow = pl.predicate.toLowerCase();
+                if (pLow.includes('integrat')) predBadgeClass = 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+                else if (pLow.includes('compl') || pLow.includes('standard')) predBadgeClass = 'bg-rose-50 text-rose-700 border border-rose-200';
+                else if (pLow.includes('pricing')) predBadgeClass = 'bg-amber-50 text-amber-700 border border-amber-200';
+
+                const wikiHtml = pl.wikidata_url
+                    ? `<a href="${escapeHtml(pl.wikidata_url)}" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-purple-600 hover:text-purple-800 font-mono ml-1.5 underline">
+                        <span class="px-1.5 py-0.2 bg-purple-100 rounded text-[10px] font-bold">${escapeHtml(pl.wikidata_id || 'Wikidata')}</span>
+                       </a>`
+                    : '';
+
+                return `
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="py-2.5 px-3 font-semibold text-slate-900">${escapeHtml(pl.subject)}</td>
+                        <td class="py-2.5 px-3">
+                            <span class="px-2 py-0.5 rounded text-[11px] font-mono font-medium ${predBadgeClass}">
+                                ${escapeHtml(pl.predicate)}
+                            </span>
+                        </td>
+                        <td class="py-2.5 px-3 font-medium text-slate-800">
+                            ${escapeHtml(pl.object)} ${wikiHtml}
+                        </td>
+                        <td class="py-2.5 px-3 text-center">
+                            <div class="flex items-center justify-center gap-1.5">
+                                <div class="w-14 bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                    <div class="bg-cyan-500 h-1.5 rounded-full" style="width: ${confPct}%"></div>
+                                </div>
+                                <span class="text-[11px] font-bold text-cyan-700 font-mono">${confPct}%</span>
+                            </div>
+                        </td>
+                        <td class="py-2.5 px-3 text-xs text-slate-600">
+                            <div class="text-slate-800 font-medium">${escapeHtml(pl.reasoning)}</div>
+                            <div class="text-[11px] text-cyan-700 mt-0.5 font-mono">Action: ${escapeHtml(pl.recommended_action)}</div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function runLinkPrediction() {
+            const dataObj = currentLinkingData || currentAuditData;
+            if (!dataObj) {
+                alert('Please run an internal links or site audit first.');
+                return;
+            }
+            const btn = document.getElementById('run-link-pred-btn');
+            const originalHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.innerHTML = '<span>Predicting...</span>';
+                btn.disabled = true;
+            }
+            try {
+                const payload = {
+                    domain: dataObj.root_domain || dataObj.url || 'example.com',
+                    triples: (dataObj.unified_site_graph && dataObj.unified_site_graph.site_wide_triples) || dataObj.triples || [],
+                    entities: Object.keys(dataObj.topic_hubs || {}),
+                    topic_hubs: dataObj.topic_hubs || {}
+                };
+                const res = await fetch('/api/predict-links', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) throw new Error('Link prediction failed');
+                const data = await res.json();
+                if (currentLinkingData) currentLinkingData.predicted_links = data.predicted_links;
+                renderPredictedLinks(data.predicted_links, data.graph_completeness_score);
+            } catch (err) {
+                alert('Prediction failed: ' + err.message);
+            } finally {
+                if (btn) {
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
             }
         }
 

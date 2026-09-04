@@ -203,6 +203,21 @@ class CannibalizationRiskItem(BaseModel):
     recommendation: str
 
 
+class PredictedLink(BaseModel):
+    """
+    AI Knowledge Graph Link Prediction item (PyKEEN / TransE embedding paradigm).
+    Represents an ontologically inferred relation missing from crawled content.
+    """
+    subject: str = Field(..., description="Subject entity (e.g. Domain Platform)")
+    predicate: str = Field(..., description="Inferred semantic predicate (e.g. integratesWith, compliesWith)")
+    object: str = Field(..., description="Predicted object entity")
+    confidence: float = Field(..., description="Algorithmic confidence score (0.0 to 1.0)")
+    reasoning: str = Field(..., description="Ontological rationale for link prediction")
+    wikidata_id: Optional[str] = Field(default=None, description="Wikidata Q-ID if entity is grounded")
+    wikidata_url: Optional[str] = Field(default=None, description="Direct URL to Wikidata resource")
+    recommended_action: str = Field(default="", description="Recommended schema/linking action")
+
+
 class SiteAuditAndLinkResult(BaseModel):
     root_domain: str
     pages_analyzed: int
@@ -222,6 +237,7 @@ class SiteAuditAndLinkResult(BaseModel):
     rdf_ntriples: Optional[str] = Field(default=None, description="Serialized W3C N-Triples (.nt) triple store dump")
     owl_xml: Optional[str] = Field(default=None, description="Serialized W3C OWL 2 DL Ontology in RDF/XML format")
     semantic_clustering: Optional[Dict[str, Any]] = Field(default=None, description="TF-IDF cosine similarity clusters and cannibalization matrix")
+    predicted_links: List[PredictedLink] = Field(default_factory=list, description="AI-predicted high-confidence missing KG relations")
     validation_report: Optional[SchemaValidationReport] = None
 
 
@@ -278,6 +294,40 @@ class SparqlQueryResponse(BaseModel):
     row_count: int = Field(default=0, description="Total rows returned")
     execution_status: str = Field(default="success", description="'success' or 'failed'")
     error: Optional[str] = Field(default=None, description="Detailed error message if query execution failed")
+
+
+class LinkPredictionRequest(BaseModel):
+    """
+    Request model for inferring missing knowledge graph relations (PyKEEN / TransE paradigm).
+    """
+    domain: str = Field(default="example.com", description="Target domain of the knowledge graph")
+    triples: List[SemanticTriple] = Field(default_factory=list, description="Existing extracted relational triples")
+    entities: List[str] = Field(default_factory=list, description="Recognized key entities")
+    topic_hubs: Dict[str, str] = Field(default_factory=dict, description="Canonical topic hubs map")
+
+
+class LinkPredictionResponse(BaseModel):
+    """
+    Structured prediction report identifying missing knowledge graph links and graph completion score.
+    """
+    domain: str
+    existing_triples_count: int
+    predicted_links_count: int
+    predicted_links: List[PredictedLink] = Field(default_factory=list)
+    graph_completeness_score: float = Field(..., description="Overall relational completeness (0-100)")
+    model_name: str = Field(default="TransE / ComplEx KG Link Predictor (PyKEEN Paradigm)")
+
+
+class ExportGraphHtmlRequest(BaseModel):
+    """
+    Request model for generating a standalone, interactive PyVis / Vis.js network graph HTML file.
+    """
+    domain: str = Field(default="example.com")
+    cluster_topology: Optional[ClusterTopology] = None
+    triples: List[SemanticTriple] = Field(default_factory=list)
+    topic_hubs: Dict[str, str] = Field(default_factory=dict)
+    predicted_links: List[PredictedLink] = Field(default_factory=list)
+
 
 
 

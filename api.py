@@ -22,6 +22,8 @@ from linking import (
     execute_sparql_query_on_ttl,
     export_to_owl_xml
 )
+from link_prediction import predict_kg_links
+from graph_export import generate_standalone_graph_html
 from models import (
     ReadinessBreakdown,
     EntityMatch,
@@ -37,7 +39,11 @@ from models import (
     SearchSimulationRequest,
     SearchSimulationResponse,
     SparqlQueryRequest,
-    SparqlQueryResponse
+    SparqlQueryResponse,
+    PredictedLink,
+    LinkPredictionRequest,
+    LinkPredictionResponse,
+    ExportGraphHtmlRequest
 )
 
 app = FastAPI(
@@ -204,7 +210,9 @@ def api_info():
             "wikidata_entity_grounding": True,
             "owl_2_dl_export": True,
             "semantic_clustering": True,
-            "benchmark_csv_export": True
+            "benchmark_csv_export": True,
+            "kg_link_prediction": True,
+            "pyvis_graph_html_export": True
         },
         "endpoints": {
             "dashboard": "GET /dashboard",
@@ -218,6 +226,8 @@ def api_info():
             "export-owl": "POST /api/export-owl",
             "semantic-clusters": "POST /api/semantic-clusters",
             "benchmark-export-csv": "POST /api/benchmark/export-csv",
+            "predict-links": "POST /api/predict-links",
+            "export-graph-html": "POST /api/export-graph-html",
             "health": "GET /api/health"
         }
     }
@@ -397,6 +407,38 @@ def api_export_benchmark_csv(req: BenchmarkCsvExportRequest):
             "; ".join(item.get("gaps", [])) if isinstance(item.get("gaps"), list) else str(item.get("gaps", ""))
         ])
     return PlainTextResponse(content=output.getvalue(), media_type="text/csv")
+
+
+@app.post("/api/predict-links", response_model=LinkPredictionResponse, summary="Predict Missing Knowledge Graph Relations (PyKEEN Paradigm)")
+def api_predict_links(req: LinkPredictionRequest):
+    """
+    Infers missing high-probability relational links across the knowledge graph,
+    computes graph completeness, and grounds predicted entities to Wikidata Q-IDs.
+    """
+    try:
+        return predict_kg_links(req.domain, req.triples, req.entities, req.topic_hubs)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Link prediction failed: {str(e)}")
+
+
+@app.post("/api/export-graph-html", summary="Export Standalone Interactive PyVis/Vis.js Graph HTML")
+def api_export_graph_html(req: ExportGraphHtmlRequest):
+    """
+    Generates a standalone, fully-interactive Vis.js HTML document with physics
+    simulation, node search, filtering, and entity metadata drawer.
+    """
+    try:
+        html = generate_standalone_graph_html(
+            domain=req.domain,
+            topology=req.cluster_topology,
+            triples=req.triples,
+            topic_hubs=req.topic_hubs,
+            predicted_links=req.predicted_links
+        )
+        return HTMLResponse(content=html, media_type="text/html")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate interactive graph HTML: {str(e)}")
+
 
 
 

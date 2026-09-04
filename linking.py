@@ -51,6 +51,8 @@ import networkx as nx
 from rdflib import Graph, Literal, RDF, RDFS, URIRef, Namespace, OWL, XSD
 from validator import validate_schema_patch
 from clustering import analyze_semantic_clusters
+from link_prediction import predict_kg_links
+from graph_export import generate_standalone_graph_html
 from pipeline import (
     OntologyPipeline,
     get_default_pipeline,
@@ -522,6 +524,9 @@ async def audit_internal_links(
     # Compute TF-IDF Cosine Similarity Matrix & Semantic Clusters
     cluster_analysis = analyze_semantic_clusters(pages_data, hubs)
 
+    # Infer Missing Knowledge Graph Relations via AI Link Prediction (PyKEEN Paradigm)
+    kg_prediction = predict_kg_links(domain, deduped_triples, list(collected_entities), hubs)
+
     return SiteAuditAndLinkResult(
         root_domain=domain,
         pages_analyzed=len(pages_data),
@@ -541,6 +546,7 @@ async def audit_internal_links(
         rdf_ntriples=rdf_ntriples,
         owl_xml=owl_xml,
         semantic_clustering=cluster_analysis.model_dump(),
+        predicted_links=kg_prediction.predicted_links,
         validation_report=validation_rep
     )
 
