@@ -220,6 +220,8 @@ class SiteAuditAndLinkResult(BaseModel):
     robots_txt_ai: Optional[str] = None
     rdf_turtle: Optional[str] = None
     rdf_ntriples: Optional[str] = Field(default=None, description="Serialized W3C N-Triples (.nt) triple store dump")
+    owl_xml: Optional[str] = Field(default=None, description="Serialized W3C OWL 2 DL Ontology in RDF/XML format")
+    semantic_clustering: Optional[Dict[str, Any]] = Field(default=None, description="TF-IDF cosine similarity clusters and cannibalization matrix")
     validation_report: Optional[SchemaValidationReport] = None
 
 

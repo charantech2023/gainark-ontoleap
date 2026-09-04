@@ -424,12 +424,18 @@
                             <h3 class="text-base font-bold text-slate-900">Comparative Findings Table</h3>
                             <p class="text-xs text-slate-500" id="bench-meta-text">Comparison results</p>
                         </div>
-                        <button onclick="exportBenchmarkReport()" class="no-print inline-flex items-center gap-1.5 px-3.5 py-1.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition">
-                            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                            </svg>
-                            Export Benchmark Report
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button onclick="exportBenchmarkCsv()" class="no-print inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition cursor-pointer">
+                                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                Export CSV
+                            </button>
+                            <button onclick="exportBenchmarkReport()" class="no-print inline-flex items-center gap-1.5 px-3.5 py-1.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition cursor-pointer">
+                                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                </svg>
+                                Export Report (MD)
+                            </button>
+                        </div>
                     </div>
 
                     <div class="overflow-x-auto">
@@ -878,9 +884,15 @@
 
                 <!-- Canonical Topic Hubs Table Card -->
                 <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-                    <div>
-                        <h3 class="text-base font-bold text-slate-900">Canonical Topic Authority Hubs</h3>
-                        <p class="text-xs text-slate-500">The single primary landing page algorithmically designated to anchor each core entity and capability.</p>
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900">Canonical Topic Authority Hubs</h3>
+                            <p class="text-xs text-slate-500">The single primary landing page algorithmically designated to anchor each core entity and capability.</p>
+                        </div>
+                        <button onclick="exportTopicHubsCsv()" class="no-print inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition cursor-pointer">
+                            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            Export Hubs (CSV)
+                        </button>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs border-collapse min-w-[650px]">
@@ -896,6 +908,47 @@
                                 <!-- Injected rows -->
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- Semantic Topic Clusters & Cosine Overlap Matrix Card -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h3 class="text-base font-bold text-slate-900">Semantic Topic Clusters &amp; TF-IDF Overlap Matrix</h3>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700">Cosine Distance</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">Mathematical L2-normalized TF-IDF vector clustering and cosine similarity analysis across crawled pages.</p>
+                        </div>
+                    </div>
+
+                    <!-- Thematic Topic Silos Grid -->
+                    <div id="semantic-clusters-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 text-center text-xs text-slate-400">
+                            Run an internal links audit to compute mathematical TF-IDF clusters.
+                        </div>
+                    </div>
+
+                    <!-- High Similarity Overlap & Cannibalization Pairs -->
+                    <div class="pt-2 border-t border-slate-100 space-y-2">
+                        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">High Cosine Similarity Overlap Radar (&ge; 0.40):</h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                                        <th class="py-2 px-3">Page A</th>
+                                        <th class="py-2 px-3">Page B</th>
+                                        <th class="py-2 px-3 text-center">Cosine Similarity</th>
+                                        <th class="py-2 px-3">Overlapping Semantic Terms</th>
+                                        <th class="py-2 px-3 text-right">Topical Risk Level</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="similarity-pairs-tbody" class="divide-y divide-slate-100 font-mono text-[11px]">
+                                    <tr><td colspan="5" class="py-3 text-center text-slate-400 font-sans">No high-overlap pairs detected yet.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -1214,6 +1267,16 @@
                                 <svg class="w-3.5 h-3.5 mr-1.5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                                 <span>N-Triples (.nt)</span>
                             </button>
+
+                            <button
+                                type="button"
+                                onclick="downloadOwlOntology()"
+                                id="site-owl-dl-btn"
+                                class="inline-flex items-center justify-center px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold shadow-sm transition cursor-pointer"
+                            >
+                                <svg class="w-3.5 h-3.5 mr-1.5 text-amber-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                <span>OWL 2 (.owl)</span>
+                            </button>
                         </div>
                     </div>
 
@@ -1296,6 +1359,7 @@ SELECT ?capability ?evidence WHERE {
         let currentSiteGraphJson = '';
         let currentSiteGraphTurtle = '';
         let currentSiteGraphNTriples = '';
+        let currentSiteGraphOwl = '';
         let currentSiteGraphTab = 'json';
 
         function escapeHtml(str) {
@@ -2135,6 +2199,35 @@ SELECT ?capability ?evidence WHERE {
             downloadMarkdown(`benchmark-report-${Date.now()}.md`, md);
         }
 
+        function exportBenchmarkCsv() {
+            if (!currentBenchmarkData || !currentBenchmarkData.items) {
+                alert('No benchmark data available. Run a benchmark first.');
+                return;
+            }
+            const headers = ['URL', 'Is Primary', 'Readiness Score', 'Mandatory Schema Passed', 'Mandatory Schema Total', 'Entities Found', 'Top Missing Concepts'];
+            const rows = currentBenchmarkData.items.map(r => [
+                r.url,
+                r.is_primary ? 'Yes' : 'No',
+                r.readiness_score ? r.readiness_score.toFixed(1) : '0.0',
+                r.schema_passed || 0,
+                r.schema_total || 0,
+                r.entity_count || 0,
+                (r.top_missing || []).join('; ')
+            ]);
+            let csv = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csv += row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',') + '\n';
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `benchmark-comparative-matrix-${Date.now()}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+        }
+
         // ─── Site-Wide Graph & Internal Linking Logic ─────────────────────────
         async function handleInternalLinks(e) {
             e.preventDefault();
@@ -2469,6 +2562,12 @@ SELECT ?capability ?evidence WHERE {
                 document.getElementById('site-turtle-code').innerText = currentSiteGraphTurtle;
             }
             currentSiteGraphNTriples = data.rdf_ntriples || '';
+            currentSiteGraphOwl = data.owl_xml || '';
+
+            // Render Semantic Clusters & Cosine Overlap Matrix
+            if (data.semantic_clustering) {
+                renderSemanticClusters(data.semantic_clustering);
+            }
 
             // Render Autonomous /llms.txt and robots.txt AI rules
             if (data.llms_txt) {
@@ -2983,6 +3082,139 @@ SELECT ?capability ?evidence WHERE {
             document.body.appendChild(a);
             a.click();
             setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+        }
+
+        async function downloadOwlOntology() {
+            let owl = currentSiteGraphOwl || (currentLinkingData && currentLinkingData.owl_xml) || '';
+            const turtle = currentSiteGraphTurtle || (currentLinkingData && currentLinkingData.rdf_turtle) || '';
+            if (!owl && (!turtle || turtle.startsWith('# No RDF Turtle'))) {
+                alert('No ontology model available to download. Please run an internal links audit first.');
+                return;
+            }
+            if (!owl && turtle) {
+                try {
+                    const resp = await fetch('/api/export-owl', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            root_domain: (currentLinkingData && currentLinkingData.root_domain) || 'site',
+                            rdf_turtle: turtle
+                        })
+                    });
+                    if (resp.ok) {
+                        owl = await resp.text();
+                        currentSiteGraphOwl = owl;
+                    }
+                } catch (e) {
+                    console.warn('Failed to fetch OWL ontology:', e);
+                }
+            }
+            if (!owl) {
+                alert('Could not generate OWL 2 ontology.');
+                return;
+            }
+            const domain = (currentLinkingData && currentLinkingData.root_domain) || 'site';
+            const cleanDomain = domain.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const blob = new Blob([owl], { type: 'application/rdf+xml;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${cleanDomain}-ontology.owl`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+        }
+
+        function exportTopicHubsCsv() {
+            if (!currentLinkingData || !currentLinkingData.topic_hubs_detailed) {
+                alert('No topic hubs data available. Run an audit first.');
+                return;
+            }
+            const headers = ['Concept / Entity', 'Canonical Hub URL', 'PageRank Score', 'Betweenness Centrality', 'Inbound Internal Links', 'Taxonomy Role'];
+            const rows = currentLinkingData.topic_hubs_detailed.map(h => [
+                h.concept,
+                h.canonical_url,
+                h.pagerank_score || 0,
+                h.betweenness_centrality || 0,
+                h.inbound_internal_links || 0,
+                h.taxonomy_role || 'Spoke Node'
+            ]);
+            let csv = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csv += row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',') + '\n';
+            });
+            const domain = currentLinkingData.root_domain || 'site';
+            const cleanDomain = domain.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${cleanDomain}-topic-hubs.csv`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+        }
+
+        function renderSemanticClusters(clustering) {
+            const grid = document.getElementById('semantic-clusters-grid');
+            const tbody = document.getElementById('similarity-pairs-tbody');
+            if (!grid || !tbody) return;
+
+            // 1. Thematic Topic Silos
+            const clusters = clustering.clusters || [];
+            if (clusters.length === 0) {
+                grid.innerHTML = '<div class="p-4 rounded-xl border border-slate-200 bg-slate-50 text-center text-xs text-slate-400">No clusters identified.</div>';
+            } else {
+                grid.innerHTML = '';
+                clusters.forEach(c => {
+                    const card = document.createElement('div');
+                    card.className = 'p-4 rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50/50 to-white shadow-sm space-y-2';
+                    const kwPills = (c.theme_keywords || []).map(k => `<span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 text-[10px] font-bold">${escapeHtml(k)}</span>`).join(' ');
+                    const pageList = (c.pages || []).map(p => `<li class="truncate text-[11px] font-mono text-slate-600"><a href="${escapeHtml(p)}" target="_blank" class="hover:underline hover:text-indigo-600">${escapeHtml(p)}</a></li>`).join('');
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-bold text-slate-900">${escapeHtml(c.cluster_name)}</h4>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-white text-indigo-700 border border-indigo-200">Cohesion: ${c.cohesion_score}</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 flex-wrap">${kwPills}</div>
+                        <ul class="space-y-1 list-disc list-inside pt-1">${pageList}</ul>
+                    `;
+                    grid.appendChild(card);
+                });
+            }
+
+            // 2. High Similarity Overlap Pairs
+            const pairs = clustering.high_similarity_pairs || [];
+            if (pairs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="py-3 text-center text-slate-400 font-sans">No high-overlap pairs detected (inter-page silos cleanly isolated).</td></tr>';
+            } else {
+                tbody.innerHTML = '';
+                pairs.forEach(pair => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50 transition';
+                    const riskBadge = pair.similarity_score >= 0.70
+                        ? 'bg-rose-100 text-rose-800 border border-rose-200 font-bold'
+                        : 'bg-amber-100 text-amber-800 border border-amber-200 font-semibold';
+                    tr.innerHTML = `
+                        <td class="py-2.5 px-3 max-w-[200px] truncate" title="${escapeHtml(pair.url_a)}">
+                            <a href="${escapeHtml(pair.url_a)}" target="_blank" class="text-brand-600 hover:underline">${escapeHtml(pair.url_a)}</a>
+                        </td>
+                        <td class="py-2.5 px-3 max-w-[200px] truncate" title="${escapeHtml(pair.url_b)}">
+                            <a href="${escapeHtml(pair.url_b)}" target="_blank" class="text-brand-600 hover:underline">${escapeHtml(pair.url_b)}</a>
+                        </td>
+                        <td class="py-2.5 px-3 text-center font-bold text-slate-900">
+                            ${pair.similarity_score.toFixed(3)}
+                        </td>
+                        <td class="py-2.5 px-3 text-slate-600">
+                            ${(pair.overlap_keywords || []).join(', ') || '—'}
+                        </td>
+                        <td class="py-2.5 px-3 text-right">
+                            <span class="px-2 py-0.5 rounded text-[10px] ${riskBadge}">${escapeHtml(pair.risk_level)}</span>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
         }
 
         async function runSparqlQuery() {

@@ -48,8 +48,9 @@ from models import (
     CannibalizationRiskItem
 )
 import networkx as nx
-from rdflib import Graph, Literal, RDF, RDFS, URIRef, Namespace
+from rdflib import Graph, Literal, RDF, RDFS, URIRef, Namespace, OWL, XSD
 from validator import validate_schema_patch
+from clustering import analyze_semantic_clusters
 from pipeline import (
     OntologyPipeline,
     get_default_pipeline,
@@ -513,9 +514,13 @@ async def audit_internal_links(
     llms_manifest = generate_llms_txt(domain, hubs, deduped_triples, list(collected_entities))
     robots_manifest = generate_robots_txt_ai(domain, hubs)
 
-    # Generate Enterprise RDF Turtle Knowledge Graph & N-Triples Dump
+    # Generate Enterprise RDF Turtle, N-Triples Dump & W3C OWL 2 DL Ontology
     rdf_turtle = export_to_rdf_turtle(domain, deduped_triples, hubs, list(collected_entities))
     rdf_ntriples = export_to_rdf_ntriples(domain, deduped_triples, hubs, list(collected_entities))
+    owl_xml = export_to_owl_xml(domain, deduped_triples, hubs, list(collected_entities))
+
+    # Compute TF-IDF Cosine Similarity Matrix & Semantic Clusters
+    cluster_analysis = analyze_semantic_clusters(pages_data, hubs)
 
     return SiteAuditAndLinkResult(
         root_domain=domain,
@@ -534,6 +539,8 @@ async def audit_internal_links(
         robots_txt_ai=robots_manifest,
         rdf_turtle=rdf_turtle,
         rdf_ntriples=rdf_ntriples,
+        owl_xml=owl_xml,
+        semantic_clustering=cluster_analysis.model_dump(),
         validation_report=validation_rep
     )
 
@@ -1099,6 +1106,143 @@ def execute_sparql_query_on_ttl(turtle_data: str, sparql_query: str) -> Dict[str
         "row_count": len(rows),
         "status": "success"
     }
+
+
+def build_owl_ontology(
+    domain: str,
+    triples: List[SemanticTriple],
+    hubs: Dict[str, str],
+    entities: List[str]
+) -> Graph:
+    """
+    Constructs a formal W3C OWL 2 DL ontology model for the enterprise domain,
+    defining classes (Platform, Capability, Integration, ComplianceStandard, PricingModel, TopicHub),
+    object properties with domains and ranges, datatype properties, and named individuals.
+    """
+    g = Graph()
+    ONTO = Namespace(f"https://{domain}/ontology#")
+    SCHEMA = Namespace("https://schema.org/")
+
+    g.bind("owl", OWL)
+    g.bind("onto", ONTO)
+    g.bind("schema", SCHEMA)
+    g.bind("rdfs", RDFS)
+    g.bind("rdf", RDF)
+    g.bind("xsd", XSD)
+
+    # 1. Ontology Declaration
+    onto_uri = URIRef(f"https://{domain}/ontology")
+    g.add((onto_uri, RDF.type, OWL.Ontology))
+    g.add((onto_uri, RDFS.label, Literal(f"{domain} Enterprise Domain Ontology")))
+    g.add((onto_uri, OWL.versionInfo, Literal("2.2.0")))
+
+    # 2. OWL Classes
+    classes = [
+        ("EnterprisePlatform", "Root SaaS or enterprise business platform entity"),
+        ("PlatformCapability", "Core automated feature, workflow, or architectural service"),
+        ("SoftwareIntegration", "External enterprise application or ecosystem integration"),
+        ("ComplianceStandard", "Regulatory, accounting, or security compliance framework"),
+        ("PricingModel", "Commercial monetization, billing, or pricing structure"),
+        ("TopicAuthorityHub", "Canonical topic cluster landing page anchoring topical authority")
+    ]
+    for c_name, c_desc in classes:
+        c_uri = ONTO[c_name]
+        g.add((c_uri, RDF.type, OWL.Class))
+        g.add((c_uri, RDFS.label, Literal(c_name)))
+        g.add((c_uri, RDFS.comment, Literal(c_desc)))
+
+    # 3. OWL Object Properties with Domain & Range
+    obj_props = [
+        ("automatesWorkflow", ONTO.EnterprisePlatform, ONTO.PlatformCapability, "Relates platform to automated workflows"),
+        ("integratesWithSystem", ONTO.EnterprisePlatform, ONTO.SoftwareIntegration, "Relates platform to integrated systems"),
+        ("compliesWithStandard", ONTO.EnterprisePlatform, ONTO.ComplianceStandard, "Relates platform to compliance frameworks"),
+        ("supportsPricingArchitecture", ONTO.EnterprisePlatform, ONTO.PricingModel, "Relates platform to monetization models"),
+        ("anchorsTopicHub", ONTO.EnterprisePlatform, ONTO.TopicAuthorityHub, "Relates platform to its canonical topic hubs")
+    ]
+    for prop_name, domain_uri, range_uri, comment in obj_props:
+        p_uri = ONTO[prop_name]
+        g.add((p_uri, RDF.type, OWL.ObjectProperty))
+        g.add((p_uri, RDFS.domain, domain_uri))
+        g.add((p_uri, RDFS.range, range_uri))
+        g.add((p_uri, RDFS.comment, Literal(comment)))
+
+    # 4. OWL Datatype Properties
+    data_props = [
+        ("evidenceSentence", XSD.string, "Verbatim textual evidence sentence from crawled pages"),
+        ("canonicalUrl", XSD.anyURI, "Canonical webpage URL for this entity")
+    ]
+    for dp_name, range_type, comment in data_props:
+        dp_uri = ONTO[dp_name]
+        g.add((dp_uri, RDF.type, OWL.DatatypeProperty))
+        g.add((dp_uri, RDFS.range, range_type))
+        g.add((dp_uri, RDFS.comment, Literal(comment)))
+
+    # 5. Named Individuals (Instances)
+    brand = triples[0].subject if triples else domain.split(".")[0].capitalize()
+    brand_slug = re.sub(r'[^a-zA-Z0-9]+', '', brand) or "Platform"
+    platform_ind = ONTO[brand_slug]
+    g.add((platform_ind, RDF.type, OWL.NamedIndividual))
+    g.add((platform_ind, RDF.type, ONTO.EnterprisePlatform))
+    g.add((platform_ind, RDFS.label, Literal(brand)))
+    g.add((platform_ind, SCHEMA.url, URIRef(f"https://{domain}/")))
+
+    pred_class_map = {
+        "automates": (ONTO.automatesWorkflow, ONTO.PlatformCapability),
+        "integratesWith": (ONTO.integratesWithSystem, ONTO.SoftwareIntegration),
+        "compliesWith": (ONTO.compliesWithStandard, ONTO.ComplianceStandard),
+        "supportsPricingModel": (ONTO.supportsPricingArchitecture, ONTO.PricingModel)
+    }
+
+    seen_individuals = set()
+    for t in triples:
+        obj_slug = re.sub(r'[^a-zA-Z0-9]+', '', t.object)
+        if not obj_slug or obj_slug in seen_individuals:
+            continue
+        seen_individuals.add(obj_slug)
+
+        ind_uri = ONTO[obj_slug]
+        prop_uri, class_uri = pred_class_map.get(t.predicate, (SCHEMA.knowsAbout, ONTO.PlatformCapability))
+
+        g.add((ind_uri, RDF.type, OWL.NamedIndividual))
+        g.add((ind_uri, RDF.type, class_uri))
+        g.add((ind_uri, RDFS.label, Literal(t.object)))
+        g.add((platform_ind, prop_uri, ind_uri))
+
+        if t.evidence_sentence:
+            g.add((ind_uri, ONTO.evidenceSentence, Literal(t.evidence_sentence)))
+
+        obj_lower = t.object.lower().strip()
+        if obj_lower in WIKIDATA_KNOWLEDGE_BASE:
+            g.add((ind_uri, SCHEMA.sameAs, URIRef(WIKIDATA_KNOWLEDGE_BASE[obj_lower])))
+
+    # Hub individuals
+    for concept, hub_url in hubs.items():
+        c_slug = re.sub(r'[^a-zA-Z0-9]+', '', concept)
+        if not c_slug:
+            continue
+        hub_ind = ONTO[f"Hub_{c_slug}"]
+        g.add((hub_ind, RDF.type, OWL.NamedIndividual))
+        g.add((hub_ind, RDF.type, ONTO.TopicAuthorityHub))
+        g.add((hub_ind, RDFS.label, Literal(f"{concept} Authority Hub")))
+        g.add((hub_ind, ONTO.canonicalUrl, URIRef(hub_url)))
+        g.add((platform_ind, ONTO.anchorsTopicHub, hub_ind))
+
+    return g
+
+
+def export_to_owl_xml(
+    domain: str,
+    triples: List[SemanticTriple],
+    hubs: Dict[str, str],
+    entities: List[str]
+) -> str:
+    """
+    Serializes the domain ontology into formal W3C OWL 2 DL RDF/XML (.owl) format.
+    Compatible with Protégé, TopBraid Composer, Apache Jena, and semantic reasoners.
+    """
+    g = build_owl_ontology(domain, triples, hubs, entities)
+    return g.serialize(format="xml")
+
 
 
 

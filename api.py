@@ -16,7 +16,12 @@ from pydantic import BaseModel, Field
 from rdflib import Graph
 
 from pipeline import OntologyPipeline, crawl_and_build_unified_graph
-from linking import audit_internal_links, simulate_search_response, execute_sparql_query_on_ttl
+from linking import (
+    audit_internal_links,
+    simulate_search_response,
+    execute_sparql_query_on_ttl,
+    export_to_owl_xml
+)
 from models import (
     ReadinessBreakdown,
     EntityMatch,
@@ -196,7 +201,10 @@ def api_info():
             "sparql_query_engine": True,
             "w3c_rdf_turtle_export": True,
             "w3c_ntriples_export": True,
-            "wikidata_entity_grounding": True
+            "wikidata_entity_grounding": True,
+            "owl_2_dl_export": True,
+            "semantic_clustering": True,
+            "benchmark_csv_export": True
         },
         "endpoints": {
             "dashboard": "GET /dashboard",
@@ -207,6 +215,9 @@ def api_info():
             "simulate-search": "POST /api/simulate-search",
             "sparql": "POST /api/sparql",
             "export-ntriples": "POST /api/export-ntriples",
+            "export-owl": "POST /api/export-owl",
+            "semantic-clusters": "POST /api/semantic-clusters",
+            "benchmark-export-csv": "POST /api/benchmark/export-csv",
             "health": "GET /api/health"
         }
     }
@@ -313,6 +324,80 @@ def api_export_ntriples(req: NTriplesExportRequest):
         return PlainTextResponse(content=nt_data, media_type="application/n-triples")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to serialize N-Triples: {str(e)}")
+
+
+class OwlExportRequest(BaseModel):
+    root_domain: str = Field(default="example.com", description="Root domain of the platform")
+    triples: List[SemanticTriple] = Field(default_factory=list, description="Extracted relational triples")
+    topic_hubs: Dict[str, str] = Field(default_factory=dict, description="Canonical topic hubs map")
+    entities: List[str] = Field(default_factory=list, description="Extracted entities")
+    rdf_turtle: Optional[str] = Field(default=None, description="Optional Turtle to convert directly")
+
+
+@app.post("/api/export-owl", summary="Generate and Export W3C OWL 2 DL Ontology")
+def api_export_owl(req: OwlExportRequest):
+    """
+    Generates a formal W3C OWL 2 DL RDF/XML (.owl) ontology defining classes,
+    object properties, data properties, and named individuals with Wikidata grounding.
+    """
+    try:
+        if req.rdf_turtle and req.rdf_turtle.strip():
+            g = Graph()
+            g.parse(data=req.rdf_turtle, format="turtle")
+            owl_xml = g.serialize(format="xml")
+            return PlainTextResponse(content=owl_xml, media_type="application/rdf+xml")
+
+        owl_xml = export_to_owl_xml(req.root_domain, req.triples, req.topic_hubs, req.entities)
+        return PlainTextResponse(content=owl_xml, media_type="application/rdf+xml")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate OWL ontology: {str(e)}")
+
+
+class SemanticClustersRequest(BaseModel):
+    urls: List[str] = Field(default_factory=list)
+    sitemap_url: Optional[str] = None
+    max_pages: int = 10
+
+
+@app.post("/api/semantic-clusters", summary="Compute TF-IDF Cosine Similarity & Topic Clusters")
+async def api_semantic_clusters(req: SemanticClustersRequest):
+    """
+    Analyzes content across site pages, computing TF-IDF vectors, pairwise cosine
+    similarity matrix, cannibalization overlaps (>=0.70), and thematic topic silos.
+    """
+    try:
+        audit_res = await audit_internal_links(sitemap_url=req.sitemap_url, urls=req.urls, max_pages=req.max_pages)
+        return audit_res.semantic_clustering or {}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Semantic cluster analysis failed: {str(e)}")
+
+
+class BenchmarkCsvExportRequest(BaseModel):
+    comparative_table: List[Dict[str, Any]]
+
+
+@app.post("/api/benchmark/export-csv", summary="Export Competitor Benchmark Matrix as CSV")
+def api_export_benchmark_csv(req: BenchmarkCsvExportRequest):
+    """
+    Converts competitive benchmark data table into standardized CSV format for pandas/spreadsheet ingestion.
+    """
+    import csv
+    import io
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Rank", "Domain", "Readiness Score", "Schema Valid", "Entities Found", "Triples Extracted", "Key Gaps"])
+    for item in req.comparative_table:
+        writer.writerow([
+            item.get("rank", ""),
+            item.get("url", ""),
+            item.get("readiness_score", 0),
+            "Yes" if item.get("schema_valid") else "No",
+            item.get("entity_count", 0),
+            item.get("triple_count", 0),
+            "; ".join(item.get("gaps", [])) if isinstance(item.get("gaps"), list) else str(item.get("gaps", ""))
+        ])
+    return PlainTextResponse(content=output.getvalue(), media_type="text/csv")
+
 
 
 
