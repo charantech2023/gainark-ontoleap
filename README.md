@@ -3,20 +3,29 @@
 
 ---
 
-## Quick Start / Resuming the Server
+## 🚀 Live Production Deployment (Google Cloud Run)
 
-To launch or resume the application, run:
+GainARK OntoLeap is live and publicly accessible:
+- **Production Dashboard**: [https://gainark-ontoleap-35509275124.asia-south1.run.app/dashboard](https://gainark-ontoleap-35509275124.asia-south1.run.app/dashboard)
+- **Production OpenAPI Docs**: [https://gainark-ontoleap-35509275124.asia-south1.run.app/docs](https://gainark-ontoleap-35509275124.asia-south1.run.app/docs)
+- **Service Info & Health**: [https://gainark-ontoleap-35509275124.asia-south1.run.app/api/info](https://gainark-ontoleap-35509275124.asia-south1.run.app/api/info)
 
-\\ash
-# Activate virtual environment
+---
+
+## Local Development & Quick Start
+
+To launch the local development server:
+
+`powershell
+# 1. Activate virtual environment
 .\venv\Scripts\activate
 
-# Launch the server (defaults to port 8080)
+# 2. Launch the server (defaults to port 8080)
 python dashboard.py --port 8080
-\
-- **Interactive Dashboard**: [http://localhost:8080/dashboard](http://localhost:8080/dashboard)
-- **FastAPI OpenAPI Docs**: [http://localhost:8080/docs](http://localhost:8080/docs)
-- **Service Info & Feature Flags**: [http://localhost:8080/api/info](http://localhost:8080/api/info)
+`
+
+- **Local Web Dashboard**: [http://localhost:8080/dashboard](http://localhost:8080/dashboard)
+- **Local API Docs**: [http://localhost:8080/docs](http://localhost:8080/docs)
 
 ---
 
@@ -25,28 +34,30 @@ python dashboard.py --port 8080
 | File | Purpose |
 | :--- | :--- |
 | **dashboard.py** | Server launcher with dynamic port negotiation (8080/8000/fallback) and logging banner. |
-| **pi.py** | FastAPI application hosting all endpoints (\/api/audit\, \/api/benchmark\, \/api/internal-links\, \/api/simulate-search\, \/api/batch-crawl\, \/dashboard\). |
-| **pipeline.py** | GLiNER-powered zero-shot entity extraction, rule-based relational semantic triple extractors (automates, integratesWith, compliesWith, supportsPricingModel), and async multi-page sitemap batch crawler. |
-| **linking.py** | Topic authority hub resolution, contextual internal link opportunity matrix, megamenu/nav stripping, AI Citation Readiness Index, topological graph builder, \/llms.txt\ generator, obots.txt\ generator, and WordPress PHP auto-injector hook. |
+| **pi.py** | FastAPI application hosting all endpoints (/api/audit, /api/benchmark, /api/internal-links, /api/simulate-search, /api/batch-crawl, /dashboard). |
+| **pipeline.py** | GLiNER-powered zero-shot entity extraction, rule-based relational semantic triple extractors (utomates, integratesWith, compliesWith, supportsPricingModel), and async multi-page sitemap batch crawler. |
+| **linking.py** | Topic authority hub resolution, contextual internal link opportunity matrix, megamenu/nav stripping, AI Citation Readiness Index, topological graph builder, /llms.txt generator, 
+obots.txt generator, and WordPress PHP auto-injector hook. |
 | **
-emediation.py** | Dynamic, domain-aware Schema.org remediation engine generating validated \SoftwareApplication\, \Organization\, and \Offer\ JSON-LD nodes. |
+emediation.py** | Dynamic, domain-aware Schema.org remediation engine generating validated SoftwareApplication, Organization, and Offer JSON-LD nodes. |
 | **alidator.py** | Google Rich Results and Schema.org compliance validator checking required attributes, recommended properties, and calculating penalty-free compliance scores. |
 | **models.py** | Pydantic data contracts for Semantic Triples, Site Graphs, Topic Hubs, AI Readiness, Validation Reports, and Search Simulations. |
 | **	emplates/dashboard.html** | Single-page Tailwind CSS dashboard featuring 3 interactive views: Single-Page Audit, Competitive Benchmarking, and Site Graph & Internal Linking (with Canvas Visualizer, Visual Diff Modal, Search Simulator, and Export tools). |
+| **Dockerfile** | Production container build with PyTorch CPU optimization and pre-cached GLiNER model for instant Cloud Run cold starts. |
 
 ---
 
 ## Core Capabilities Implemented
 
-1. **Semantic Triples Extraction**: 4 B2B SaaS predicates (\utomates\, \integratesWith\, \compliesWith\, \supportsPricingModel\).
-2. **Multi-Page & Sitemap Crawling**: Async crawling of XML sitemaps and index feeds into a consolidated Schema.org \@graph\.
+1. **Semantic Triples Extraction**: 4 B2B SaaS predicates (utomates, integratesWith, compliesWith, supportsPricingModel).
+2. **Multi-Page & Sitemap Crawling**: Async crawling of XML sitemaps and index feeds into a consolidated Schema.org @graph.
 3. **Contextual Internal Linking**: Discovers missing internal links to canonical authority hubs while ignoring megamenus and nav tags.
 4. **AI Search Citation Readiness Index**: 0–100% composite score across Entity Grounding, Relational Density, Silo Integrity, and Schema Coverage.
 5. **Interactive Canvas Visualizer**: Force-directed topological graph of hubs, spokes, entities, and recommended links.
-6. **Perplexity & SearchGPT Simulator**: Synthesizes generative answers grounded in verified domain triples with \[1]\, \[2]\ citations.
+6. **Perplexity & SearchGPT Simulator**: Synthesizes generative answers grounded in verified domain triples with [1], [2] citations.
 7. **Autonomous /llms.txt & robots.txt**: Standards-compliant manifest for AI crawler discovery.
 8. **Google Rich Results Validation**: Pre-deployment audit preventing structured data penalties.
-9. **Automated CMS Auto-Injector**: WordPress \	he_content\ filter hook + Headless CMS JSON rules.
+9. **Automated CMS Auto-Injector**: WordPress 	he_content filter hook + Headless CMS JSON rules.
 10. **In-Content Placement Visual Diff**: Side-by-side modal with 1-click HTML copy.
 
 ---
