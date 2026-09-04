@@ -1,0 +1,29 @@
+{
+  "vertical_id": "b2b_saas_fintech",
+  "display_name": "B2B SaaS & Financial Software",
+  "gliner_labels": [
+    "Software Platform",
+    "Billing Feature",
+    "Accounting Standard",
+    "Integration Partner",
+    "Security Standard",
+    "Pricing Model"
+  ],
+  "mandatory_schema_types": [
+    "SoftwareApplication",
+    "Organization",
+    "Offer"
+  ],
+  "core_seed_concepts": [
+    "Revenue Recognition",
+    "ASC 606",
+    "Subscription Management",
+    "Billing Automation",
+    "ERP Integration",
+    "Accounts Receivable",
+    "Payment Gateway",
+    "SOC 1",
+    "SOC 2",
+    "REST API"
+  ]
+}

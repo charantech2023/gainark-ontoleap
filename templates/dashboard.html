@@ -1,0 +1,3059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GainARK OntoLeap — Autonomous Ontology Intelligence & Semantic Graph</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        pre, code { font-family: 'JetBrains Mono', monospace; }
+        .tab-active {
+            border-bottom: 2px solid #0284c7;
+            color: #0284c7;
+            font-weight: 600;
+        }
+        /* Deep scan toggle */
+        .toggle-track { transition: background-color 0.2s; }
+        input:checked + .toggle-track { background-color: #0284c7; }
+        input:checked + .toggle-track .toggle-thumb { transform: translateX(1.25rem); }
+        .toggle-thumb { transition: transform 0.2s; }
+
+        /* ===== @media print — clean PDF output ===== */
+        @media print {
+            header, nav, footer, .tab-nav,
+            #view-bench, #view-linking, #audit-form, #schema-modal,
+            button, [id$="-btn"], [id$="-spinner"],
+            .no-print { display: none !important; }
+
+            body { background: white !important; font-size: 11pt; color: #0f172a; }
+            main { max-width: 100% !important; padding: 0 !important; }
+            #audit-results, #view-audit { display: block !important; }
+            .hidden { display: block !important; }
+
+            /* Force white backgrounds on cards */
+            .bg-slate-50, .bg-white, .bg-slate-900 { background: white !important; }
+            .shadow-sm, .shadow-md { box-shadow: none !important; }
+            .border { border-color: #e2e8f0 !important; }
+
+            /* Dark code blocks → readable */
+            pre { background: #f8fafc !important; color: #0f172a !important;
+                  border: 1px solid #e2e8f0; font-size: 8pt; white-space: pre-wrap; word-break: break-all; }
+
+            /* Prevent page breaks inside cards */
+            .rounded-2xl, .rounded-xl { page-break-inside: avoid; }
+
+            h1, h2, h3 { page-break-after: avoid; }
+            a { color: #0284c7; text-decoration: underline; }
+
+            /* Print header */
+            #print-header { display: block !important; margin-bottom: 1.5rem;
+                            border-bottom: 2px solid #0284c7; padding-bottom: 0.75rem; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-700 to-sky-500 flex items-center justify-center text-white font-bold shadow-md shadow-sky-500/20">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-extrabold text-slate-900 leading-tight flex items-center gap-1.5">
+                        <span>GainARK OntoLeap</span>
+                        <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-brand-50 text-brand-700 border border-brand-200">v2.0</span>
+                    </h1>
+                    <p class="text-xs text-slate-500">Autonomous Ontology Intelligence &amp; Knowledge Graph Engine</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span class="w-1.5 h-1.5 mr-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                    API Connected
+                </span>
+                <a href="/docs" target="_blank" class="text-xs text-slate-600 hover:text-brand-600 font-medium">API Docs &rarr;</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="bg-white border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-8">
+            <button id="tab-audit-btn" onclick="switchTab('audit')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors tab-active">
+                Single Site Audit
+            </button>
+            <button id="tab-bench-btn" onclick="switchTab('bench')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors">
+                Competitor Benchmark
+            </button>
+            <button id="tab-linking-btn" onclick="switchTab('linking')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors flex items-center gap-1.5">
+                <span>🕸️ Site Graph &amp; Internal Linking</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 uppercase">New</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- ============================================================= -->
+        <!-- TAB 1: SINGLE SITE AUDIT -->
+        <!-- ============================================================= -->
+        <section id="view-audit" class="space-y-8">
+            
+            <!-- Search & Filter Card -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                <form id="audit-form" onsubmit="handleAudit(event)" class="space-y-3">
+                    <div class="flex flex-col sm:flex-row sm:items-end sm:gap-4">
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label for="audit-url" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider">Target Webpage URL</label>
+                                <span class="inline-flex items-center text-[11px] text-brand-700 font-medium bg-brand-50 px-2 py-0.5 rounded-md border border-brand-200">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-brand-500 mr-1 animate-pulse"></span>
+                                    Domain Auto-Detection Active
+                                </span>
+                            </div>
+                            <div class="relative rounded-xl shadow-sm">
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path>
+                                    </svg>
+                                </div>
+                                <input type="url" id="audit-url" required value="https://www.ordwaylabs.com" placeholder="https://example.com" class="block w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white text-slate-900 transition">
+                            </div>
+                        </div>
+                        <div class="sm:self-end flex items-center gap-3">
+                            <button type="submit" id="audit-submit-btn" class="w-full sm:w-auto inline-flex items-center justify-center px-7 py-3 border border-transparent text-sm font-semibold rounded-xl text-white bg-brand-600 hover:bg-brand-700 shadow-md shadow-brand-500/25 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 transition disabled:opacity-50">
+                                <svg id="audit-spinner" class="hidden animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                </svg>
+                                <span id="audit-btn-text">Run Audit</span>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Deep Scan Toggle Row -->
+                    <div class="flex items-center gap-3 pt-1">
+                        <label class="inline-flex items-center cursor-pointer select-none gap-2.5">
+                            <input type="checkbox" id="deep-scan-toggle" class="sr-only peer">
+                            <div class="toggle-track relative w-9 h-5 bg-slate-200 rounded-full peer-focus:ring-2 peer-focus:ring-brand-500">
+                                <div class="toggle-thumb absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow"></div>
+                            </div>
+                            <span class="text-xs font-semibold text-slate-700">Deep Scan Subpages</span>
+                        </label>
+                        <span id="deep-scan-badge" class="hidden inline-flex items-center gap-1 text-[11px] font-medium text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md border border-brand-200">
+                            <span class="w-1.5 h-1.5 rounded-full bg-brand-500 animate-pulse"></span>
+                            Scanning /pricing, /features, /integrations…
+                        </span>
+                        <span class="text-xs text-slate-400">Crawls up to 3 sub-pages (Pricing, Features, Integrations) for deeper product signals</span>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Audit Results View (hidden by default) -->
+            <div id="audit-results" class="hidden space-y-8">
+
+                <!-- Hidden print-only report header -->
+                <div id="print-header" class="hidden">
+                    <h1 class="text-2xl font-bold text-slate-900">Ontology Intelligence Audit Report</h1>
+                    <p class="text-sm text-slate-500" id="print-header-meta">Generated on <span id="print-date"></span></p>
+                </div>
+
+                <!-- Header Info with Auto-Detected Vertical Badge -->
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white p-5 rounded-2xl border border-slate-200">
+                    <div>
+                        <div class="flex items-center space-x-2 mb-1.5">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand-50 text-brand-700 border border-brand-200 shadow-xs">
+                                <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
+                                Vertical: B2B SaaS &amp; Financial Software (Auto-Detected)
+                            </span>
+                            <span id="deep-scan-result-badge" class="hidden inline-flex items-center gap-1 text-[11px] font-medium text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-200">
+                                Deep Scan Active
+                            </span>
+                        </div>
+                        <h2 class="text-xl font-bold text-slate-900" id="res-title">Page Title</h2>
+                        <a id="res-url" href="#" target="_blank" class="text-xs text-brand-600 hover:underline break-all font-mono">https://example.com</a>
+                    </div>
+                    <div class="mt-4 sm:mt-0 flex flex-col items-end gap-2">
+                        <span class="text-xs text-slate-500">Ontology Readiness</span>
+                        <div class="text-3xl font-extrabold" id="res-score-top">--</div>
+                        <button onclick="exportAuditReport()" class="no-print inline-flex items-center gap-1.5 px-3.5 py-1.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition">
+                            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                            </svg>
+                            Export Executive Report
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Readiness Breakdown Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+                    
+                    <!-- Total Score Card -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Readiness Score</span>
+                            <span id="score-badge" class="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">Fair</span>
+                        </div>
+                        <div class="my-4">
+                            <div class="text-4xl font-extrabold text-slate-900" id="card-total-score">0.0</div>
+                            <div class="text-xs text-slate-500 mt-1">out of 100.0 points</div>
+                        </div>
+                        <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                            <div id="card-total-bar" class="bg-brand-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Schema Compliance -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Mandatory Schema</span>
+                            <span class="text-xs font-semibold text-slate-600" id="card-schema-ratio">0/3</span>
+                        </div>
+                        <div class="my-4">
+                            <div class="text-3xl font-extrabold text-slate-900" id="card-schema-score">0.0</div>
+                            <div class="text-xs text-slate-500 mt-1">Weight: 40.0 pts</div>
+                        </div>
+                        <div class="space-y-1.5" id="card-schema-pills">
+                            <!-- Injected Schema status pills -->
+                        </div>
+                    </div>
+
+                    <!-- Seed Concepts -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Seed Concepts</span>
+                            <span class="text-xs font-semibold text-slate-600" id="card-concept-ratio">0/10</span>
+                        </div>
+                        <div class="my-4">
+                            <div class="text-3xl font-extrabold text-slate-900" id="card-concept-score">0.0</div>
+                            <div class="text-xs text-slate-500 mt-1">Weight: 30.0 pts</div>
+                        </div>
+                        <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                            <div id="card-concept-bar" class="bg-emerald-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Entity Richness -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Entity Diversity</span>
+                            <span class="text-xs font-semibold text-slate-600" id="card-entity-ratio">0/6</span>
+                        </div>
+                        <div class="my-4">
+                            <div class="text-3xl font-extrabold text-slate-900" id="card-entity-score">0.0</div>
+                            <div class="text-xs text-slate-500 mt-1">Weight: 30.0 pts</div>
+                        </div>
+                        <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                            <div id="card-entity-bar" class="bg-indigo-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Entity Viewer -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900">Extracted Entities (GLiNER Zero-Shot)</h3>
+                            <p class="text-xs text-slate-500">Domain-specific entities mapped across your vertical ontology labels</p>
+                        </div>
+                        <span id="entity-total-badge" class="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-full">0 entities</span>
+                    </div>
+
+                    <div id="entity-groups" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Grouped entity cards will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Semantic Relationship Graph (Extracted Triples) -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h3 class="text-base font-bold text-slate-900">Semantic Relationship Graph (Extracted Triples)</h3>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 uppercase">Knowledge Graph</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">High-confidence relational facts extracted from page text: (Subject, Predicate, Object)</p>
+                        </div>
+                        <span id="triples-total-badge" class="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-full">0 triples</span>
+                    </div>
+
+                    <div id="triples-container" class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                        <!-- Grouped triples will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Recommended JSON-LD Patch -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h3 class="text-base font-bold text-slate-900">Recommended Schema.org Remediation Patch</h3>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 uppercase">Auto-Generated</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">Inject this <code class="text-brand-600">&lt;script type="application/ld+json"&gt;</code> block to achieve 100% mandatory compliance</p>
+                        </div>
+                    </div>
+
+                    <div id="patch-meta" class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
+                        <!-- Patch metadata -->
+                    </div>
+
+                    <!-- Code Snippet Container with Tab Selector -->
+                    <div class="space-y-3">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-200 pb-2">
+                            <div class="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl w-fit">
+                                <button type="button" id="patch-tab-json" onclick="switchPatchTab('json')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-sm transition">
+                                    Raw JSON-LD
+                                </button>
+                                <button type="button" id="patch-tab-php" onclick="switchPatchTab('php')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900 transition">
+                                    WordPress PHP Snippet
+                                </button>
+                            </div>
+                            <button type="button" onclick="copyPatchCode()" id="patch-copy-btn" class="inline-flex items-center justify-center px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition self-end sm:self-auto">
+                                <svg id="copy-icon" class="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+                                </svg>
+                                <span id="copy-btn-text">Copy JSON-LD</span>
+                            </button>
+                        </div>
+
+                        <div class="relative">
+                            <pre class="bg-slate-900 text-slate-100 p-4 rounded-xl text-xs overflow-x-auto max-h-96 font-mono"><code id="patch-code" class="language-json">Loading patch...</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ============================================================= -->
+        <!-- TAB 2: COMPETITOR BENCHMARK -->
+        <!-- ============================================================= -->
+        <section id="view-bench" class="hidden space-y-8">
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900">Competitive Benchmark &amp; Gap Intelligence</h2>
+                        <p class="text-xs text-slate-500">Benchmark your domain against industry competitors to uncover schema gaps, ontological blind spots, and generate leapfrog patches.</p>
+                    </div>
+                    <span class="inline-flex items-center text-xs font-semibold text-brand-700 bg-brand-50 px-3 py-1 rounded-full border border-brand-200">
+                        <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse mr-1.5"></span>
+                        Comparative AI Audit
+                    </span>
+                </div>
+
+                <form onsubmit="handleBenchmark(event)" class="space-y-4">
+                    <div>
+                        <label for="bench-primary-url" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                            Target Your Domain (Primary Audit)
+                        </label>
+                        <div class="relative rounded-xl shadow-sm">
+                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                                </svg>
+                            </div>
+                            <input type="url" id="bench-primary-url" required value="https://www.ordwaylabs.com" placeholder="https://yourcompany.com" class="block w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white text-slate-900 transition font-medium">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="bench-comp-urls" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                            Competitor URLs (One per line)
+                        </label>
+                        <textarea id="bench-comp-urls" rows="3" required class="block w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white text-slate-900 transition">https://www.chargebee.com
+https://www.maxio.com
+https://stripe.com/billing</textarea>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-xs text-slate-500">Live web extraction, Schema.org verification, and cross-domain entity gap discovery.</span>
+                        <button type="submit" id="bench-submit-btn" class="inline-flex items-center justify-center px-6 py-2.5 border border-transparent text-sm font-semibold rounded-xl text-white bg-brand-600 hover:bg-brand-700 shadow-md shadow-brand-500/25 focus:outline-none focus:ring-2 focus:ring-brand-500 transition disabled:opacity-50">
+                            <svg id="bench-spinner" class="hidden animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                            </svg>
+                            <span id="bench-btn-text">Run Benchmark &amp; Gap Analysis</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Benchmark Results & Gap Container -->
+            <div id="bench-results" class="hidden space-y-8">
+                
+                <!-- Comparative Findings Table Card -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-6 border-b border-slate-200 flex items-center justify-between">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900">Comparative Findings Table</h3>
+                            <p class="text-xs text-slate-500" id="bench-meta-text">Comparison results</p>
+                        </div>
+                        <button onclick="exportBenchmarkReport()" class="no-print inline-flex items-center gap-1.5 px-3.5 py-1.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition">
+                            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                            </svg>
+                            Export Benchmark Report
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                    <th class="py-3.5 px-6">Domain / URL</th>
+                                    <th class="py-3.5 px-6 text-center">Readiness Score</th>
+                                    <th class="py-3.5 px-6 text-center">Mandatory Schema</th>
+                                    <th class="py-3.5 px-6 text-center">Entities</th>
+                                    <th class="py-3.5 px-6">Top Missing Concepts</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bench-table-body" class="divide-y divide-slate-200 text-sm text-slate-700">
+                                <!-- Injected rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Competitive Gap & Remediation Action Plan -->
+                <div id="gap-analysis-card" class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-slate-200 gap-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white flex items-center justify-center font-bold shadow-md shadow-amber-500/20">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900">Competitive Gap &amp; Remediation Action Plan</h3>
+                                <p class="text-xs text-slate-500">Algorithmic blueprint to leapfrog competitors in AI search visibility &amp; Schema readiness</p>
+                            </div>
+                        </div>
+                        <div id="gap-score-summary" class="flex items-center gap-3">
+                            <!-- Injected score gap badge -->
+                        </div>
+                    </div>
+
+                    <!-- 2-Column: Schema Gaps & Keyword Gaps -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        <!-- Schema Gaps -->
+                        <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
+                            <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                                <span class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                    <svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                    </svg>
+                                    Schema Structure Gaps
+                                </span>
+                                <span id="gap-schema-count" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">0 Gaps</span>
+                            </div>
+                            <ul id="gap-schema-list" class="space-y-2 text-xs text-slate-700">
+                                <!-- Injected schema gap items -->
+                            </ul>
+                        </div>
+
+                        <!-- Ontological Keyword Gaps -->
+                        <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
+                            <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                                <span class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                    <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"></path>
+                                    </svg>
+                                    Ontological Keyword Gaps (2+ Competitors)
+                                </span>
+                                <span id="gap-keyword-count" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">0 Keywords</span>
+                            </div>
+                            <ul id="gap-keyword-list" class="space-y-2 text-xs text-slate-700">
+                                <!-- Injected keyword gaps with competitor tags -->
+                            </ul>
+                        </div>
+
+                    </div>
+
+                    <!-- Strategic Action Plan Steps -->
+                    <div class="bg-gradient-to-r from-sky-50 to-indigo-50/60 rounded-xl p-4 border border-sky-200/80 space-y-3">
+                        <div class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                            </svg>
+                            Recommended Execution Roadmap
+                        </div>
+                        <ol id="gap-action-list" class="space-y-2 text-xs text-slate-700 list-decimal list-inside leading-relaxed">
+                            <!-- Injected action plan steps -->
+                        </ol>
+                    </div>
+
+                    <!-- Leapfrog JSON-LD Patch Block -->
+                    <div class="space-y-3">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                                    Leapfrog Remediation JSON-LD Patch
+                                </h4>
+                                <p class="text-xs text-slate-500">Deploy this comprehensive schema to surpass competitor scores and ground canonical entities</p>
+                            </div>
+                            <button onclick="copyLeapfrogPatchJson()" class="inline-flex items-center justify-center px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition">
+                                <svg class="w-3.5 h-3.5 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+                                </svg>
+                                <span id="leapfrog-copy-btn-text">Copy Leapfrog Patch</span>
+                            </button>
+                        </div>
+                        <pre class="bg-slate-900 text-slate-100 p-4 rounded-xl text-xs overflow-x-auto max-h-80 font-mono"><code id="gap-leapfrog-code">{}</code></pre>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ============================================================= -->
+        <!-- TAB 3: SITE GRAPH & INTERNAL LINKING -->
+        <!-- ============================================================= -->
+        <section id="view-linking" class="hidden space-y-8">
+            <!-- Search & Options Card -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                <form id="linking-form" onsubmit="handleInternalLinks(event)" class="space-y-4">
+                    <div>
+                        <div class="flex items-center space-x-2 mb-1">
+                            <h2 class="text-base font-bold text-slate-900">Site-Wide Knowledge Graph &amp; Internal Linking Engine</h2>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 uppercase">Topic Siloing</span>
+                        </div>
+                        <p class="text-xs text-slate-500">Crawl XML sitemaps or custom page sets to identify canonical authority hubs, synthesize a connected knowledge graph, and uncover high-intent internal link opportunities.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                        <div class="md:col-span-3 space-y-1.5">
+                            <label for="linking-sitemap-url" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider">Target XML Sitemap URL</label>
+                            <input
+                                type="url"
+                                id="linking-sitemap-url"
+                                required
+                                placeholder="https://www.ordwaylabs.com/sitemap.xml"
+                                class="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition"
+                            />
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label for="linking-max-pages" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider">Crawl Depth</label>
+                            <select id="linking-max-pages" class="block w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition">
+                                <option value="5">5 Pages (Fast)</option>
+                                <option value="10" selected>10 Pages (Balanced)</option>
+                                <option value="15">15 Pages (Deep)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2">
+                        <button
+                            type="button"
+                            onclick="document.getElementById('linking-urls-container').classList.toggle('hidden')"
+                            class="text-xs text-brand-600 hover:text-brand-700 font-medium hover:underline flex items-center gap-1"
+                        >
+                            <span>+ Or specify exact page URLs manually</span>
+                        </button>
+
+                        <button
+                            type="submit"
+                            id="linking-submit-btn"
+                            class="inline-flex items-center justify-center px-6 py-2.5 border border-transparent rounded-xl shadow-md text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-brand-600 to-sky-600 hover:from-brand-700 hover:to-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 transition-all cursor-pointer"
+                        >
+                            <svg id="linking-spinner" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white hidden" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span id="linking-btn-text">Audit Site &amp; Map Internal Links</span>
+                        </button>
+                    </div>
+
+                    <div id="linking-urls-container" class="hidden pt-2">
+                        <label for="linking-custom-urls" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Custom Page URLs (one per line)</label>
+                        <textarea
+                            id="linking-custom-urls"
+                            rows="4"
+                            placeholder="https://www.ordwaylabs.com/&#10;https://www.ordwaylabs.com/solutions/billing-automation&#10;https://www.ordwaylabs.com/pricing"
+                            class="block w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition"
+                        ></textarea>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Results Section (hidden initially) -->
+            <div id="linking-results" class="hidden space-y-8">
+                <!-- Header with Domain and Export Buttons -->
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-xl font-bold text-slate-900" id="linking-res-domain">ordwaylabs.com</h2>
+                            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-800">Topic Silo Analysis</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1">Cross-page ontology evaluation, topic authority hubs, and internal link optimization matrix.</p>
+                    </div>
+
+                    <div class="flex items-center gap-2.5 flex-wrap">
+                        <button
+                            type="button"
+                            onclick="exportLinksCsv()"
+                            class="inline-flex items-center px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition"
+                        >
+                            <svg class="w-3.5 h-3.5 mr-1.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <span>Export CSV Matrix</span>
+                        </button>
+                        <button
+                            type="button"
+                            onclick="exportLinksMarkdown()"
+                            class="inline-flex items-center px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-sm transition"
+                        >
+                            <svg class="w-3.5 h-3.5 mr-1.5 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <span>Export Markdown Plan</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4 KPI Summary Cards -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pages Analyzed</span>
+                        <div class="text-2xl font-extrabold text-slate-900 mt-1" id="link-kpi-pages">0</div>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Sitemap / Seed targets</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Canonical Topic Hubs</span>
+                        <div class="text-2xl font-extrabold text-brand-600 mt-1" id="link-kpi-hubs">0</div>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Resolved authority pillars</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Link Opportunities</span>
+                        <div class="text-2xl font-extrabold text-indigo-600 mt-1" id="link-kpi-opps">0</div>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Unlinked entity mentions</p>
+                    </div>
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Mesh Entities</span>
+                        <div class="text-2xl font-extrabold text-emerald-600 mt-1" id="link-kpi-entities">0</div>
+                        <p class="text-[11px] text-slate-500 mt-0.5">Unique entities in graph</p>
+                    </div>
+                </div>
+
+                <!-- AI Search Citation Readiness Card -->
+                <div class="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-lg space-y-6 border border-indigo-900/50">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 uppercase tracking-wider">Generative Engine Optimization (GEO)</span>
+                                <span class="text-xs text-slate-400">Perplexity • SearchGPT • Google AI Overviews</span>
+                            </div>
+                            <h3 class="text-lg font-bold text-white mt-1">AI Search Citation Readiness Index</h3>
+                            <p class="text-xs text-slate-300 mt-0.5" id="ai-citation-verdict">Evaluating ontological density and semantic silo cohesion...</p>
+                        </div>
+
+                        <div class="flex items-center gap-4">
+                            <div class="text-right">
+                                <div class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-300" id="ai-total-score">0%</div>
+                                <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Citation Confidence</div>
+                            </div>
+                            <div class="w-16 h-16 relative flex items-center justify-center">
+                                <svg class="w-16 h-16 transform -rotate-90">
+                                    <circle cx="32" cy="32" r="26" stroke="#334155" stroke-width="5" fill="transparent" />
+                                    <circle id="ai-score-circle" cx="32" cy="32" r="26" stroke="#10b981" stroke-width="5" stroke-dasharray="163" stroke-dashoffset="163" stroke-linecap="round" fill="transparent" class="transition-all duration-1000 ease-out" />
+                                </svg>
+                                <span class="absolute text-xs font-bold text-white" id="ai-score-donut-txt">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4 Rubric Bars -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2 border-t border-slate-800">
+                        <div class="space-y-1.5 bg-slate-800/40 p-3.5 rounded-xl border border-slate-800">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300 font-medium">Entity Grounding</span>
+                                <span class="font-bold text-cyan-400" id="ai-score-entity">0 / 25</span>
+                            </div>
+                            <div class="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
+                                <div id="ai-bar-entity" class="bg-cyan-400 h-full rounded-full transition-all duration-700" style="width: 0%"></div>
+                            </div>
+                            <p class="text-[10px] text-slate-400">Named entity density &amp; Wikidata parity</p>
+                        </div>
+
+                        <div class="space-y-1.5 bg-slate-800/40 p-3.5 rounded-xl border border-slate-800">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300 font-medium">Relational Density</span>
+                                <span class="font-bold text-indigo-400" id="ai-score-relational">0 / 25</span>
+                            </div>
+                            <div class="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
+                                <div id="ai-bar-relational" class="bg-indigo-400 h-full rounded-full transition-all duration-700" style="width: 0%"></div>
+                            </div>
+                            <p class="text-[10px] text-slate-400">Extracted subject-predicate triples</p>
+                        </div>
+
+                        <div class="space-y-1.5 bg-slate-800/40 p-3.5 rounded-xl border border-slate-800">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300 font-medium">Topic Silo Integrity</span>
+                                <span class="font-bold text-emerald-400" id="ai-score-silo">0 / 25</span>
+                            </div>
+                            <div class="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
+                                <div id="ai-bar-silo" class="bg-emerald-400 h-full rounded-full transition-all duration-700" style="width: 0%"></div>
+                            </div>
+                            <p class="text-[10px] text-slate-400">Internal link flow to canonical hubs</p>
+                        </div>
+
+                        <div class="space-y-1.5 bg-slate-800/40 p-3.5 rounded-xl border border-slate-800">
+                            <div class="flex justify-between text-xs">
+                                <span class="text-slate-300 font-medium">Schema.org Coverage</span>
+                                <span class="font-bold text-amber-400" id="ai-score-schema">0 / 25</span>
+                            </div>
+                            <div class="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
+                                <div id="ai-bar-schema" class="bg-amber-400 h-full rounded-full transition-all duration-700" style="width: 0%"></div>
+                            </div>
+                            <p class="text-[10px] text-slate-400">Mandatory Application/Org graphs</p>
+                        </div>
+                    </div>
+
+                    <!-- Recommendations -->
+                    <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Strategic Recommendations for LLM Retrieval:</span>
+                        <ul id="ai-recs-list" class="space-y-1 text-xs text-slate-300 list-disc list-inside">
+                            <li>Run site audit to generate AI citation recommendations.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Perplexity & SearchGPT Generative Engine Simulator Card -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h3 class="text-base font-bold text-slate-900">Perplexity &amp; SearchGPT Generative Engine Simulator</h3>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-800 uppercase">Live GEO Attribution Preview</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">Test how leading Generative Search Engines formulate synthesized answers and ground citation sources using your verified ontology.</p>
+                        </div>
+                    </div>
+
+                    <!-- Prompt Suggestion Chips -->
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-xs font-semibold text-slate-500">Sample Prompts:</span>
+                        <button type="button" onclick="setSimQuery('What core financial capabilities does the platform automate?')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-lg transition font-medium cursor-pointer">⚡ What does it automate?</button>
+                        <button type="button" onclick="setSimQuery('What ERP and software integrations are supported?')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-lg transition font-medium cursor-pointer">⚡ What ERPs integrate with it?</button>
+                        <button type="button" onclick="setSimQuery('What accounting and compliance standards are adhered to?')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-lg transition font-medium cursor-pointer">⚡ What compliance standards?</button>
+                        <button type="button" onclick="setSimQuery('What subscription pricing models are supported?')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-lg transition font-medium cursor-pointer">⚡ What pricing models?</button>
+                    </div>
+
+                    <!-- Search Input Form -->
+                    <form onsubmit="handleSimulateSearch(event)" class="flex gap-2">
+                        <input
+                            type="text"
+                            id="sim-query-input"
+                            required
+                            placeholder="Ask any question about platform capabilities, integrations, or compliance..."
+                            class="block w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white transition"
+                        />
+                        <button
+                            type="submit"
+                            id="sim-submit-btn"
+                            class="inline-flex items-center justify-center px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-700 hover:to-indigo-700 text-white rounded-xl text-xs sm:text-sm font-semibold shadow-sm transition shrink-0 cursor-pointer"
+                        >
+                            <svg id="sim-spinner" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white hidden" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            <span id="sim-btn-text">Simulate AI Answer</span>
+                        </button>
+                    </form>
+
+                    <!-- Answer Output Box -->
+                    <div id="sim-result-box" class="hidden p-5 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
+                                    <svg class="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                    <span id="sim-hallucination-badge">Zero Hallucination Risk</span>
+                                </span>
+                                <span class="text-xs text-slate-500">Confidence: <b class="text-slate-800" id="sim-confidence-txt">96%</b></span>
+                            </div>
+                        </div>
+
+                        <!-- Synthesized Generative Text -->
+                        <div class="text-sm text-slate-800 leading-relaxed font-sans" id="sim-answer-text">
+                            <!-- Injected markdown text -->
+                        </div>
+
+                        <!-- Citations Sources Grid -->
+                        <div class="pt-3 border-t border-slate-200 space-y-2">
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Grounded Citation Sources Attributed to Domain:</span>
+                            <div id="sim-citations-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                <!-- Injected citations -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interactive Topological Topic Cluster Visualizer Card -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h3 class="text-base font-bold text-slate-900">Topological Topic Cluster &amp; Knowledge Graph</h3>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700">Interactive Mesh</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">Force-directed visualization of canonical authority hubs, spoke landing pages, entities, and recommended link paths.</p>
+                        </div>
+
+                        <!-- Legend & Controls -->
+                        <div class="flex items-center gap-3 text-xs flex-wrap">
+                            <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-purple-600 inline-block shadow-sm"></span><span class="text-slate-600 font-medium">Authority Hub</span></div>
+                            <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-sky-500 inline-block shadow-sm"></span><span class="text-slate-600 font-medium">Spoke Page</span></div>
+                            <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500 inline-block shadow-sm"></span><span class="text-slate-600 font-medium">Entity Concept</span></div>
+                            <div class="flex items-center gap-1.5"><span class="w-3 h-0.5 bg-indigo-500 inline-block"></span><span class="text-slate-600 font-medium">Recommended Link</span></div>
+                            <button
+                                type="button"
+                                onclick="resetGraphZoom()"
+                                class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition"
+                            >Reset View</button>
+                        </div>
+                    </div>
+
+                    <!-- Canvas Container -->
+                    <div class="relative w-full h-[450px] bg-slate-950 rounded-xl overflow-hidden border border-slate-900 shadow-inner">
+                        <canvas id="cluster-canvas" class="w-full h-full block cursor-grab active:cursor-grabbing"></canvas>
+                        <div id="graph-tooltip" class="absolute hidden z-20 px-3 py-2 bg-slate-900/95 text-white text-xs rounded-xl shadow-xl border border-slate-700 pointer-events-none transition-opacity">
+                            <div class="font-bold text-cyan-300" id="tooltip-title">Node</div>
+                            <div class="text-[11px] text-slate-300 mt-0.5" id="tooltip-desc">Details</div>
+                        </div>
+                        <div class="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur-sm px-2.5 py-1 rounded-lg text-[10px] text-slate-400 border border-slate-800">
+                            Drag nodes to rearrange • Scroll to zoom • Drag background to pan
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Canonical Topic Hubs Table Card -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">Canonical Topic Authority Hubs</h3>
+                        <p class="text-xs text-slate-500">The single primary landing page algorithmically designated to anchor each core entity and capability.</p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse min-w-[650px]">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                                    <th class="py-2.5 px-4 w-1/4">Entity / Capability</th>
+                                    <th class="py-2.5 px-4 w-1/2">Canonical Hub Landing Page</th>
+                                    <th class="py-2.5 px-4 w-1/4 text-right">Taxonomy Role</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topic-hubs-tbody" class="divide-y divide-slate-100 font-sans">
+                                <!-- Injected rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Prioritized Internal Link Matrix Table Card -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h3 class="text-base font-bold text-slate-900">Prioritized Internal Link Matrix</h3>
+                                <span id="link-matrix-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700">0 Opportunities</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">Pages mentioning an entity or relation without linking to its designated canonical topic hub.</p>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse min-w-[950px]">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                                    <th class="py-2.5 px-3 w-20">Priority</th>
+                                    <th class="py-2.5 px-3 w-48">Source Page</th>
+                                    <th class="py-2.5 px-3 w-48">Entity &amp; Predicate</th>
+                                    <th class="py-2.5 px-3 w-48">Target Topic Hub</th>
+                                    <th class="py-2.5 px-3 w-44">Suggested Anchor Text</th>
+                                    <th class="py-2.5 px-3 min-w-[220px]">Context Sentence</th>
+                                    <th class="py-2.5 px-3 w-48 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="link-matrix-tbody" class="divide-y divide-slate-100 font-sans">
+                                <!-- Injected rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Automated WordPress & CMS Auto-Hook Card -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h3 class="text-base font-bold text-slate-900">Automated CMS Silo Auto-Injector</h3>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 uppercase">1-Click Deployment</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">Instantly deploy all discovered internal link opportunities directly onto your live site without editing hundreds of posts manually.</p>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                id="tab-btn-wp-hook"
+                                onclick="switchCmsTab('wp')"
+                                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-50 text-brand-700 border border-brand-200 transition"
+                            >WordPress PHP Hook</button>
+                            <button
+                                type="button"
+                                id="tab-btn-json-rules"
+                                onclick="switchCmsTab('json')"
+                                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition"
+                            >Headless / Webhook JSON</button>
+                        </div>
+                    </div>
+
+                    <!-- Tab 1: WordPress PHP Hook -->
+                    <div id="cms-tab-wp" class="space-y-3">
+                        <div class="flex items-center justify-between text-xs text-slate-600">
+                            <span>Paste into active theme <code class="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">functions.php</code> or <code class="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">wp-content/mu-plugins/ontoleap.php</code>:</span>
+                            <button
+                                type="button"
+                                onclick="copyWpHookCode()"
+                                id="copy-wp-hook-btn"
+                                class="inline-flex items-center px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition"
+                            >
+                                <svg class="w-3.5 h-3.5 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                                <span id="copy-wp-hook-txt">Copy WordPress Hook</span>
+                            </button>
+                        </div>
+                        <pre class="bg-slate-900 text-emerald-400 p-4 rounded-xl text-xs overflow-x-auto max-h-72 font-mono"><code id="cms-wp-hook-code">// Run an internal links audit to generate WordPress auto-hook...</code></pre>
+                    </div>
+
+                    <!-- Tab 2: Headless CMS / Webhook JSON -->
+                    <div id="cms-tab-json" class="hidden space-y-3">
+                        <div class="flex items-center justify-between text-xs text-slate-600">
+                            <span>Machine-readable injection rules for Webflow CMS API, Contentful, or custom microservices:</span>
+                            <button
+                                type="button"
+                                onclick="copyCmsJsonRules()"
+                                id="copy-cms-json-btn"
+                                class="inline-flex items-center px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition"
+                            >
+                                <svg class="w-3.5 h-3.5 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                                <span id="copy-cms-json-txt">Copy JSON Rules</span>
+                            </button>
+                        </div>
+                        <pre class="bg-slate-900 text-sky-300 p-4 rounded-xl text-xs overflow-x-auto max-h-72 font-mono"><code id="cms-json-rules-code">[]</code></pre>
+                    </div>
+                </div>
+
+                <!-- Autonomous llms.txt & AI Crawler Manifest Card -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h3 class="text-base font-bold text-slate-900">Autonomous llms.txt &amp; AI Crawler Manifest</h3>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 uppercase">LLM Discovery Standard</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">Publish a machine-ingestible manifest at <code class="font-mono bg-slate-100 px-1 py-0.5 rounded text-slate-700">/llms.txt</code> to guide AI engines (GPTBot, PerplexityBot, ClaudeBot) to canonical authority hubs.</p>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                id="tab-btn-llms-txt"
+                                onclick="switchLlmsTab('llms')"
+                                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-50 text-brand-700 border border-brand-200 transition cursor-pointer"
+                            >/llms.txt Manifest</button>
+                            <button
+                                type="button"
+                                id="tab-btn-robots-ai"
+                                onclick="switchLlmsTab('robots')"
+                                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition cursor-pointer"
+                            >robots.txt AI Rules</button>
+                            <button
+                                type="button"
+                                id="tab-btn-schema-val"
+                                onclick="switchLlmsTab('val')"
+                                class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition cursor-pointer"
+                            >Google Rich Results Audit</button>
+                        </div>
+                    </div>
+
+                    <!-- Tab 1: /llms.txt -->
+                    <div id="llms-tab-manifest" class="space-y-3">
+                        <div class="flex items-center justify-between text-xs text-slate-600">
+                            <span>Host this file at the root of your domain (<code class="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">https://yourdomain.com/llms.txt</code>):</span>
+                            <div class="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onclick="copyLlmsTxt()"
+                                    id="copy-llms-txt-btn"
+                                    class="inline-flex items-center px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition cursor-pointer"
+                                >
+                                    <svg class="w-3.5 h-3.5 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                                    <span id="copy-llms-txt-label">Copy llms.txt</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onclick="downloadLlmsTxt()"
+                                    class="inline-flex items-center px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-semibold shadow-sm transition cursor-pointer"
+                                >
+                                    <svg class="w-3.5 h-3.5 mr-1.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                    <span>Download .txt</span>
+                                </button>
+                            </div>
+                        </div>
+                        <pre class="bg-slate-900 text-amber-300 p-4 rounded-xl text-xs overflow-x-auto max-h-72 font-mono"><code id="llms-txt-code"># Run site audit to generate /llms.txt manifest...</code></pre>
+                    </div>
+
+                    <!-- Tab 2: robots.txt AI Rules -->
+                    <div id="llms-tab-robots" class="hidden space-y-3">
+                        <div class="flex items-center justify-between text-xs text-slate-600">
+                            <span>Append to your existing <code class="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-800">robots.txt</code> to grant high-priority access to LLM bots:</span>
+                            <button
+                                type="button"
+                                onclick="copyRobotsAiRules()"
+                                id="copy-robots-ai-btn"
+                                class="inline-flex items-center px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition cursor-pointer"
+                            >
+                                <svg class="w-3.5 h-3.5 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                                <span id="copy-robots-ai-label">Copy robots.txt Rules</span>
+                            </button>
+                        </div>
+                        <pre class="bg-slate-900 text-sky-300 p-4 rounded-xl text-xs overflow-x-auto max-h-72 font-mono"><code id="robots-ai-code"># Run site audit to generate AI crawler directives...</code></pre>
+                    </div>
+
+                    <!-- Tab 3: Google Rich Results Validation -->
+                    <div id="llms-tab-val" class="hidden space-y-4">
+                        <div class="p-4 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                                    <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-emerald-950 text-xs sm:text-sm" id="val-status-title">Google Rich Results &amp; Schema.org Validated</h4>
+                                    <p class="text-emerald-700 text-xs mt-0.5" id="val-status-desc">All generated graph nodes conform to Google Structured Data requirements.</p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xl font-black text-emerald-700" id="val-compliance-pct">100%</span>
+                                <div class="text-[10px] uppercase font-bold text-emerald-600">Compliance</div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Validated Node Types:</span>
+                                <div class="font-semibold text-slate-800 mt-1" id="val-types-list">SoftwareApplication, Organization, Offer</div>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Critical Errors:</span>
+                                <div class="font-bold text-emerald-600 mt-1" id="val-errors-count">0 Errors</div>
+                            </div>
+                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Optional Warnings:</span>
+                                <div class="font-bold text-slate-600 mt-1" id="val-warnings-count">0 Warnings</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Site-Wide Schema Graph JSON-LD Card -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h3 class="text-base font-bold text-slate-900">Consolidated Site-Wide Schema.org Knowledge Graph</h3>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 uppercase">Unified Mesh</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">Synthesized from all crawled pages, deduplicating capabilities, integrations, and pricing nodes.</p>
+                        </div>
+                        <button
+                            type="button"
+                            onclick="copySiteGraphJson()"
+                            id="site-graph-copy-btn"
+                            class="inline-flex items-center justify-center px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition"
+                        >
+                            <svg class="w-3.5 h-3.5 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+                            </svg>
+                            <span id="site-graph-copy-text">Copy Graph JSON</span>
+                        </button>
+                    </div>
+
+                    <pre class="bg-slate-900 text-slate-100 p-4 rounded-xl text-xs overflow-x-auto max-h-80 font-mono"><code id="site-graph-code">Loading site-wide schema graph...</code></pre>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between text-xs text-slate-500">
+            <span>Powered by GLiNER &amp; Schema.org Ontologies</span>
+            <span>FastAPI Server on <code id="server-host-code" class="text-slate-700">http://localhost:8080</code></span>
+        </div>
+    </footer>
+
+    <!-- Frontend Logic -->
+    <script>
+        let currentPatchJson = '';
+        let currentActivePatchTab = 'json';
+        let currentAuditData = null;
+        let currentModalJson = '';
+        let currentLinkingData = null;
+        let currentSiteGraphJson = '';
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const hostEl = document.getElementById('server-host-code');
+            if (hostEl && window.location.origin) {
+                hostEl.innerText = window.location.origin;
+            }
+        });
+
+        function switchTab(tab) {
+            const auditTabBtn = document.getElementById('tab-audit-btn');
+            const benchTabBtn = document.getElementById('tab-bench-btn');
+            const linkingTabBtn = document.getElementById('tab-linking-btn');
+            const auditView = document.getElementById('view-audit');
+            const benchView = document.getElementById('view-bench');
+            const linkingView = document.getElementById('view-linking');
+
+            [auditTabBtn, benchTabBtn, linkingTabBtn].forEach(b => b && b.classList.remove('tab-active'));
+            [auditView, benchView, linkingView].forEach(v => v && v.classList.add('hidden'));
+
+            if (tab === 'audit') {
+                auditTabBtn && auditTabBtn.classList.add('tab-active');
+                auditView && auditView.classList.remove('hidden');
+            } else if (tab === 'bench') {
+                benchTabBtn && benchTabBtn.classList.add('tab-active');
+                benchView && benchView.classList.remove('hidden');
+            } else if (tab === 'linking') {
+                linkingTabBtn && linkingTabBtn.classList.add('tab-active');
+                linkingView && linkingView.classList.remove('hidden');
+                if (currentLinkingData && currentLinkingData.cluster_topology) {
+                    setTimeout(() => {
+                        initClusterGraph(currentLinkingData.cluster_topology);
+                    }, 50);
+                }
+            }
+        }
+
+        async function handleAudit(e) {
+            e.preventDefault();
+            const urlInput = document.getElementById('audit-url').value.trim();
+            const submitBtn = document.getElementById('audit-submit-btn');
+            const spinner = document.getElementById('audit-spinner');
+            const btnText = document.getElementById('audit-btn-text');
+            const resultsSection = document.getElementById('audit-results');
+            const deepScan = document.getElementById('deep-scan-toggle').checked;
+            const scanBadge = document.getElementById('deep-scan-badge');
+
+            if (!urlInput) return;
+
+            submitBtn.disabled = true;
+            spinner.classList.remove('hidden');
+            btnText.innerText = deepScan ? 'Deep Scanning...' : 'Analyzing Page...';
+            if (deepScan) scanBadge.classList.remove('hidden');
+
+            try {
+                const response = await fetch('/api/audit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: urlInput, vertical_id: 'b2b_saas_fintech', deep_crawl: deepScan })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Audit request failed');
+                }
+
+                const data = await response.json();
+                currentAuditData = data;
+                renderAuditResult(data);
+                // Show deep scan badge if sub-pages were actually crawled
+                const resultBadge = document.getElementById('deep-scan-result-badge');
+                if (data.crawled_subpages && data.crawled_subpages.length > 0) {
+                    resultBadge.title = 'Crawled: ' + data.crawled_subpages.join(', ');
+                    resultBadge.classList.remove('hidden');
+                } else {
+                    resultBadge.classList.add('hidden');
+                }
+                resultsSection.classList.remove('hidden');
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
+            } catch (err) {
+                alert('Audit Error: ' + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                spinner.classList.add('hidden');
+                scanBadge.classList.add('hidden');
+                btnText.innerText = 'Run Audit';
+            }
+        }
+
+        function renderAuditResult(data) {
+            currentAuditData = data;
+
+            // Header
+            const vertEl = document.getElementById('res-vertical');
+            if (vertEl) vertEl.innerText = data.vertical_id;
+            document.getElementById('res-title').innerText = data.title || 'Untitled Webpage';
+            const urlEl = document.getElementById('res-url');
+            urlEl.innerText = data.url;
+            urlEl.href = data.url;
+
+            const score = data.readiness_score;
+            document.getElementById('res-score-top').innerText = `${score.toFixed(1)} / 100`;
+            document.getElementById('card-total-score').innerText = score.toFixed(1);
+            document.getElementById('card-total-bar').style.width = `${Math.min(score, 100)}%`;
+
+            // Badge styling
+            const badgeEl = document.getElementById('score-badge');
+            if (score >= 70) {
+                badgeEl.innerText = 'Optimal';
+                badgeEl.className = 'px-2 py-0.5 rounded text-xs font-bold bg-emerald-100 text-emerald-800';
+            } else if (score >= 40) {
+                badgeEl.innerText = 'Moderate';
+                badgeEl.className = 'px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800';
+            } else {
+                badgeEl.innerText = 'Deficient';
+                badgeEl.className = 'px-2 py-0.5 rounded text-xs font-bold bg-rose-100 text-rose-800';
+            }
+
+            // Breakdown
+            if (data.readiness_breakdown) {
+                const b = data.readiness_breakdown;
+                document.getElementById('card-schema-score').innerText = b.schema_score.toFixed(1);
+                document.getElementById('card-schema-ratio').innerText = b.details.mandatory_schemas_detected || '';
+
+                document.getElementById('card-concept-score').innerText = b.concept_score.toFixed(1);
+                document.getElementById('card-concept-ratio').innerText = b.details.seed_concepts_detected || '';
+                const conceptPct = (b.concept_score / 30) * 100;
+                document.getElementById('card-concept-bar').style.width = `${conceptPct}%`;
+
+                document.getElementById('card-entity-score').innerText = b.entity_score.toFixed(1);
+                document.getElementById('card-entity-ratio').innerText = `${b.details.gliner_labels_covered || ''} labels`;
+                const entityPct = (b.entity_score / 30) * 100;
+                document.getElementById('card-entity-bar').style.width = `${entityPct}%`;
+            }
+
+            // Schema Pills with Clickable PASSED badge
+            const pillsContainer = document.getElementById('card-schema-pills');
+            pillsContainer.innerHTML = '';
+            for (const [stype, passed] of Object.entries(data.mandatory_schema_status)) {
+                const pill = document.createElement('div');
+                pill.className = `flex items-center justify-between text-xs px-2.5 py-1.5 rounded-xl border transition ${
+                    passed ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900' : 'bg-rose-50/80 border-rose-200 text-rose-800'
+                }`;
+
+                if (passed) {
+                    pill.innerHTML = `
+                        <span class="font-semibold text-slate-800">${stype}</span>
+                        <button type="button" onclick="openSchemaModal('${stype}')" class="inline-flex items-center gap-1 font-bold text-[11px] px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300 transition-all shadow-sm cursor-pointer" title="Click to inspect verified ${stype} payload">
+                            <span>✓ PASSED</span>
+                            <svg class="w-3.5 h-3.5 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                        </button>
+                    `;
+                } else {
+                    pill.innerHTML = `
+                        <span class="text-slate-600">${stype}</span>
+                        <span class="font-bold text-[11px] px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200">✗ MISSING</span>
+                    `;
+                }
+                pillsContainer.appendChild(pill);
+            }
+
+            // Entities Viewer
+            document.getElementById('entity-total-badge').innerText = `${data.entities.length} entities extracted`;
+            const groupsContainer = document.getElementById('entity-groups');
+            groupsContainer.innerHTML = '';
+
+            const breakdown = data.entity_breakdown || {};
+            if (Object.keys(breakdown).length === 0) {
+                groupsContainer.innerHTML = '<div class="col-span-3 text-xs text-slate-500 py-4">No entities detected above confidence threshold.</div>';
+            } else {
+                for (const [label, items] of Object.entries(breakdown)) {
+                    const card = document.createElement('div');
+                    card.className = 'bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2.5';
+                    
+                    let itemsHtml = items.map(item => `
+                        <div class="flex items-center justify-between bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
+                            <span class="font-medium text-slate-800 truncate pr-2" title="${item.text}">${item.text}</span>
+                            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">${item.score.toFixed(2)}</span>
+                        </div>
+                    `).join('');
+
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                            <span class="text-xs font-bold text-slate-700">${label}</span>
+                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">${items.length}</span>
+                        </div>
+                        <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                            ${itemsHtml}
+                        </div>
+                    `;
+                    groupsContainer.appendChild(card);
+                }
+            }
+
+            // Semantic Triples Viewer
+            const triples = data.triples || [];
+            const triplesBadge = document.getElementById('triples-total-badge');
+            if (triplesBadge) {
+                triplesBadge.innerText = `${triples.length} relational triples`;
+            }
+            const triplesContainer = document.getElementById('triples-container');
+            if (triplesContainer) {
+                triplesContainer.innerHTML = '';
+                if (triples.length === 0) {
+                    triplesContainer.innerHTML = '<div class="col-span-2 text-xs text-slate-500 py-4">No relational triples detected above threshold.</div>';
+                } else {
+                    const predicateStyles = {
+                        'automates': 'bg-blue-100 text-blue-800 border-blue-200',
+                        'integratesWith': 'bg-purple-100 text-purple-800 border-purple-200',
+                        'compliesWith': 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                        'supportsPricingModel': 'bg-amber-100 text-amber-800 border-amber-200'
+                    };
+
+                    for (const t of triples) {
+                        const predClass = predicateStyles[t.predicate] || 'bg-slate-100 text-slate-800 border-slate-200';
+                        const card = document.createElement('div');
+                        card.className = 'bg-slate-50 hover:bg-slate-100/80 transition rounded-xl p-3.5 border border-slate-200 flex flex-col justify-between space-y-2';
+                        
+                        card.innerHTML = `
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="flex items-center gap-1.5 flex-wrap text-xs">
+                                    <span class="font-bold text-slate-900 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-sm">${escapeHtml(t.subject)}</span>
+                                    <span class="inline-flex items-center text-slate-400 font-bold text-sm">→</span>
+                                    <span class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold border ${predClass}">${escapeHtml(t.predicate)}</span>
+                                    <span class="inline-flex items-center text-slate-400 font-bold text-sm">→</span>
+                                    <span class="font-bold text-indigo-950 bg-indigo-50/90 px-2.5 py-1 rounded-lg border border-indigo-200 shadow-sm">${escapeHtml(t.object)}</span>
+                                </div>
+                                <span class="text-[10px] font-mono text-slate-500 shrink-0" title="Extraction Confidence">${(t.confidence * 100).toFixed(0)}%</span>
+                            </div>
+                            ${t.evidence_sentence ? `
+                            <div class="text-[11px] text-slate-500 italic bg-white/70 p-2 rounded-lg border border-slate-100 line-clamp-2" title="${escapeHtml(t.evidence_sentence)}">
+                                "${escapeHtml(t.evidence_sentence)}"
+                            </div>` : ''}
+                        `;
+                        triplesContainer.appendChild(card);
+                    }
+                }
+            }
+
+            // Recommended Patch
+            if (data.recommended_patch) {
+                const patch = data.recommended_patch;
+                currentPatchJson = patch.json_ld || JSON.stringify(patch.patch_dict, null, 2);
+                switchPatchTab(currentActivePatchTab);
+                
+                const metaEl = document.getElementById('patch-meta');
+                metaEl.innerHTML = `
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div><strong>Addressed Schemas:</strong> <span class="text-brand-600 font-semibold">${escapeHtml(patch.schemas_added?.join(', ') || 'N/A')}</span></div>
+                        <div><strong>Classified Vertical:</strong> <span class="text-indigo-600 font-semibold">${escapeHtml(patch.sub_category || 'General SaaS')}</span></div>
+                        <div><strong>Target Audience:</strong> <span class="text-slate-700">${escapeHtml(patch.audience || 'Enterprise Users')}</span></div>
+                        <div><strong>Resolved Provider:</strong> <span class="text-slate-900 font-bold">${escapeHtml(patch.resolved_provider?.name || 'N/A')}</span> <code class="text-[10px] text-slate-400">(${escapeHtml(patch.resolved_provider?.['@id'] || 'N/A')})</code></div>
+                    </div>
+                    <div class="mt-2 pt-2 border-t border-slate-200"><strong>Mapped Capabilities:</strong> ${patch.features_mapped?.slice(0, 6).map(f => `<span class="inline-block px-2 py-0.5 bg-white border border-slate-200 rounded-md text-[11px] mr-1.5 mt-1 font-medium text-slate-800 shadow-xs">${escapeHtml(f)}</span>`).join('') || 'None'}</div>
+                `;
+            }
+        }
+
+        function getWordPressPhpSnippet(jsonLd) {
+            if (!jsonLd) return '';
+            const escaped = jsonLd.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const closeScriptTag = '<' + '/script>';
+            return `add_action('wp_head', function() {
+    if ( is_front_page() ) {
+        echo '<script type="application/ld+json">' . "\\n";
+        echo '${escaped}' . "\\n";
+        echo '${closeScriptTag}' . "\\n";
+    }
+}, 100);`;
+        }
+
+        function switchPatchTab(tab) {
+            currentActivePatchTab = tab;
+            const tabJsonBtn = document.getElementById('patch-tab-json');
+            const tabPhpBtn = document.getElementById('patch-tab-php');
+            const codeEl = document.getElementById('patch-code');
+            const copyBtnText = document.getElementById('copy-btn-text');
+
+            if (!tabJsonBtn || !tabPhpBtn || !codeEl || !copyBtnText) return;
+
+            if (tab === 'php') {
+                tabPhpBtn.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-sm transition";
+                tabJsonBtn.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900 transition";
+                copyBtnText.innerText = "Copy PHP Snippet";
+                codeEl.className = "language-php";
+                codeEl.innerText = getWordPressPhpSnippet(currentPatchJson);
+            } else {
+                tabJsonBtn.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-sm transition";
+                tabPhpBtn.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-900 transition";
+                copyBtnText.innerText = "Copy JSON-LD";
+                codeEl.className = "language-json";
+                codeEl.innerText = currentPatchJson || "Loading patch...";
+            }
+        }
+
+        async function copyPatchCode() {
+            const codeToCopy = currentActivePatchTab === 'php'
+                ? getWordPressPhpSnippet(currentPatchJson)
+                : currentPatchJson;
+
+            if (!codeToCopy) return;
+
+            try {
+                await navigator.clipboard.writeText(codeToCopy);
+                const btnText = document.getElementById('copy-btn-text');
+                btnText.innerText = 'Copied to Clipboard!';
+                setTimeout(() => {
+                    btnText.innerText = currentActivePatchTab === 'php' ? 'Copy PHP Snippet' : 'Copy JSON-LD';
+                }, 2000);
+            } catch (e) {
+                alert('Copy failed. Please manually select and copy.');
+            }
+        }
+
+        const copyPatchJson = copyPatchCode;
+
+        let currentLeapfrogPatchJson = '';
+
+        async function handleBenchmark(e) {
+            e.preventDefault();
+            const primaryUrl = document.getElementById('bench-primary-url').value.trim();
+            const text = document.getElementById('bench-comp-urls').value.trim();
+            const competitorUrls = text.split('\n').map(u => u.trim()).filter(u => u.length > 0);
+            const submitBtn = document.getElementById('bench-submit-btn');
+            const spinner = document.getElementById('bench-spinner');
+            const btnText = document.getElementById('bench-btn-text');
+            const resultsSection = document.getElementById('bench-results');
+
+            if (!primaryUrl && competitorUrls.length === 0) return;
+
+            submitBtn.disabled = true;
+            spinner.classList.remove('hidden');
+            btnText.innerText = 'Benchmarking Competitors...';
+
+            try {
+                const response = await fetch('/api/benchmark', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        primary_url: primaryUrl || null,
+                        competitor_urls: competitorUrls,
+                        vertical_id: 'b2b_saas_fintech'
+                    })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Benchmark request failed');
+                }
+
+                const data = await response.json();
+                renderBenchmarkResult(data);
+                resultsSection.classList.remove('hidden');
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
+            } catch (err) {
+                alert('Benchmark Error: ' + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                spinner.classList.add('hidden');
+                btnText.innerText = 'Run Benchmark & Gap Analysis';
+            }
+        }
+
+        function renderBenchmarkResult(data) {
+            // Store for export
+            currentBenchmarkData = {
+                items: (data.comparative_table || []).map(item => ({
+                    url: item.url,
+                    readiness_score: item.readiness_score,
+                    schema_passed: Object.values(item.mandatory_schema_status || {}).filter(Boolean).length,
+                    schema_total: Object.keys(item.mandatory_schema_status || {}).length,
+                    entity_count: item.entity_count,
+                    top_missing: item.top_missing_concepts || [],
+                    is_primary: item.is_primary || (data.primary_url && item.url === data.primary_url)
+                })),
+                gap: data.gap_analysis || null
+            };
+            document.getElementById('bench-meta-text').innerText = `Audited ${data.total_analyzed} domains across vertical '${data.vertical_id}'`;
+            const tbody = document.getElementById('bench-table-body');
+            tbody.innerHTML = '';
+
+            for (const item of data.comparative_table) {
+                const tr = document.createElement('tr');
+                const isPrimary = item.is_primary || (data.primary_url && item.url === data.primary_url);
+                tr.className = isPrimary ? 'bg-sky-50/70 border-l-4 border-l-brand-600 font-medium' : 'hover:bg-slate-50/80 transition';
+
+                const scoreColor = item.readiness_score >= 60 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
+                                   item.readiness_score >= 35 ? 'text-amber-700 bg-amber-50 border-amber-200' :
+                                   'text-rose-700 bg-rose-50 border-rose-200';
+
+                const primaryBadge = isPrimary ? '<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-brand-100 text-brand-800 border border-brand-200">Target Site</span>' : '';
+
+                tr.innerHTML = `
+                    <td class="py-4 px-6 font-medium">
+                        <div class="flex items-center">
+                            <span class="font-semibold text-slate-900">${item.title || 'Untitled'}</span>
+                            ${primaryBadge}
+                        </div>
+                        <a href="${item.url}" target="_blank" class="text-xs text-brand-600 hover:underline font-mono">${item.url}</a>
+                    </td>
+                    <td class="py-4 px-6 text-center">
+                        <span class="inline-block px-3 py-1 rounded-full text-xs font-bold border ${scoreColor}">
+                            ${item.readiness_score.toFixed(1)} / 100
+                        </span>
+                    </td>
+                    <td class="py-4 px-6 text-center">
+                        <span class="inline-block px-2.5 py-0.5 rounded text-xs font-bold ${
+                            item.compliance_str.startsWith('3') ? 'bg-emerald-100 text-emerald-800' :
+                            item.compliance_str.startsWith('2') ? 'bg-blue-100 text-blue-800' :
+                            item.compliance_str.startsWith('1') ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+                        }">
+                            ${item.compliance_str}
+                        </span>
+                        <div class="text-[11px] text-slate-400 mt-1">${item.passed_schemas.join(', ') || 'None'}</div>
+                    </td>
+                    <td class="py-4 px-6 text-center font-semibold text-slate-800">
+                        ${item.entity_count}
+                    </td>
+                    <td class="py-4 px-6 text-xs text-slate-600">
+                        <div class="max-w-xs leading-relaxed">${item.top_missing_concepts}</div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+
+            // Render Gap Analysis Card
+            const gap = data.gap_analysis;
+            const gapCard = document.getElementById('gap-analysis-card');
+            if (gap) {
+                gapCard.classList.remove('hidden');
+
+                // Score summary
+                const summaryEl = document.getElementById('gap-score-summary');
+                const gapColor = gap.score_gap > 0 ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200';
+                summaryEl.innerHTML = `
+                    <div class="text-right">
+                        <div class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Category Leader</div>
+                        <div class="text-xs font-mono font-bold text-slate-800">${gap.leader_score.toFixed(1)} pts</div>
+                    </div>
+                    <span class="px-3 py-1.5 rounded-xl border text-xs font-bold ${gapColor}">
+                        ${gap.score_gap > 0 ? `-${gap.score_gap.toFixed(1)} pts Gap` : 'Leading Category'}
+                    </span>
+                `;
+
+                // Schema Gaps
+                document.getElementById('gap-schema-count').innerText = `${gap.schema_gaps.length} Gaps`;
+                const schemaList = document.getElementById('gap-schema-list');
+                schemaList.innerHTML = gap.schema_gaps.map(sg => `
+                    <li class="flex items-start gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                        <span class="text-rose-500 font-bold shrink-0">✕</span>
+                        <span class="leading-tight text-slate-700">${sg}</span>
+                    </li>
+                `).join('');
+
+                // Keyword Gaps
+                document.getElementById('gap-keyword-count').innerText = `${gap.keyword_gaps.length} Keywords`;
+                const kwList = document.getElementById('gap-keyword-list');
+                if (gap.keyword_gaps.length === 0) {
+                    kwList.innerHTML = '<li class="text-xs text-slate-400 italic">No major keyword gaps identified.</li>';
+                } else {
+                    kwList.innerHTML = gap.keyword_gaps.slice(0, 6).map(kg => {
+                        const badgeStyle = kg.priority === 'High' 
+                            ? 'bg-rose-100 text-rose-800 border-rose-200' 
+                            : 'bg-amber-100 text-amber-800 border-amber-200';
+                        return `
+                            <li class="flex items-center justify-between bg-white p-2.5 rounded-lg border border-slate-200">
+                                <div class="flex items-center gap-2 truncate pr-2">
+                                    <span class="font-semibold text-slate-800 truncate">${kg.concept}</span>
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold border ${badgeStyle}">${kg.priority}</span>
+                                </div>
+                                <span class="text-[11px] text-slate-500 font-mono shrink-0" title="Found on ${kg.competitors.join(', ')}">
+                                    ${kg.competitor_count} competitor${kg.competitor_count > 1 ? 's' : ''}
+                                </span>
+                            </li>
+                        `;
+                    }).join('');
+                }
+
+                // Strategic Action Plan
+                const actionList = document.getElementById('gap-action-list');
+                actionList.innerHTML = gap.action_plan.map((step, i) => {
+                    const colonIdx = step.indexOf('.');
+                    // Bold only the leading verb phrase (up to first period if short, else whole step plain)
+                    const firstPeriod = step.indexOf('. ');
+                    let bold = '', rest = step;
+                    if (firstPeriod > 0 && firstPeriod < 60) {
+                        bold = step.substring(0, firstPeriod + 1);
+                        rest = step.substring(firstPeriod + 2);
+                    }
+                    return `<li class="leading-relaxed">${bold ? `<strong class="text-slate-900">${bold}</strong> ` : ''}${rest}</li>`;
+                }).join('');
+
+                // Leapfrog Patch
+                if (gap.leapfrog_patch) {
+                    currentLeapfrogPatchJson = gap.leapfrog_patch.json_ld || JSON.stringify(gap.leapfrog_patch.patch_dict, null, 2);
+                    document.getElementById('gap-leapfrog-code').innerText = currentLeapfrogPatchJson;
+                }
+            } else {
+                gapCard.classList.add('hidden');
+            }
+        }
+
+        async function copyLeapfrogPatchJson() {
+            if (!currentLeapfrogPatchJson) return;
+            try {
+                await navigator.clipboard.writeText(currentLeapfrogPatchJson);
+                const btnText = document.getElementById('leapfrog-copy-btn-text');
+                btnText.innerText = 'Copied!';
+                setTimeout(() => { btnText.innerText = 'Copy Leapfrog Patch'; }, 2500);
+            } catch (e) {
+                alert('Copy failed. Please manually copy the JSON.');
+            }
+        }
+
+        function openSchemaModal(stype) {
+            if (!currentAuditData || !currentAuditData.schema_org) {
+                alert("No schema data available for this audit.");
+                return;
+            }
+
+            const targetType = stype.toLowerCase();
+            const matches = currentAuditData.schema_org.filter(s => 
+                s.schema_type.toLowerCase().includes(targetType) ||
+                (s.data && s.data['@type'] && JSON.stringify(s.data['@type']).toLowerCase().includes(targetType))
+            );
+
+            if (matches.length === 0) {
+                alert(`No verified schema payload found for ${stype}.`);
+                return;
+            }
+
+            const matchedNode = matches[0];
+            const payload = matchedNode.data || {};
+            currentModalJson = JSON.stringify(payload, null, 2);
+
+            // Update header
+            document.getElementById('modal-schema-title').innerText = `Verified Schema: ${matchedNode.schema_type}`;
+            document.getElementById('modal-schema-subtitle').innerText = `Syntax: ${matchedNode.syntax.toUpperCase()} | Mandatory Type: ${stype}`;
+            document.getElementById('modal-syntax-tag').innerText = matchedNode.syntax.toUpperCase();
+            document.getElementById('modal-json-code').innerText = currentModalJson;
+
+            // Key properties grid
+            const propsContainer = document.getElementById('modal-key-props');
+            propsContainer.innerHTML = '';
+            
+            const propFields = [
+                { key: "Name", val: payload.name },
+                { key: "Legal Name", val: payload.legalName },
+                { key: "Founding Date", val: payload.foundingDate },
+                { key: "Telephone", val: payload.telephone },
+                { key: "Email", val: payload.email },
+                { key: "Website", val: payload.url ? `<a href="${payload.url}" target="_blank" class="text-brand-600 hover:underline break-all">${payload.url}</a>` : null, isHtml: true }
+            ];
+
+            let renderedCount = 0;
+            for (const p of propFields) {
+                if (p.val) {
+                    renderedCount++;
+                    const div = document.createElement('div');
+                    div.className = 'flex flex-col';
+                    div.innerHTML = `<span class="text-slate-400 text-[10px] uppercase font-bold tracking-wider">${p.key}</span>
+                                     <span class="font-medium text-slate-800 text-xs truncate mt-0.5">${p.val}</span>`;
+                    propsContainer.appendChild(div);
+                }
+            }
+
+            if (renderedCount === 0) {
+                propsContainer.innerHTML = '<div class="col-span-2 text-slate-400 italic">No standard scalar attributes detected; view full JSON payload below.</div>';
+            }
+
+            // sameAs links
+            const sameAsContainer = document.getElementById('modal-sameas-container');
+            const sameAsLinks = document.getElementById('modal-sameas-links');
+            sameAsLinks.innerHTML = '';
+            const sameAs = payload.sameAs;
+
+            if (Array.isArray(sameAs) && sameAs.length > 0) {
+                sameAsContainer.classList.remove('hidden');
+                for (const link of sameAs) {
+                    try {
+                        const urlObj = new URL(link);
+                        const host = urlObj.hostname.replace('www.', '');
+                        const a = document.createElement('a');
+                        a.href = link;
+                        a.target = '_blank';
+                        a.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] font-medium text-slate-700 hover:text-brand-600 hover:border-brand-300 transition shadow-sm';
+                        a.innerHTML = `<span>${host}</span><svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>`;
+                        sameAsLinks.appendChild(a);
+                    } catch(e) {}
+                }
+            } else {
+                sameAsContainer.classList.add('hidden');
+            }
+
+            // Show modal
+            document.getElementById('schema-modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeSchemaModal() {
+            document.getElementById('schema-modal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        async function copyModalJson() {
+            if (!currentModalJson) return;
+            try {
+                await navigator.clipboard.writeText(currentModalJson);
+                const btnText = document.getElementById('modal-copy-text');
+                btnText.innerText = 'Copied!';
+                setTimeout(() => { btnText.innerText = 'Copy JSON'; }, 2000);
+            } catch(e) {
+                alert('Copy failed.');
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeSchemaModal();
+        });
+
+        // ─── Export Report Functions ─────────────────────────────────────────
+        let currentBenchmarkData = null;
+
+        function downloadMarkdown(filename, content) {
+            const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+        }
+
+        function exportAuditReport() {
+            if (!currentAuditData) { alert('No audit data available. Run an audit first.'); return; }
+            const d = currentAuditData;
+            const ts = new Date().toLocaleString();
+            const domain = d.url ? new URL(d.url).hostname : 'unknown';
+            const schemaRows = Object.entries(d.mandatory_schema_status || {})
+                .map(([t, v]) => `| ${t} | ${v ? '✅ Present' : '❌ Missing'} |`)
+                .join('\n');
+            const schemaPassCount = Object.values(d.mandatory_schema_status || {}).filter(Boolean).length;
+            const schemaTotalCount = Object.keys(d.mandatory_schema_status || {}).length;
+            const conceptRows = (d.seed_concepts || []).slice(0, 8)
+                .map(c => `| ${c.concept} | ${c.count} occurrences |`).join('\n');
+            const wikiRows = (() => {
+                try {
+                    const patch = d.recommended_patch || {};
+                    const graph = patch.patch_dict && patch.patch_dict['@graph'];
+                    const app = Array.isArray(graph) ? graph.find(n => (n['@type'] || '').includes('SoftwareApplication')) : null;
+                    const about = app && app.about ? app.about : [];
+                    return about.map(a => `| ${a.name || ''} | ${a.sameAs || ''} |`).join('\n');
+                } catch { return ''; }
+            })();
+            const patchJson = d.recommended_patch ? (d.recommended_patch.json_ld || JSON.stringify(d.recommended_patch.patch_dict, null, 2)) : '{}';
+            const deepNote = d.crawled_subpages && d.crawled_subpages.length > 0
+                ? `\n> 🔍 **Deep Scan:** Crawled ${d.crawled_subpages.length} sub-pages: ${d.crawled_subpages.join(', ')}\n` : '';
+
+            const tripleRows = (d.triples || []).map(t => `| ${t.subject} | \`${t.predicate}\` | ${t.object} | ${(t.confidence * 100).toFixed(0)}% |`).join('\n');
+
+            const md = [
+                `# Ontology Intelligence Audit Report`,
+                `**Domain:** ${domain}  `,
+                `**Generated:** ${ts}  `,
+                `**Vertical:** B2B SaaS & Financial Software (Auto-Detected)`,
+                deepNote,
+                `---`,
+                `## 🎯 Domain Readiness Score`,
+                `| Metric | Value |`,
+                `|--------|-------|`,
+                `| **Total Score** | **${d.readiness_score ? d.readiness_score.toFixed(1) : 'N/A'} / 100** |`,
+                `| Schema Compliance | ${schemaPassCount}/${schemaTotalCount} mandatory types |`,
+                `| Entity Categories | ${Object.keys(d.entity_breakdown || {}).length} |`,
+                `| Seed Concepts Matched | ${(d.seed_concepts || []).length} |`,
+                `| Relational Triples | ${(d.triples || []).length} |`,
+                ``,
+                `---`,
+                `## 📋 Mandatory Schema Status`,
+                `| Schema Type | Status |`,
+                `|-------------|--------|`,
+                schemaRows,
+                ``,
+                `---`,
+                `## 🔍 Top Ontological Signals (Seed Concepts)`,
+                `| Concept | Frequency |`,
+                `|---------|-----------|`,
+                conceptRows || '_No seed concepts detected._',
+                ``,
+                ...(tripleRows ? [
+                    `---`,
+                    `## 🔗 Semantic Relational Triples`,
+                    `| Subject | Predicate | Object | Confidence |`,
+                    `|---------|-----------|--------|------------|`,
+                    tripleRows,
+                    ``
+                ] : []),
+                ...(wikiRows ? [
+                    `---`,
+                    `## 🌐 Wikidata-Grounded Entities`,
+                    `| Entity | Canonical URI |`,
+                    `|--------|--------------|`,
+                    wikiRows,
+                    ``
+                ] : []),
+                `---`,
+                `## 🩹 Recommended JSON-LD Remediation Patch`,
+                `\`\`\`json`,
+                patchJson,
+                `\`\`\``,
+                ``,
+                `---`,
+                `_Report generated by Ontology Intelligence Platform — GainARK_`
+            ].join('\n');
+
+            // Set print-date for print view
+            const pd = document.getElementById('print-date');
+            if (pd) pd.innerText = ts;
+
+            downloadMarkdown(`audit-report-${domain}-${Date.now()}.md`, md);
+        }
+
+        function exportBenchmarkReport() {
+            if (!currentBenchmarkData) { alert('No benchmark data available. Run a benchmark first.'); return; }
+            const { items, gap } = currentBenchmarkData;
+            const ts = new Date().toLocaleString();
+            const tableRows = (items || []).map(r =>
+                `| ${r.is_primary ? '**' : ''}${r.url}${r.is_primary ? '** ★' : ''} | ${r.readiness_score ? r.readiness_score.toFixed(1) : '-'} | ${r.schema_passed}/${r.schema_total} | ${r.entity_count} | ${(r.top_missing || []).join(', ') || '—'} |`
+            ).join('\n');
+
+            let gapSection = '';
+            if (gap) {
+                const schemaGaps = (gap.schema_gaps || []).map(g => `- ${g}`).join('\n');
+                const kwGaps = (gap.keyword_gaps || []).map(k => `- **${k.concept}** (${k.priority}, ${k.competitor_count} competitors)`).join('\n');
+                const actionPlan = (gap.action_plan || []).map((s, i) => `${i + 1}. ${s}`).join('\n');
+                const leapfrogPatch = gap.leapfrog_patch
+                    ? (gap.leapfrog_patch.json_ld || JSON.stringify(gap.leapfrog_patch.patch_dict, null, 2))
+                    : '{}';
+                gapSection = [
+                    `---`,
+                    `## 🏆 Competitive Gap Analysis`,
+                    `| Metric | Value |`,
+                    `|--------|-------|`,
+                    `| Category Leader | ${gap.leader_url || '-'} (${gap.leader_score ? gap.leader_score.toFixed(1) : '-'} pts) |`,
+                    `| Your Score | ${gap.primary_score ? gap.primary_score.toFixed(1) : '-'} pts |`,
+                    `| Score Gap | ${gap.score_gap ? gap.score_gap.toFixed(1) : '-'} pts |`,
+                    ``,
+                    `### Schema Structure Gaps`,
+                    schemaGaps || '_None identified._',
+                    ``,
+                    `### High-Priority Ontological Keyword Gaps`,
+                    kwGaps || '_None identified._',
+                    ``,
+                    `### Recommended Execution Roadmap`,
+                    actionPlan,
+                    ``,
+                    `### Leapfrog JSON-LD Patch`,
+                    `\`\`\`json`,
+                    leapfrogPatch,
+                    `\`\`\``
+                ].join('\n');
+            }
+
+            const md = [
+                `# Competitive Benchmark Report`,
+                `**Generated:** ${ts}  `,
+                `**Vertical:** B2B SaaS & Financial Software`,
+                ``,
+                `---`,
+                `## 📊 Comparative Findings`,
+                `| Domain | Score | Mandatory Schema | Entities | Top Missing |`,
+                `|--------|-------|-----------------|----------|-------------|`,
+                tableRows,
+                ``,
+                gapSection,
+                ``,
+                `---`,
+                `_Report generated by Ontology Intelligence Platform — GainARK_`
+            ].join('\n');
+
+            downloadMarkdown(`benchmark-report-${Date.now()}.md`, md);
+        }
+
+        // ─── Site-Wide Graph & Internal Linking Logic ─────────────────────────
+        async function handleInternalLinks(e) {
+            e.preventDefault();
+            const sitemapUrl = document.getElementById('linking-sitemap-url').value.trim();
+            const maxPages = parseInt(document.getElementById('linking-max-pages').value, 10) || 10;
+            const customUrlsText = document.getElementById('linking-custom-urls').value.trim();
+            const customUrls = customUrlsText ? customUrlsText.split('\n').map(u => u.trim()).filter(u => u.length > 0) : null;
+
+            const submitBtn = document.getElementById('linking-submit-btn');
+            const spinner = document.getElementById('linking-spinner');
+            const btnText = document.getElementById('linking-btn-text');
+            const resultsSection = document.getElementById('linking-results');
+
+            submitBtn.disabled = true;
+            spinner.classList.remove('hidden');
+            btnText.innerText = 'Crawling & Analyzing Silos...';
+
+            try {
+                const payload = {
+                    sitemap_url: sitemapUrl || null,
+                    urls: customUrls,
+                    max_pages: maxPages
+                };
+
+                const response = await fetch('/api/internal-links', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Internal link audit failed');
+                }
+
+                const data = await response.json();
+                currentLinkingData = data;
+                resultsSection.classList.remove('hidden');
+                renderInternalLinkResults(data);
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
+            } catch (err) {
+                alert('Site Audit Error: ' + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                spinner.classList.add('hidden');
+                btnText.innerText = 'Audit Site & Map Internal Links';
+            }
+        }
+
+        function renderInternalLinkResults(data) {
+            currentLinkingData = data;
+            document.getElementById('linking-res-domain').innerText = data.root_domain || 'Domain';
+            document.getElementById('link-kpi-pages').innerText = data.pages_analyzed || 0;
+            document.getElementById('link-kpi-hubs').innerText = Object.keys(data.topic_hubs || {}).length;
+            document.getElementById('link-kpi-opps').innerText = data.opportunities_count || 0;
+
+            const uniqueEntities = (data.unified_site_graph && data.unified_site_graph.unique_entities) || [];
+            document.getElementById('link-kpi-entities').innerText = uniqueEntities.length;
+
+            document.getElementById('link-matrix-badge').innerText = `${data.opportunities_count || 0} Opportunities`;
+
+            // Render Topic Hubs Table
+            const hubsTbody = document.getElementById('topic-hubs-tbody');
+            hubsTbody.innerHTML = '';
+            const hubs = data.topic_hubs || {};
+            if (Object.keys(hubs).length === 0) {
+                hubsTbody.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-slate-400">No canonical topic hubs identified.</td></tr>';
+            } else {
+                for (const [concept, hubUrl] of Object.entries(hubs)) {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50/80 transition';
+                    const path = (() => { try { return new URL(hubUrl).pathname; } catch { return hubUrl; } })();
+                    const lowerPath = (path || '').toLowerCase();
+                    
+                    let roleName = 'Topic Hub';
+                    let roleBadge = 'bg-slate-100 text-slate-700 border border-slate-200';
+                    if (!path || path === '/' || path === '') {
+                        roleName = 'Root Authority';
+                        roleBadge = 'bg-purple-100 text-purple-800 border border-purple-200';
+                    } else if (lowerPath.includes('solution') || lowerPath.includes('product') || lowerPath.includes('platform')) {
+                        roleName = 'Solutions Hub';
+                        roleBadge = 'bg-indigo-100 text-indigo-700 border border-indigo-200';
+                    } else if (lowerPath.includes('pricing') || lowerPath.includes('plan') || lowerPath.includes('tier')) {
+                        roleName = 'Pricing Hub';
+                        roleBadge = 'bg-emerald-100 text-emerald-700 border border-emerald-200';
+                    } else if (lowerPath.includes('integration') || lowerPath.includes('partner') || lowerPath.includes('app')) {
+                        roleName = 'Integration Hub';
+                        roleBadge = 'bg-sky-100 text-sky-700 border border-sky-200';
+                    } else if (lowerPath.includes('video') || lowerPath.includes('blog') || lowerPath.includes('resource') || lowerPath.includes('event') || lowerPath.includes('post')) {
+                        roleName = 'Resource Hub';
+                        roleBadge = 'bg-amber-100 text-amber-800 border border-amber-200';
+                    } else if (lowerPath.includes('doc') || lowerPath.includes('guide') || lowerPath.includes('kb')) {
+                        roleName = 'Documentation Hub';
+                        roleBadge = 'bg-teal-100 text-teal-800 border border-teal-200';
+                    } else {
+                        const segments = path.split('/').filter(Boolean);
+                        if (segments.length > 0) {
+                            const seg = segments[0].replace(/[-_]/g, ' ');
+                            roleName = seg.charAt(0).toUpperCase() + seg.slice(1, 15) + ' Hub';
+                        }
+                    }
+
+                    tr.innerHTML = `
+                        <td class="py-3 px-4 font-semibold text-slate-900 max-w-[200px]">
+                            <div class="truncate" title="${escapeHtml(concept)}">${escapeHtml(concept)}</div>
+                        </td>
+                        <td class="py-3 px-4 max-w-[380px]">
+                            <a href="${escapeHtml(hubUrl)}" target="_blank" class="text-brand-600 hover:underline font-mono text-[11px] inline-flex items-center gap-1.5 max-w-full truncate" title="${escapeHtml(hubUrl)}">
+                                <span class="truncate">${escapeHtml(hubUrl)}</span>
+                                <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                            </a>
+                        </td>
+                        <td class="py-3 px-4 text-right whitespace-nowrap">
+                            <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${roleBadge}">${escapeHtml(roleName)}</span>
+                        </td>
+                    `;
+                    hubsTbody.appendChild(tr);
+                }
+            }
+
+            // Render Link Matrix Table
+            const matrixTbody = document.getElementById('link-matrix-tbody');
+            matrixTbody.innerHTML = '';
+            const opps = data.opportunities || [];
+            if (opps.length === 0) {
+                matrixTbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-400">All detected entity mentions are already properly linked to their canonical topic hubs!</td></tr>';
+            } else {
+                opps.forEach((o, idx) => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50/80 transition';
+                    const srcPath = (() => { try { return new URL(o.source_url).pathname || '/'; } catch { return o.source_url; } })();
+                    const tgtPath = (() => { try { return new URL(o.target_url).pathname || '/'; } catch { return o.target_url; } })();
+
+                    const priColor = o.priority === 'High' ? 'bg-rose-100 text-rose-800 border-rose-200' : 'bg-amber-100 text-amber-800 border-amber-200';
+                    const predBadge = o.predicate
+                        ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-50 text-purple-700 border border-purple-200 shrink-0">${escapeHtml(o.predicate)}</span>`
+                        : '';
+
+                    tr.innerHTML = `
+                        <td class="py-3 px-3 whitespace-nowrap">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${priColor}">${escapeHtml(o.priority)}</span>
+                        </td>
+                        <td class="py-3 px-3 max-w-[190px]">
+                            <div class="truncate">
+                                <a href="${escapeHtml(o.source_url)}" target="_blank" class="font-mono text-[11px] text-slate-800 hover:text-brand-600 hover:underline truncate block" title="${escapeHtml(o.source_url)}">${escapeHtml(srcPath)}</a>
+                            </div>
+                        </td>
+                        <td class="py-3 px-3 max-w-[190px]">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="font-bold text-slate-900">${escapeHtml(o.entity)}</span>
+                                ${predBadge}
+                            </div>
+                        </td>
+                        <td class="py-3 px-3 max-w-[190px]">
+                            <div class="truncate">
+                                <a href="${escapeHtml(o.target_url)}" target="_blank" class="font-mono text-[11px] text-brand-600 hover:underline truncate block" title="${escapeHtml(o.target_url)}">${escapeHtml(tgtPath)}</a>
+                            </div>
+                        </td>
+                        <td class="py-3 px-3 max-w-[170px]">
+                            <div class="font-semibold text-slate-900 truncate" title="${escapeHtml(o.suggested_anchor)}">
+                                "${escapeHtml(o.suggested_anchor)}"
+                            </div>
+                        </td>
+                        <td class="py-3 px-3">
+                            <div class="text-[11px] text-slate-500 italic line-clamp-2 max-w-sm" title="${escapeHtml(o.context_sentence)}">
+                                "${escapeHtml(o.context_sentence)}"
+                            </div>
+                        </td>
+                        <td class="py-3 px-3 text-right whitespace-nowrap">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <button
+                                    type="button"
+                                    onclick="previewLinkPlacement(${idx})"
+                                    class="inline-flex items-center px-2 py-1 bg-indigo-50 border border-indigo-200 rounded-lg text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100 transition shadow-sm cursor-pointer shrink-0"
+                                    title="Preview In-Content Placement"
+                                >
+                                    <svg class="w-3 h-3 mr-1 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                    <span>Preview</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onclick="copyLinkCode('${escapeHtml(o.html_snippet).replace(/'/g, "\\'")}', this)"
+                                    class="inline-flex items-center px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-700 hover:text-brand-600 hover:border-brand-300 transition shadow-sm cursor-pointer shrink-0"
+                                    title="Copy HTML anchor snippet"
+                                >
+                                    <svg class="w-3 h-3 mr-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                                    <span>Copy HTML</span>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    matrixTbody.appendChild(tr);
+                });
+            }
+
+            // Render AI Citation Readiness Index
+            if (data.ai_citation_readiness) {
+                const ai = data.ai_citation_readiness;
+                document.getElementById('ai-total-score').innerText = `${ai.total_score}%`;
+                document.getElementById('ai-score-donut-txt').innerText = `${Math.round(ai.total_score)}%`;
+                document.getElementById('ai-citation-verdict').innerText = ai.verdict;
+
+                // Donut stroke-dashoffset: circumference is 163
+                const offset = Math.max(0, 163 - (163 * (ai.total_score / 100)));
+                const circle = document.getElementById('ai-score-circle');
+                if (circle) {
+                    circle.style.strokeDashoffset = offset;
+                    circle.setAttribute('stroke', ai.total_score >= 80 ? '#10b981' : (ai.total_score >= 60 ? '#f59e0b' : '#ef4444'));
+                }
+
+                // 4 Rubric Bars
+                document.getElementById('ai-score-entity').innerText = `${ai.entity_grounding_score} / 25`;
+                document.getElementById('ai-bar-entity').style.width = `${(ai.entity_grounding_score / 25) * 100}%`;
+
+                document.getElementById('ai-score-relational').innerText = `${ai.relational_density_score} / 25`;
+                document.getElementById('ai-bar-relational').style.width = `${(ai.relational_density_score / 25) * 100}%`;
+
+                document.getElementById('ai-score-silo').innerText = `${ai.silo_integrity_score} / 25`;
+                document.getElementById('ai-bar-silo').style.width = `${(ai.silo_integrity_score / 25) * 100}%`;
+
+                document.getElementById('ai-score-schema').innerText = `${ai.schema_coverage_score} / 25`;
+                document.getElementById('ai-bar-schema').style.width = `${(ai.schema_coverage_score / 25) * 100}%`;
+
+                // Recommendations
+                const recsList = document.getElementById('ai-recs-list');
+                recsList.innerHTML = '';
+                (ai.recommendations || []).forEach(r => {
+                    const li = document.createElement('li');
+                    li.innerText = r;
+                    recsList.appendChild(li);
+                });
+            }
+
+            // Render Topological Topic Cluster Canvas
+            if (data.cluster_topology) {
+                initClusterGraph(data.cluster_topology);
+            }
+
+            // Render Automated CMS Auto-Injector
+            if (data.wordpress_php_hook) {
+                document.getElementById('cms-wp-hook-code').innerText = data.wordpress_php_hook;
+            }
+            if (data.opportunities) {
+                const rules = data.opportunities.map(o => ({
+                    source_url: o.source_url,
+                    entity: o.entity,
+                    predicate: o.predicate,
+                    target_hub_url: o.target_url,
+                    suggested_anchor: o.suggested_anchor,
+                    html_snippet: o.html_snippet,
+                    priority: o.priority
+                }));
+                document.getElementById('cms-json-rules-code').innerText = JSON.stringify(rules, null, 2);
+            }
+
+            // Render Site Graph Code
+            if (data.unified_site_graph && data.unified_site_graph.schema_graph_jsonld) {
+                currentSiteGraphJson = JSON.stringify(data.unified_site_graph.schema_graph_jsonld, null, 2);
+                document.getElementById('site-graph-code').innerText = currentSiteGraphJson;
+            } else {
+                document.getElementById('site-graph-code').innerText = '{}';
+            }
+
+            // Render Autonomous /llms.txt and robots.txt AI rules
+            if (data.llms_txt) {
+                document.getElementById('llms-txt-code').innerText = data.llms_txt;
+            } else {
+                document.getElementById('llms-txt-code').innerText = '# No llms.txt generated';
+            }
+
+            if (data.robots_txt_ai) {
+                document.getElementById('robots-ai-code').innerText = data.robots_txt_ai;
+            } else {
+                document.getElementById('robots-ai-code').innerText = '# No robots.txt directives generated';
+            }
+
+            // Render Google Rich Results Validation Report
+            if (data.validation_report) {
+                const val = data.validation_report;
+                const score = val.compliance_percentage !== undefined ? val.compliance_percentage : (val.compliance_score || 0);
+                document.getElementById('val-compliance-pct').innerText = `${Math.round(score)}%`;
+                
+                const errCount = (val.errors || []).length;
+                const warnCount = (val.warnings || []).length;
+                
+                const errEl = document.getElementById('val-errors-count');
+                errEl.innerText = `${errCount} Error${errCount === 1 ? '' : 's'}`;
+                errEl.className = errCount === 0 ? 'font-bold text-emerald-600 mt-1' : 'font-bold text-rose-600 mt-1';
+                
+                const warnEl = document.getElementById('val-warnings-count');
+                warnEl.innerText = `${warnCount} Warning${warnCount === 1 ? '' : 's'}`;
+                
+                if (val.validated_types && val.validated_types.length > 0) {
+                    document.getElementById('val-types-list').innerText = val.validated_types.join(', ');
+                }
+
+                const titleEl = document.getElementById('val-status-title');
+                const descEl = document.getElementById('val-status-desc');
+                if (val.is_valid) {
+                    titleEl.innerText = 'Google Rich Results & Schema.org Validated';
+                    descEl.innerText = 'All generated graph nodes conform to Google Structured Data requirements with 0 critical errors.';
+                } else {
+                    titleEl.innerText = 'Schema Validation Warnings Detected';
+                    descEl.innerText = `Validation identified ${errCount} critical errors and ${warnCount} warnings in the generated JSON-LD graph.`;
+                }
+            }
+        }
+
+        /* ----------------------------------------------------
+           Interactive Topological Topic Cluster Canvas Engine
+        ---------------------------------------------------- */
+        let graphState = {
+            nodes: [],
+            edges: [],
+            panX: 0,
+            panY: 0,
+            scale: 1.0,
+            draggedNode: null,
+            hoveredNode: null,
+            isPanning: false,
+            lastMouseX: 0,
+            lastMouseY: 0,
+            animId: null
+        };
+
+        function initClusterGraph(topology) {
+            const canvas = document.getElementById('cluster-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            if (graphState.animId) {
+                cancelAnimationFrame(graphState.animId);
+            }
+
+            // Responsive sizing with device pixel ratio
+            const container = canvas.parentElement;
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            const w = Math.max(rect.width || 0, container ? container.clientWidth : 0, 850);
+            const h = Math.max(rect.height || 0, container ? container.clientHeight : 0, 450);
+            canvas.width = Math.round(w * dpr);
+            canvas.height = Math.round(h * dpr);
+
+            // Build node map
+            const nodeMap = new Map();
+            const totalNodes = (topology.nodes || []).length || 1;
+            graphState.nodes = (topology.nodes || []).map((n, i) => {
+                const angle = (i / totalNodes) * Math.PI * 2;
+                const radius = n.type === 'hub' ? 80 : (n.type === 'spoke' ? 140 : 180);
+                const jitterX = (Math.random() - 0.5) * 30;
+                const jitterY = (Math.random() - 0.5) * 30;
+                const nodeObj = {
+                    id: n.id,
+                    label: n.label,
+                    type: n.type,
+                    url: n.url,
+                    value: n.value,
+                    x: Math.cos(angle) * radius + jitterX,
+                    y: Math.sin(angle) * radius + jitterY,
+                    vx: 0,
+                    vy: 0,
+                    radius: n.type === 'hub' ? 16 : (n.type === 'spoke' ? 11 : 7),
+                    color: n.type === 'hub' ? '#9333ea' : (n.type === 'spoke' ? '#0284c7' : '#10b981')
+                };
+                nodeMap.set(n.id, nodeObj);
+                return nodeObj;
+            });
+
+            graphState.edges = (topology.edges || []).map(e => ({
+                source: nodeMap.get(e.source),
+                target: nodeMap.get(e.target),
+                label: e.label,
+                relation_type: e.relation_type
+            })).filter(e => e.source && e.target);
+
+            graphState.panX = 0;
+            graphState.panY = 0;
+            graphState.scale = 1.0;
+
+            // Attach event listeners once
+            if (!canvas._listenersAttached) {
+                canvas._listenersAttached = true;
+                const tooltip = document.getElementById('graph-tooltip');
+
+                canvas.addEventListener('mousedown', (e) => {
+                    const m = getCanvasMousePos(canvas, e);
+                    const clicked = findNodeAtPos(m.wx, m.wy);
+                    if (clicked) {
+                        graphState.draggedNode = clicked;
+                    } else {
+                        graphState.isPanning = true;
+                        graphState.lastMouseX = e.clientX;
+                        graphState.lastMouseY = e.clientY;
+                    }
+                });
+
+                window.addEventListener('mousemove', (e) => {
+                    if (graphState.draggedNode) {
+                        const m = getCanvasMousePos(canvas, e);
+                        graphState.draggedNode.x = m.wx;
+                        graphState.draggedNode.y = m.wy;
+                        graphState.draggedNode.vx = 0;
+                        graphState.draggedNode.vy = 0;
+                    } else if (graphState.isPanning) {
+                        const dx = e.clientX - graphState.lastMouseX;
+                        const dy = e.clientY - graphState.lastMouseY;
+                        graphState.lastMouseX = e.clientX;
+                        graphState.lastMouseY = e.clientY;
+                        graphState.panX += dx;
+                        graphState.panY += dy;
+                    } else {
+                        const m = getCanvasMousePos(canvas, e);
+                        const hover = findNodeAtPos(m.wx, m.wy);
+                        graphState.hoveredNode = hover;
+                        if (hover && tooltip) {
+                            canvas.style.cursor = 'pointer';
+                            tooltip.classList.remove('hidden');
+                            document.getElementById('tooltip-title').innerText = `${hover.type.toUpperCase()}: ${hover.label}`;
+                            document.getElementById('tooltip-desc').innerText = hover.url ? hover.url : `Entity Concept`;
+                            const cRect = canvas.getBoundingClientRect();
+                            tooltip.style.left = `${Math.min(cRect.width - 160, e.clientX - cRect.left + 15)}px`;
+                            tooltip.style.top = `${Math.min(cRect.height - 60, e.clientY - cRect.top + 15)}px`;
+                        } else if (tooltip) {
+                            canvas.style.cursor = 'grab';
+                            tooltip.classList.add('hidden');
+                        }
+                    }
+                });
+
+                window.addEventListener('mouseup', () => {
+                    graphState.draggedNode = null;
+                    graphState.isPanning = false;
+                });
+
+                canvas.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+                    graphState.scale = Math.max(0.4, Math.min(2.5, graphState.scale * zoomFactor));
+                }, { passive: false });
+            }
+
+            // Start physics simulation loop
+            let stepCount = 0;
+            function runSimulation() {
+                const nodes = graphState.nodes;
+                const edges = graphState.edges;
+
+                // Repulsion (Coulomb)
+                for (let i = 0; i < nodes.length; i++) {
+                    for (let j = i + 1; j < nodes.length; j++) {
+                        const a = nodes[i];
+                        const b = nodes[j];
+                        const dx = b.x - a.x;
+                        const dy = b.y - a.y;
+                        const dist = Math.hypot(dx, dy) || 1;
+                        if (dist < 320) {
+                            const force = (320 - dist) / (dist * 2.5);
+                            const fx = (dx / dist) * force;
+                            const fy = (dy / dist) * force;
+                            if (a !== graphState.draggedNode) { a.vx -= fx; a.vy -= fy; }
+                            if (b !== graphState.draggedNode) { b.vx += fx; b.vy += fy; }
+                        }
+                    }
+                }
+
+                // Spring attraction along edges
+                for (const e of edges) {
+                    const a = e.source;
+                    const b = e.target;
+                    const dx = b.x - a.x;
+                    const dy = b.y - a.y;
+                    const dist = Math.hypot(dx, dy) || 1;
+                    const targetDist = e.relation_type === 'recommends_link' ? 120 : 90;
+                    const force = (dist - targetDist) * 0.035;
+                    const fx = (dx / dist) * force;
+                    const fy = (dy / dist) * force;
+                    if (a !== graphState.draggedNode) { a.vx += fx; a.vy += fy; }
+                    if (b !== graphState.draggedNode) { b.vx -= fx; b.vy -= fy; }
+                }
+
+                // Center gravity & update position
+                for (const n of nodes) {
+                    if (n !== graphState.draggedNode) {
+                        n.vx -= n.x * 0.008;
+                        n.vy -= n.y * 0.008;
+                        n.vx *= 0.85; // Damping
+                        n.vy *= 0.85;
+                        n.x += n.vx;
+                        n.y += n.vy;
+                    }
+                }
+
+                drawClusterCanvas(canvas, ctx);
+                graphState.animId = requestAnimationFrame(runSimulation);
+            }
+
+            runSimulation();
+        }
+
+        function getCanvasMousePos(canvas, evt) {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            const cx = (evt.clientX - rect.left);
+            const cy = (evt.clientY - rect.top);
+            // World coordinates
+            const wx = (cx - (rect.width / 2) - graphState.panX) / graphState.scale;
+            const wy = (cy - (rect.height / 2) - graphState.panY) / graphState.scale;
+            return { cx, cy, wx, wy };
+        }
+
+        function findNodeAtPos(wx, wy) {
+            for (let i = graphState.nodes.length - 1; i >= 0; i--) {
+                const n = graphState.nodes[i];
+                const d = Math.hypot(n.x - wx, n.y - wy);
+                if (d <= n.radius + 6) {
+                    return n;
+                }
+            }
+            return null;
+        }
+
+        function drawClusterCanvas(canvas, ctx) {
+            const dpr = window.devicePixelRatio || 1;
+            const container = canvas.parentElement;
+            if (container && container.clientWidth > 50) {
+                const targetW = Math.round(container.clientWidth * dpr);
+                const targetH = Math.round((container.clientHeight || 450) * dpr);
+                if (canvas.width !== targetW || canvas.height !== targetH) {
+                    canvas.width = targetW;
+                    canvas.height = targetH;
+                }
+            }
+            const w = canvas.width || (850 * dpr);
+            const h = canvas.height || (450 * dpr);
+
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, w, h);
+
+            // Slate-950 background
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(0, 0, w, h);
+
+            // Apply camera transform
+            ctx.translate((w / 2) + graphState.panX * dpr, (h / 2) + graphState.panY * dpr);
+            ctx.scale(graphState.scale * dpr, graphState.scale * dpr);
+
+            // Draw Edges
+            for (const e of graphState.edges) {
+                const a = e.source;
+                const b = e.target;
+                ctx.beginPath();
+                ctx.moveTo(a.x, a.y);
+                ctx.lineTo(b.x, b.y);
+
+                if (e.relation_type === 'recommends_link') {
+                    ctx.setLineDash([5, 4]);
+                    ctx.strokeStyle = '#818cf8';
+                    ctx.lineWidth = 2.2;
+                } else {
+                    ctx.setLineDash([]);
+                    ctx.strokeStyle = '#334155';
+                    ctx.lineWidth = 1.2;
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Draw arrowhead on recommended links
+                if (e.relation_type === 'recommends_link') {
+                    const angle = Math.atan2(b.y - a.y, b.x - a.x);
+                    const arrowX = b.x - Math.cos(angle) * (b.radius + 6);
+                    const arrowY = b.y - Math.sin(angle) * (b.radius + 6);
+                    ctx.fillStyle = '#a5b4fc';
+                    ctx.beginPath();
+                    ctx.moveTo(arrowX, arrowY);
+                    ctx.lineTo(arrowX - 8 * Math.cos(angle - Math.PI / 6), arrowY - 8 * Math.sin(angle - Math.PI / 6));
+                    ctx.lineTo(arrowX - 8 * Math.cos(angle + Math.PI / 6), arrowY - 8 * Math.sin(angle + Math.PI / 6));
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            }
+
+            // Draw Nodes
+            for (const n of graphState.nodes) {
+                const isHover = (n === graphState.hoveredNode);
+
+                // Outer glow ring for Hubs
+                if (n.type === 'hub') {
+                    ctx.beginPath();
+                    ctx.arc(n.x, n.y, n.radius + 6, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(168, 85, 247, 0.2)';
+                    ctx.fill();
+                }
+
+                // Node circle
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, n.radius + (isHover ? 3 : 0), 0, Math.PI * 2);
+                ctx.fillStyle = n.color;
+                ctx.fill();
+                ctx.lineWidth = isHover ? 3 : 1.5;
+                ctx.strokeStyle = isHover ? '#ffffff' : (n.type === 'hub' ? '#c084fc' : (n.type === 'spoke' ? '#7dd3fc' : '#6ee7b7'));
+                ctx.stroke();
+
+                // Label
+                ctx.font = `${n.type === 'hub' ? 'bold 11px' : '10px'} Inter, sans-serif`;
+                ctx.fillStyle = isHover ? '#ffffff' : (n.type === 'hub' ? '#f3e8ff' : '#cbd5e1');
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                ctx.fillText(n.label, n.x, n.y + n.radius + 4);
+            }
+
+            ctx.restore();
+        }
+
+        function resetGraphZoom() {
+            graphState.panX = 0;
+            graphState.panY = 0;
+            graphState.scale = 1.0;
+        }
+
+        /* ----------------------------------------------------
+           CMS Auto-Hook Tab Switcher & Copy Handlers
+        ---------------------------------------------------- */
+        function switchCmsTab(tab) {
+            const btnWp = document.getElementById('tab-btn-wp-hook');
+            const btnJson = document.getElementById('tab-btn-json-rules');
+            const secWp = document.getElementById('cms-tab-wp');
+            const secJson = document.getElementById('cms-tab-json');
+
+            if (tab === 'wp') {
+                btnWp.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-50 text-brand-700 border border-brand-200 transition';
+                btnJson.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition';
+                secWp.classList.remove('hidden');
+                secJson.classList.add('hidden');
+            } else {
+                btnJson.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-50 text-brand-700 border border-brand-200 transition';
+                btnWp.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition';
+                secJson.classList.remove('hidden');
+                secWp.classList.add('hidden');
+            }
+        }
+
+        async function copyWpHookCode() {
+            const code = document.getElementById('cms-wp-hook-code').innerText;
+            if (!code) return;
+            try {
+                await navigator.clipboard.writeText(code);
+                const txt = document.getElementById('copy-wp-hook-txt');
+                txt.innerText = 'Copied!';
+                setTimeout(() => { txt.innerText = 'Copy WordPress PHP Hook'; }, 2000);
+            } catch(e) {
+                alert('Copy failed.');
+            }
+        }
+
+        async function copyCmsJsonRules() {
+            const code = document.getElementById('cms-json-rules-code').innerText;
+            if (!code) return;
+            try {
+                await navigator.clipboard.writeText(code);
+                const txt = document.getElementById('copy-cms-json-txt');
+                txt.innerText = 'Copied!';
+                setTimeout(() => { txt.innerText = 'Copy JSON Rules'; }, 2000);
+            } catch(e) {
+                alert('Copy failed.');
+            }
+        }
+
+        async function copyLinkCode(htmlStr, btn) {
+            if (!htmlStr) return;
+            try {
+                await navigator.clipboard.writeText(htmlStr);
+                const orig = btn.innerHTML;
+                btn.innerHTML = '<span>Copied!</span>';
+                btn.classList.add('text-emerald-700', 'border-emerald-300', 'bg-emerald-50');
+                setTimeout(() => {
+                    btn.innerHTML = orig;
+                    btn.classList.remove('text-emerald-700', 'border-emerald-300', 'bg-emerald-50');
+                }, 2000);
+            } catch(e) {
+                alert('Copy failed.');
+            }
+        }
+
+        async function copySiteGraphJson() {
+            if (!currentSiteGraphJson) return;
+            try {
+                await navigator.clipboard.writeText(currentSiteGraphJson);
+                const txt = document.getElementById('site-graph-copy-text');
+                txt.innerText = 'Copied!';
+                setTimeout(() => { txt.innerText = 'Copy Graph JSON'; }, 2000);
+            } catch(e) {
+                alert('Copy failed.');
+            }
+        }
+
+        function exportLinksCsv() {
+            if (!currentLinkingData || !currentLinkingData.opportunities) {
+                alert('No link data available. Run an audit first.');
+                return;
+            }
+            const opps = currentLinkingData.opportunities;
+            const headers = ['Priority', 'Source URL', 'Target URL', 'Entity', 'Predicate', 'Suggested Anchor Text', 'Context Sentence', 'HTML Snippet'];
+            const rows = opps.map(o => [
+                `"${o.priority || ''}"`,
+                `"${o.source_url || ''}"`,
+                `"${o.target_url || ''}"`,
+                `"${(o.entity || '').replace(/"/g, '""')}"`,
+                `"${o.predicate || ''}"`,
+                `"${(o.suggested_anchor || '').replace(/"/g, '""')}"`,
+                `"${(o.context_sentence || '').replace(/"/g, '""')}"`,
+                `"${(o.html_snippet || '').replace(/"/g, '""')}"`
+            ]);
+            const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `internal-links-${currentLinkingData.root_domain || 'export'}-${Date.now()}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+        }
+
+        function exportLinksMarkdown() {
+            if (!currentLinkingData) {
+                alert('No link data available.');
+                return;
+            }
+            const d = currentLinkingData;
+            const ts = new Date().toLocaleString();
+            const hubRows = Object.entries(d.topic_hubs || {})
+                .map(([c, u]) => `| ${c} | [${u}](${u}) |`).join('\n');
+            const oppRows = (d.opportunities || []).map(o =>
+                `| ${o.priority} | ${o.source_url} | **${o.entity}** (${o.predicate || 'mention'}) | ${o.target_url} | \`${o.suggested_anchor}\` |`
+            ).join('\n');
+
+            const md = [
+                `# GainARK OntoLeap — Internal Linking & Topic Silo Plan`,
+                `**Domain:** ${d.root_domain}  `,
+                `**Generated:** ${ts}  `,
+                `**Pages Analyzed:** ${d.pages_analyzed}  `,
+                `**Opportunities Found:** ${d.opportunities_count}`,
+                ``,
+                `---`,
+                `## 🏛️ Canonical Topic Authority Hubs`,
+                `| Entity / Concept | Canonical Landing Page |`,
+                `|------------------|------------------------|`,
+                hubRows || '_None identified._',
+                ``,
+                `---`,
+                `## 🔗 Prioritized Internal Link Recommendations`,
+                `| Priority | Source Page | Entity & Relation | Target Hub | Suggested Anchor Text |`,
+                `|----------|-------------|-------------------|------------|-----------------------|`,
+                oppRows || '_No missing internal link opportunities detected._',
+                ``,
+                `---`,
+                `_Generated by GainARK OntoLeap — Autonomous Ontology Intelligence_`
+            ].join('\n');
+
+            downloadMarkdown(`internal-link-plan-${d.root_domain}-${Date.now()}.md`, md);
+        }
+
+        /* ----------------------------------------------------
+           Perplexity & SearchGPT Simulator Handlers
+        ---------------------------------------------------- */
+        function setSimQuery(q) {
+            const input = document.getElementById('sim-query-input');
+            if (input) {
+                input.value = q;
+                input.focus();
+            }
+        }
+
+        async function handleSimulateSearch(e) {
+            e.preventDefault();
+            const queryInput = document.getElementById('sim-query-input');
+            const query = queryInput.value.trim();
+            if (!query) return;
+
+            if (!currentLinkingData) {
+                alert('Please run a site audit first to load domain knowledge graph triples.');
+                return;
+            }
+
+            const submitBtn = document.getElementById('sim-submit-btn');
+            const spinner = document.getElementById('sim-spinner');
+            const btnText = document.getElementById('sim-btn-text');
+            const resultBox = document.getElementById('sim-result-box');
+
+            submitBtn.disabled = true;
+            spinner.classList.remove('hidden');
+            btnText.innerText = 'Synthesizing...';
+
+            try {
+                const payload = {
+                    query: query,
+                    root_domain: currentLinkingData.root_domain || 'platform.com',
+                    triples: (currentLinkingData.unified_site_graph && currentLinkingData.unified_site_graph.triples) || [],
+                    topic_hubs: currentLinkingData.topic_hubs || {},
+                    entities: (currentLinkingData.unified_site_graph && currentLinkingData.unified_site_graph.unique_entities) || []
+                };
+
+                const resp = await fetch('/api/simulate-search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.detail || 'Simulation request failed');
+                }
+
+                const simData = await resp.json();
+
+                // Format bolding and citations
+                let formatted = escapeHtml(simData.synthesized_answer);
+                formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+                formatted = formatted.replace(/\[(\d+)\]/g, (match, p1) => {
+                    const cIdx = parseInt(p1, 10);
+                    const citation = (simData.citations || []).find(c => c.index === cIdx);
+                    if (citation) {
+                        return `<a href="${escapeHtml(citation.target_url)}" target="_blank" class="inline-flex items-center px-1.5 py-0.2 bg-cyan-100 text-cyan-800 font-bold rounded text-[11px] hover:bg-cyan-200 transition font-mono mx-0.5" title="${escapeHtml(citation.entity)}: ${escapeHtml(citation.target_url)}">[${p1}]</a>`;
+                    }
+                    return `<span class="inline-flex items-center px-1.5 py-0.2 bg-cyan-100 text-cyan-800 font-bold rounded text-[11px] font-mono mx-0.5">[${p1}]</span>`;
+                });
+
+                document.getElementById('sim-answer-text').innerHTML = formatted;
+                document.getElementById('sim-confidence-txt').innerText = `${Math.round(simData.grounding_confidence * 100)}%`;
+                document.getElementById('sim-hallucination-badge').innerText = simData.hallucination_risk;
+
+                const citGrid = document.getElementById('sim-citations-grid');
+                citGrid.innerHTML = '';
+                (simData.citations || []).forEach(c => {
+                    const card = document.createElement('div');
+                    card.className = 'p-2.5 bg-white rounded-lg border border-slate-200 flex items-start justify-between gap-2 shadow-xs';
+                    card.innerHTML = `
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-4 h-4 rounded-full bg-cyan-100 text-cyan-800 flex items-center justify-center font-bold text-[10px] shrink-0">[${c.index}]</span>
+                                <span class="font-bold text-slate-800">${escapeHtml(c.entity)}</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-1 italic line-clamp-1">${escapeHtml(c.evidence)}</p>
+                        </div>
+                        <a href="${escapeHtml(c.target_url)}" target="_blank" class="text-brand-600 hover:text-brand-800 p-1 shrink-0" title="Visit Canonical Topic Hub">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        </a>
+                    `;
+                    citGrid.appendChild(card);
+                });
+
+                resultBox.classList.remove('hidden');
+            } catch (err) {
+                alert('Simulator Error: ' + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                spinner.classList.add('hidden');
+                btnText.innerText = 'Simulate AI Answer';
+            }
+        }
+
+        /* ----------------------------------------------------
+           In-Content Placement & Visual Diff Modal Handlers
+        ---------------------------------------------------- */
+        let currentRemediatedSnippet = '';
+
+        function previewLinkPlacement(idx) {
+            if (!currentLinkingData || !currentLinkingData.opportunities || !currentLinkingData.opportunities[idx]) {
+                return;
+            }
+            const o = currentLinkingData.opportunities[idx];
+
+            document.getElementById('diff-modal-source').innerText = o.source_url;
+            document.getElementById('diff-modal-target').innerText = o.target_url;
+
+            // Highlight entity in Before Box
+            const sentence = o.context_sentence || '';
+            const entityRegex = new RegExp(`(${escapeRegExp(o.entity)})`, 'gi');
+            const highlightedBefore = escapeHtml(sentence).replace(
+                entityRegex,
+                '<mark class="bg-amber-200 text-slate-900 font-semibold px-1 rounded">$1</mark>'
+            );
+            document.getElementById('diff-modal-before').innerHTML = highlightedBefore;
+
+            // Remediated After Box with styled link anchor
+            const anchorReplacement = `<a href="${escapeHtml(o.target_url)}" title="${escapeHtml(o.suggested_anchor)}" class="text-brand-600 font-semibold underline bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 hover:bg-indigo-100 transition">${escapeHtml(o.suggested_anchor)}</a>`;
+            const remediatedAfter = escapeHtml(sentence).replace(entityRegex, anchorReplacement);
+            document.getElementById('diff-modal-after').innerHTML = remediatedAfter;
+
+            currentRemediatedSnippet = sentence.replace(new RegExp(escapeRegExp(o.entity), 'i'), o.html_snippet);
+
+            document.getElementById('link-diff-modal').classList.remove('hidden');
+        }
+
+        function closeLinkDiffModal() {
+            document.getElementById('link-diff-modal').classList.add('hidden');
+        }
+
+        async function copyDiffRemediatedText() {
+            if (!currentRemediatedSnippet) return;
+            try {
+                await navigator.clipboard.writeText(currentRemediatedSnippet);
+                const txt = document.getElementById('diff-modal-copy-txt');
+                txt.innerText = 'Copied!';
+                setTimeout(() => { txt.innerText = 'Copy Hyperlinked Text'; }, 2000);
+            } catch (e) {
+                alert('Copy failed.');
+            }
+        }
+
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        /* ----------------------------------------------------
+           Autonomous llms.txt, robots.txt & Validation Handlers
+        ---------------------------------------------------- */
+        function switchLlmsTab(tab) {
+            const btnLlms = document.getElementById('tab-btn-llms-txt');
+            const btnRobots = document.getElementById('tab-btn-robots-ai');
+            const btnVal = document.getElementById('tab-btn-schema-val');
+            const secLlms = document.getElementById('llms-tab-manifest');
+            const secRobots = document.getElementById('llms-tab-robots');
+            const secVal = document.getElementById('llms-tab-val');
+
+            [btnLlms, btnRobots, btnVal].forEach(b => {
+                if (b) b.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition cursor-pointer';
+            });
+            [secLlms, secRobots, secVal].forEach(s => {
+                if (s) s.classList.add('hidden');
+            });
+
+            if (tab === 'llms') {
+                if (btnLlms) btnLlms.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-50 text-brand-700 border border-brand-200 transition cursor-pointer';
+                if (secLlms) secLlms.classList.remove('hidden');
+            } else if (tab === 'robots') {
+                if (btnRobots) btnRobots.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-50 text-brand-700 border border-brand-200 transition cursor-pointer';
+                if (secRobots) secRobots.classList.remove('hidden');
+            } else if (tab === 'val') {
+                if (btnVal) btnVal.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-50 text-brand-700 border border-brand-200 transition cursor-pointer';
+                if (secVal) secVal.classList.remove('hidden');
+            }
+        }
+
+        async function copyLlmsTxt() {
+            const code = document.getElementById('llms-txt-code').innerText;
+            if (!code) return;
+            try {
+                await navigator.clipboard.writeText(code);
+                const label = document.getElementById('copy-llms-txt-label');
+                label.innerText = 'Copied!';
+                setTimeout(() => { label.innerText = 'Copy llms.txt'; }, 2000);
+            } catch(e) {
+                alert('Copy failed.');
+            }
+        }
+
+        function downloadLlmsTxt() {
+            const code = document.getElementById('llms-txt-code').innerText;
+            if (!code) {
+                alert('No llms.txt content to download.');
+                return;
+            }
+            const blob = new Blob([code], { type: 'text/plain;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'llms.txt';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+        }
+
+        async function copyRobotsAiRules() {
+            const code = document.getElementById('robots-ai-code').innerText;
+            if (!code) return;
+            try {
+                await navigator.clipboard.writeText(code);
+                const label = document.getElementById('copy-robots-ai-label');
+                label.innerText = 'Copied!';
+                setTimeout(() => { label.innerText = 'Copy robots.txt Rules'; }, 2000);
+            } catch(e) {
+                alert('Copy failed.');
+            }
+        }
+    </script>
+
+    <!-- Schema Inspection Modal / Slide-Over Drawer -->
+    <div id="schema-modal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onclick="closeSchemaModal()"></div>
+
+        <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+            <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-2xl border border-slate-200">
+                <!-- Modal Header -->
+                <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold shadow-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900" id="modal-schema-title">Verified Schema Payload</h3>
+                            <p class="text-xs text-slate-500" id="modal-schema-subtitle">Live verified Schema.org node</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="copyModalJson()" class="inline-flex items-center px-3 py-1.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm focus:outline-none transition">
+                            <svg class="w-3.5 h-3.5 mr-1 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+                            </svg>
+                            <span id="modal-copy-text">Copy JSON</span>
+                        </button>
+                        <button onclick="closeSchemaModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="p-6 space-y-4">
+                    <!-- Key Properties Grid -->
+                    <div id="modal-key-props" class="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <!-- Injected properties e.g. name, legalName, foundingDate -->
+                    </div>
+
+                    <!-- sameAs Links section if present -->
+                    <div id="modal-sameas-container" class="hidden text-xs">
+                        <span class="font-semibold text-slate-700">Verified Social Profiles (sameAs):</span>
+                        <div id="modal-sameas-links" class="flex flex-wrap gap-1.5 mt-1.5">
+                            <!-- Injected badges -->
+                        </div>
+                    </div>
+
+                    <!-- JSON Code View -->
+                    <div>
+                        <div class="flex items-center justify-between text-xs text-slate-500 mb-1.5 font-medium">
+                            <span>Exact Detected Schema Node</span>
+                            <span id="modal-syntax-tag" class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-200 text-slate-700">JSON-LD</span>
+                        </div>
+                        <pre class="bg-slate-900 text-slate-100 p-4 rounded-xl text-xs overflow-x-auto max-h-80 font-mono"><code id="modal-json-code">{}</code></pre>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="bg-slate-50 px-6 py-3 border-t border-slate-200 flex justify-end">
+                    <button onclick="closeSchemaModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-xl transition">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- In-Content Link Placement Preview Modal -->
+    <div id="link-diff-modal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onclick="closeLinkDiffModal()"></div>
+        <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+            <div class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-2xl border border-slate-200">
+                <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shadow-sm">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900">In-Content Placement &amp; Visual Diff</h3>
+                            <p class="text-xs text-slate-500">Side-by-side comparison before and after inserting topic silo anchor</p>
+                        </div>
+                    </div>
+                    <button onclick="closeLinkDiffModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+
+                <div class="p-6 space-y-4 text-xs">
+                    <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Source Page:</span>
+                            <div class="font-mono text-slate-700 truncate mt-0.5" id="diff-modal-source"></div>
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Target Topic Hub:</span>
+                            <div class="font-mono text-brand-600 truncate mt-0.5" id="diff-modal-target"></div>
+                        </div>
+                    </div>
+
+                    <!-- Before Box -->
+                    <div class="space-y-1.5">
+                        <span class="font-bold text-slate-700 flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-slate-400 inline-block"></span>
+                            Original Live Text (Unlinked Mention):
+                        </span>
+                        <div class="p-3.5 bg-slate-100 rounded-xl text-slate-700 leading-relaxed border border-slate-200" id="diff-modal-before"></div>
+                    </div>
+
+                    <!-- After Box -->
+                    <div class="space-y-1.5">
+                        <span class="font-bold text-emerald-700 flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                            Remediated In-Content Text (With Topic Silo Link):
+                        </span>
+                        <div class="p-3.5 bg-emerald-50/70 rounded-xl text-slate-900 leading-relaxed border border-emerald-200" id="diff-modal-after"></div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 px-6 py-3 border-t border-slate-200 flex justify-between items-center">
+                    <button
+                        type="button"
+                        onclick="copyDiffRemediatedText()"
+                        id="diff-modal-copy-btn"
+                        class="inline-flex items-center px-3.5 py-1.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs rounded-xl shadow-sm transition cursor-pointer"
+                    >
+                        <svg class="w-3.5 h-3.5 mr-1.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                        <span id="diff-modal-copy-txt">Copy Hyperlinked Text</span>
+                    </button>
+                    <button onclick="closeLinkDiffModal()" class="px-4 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-xl transition cursor-pointer">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

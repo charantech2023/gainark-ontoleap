@@ -1,0 +1,2829 @@
+[
+  {
+    "url": "https://www.chargebee.com",
+    "title": "Chargebee: Billing & Monetization for SaaS and AI Companies",
+    "readiness_score": 60.74,
+    "compliance_str": "3/3",
+    "passed_schemas": [
+      "SoftwareApplication",
+      "Organization",
+      "Offer"
+    ],
+    "missing_schemas": [],
+    "entity_count": 4,
+    "detected_concepts": [
+      "Revenue Recognition",
+      "ASC 606"
+    ],
+    "missing_concepts": [
+      "Subscription Management",
+      "Billing Automation",
+      "ERP Integration",
+      "Accounts Receivable",
+      "Payment Gateway",
+      "SOC 1",
+      "SOC 2",
+      "REST API"
+    ],
+    "readiness_breakdown": {
+      "schema_score": 40.0,
+      "concept_score": 6.0,
+      "entity_score": 14.74,
+      "total_score": 60.74,
+      "details": {
+        "mandatory_schemas_detected": "3/3",
+        "seed_concepts_detected": "2/10",
+        "gliner_labels_covered": "3/6",
+        "entities_extracted": 4,
+        "average_entity_confidence": 0.6031
+      }
+    },
+    "recommended_patch": {
+      "patch_dict": {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://www.chargebee.com/#software",
+            "name": "Chargebee",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "Cloud-based",
+            "featureList": [
+              "Tiered",
+              "ASC 606",
+              "Revenue Recognition"
+            ],
+            "provider": {
+              "@type": "Organization",
+              "name": "Chargebee",
+              "@id": "https://www.chargebee.com/#organization"
+            },
+            "offers": {
+              "@id": "https://www.chargebee.com/#offer"
+            }
+          },
+          {
+            "@type": "Offer",
+            "@id": "https://www.chargebee.com/#offer",
+            "price": "Custom",
+            "priceCurrency": "USD",
+            "category": "Subscription and Usage-Based Billing",
+            "seller": {
+              "@type": "Organization",
+              "name": "Chargebee",
+              "@id": "https://www.chargebee.com/#organization"
+            }
+          }
+        ]
+      },
+      "json_ld": "{\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"SoftwareApplication\",\n      \"@id\": \"https://www.chargebee.com/#software\",\n      \"name\": \"Chargebee\",\n      \"applicationCategory\": \"BusinessApplication\",\n      \"operatingSystem\": \"Cloud-based\",\n      \"featureList\": [\n        \"Tiered\",\n        \"ASC 606\",\n        \"Revenue Recognition\"\n      ],\n      \"provider\": {\n        \"@type\": \"Organization\",\n        \"name\": \"Chargebee\",\n        \"@id\": \"https://www.chargebee.com/#organization\"\n      },\n      \"offers\": {\n        \"@id\": \"https://www.chargebee.com/#offer\"\n      }\n    },\n    {\n      \"@type\": \"Offer\",\n      \"@id\": \"https://www.chargebee.com/#offer\",\n      \"price\": \"Custom\",\n      \"priceCurrency\": \"USD\",\n      \"category\": \"Subscription and Usage-Based Billing\",\n      \"seller\": {\n        \"@type\": \"Organization\",\n        \"name\": \"Chargebee\",\n        \"@id\": \"https://www.chargebee.com/#organization\"\n      }\n    }\n  ]\n}",
+      "schemas_added": [
+        "SoftwareApplication",
+        "Offer"
+      ],
+      "features_mapped": [
+        "Tiered",
+        "ASC 606",
+        "Revenue Recognition"
+      ],
+      "resolved_provider": {
+        "@type": "Organization",
+        "name": "Chargebee",
+        "@id": "https://www.chargebee.com/#organization"
+      }
+    },
+    "full_result": {
+      "url": "https://www.chargebee.com",
+      "title": "Chargebee: Billing & Monetization for SaaS and AI Companies",
+      "vertical_id": "b2b_saas_fintech",
+      "extracted_text_snippet": "Subscriptions are here to stay, but consumers want clear prices and control over plans \u00e2 it\u00e2s a mandate.\nAutomate your revenue and billing workflows\nMonetize your way\nGrow lifetime value\nScale financial operations\nMonetize your way\nTest and launch new pricing in hours\nDeploy new pricing models without engineering delays - tiered, per-user, multi-year, usage or hybrid. Manage and scale everything with the product catalog. code.\nMake it seamless for your customers to accept your quote. Respond to ...",
+      "entities": [
+        {
+          "text": "tiered",
+          "label": "Pricing Model",
+          "score": 0.4479,
+          "start": 324,
+          "end": 330
+        },
+        {
+          "text": "AI-powered retention engine",
+          "label": "Software Platform",
+          "score": 0.5852,
+          "start": 1542,
+          "end": 1569
+        },
+        {
+          "text": "accounting system",
+          "label": "Software Platform",
+          "score": 0.4278,
+          "start": 1832,
+          "end": 1849
+        },
+        {
+          "text": "ASC 606",
+          "label": "Accounting Standard",
+          "score": 0.9515,
+          "start": 2417,
+          "end": 2424
+        }
+      ],
+      "schema_org": [
+        {
+          "schema_type": "Organization, Corporation",
+          "syntax": "json-ld",
+          "data": {
+            "@type": [
+              "Organization",
+              "Corporation"
+            ],
+            "@id": "https://www.chargebee.com/#organization",
+            "name": "Chargebee",
+            "legalName": "Chargebee Inc.",
+            "url": "https://www.chargebee.com/",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://www.chargebee.com/static/resources/brand/chargebee-logo.svg",
+              "width": 200,
+              "height": 48
+            },
+            "description": "Chargebee is a billing, monetization, and revenue infrastructure platform for AI-native companies and SaaS businesses. It automates billing and invoicing across flat-fee, per-seat, usage-based, outcome-based, and hybrid pricing models; provisions and manages feature entitlements without engineering; processes payments across 40+ gateways, 50+ payment methods, 100+ currencies, and 150+ countries; streamlines deal quoting and approvals; and recognizes revenue accurately \u00e2\u0080\u0094 all from a single platform trusted by 6,500+ businesses globally.",
+            "foundingDate": "2011",
+            "numberOfEmployees": {
+              "@type": "QuantitativeValue",
+              "minValue": 500,
+              "maxValue": 1000
+            },
+            "areaServed": "Worldwide",
+            "slogan": "Every Pricing Model, One Billing System",
+            "knowsAbout": [
+              "AI Monetization",
+              "Agentic Pricing & Monetization",
+              "Usage-Based Billing",
+              "Outcome-Based Pricing",
+              "Subscription Billing",
+              "Pricing Experimentation",
+              "Configure Price Quote (CPQ)",
+              "Quote-to-Cash Automation",
+              "Revenue Recognition (ASC 606 / IFRS 15)",
+              "Entitlement Management",
+              "Customer Retention and Churn Management",
+              "No-Code Feature Provisioning",
+              "Revenue Insights",
+              "Payments",
+              "Tax Automation (US Sales Tax, EU VAT, Australian GST)",
+              "Multi-currency multi-entity billing",
+              "Dunning Management & Failed Payment Retries"
+            ],
+            "founders": [
+              {
+                "@type": "Person",
+                "@id": "https://www.chargebee.com/company/#krish",
+                "name": "Krish Subramanian",
+                "alternateName": "Krishnamoorthy Subramanian",
+                "jobTitle": "Co-Founder & CEO",
+                "worksFor": {
+                  "@id": "https://www.chargebee.com/#organization"
+                },
+                "sameAs": "https://www.linkedin.com/in/krishs/"
+              },
+              {
+                "@type": "Person",
+                "@id": "https://www.chargebee.com/company/#rajaraman",
+                "name": "Rajaraman Santhanam",
+                "jobTitle": "Co-Founder & CPO",
+                "worksFor": {
+                  "@id": "https://www.chargebee.com/#organization"
+                },
+                "sameAs": "https://www.linkedin.com/in/rajaramansanthanam/"
+              },
+              {
+                "@type": "Person",
+                "@id": "https://www.chargebee.com/company/#saravanan",
+                "name": "Saravanan KP",
+                "alternateName": "Saravanan Kolathupalaya Ponnuswamy",
+                "jobTitle": "Co-Founder & CTO",
+                "worksFor": {
+                  "@id": "https://www.chargebee.com/#organization"
+                },
+                "sameAs": "https://www.linkedin.com/in/saravanan-kp-09792838/"
+              }
+            ],
+            "sameAs": [
+              "https://www.linkedin.com/company/chargebee/",
+              "https://twitter.com/Chargebee",
+              "https://www.g2.com/products/chargebee/reviews",
+              "https://www.gartner.com/reviews/market/recurring-billing-applications",
+              "https://www.gartner.com/reviews/product/chargebee?marketSeoName=recurring-billing-applications"
+            ],
+            "award": "2026 Gartner\u00c2\u00ae Magic Quadrant\u00e2\u0084\u00a2 Leader for Recurring Billing Applications \u00e2\u0080\u0094 furthest for Completeness of Vision",
+            "address": {
+              "@type": "PostalAddress",
+              "addressCountry": "US",
+              "addressLocality": "San Francisco",
+              "addressRegion": "CA"
+            },
+            "contactPoint": [
+              {
+                "@type": "ContactPoint",
+                "contactType": "sales",
+                "url": "https://www.chargebee.com/schedule-a-demo/",
+                "availableLanguage": [
+                  "English",
+                  "German",
+                  "French",
+                  "Dutch"
+                ]
+              },
+              {
+                "@type": "ContactPoint",
+                "contactType": "customer support",
+                "url": "https://www.chargebee.com/docs/"
+              }
+            ],
+            "hasOfferCatalog": [
+              {
+                "@type": "OfferCatalog",
+                "name": "Chargebee Core Products",
+                "description": "Standalone revenue management products \u00e2\u0080\u0094 Billing, RevRec, and Reveal.",
+                "itemListElement": [
+                  {
+                    "@type": "Offer",
+                    "name": "Chargebee Billing",
+                    "description": "AI monetization and billing infrastructure platform supporting every pricing model including token-based, credit-based, usage-based, outcome-based, and hybrid.",
+                    "url": "https://www.chargebee.com/billing/"
+                  },
+                  {
+                    "@type": "Offer",
+                    "name": "Chargebee RevRec",
+                    "description": "Automated revenue recognition software ensuring compliance with ASC 606 and IFRS 15 for AI-native and subscription businesses.",
+                    "url": "https://www.chargebee.com/revenue-recognition-software/"
+                  },
+                  {
+                    "@type": "Offer",
+                    "name": "Chargebee Reveal",
+                    "description": "Payments intelligence platform that uses ML to detect payment failure patterns, diagnose revenue leaks, and surface actionable fixes.",
+                    "url": "https://www.chargebee.com/payments/intelligence/"
+                  }
+                ]
+              },
+              {
+                "@type": "OfferCatalog",
+                "name": "Chargebee Add-ons",
+                "description": "Modular add-ons that extend Chargebee Billing \u00e2\u0080\u0094 CPQ, Growth, and Receivables.",
+                "itemListElement": [
+                  {
+                    "@type": "Offer",
+                    "name": "Chargebee CPQ",
+                    "description": "Billing-native Configure Price Quote add-on for SaaS and AI companies scaling a sales-led motion.",
+                    "url": "https://www.chargebee.com/cpq/"
+                  },
+                  {
+                    "@type": "Offer",
+                    "name": "Chargebee Growth",
+                    "description": "Lifecycle monetization platform that turns subscription billing data into acquisition, expansion, and retention actions.",
+                    "url": "https://www.chargebee.com/growth/"
+                  },
+                  {
+                    "@type": "Offer",
+                    "name": "Chargebee Receivables",
+                    "description": "Accounts receivable and collections automation add-on that recovers revenue from unpaid invoices and failed payments.",
+                    "url": "https://www.chargebee.com/receivables/"
+                  }
+                ]
+              }
+            ]
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "ImageObject",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "ImageObject",
+            "url": "https://www.chargebee.com/static/resources/brand/chargebee-logo.svg",
+            "width": 200,
+            "height": 48
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "QuantitativeValue",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "QuantitativeValue",
+            "minValue": 500,
+            "maxValue": 1000
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Person",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Person",
+            "@id": "https://www.chargebee.com/company/#krish",
+            "name": "Krish Subramanian",
+            "alternateName": "Krishnamoorthy Subramanian",
+            "jobTitle": "Co-Founder & CEO",
+            "worksFor": {
+              "@id": "https://www.chargebee.com/#organization"
+            },
+            "sameAs": "https://www.linkedin.com/in/krishs/"
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Person",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Person",
+            "@id": "https://www.chargebee.com/company/#rajaraman",
+            "name": "Rajaraman Santhanam",
+            "jobTitle": "Co-Founder & CPO",
+            "worksFor": {
+              "@id": "https://www.chargebee.com/#organization"
+            },
+            "sameAs": "https://www.linkedin.com/in/rajaramansanthanam/"
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Person",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Person",
+            "@id": "https://www.chargebee.com/company/#saravanan",
+            "name": "Saravanan KP",
+            "alternateName": "Saravanan Kolathupalaya Ponnuswamy",
+            "jobTitle": "Co-Founder & CTO",
+            "worksFor": {
+              "@id": "https://www.chargebee.com/#organization"
+            },
+            "sameAs": "https://www.linkedin.com/in/saravanan-kp-09792838/"
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "PostalAddress",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "PostalAddress",
+            "addressCountry": "US",
+            "addressLocality": "San Francisco",
+            "addressRegion": "CA"
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "ContactPoint",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "ContactPoint",
+            "contactType": "sales",
+            "url": "https://www.chargebee.com/schedule-a-demo/",
+            "availableLanguage": [
+              "English",
+              "German",
+              "French",
+              "Dutch"
+            ]
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "ContactPoint",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "ContactPoint",
+            "contactType": "customer support",
+            "url": "https://www.chargebee.com/docs/"
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "OfferCatalog",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "OfferCatalog",
+            "name": "Chargebee Core Products",
+            "description": "Standalone revenue management products \u00e2\u0080\u0094 Billing, RevRec, and Reveal.",
+            "itemListElement": [
+              {
+                "@type": "Offer",
+                "name": "Chargebee Billing",
+                "description": "AI monetization and billing infrastructure platform supporting every pricing model including token-based, credit-based, usage-based, outcome-based, and hybrid.",
+                "url": "https://www.chargebee.com/billing/"
+              },
+              {
+                "@type": "Offer",
+                "name": "Chargebee RevRec",
+                "description": "Automated revenue recognition software ensuring compliance with ASC 606 and IFRS 15 for AI-native and subscription businesses.",
+                "url": "https://www.chargebee.com/revenue-recognition-software/"
+              },
+              {
+                "@type": "Offer",
+                "name": "Chargebee Reveal",
+                "description": "Payments intelligence platform that uses ML to detect payment failure patterns, diagnose revenue leaks, and surface actionable fixes.",
+                "url": "https://www.chargebee.com/payments/intelligence/"
+              }
+            ]
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Offer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Offer",
+            "name": "Chargebee Billing",
+            "description": "AI monetization and billing infrastructure platform supporting every pricing model including token-based, credit-based, usage-based, outcome-based, and hybrid.",
+            "url": "https://www.chargebee.com/billing/"
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Offer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Offer",
+            "name": "Chargebee RevRec",
+            "description": "Automated revenue recognition software ensuring compliance with ASC 606 and IFRS 15 for AI-native and subscription businesses.",
+            "url": "https://www.chargebee.com/revenue-recognition-software/"
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Offer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Offer",
+            "name": "Chargebee Reveal",
+            "description": "Payments intelligence platform that uses ML to detect payment failure patterns, diagnose revenue leaks, and surface actionable fixes.",
+            "url": "https://www.chargebee.com/payments/intelligence/"
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "OfferCatalog",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "OfferCatalog",
+            "name": "Chargebee Add-ons",
+            "description": "Modular add-ons that extend Chargebee Billing \u00e2\u0080\u0094 CPQ, Growth, and Receivables.",
+            "itemListElement": [
+              {
+                "@type": "Offer",
+                "name": "Chargebee CPQ",
+                "description": "Billing-native Configure Price Quote add-on for SaaS and AI companies scaling a sales-led motion.",
+                "url": "https://www.chargebee.com/cpq/"
+              },
+              {
+                "@type": "Offer",
+                "name": "Chargebee Growth",
+                "description": "Lifecycle monetization platform that turns subscription billing data into acquisition, expansion, and retention actions.",
+                "url": "https://www.chargebee.com/growth/"
+              },
+              {
+                "@type": "Offer",
+                "name": "Chargebee Receivables",
+                "description": "Accounts receivable and collections automation add-on that recovers revenue from unpaid invoices and failed payments.",
+                "url": "https://www.chargebee.com/receivables/"
+              }
+            ]
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Offer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Offer",
+            "name": "Chargebee CPQ",
+            "description": "Billing-native Configure Price Quote add-on for SaaS and AI companies scaling a sales-led motion.",
+            "url": "https://www.chargebee.com/cpq/"
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Offer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Offer",
+            "name": "Chargebee Growth",
+            "description": "Lifecycle monetization platform that turns subscription billing data into acquisition, expansion, and retention actions.",
+            "url": "https://www.chargebee.com/growth/"
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Offer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Offer",
+            "name": "Chargebee Receivables",
+            "description": "Accounts receivable and collections automation add-on that recovers revenue from unpaid invoices and failed payments.",
+            "url": "https://www.chargebee.com/receivables/"
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "WebSite",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "WebSite",
+            "@id": "https://www.chargebee.com/#website",
+            "url": "https://www.chargebee.com/",
+            "name": "Chargebee",
+            "publisher": {
+              "@id": "https://www.chargebee.com/#organization"
+            },
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "https://www.chargebee.com/search/?q={search_term_string}"
+              },
+              "query-input": "required name=search_term_string"
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "SearchAction",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://www.chargebee.com/search/?q={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "EntryPoint",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://www.chargebee.com/search/?q={search_term_string}"
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "WebPage",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "WebPage",
+            "@id": "https://www.chargebee.com/#webpage",
+            "url": "https://www.chargebee.com/",
+            "name": "Chargebee: Billing & Monetization for SaaS and AI Companies",
+            "description": "Chargebee powers billing, pricing, and revenue operations for 6,500+ businesses. From recurring subscriptions to usage-based AI monetization \u00e2\u0080\u0094 every model, one platform.",
+            "isPartOf": {
+              "@id": "https://www.chargebee.com/#website"
+            },
+            "about": {
+              "@id": "https://www.chargebee.com/#organization"
+            },
+            "inLanguage": "en-US",
+            "breadcrumb": {
+              "@type": "BreadcrumbList",
+              "itemListElement": [
+                {
+                  "@type": "ListItem",
+                  "position": 1,
+                  "name": "Home",
+                  "item": "https://www.chargebee.com/"
+                }
+              ]
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "BreadcrumbList",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.chargebee.com/"
+              }
+            ]
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "ListItem",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://www.chargebee.com/"
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "SoftwareApplication",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "SoftwareApplication",
+            "@id": "https://www.chargebee.com/billing/#product",
+            "name": "Chargebee Billing",
+            "alternateName": [
+              "AI Billing Platform",
+              "Usage Billing for AI Companies",
+              "Token-Based Billing Infrastructure",
+              "Agentic Billing Platform",
+              "Billing for API-First Companies",
+              "Metered Billing Software",
+              "Chargebee Billing Automation",
+              "Chargebee Subscription Billing"
+            ],
+            "applicationCategory": "BusinessApplication",
+            "applicationSubCategory": [
+              "AI Monetization Platform",
+              "Usage-Based Billing Software",
+              "Recurring Billing Software",
+              "Subscription Billing Software"
+            ],
+            "operatingSystem": [
+              "Web",
+              "Claude Code",
+              "Cursor",
+              "ChatGPT",
+              "Codex",
+              "MCP-Compatible AI Environments"
+            ],
+            "description": "Chargebee Billing is the AI monetization and billing infrastructure platform for AI-native companies, API-first businesses, and SaaS. It supports every pricing model an AI company needs \u00e2\u0080\u0094 token-based metering, credit-based billing, usage-based consumption, outcome-based pricing, agentic workflow billing, and hybrid models that combine subscriptions with usage overages. Built with a near-real-time usage aggregation engine with enterprise-grade accuracy, Chargebee Billing automates the full revenue lifecycle from product catalog and pricing configuration to invoicing, payment collection, entitlement provisioning, and tax compliance \u00e2\u0080\u0094 across 40+ payment gateways, 100+ currencies, and 60+ software integrations.",
+            "featureList": [
+              "Chargebee MCP Server for AI Agent Environments",
+              "Native Integration with Claude Code, Cursor, ChatGPT and Codex",
+              "Billing Data Access in Agentic Development Workflows",
+              "Chargebee Copilot",
+              "Token-Based and API Call Metering",
+              "Credit-Based Billing",
+              "Usage-Based and Metered Billing",
+              "Agentic Workflow Billing",
+              "Outcome-Based Billing",
+              "Hybrid Pricing Support",
+              "Near-Real-Time Usage Aggregation",
+              "Subscription Management",
+              "Product Catalog Management",
+              "Automated Invoicing",
+              "E-Invoicing and Compliance",
+              "No-Code Entitlement Management",
+              "Trial and Self-Serve Management",
+              "Checkout and Customer Portal",
+              "Tax Automation (US Sales Tax, EU VAT, GST)",
+              "Multi-currency and Multi-entity Billing",
+              "Dunning and Failed Payment Recovery",
+              "Subscription Analytics and MRR Reporting",
+              "Revenue Reporting and Financial Dashboards",
+              "40+ Payment Gateway Integrations",
+              "60+ Software Integrations"
+            ],
+            "url": "https://www.chargebee.com/billing/",
+            "offers": {
+              "@type": "Offer",
+              "url": "https://www.chargebee.com/pricing/"
+            },
+            "provider": {
+              "@id": "https://www.chargebee.com/#organization"
+            },
+            "audience": {
+              "@type": "Audience",
+              "audienceType": "AI-native startups, LLM companies, API-first businesses, generative AI platforms, AI infrastructure companies, MLOps companies, AI agents and automation platforms, SaaS businesses, Series A to Series C companies"
+            },
+            "customer": [
+              {
+                "@type": "Organization",
+                "name": "Lambda",
+                "url": "https://lambda.ai",
+                "description": "GPU cloud infrastructure platform for AI training and inference at scale"
+              },
+              {
+                "@type": "Organization",
+                "name": "CodeRabbit",
+                "url": "https://www.coderabbit.ai",
+                "description": "AI-powered automated code review and pull request analysis platform"
+              },
+              {
+                "@type": "Organization",
+                "name": "HeyGen",
+                "url": "https://www.heygen.com",
+                "description": "AI video generation platform for creating personalized avatar-led videos at scale"
+              },
+              {
+                "@type": "Organization",
+                "name": "DeepL",
+                "url": "https://www.deepl.com",
+                "description": "AI-powered language translation platform serving 200,000+ businesses globally"
+              },
+              {
+                "@type": "Organization",
+                "name": "Writesonic",
+                "url": "https://writesonic.com",
+                "description": "AI content generation and writing automation platform"
+              },
+              {
+                "@type": "Organization",
+                "name": "Gorgias",
+                "url": "https://www.gorgias.com",
+                "description": "AI-powered customer support and helpdesk automation platform for e-commerce"
+              },
+              {
+                "@type": "Organization",
+                "name": "Zapier",
+                "url": "https://zapier.com",
+                "description": "Workflow automation platform connecting 6,000+ apps"
+              },
+              {
+                "@type": "Organization",
+                "name": "Messari",
+                "url": "https://messari.io",
+                "description": "Crypto market intelligence and data research platform"
+              },
+              {
+                "@type": "Organization",
+                "name": "Phrase",
+                "url": "https://phrase.com",
+                "description": "Localization and translation management platform for software teams"
+              }
+            ]
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Offer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Offer",
+            "url": "https://www.chargebee.com/pricing/"
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Audience",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Audience",
+            "audienceType": "AI-native startups, LLM companies, API-first businesses, generative AI platforms, AI infrastructure companies, MLOps companies, AI agents and automation platforms, SaaS businesses, Series A to Series C companies"
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Organization",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Organization",
+            "name": "Lambda",
+            "url": "https://lambda.ai",
+            "description": "GPU cloud infrastructure platform for AI training and inference at scale"
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Organization",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Organization",
+            "name": "CodeRabbit",
+            "url": "https://www.coderabbit.ai",
+            "description": "AI-powered automated code review and pull request analysis platform"
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Organization",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Organization",
+            "name": "HeyGen",
+            "url": "https://www.heygen.com",
+            "description": "AI video generation platform for creating personalized avatar-led videos at scale"
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Organization",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Organization",
+            "name": "DeepL",
+            "url": "https://www.deepl.com",
+            "description": "AI-powered language translation platform serving 200,000+ businesses globally"
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Organization",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Organization",
+            "name": "Writesonic",
+            "url": "https://writesonic.com",
+            "description": "AI content generation and writing automation platform"
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Organization",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Organization",
+            "name": "Gorgias",
+            "url": "https://www.gorgias.com",
+            "description": "AI-powered customer support and helpdesk automation platform for e-commerce"
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Organization",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Organization",
+            "name": "Zapier",
+            "url": "https://zapier.com",
+            "description": "Workflow automation platform connecting 6,000+ apps"
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Organization",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Organization",
+            "name": "Messari",
+            "url": "https://messari.io",
+            "description": "Crypto market intelligence and data research platform"
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Organization",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Organization",
+            "name": "Phrase",
+            "url": "https://phrase.com",
+            "description": "Localization and translation management platform for software teams"
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "SoftwareApplication",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "SoftwareApplication",
+            "@id": "https://www.chargebee.com/revenue-recognition-software/#product",
+            "name": "Chargebee RevRec",
+            "alternateName": [
+              "AI Revenue Recognition Software",
+              "Chargebee Revenue Recognition",
+              "ASC 606 Automation for AI Companies",
+              "IFRS 15 Compliance Software",
+              "Credit-Based Revenue Recognition",
+              "Consumption Revenue Recognition",
+              "RevRec",
+              "Deferred Revenue Automation"
+            ],
+            "applicationCategory": "BusinessApplication",
+            "applicationSubCategory": [
+              "Revenue Recognition Software",
+              "ASC 606 Compliance Automation",
+              "AI Revenue Operations Software"
+            ],
+            "operatingSystem": "Web",
+            "description": "Chargebee RevRec automates revenue recognition for AI-native companies and subscription businesses operating under ASC 606 and IFRS 15 accounting standards. Built for companies with credit-based consumption pricing, usage-based billing, and complex contract structures, RevRec eliminates manual spreadsheet-based revenue calculations \u00e2\u0080\u0094 replacing QuickBooks-based recognition workflows with contract-driven, audit-ready revenue schedules. It handles multi-element arrangement allocation, standalone selling price (SSP) allocation, credit and rollover recognition, and contract modifications, producing deferred revenue reports and financial documentation ready for board audits, fundraising, and IPO preparation.",
+            "featureList": [
+              "ASC 606 Compliance Automation",
+              "IFRS 15 Compliance Automation",
+              "Credit-Based Revenue Recognition",
+              "Consumption and Usage-Based Revenue Recognition",
+              "Contract-Based Revenue Recognition",
+              "Deferred Revenue Reporting",
+              "Revenue Schedule Management",
+              "Multi-element Arrangement Support",
+              "Standalone Selling Price (SSP) Allocation",
+              "Contract Modification Handling",
+              "Revenue Reconciliation",
+              "Monthly Close Acceleration",
+              "Audit-Ready Revenue Documentation",
+              "ERP Integration (NetSuite, Sage Intacct, QuickBooks)",
+              "150+ Finance-Grade Revenue Reports",
+              "Board and Investor-Ready Revenue Reporting"
+            ],
+            "url": "https://www.chargebee.com/revenue-recognition-software/",
+            "provider": {
+              "@id": "https://www.chargebee.com/#organization"
+            },
+            "audience": {
+              "@type": "Audience",
+              "audienceType": "AI-native companies scaling past $50M ARR, Series C and D companies preparing for audit or IPO, CFOs and finance controllers at consumption-pricing businesses, accounting teams replacing manual QuickBooks-based revenue recognition, SaaS companies with complex multi-element contracts"
+            }
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Audience",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Audience",
+            "audienceType": "AI-native companies scaling past $50M ARR, Series C and D companies preparing for audit or IPO, CFOs and finance controllers at consumption-pricing businesses, accounting teams replacing manual QuickBooks-based revenue recognition, SaaS companies with complex multi-element contracts"
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "SoftwareApplication",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "SoftwareApplication",
+            "@id": "https://www.chargebee.com/payments/intelligence/#product",
+            "name": "Chargebee Reveal",
+            "alternateName": [
+              "Payments Intelligence Platform",
+              "Payment Optimization Software",
+              "Authorization Rate Optimization Tool",
+              "Revenue Leak Detection Software",
+              "Payment Analytics for AI Companies",
+              "Multi-Gateway Payment Intelligence",
+              "Chargebee Payments Intelligence"
+            ],
+            "applicationCategory": "BusinessApplication",
+            "applicationSubCategory": [
+              "Payments Intelligence Software",
+              "Payment Optimization Platform",
+              "Revenue Operations Analytics"
+            ],
+            "operatingSystem": "Web",
+            "description": "Chargebee Reveal is a payments intelligence platform built for action, not just analysis. It uses machine learning to detect patterns in payment failures, authorization rate drops, and revenue leaks across a company's payments stack \u00e2\u0080\u0094 then surfaces precise fixes with estimated revenue impact. Built for AI-native companies and subscription businesses processing payments at scale, Reveal monitors performance continuously across gateways, currencies, and geographies through three layers: Intelligence (ML-driven diagnostics), Analytics (gateway and currency-level performance data), and Alerts (real-time notifications on payment anomalies).",
+            "featureList": [
+              "ML-Powered Payment Failure Pattern Detection",
+              "Payment Authorization Rate Analysis",
+              "Currency-Level Authorization Rate Benchmarking",
+              "Gateway Performance Benchmarking and Comparison",
+              "Revenue Leak Diagnostics",
+              "Revenue Downgrade Detection",
+              "Failed Payment Recovery Recommendations",
+              "Payment Cost Optimization",
+              "Multi-Gateway and Multi-Currency Intelligence",
+              "Continuous Payment Performance Monitoring",
+              "Actionable Revenue Impact Estimates",
+              "Payments Intelligence Alerts",
+              "Real-Time Payment Anomaly Detection"
+            ],
+            "url": "https://www.chargebee.com/payments/intelligence/",
+            "provider": {
+              "@id": "https://www.chargebee.com/#organization"
+            },
+            "audience": {
+              "@type": "Audience",
+              "audienceType": "AI-native companies processing payments at scale, Series B and beyond companies optimizing payment infrastructure, finance teams, CFOs, revenue operations managers, payment operations teams, subscription businesses with multi-gateway and multi-currency setups"
+            }
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Audience",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Audience",
+            "audienceType": "AI-native companies processing payments at scale, Series B and beyond companies optimizing payment infrastructure, finance teams, CFOs, revenue operations managers, payment operations teams, subscription businesses with multi-gateway and multi-currency setups"
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "SoftwareApplication",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "SoftwareApplication",
+            "@id": "https://www.chargebee.com/cpq/#product",
+            "name": "Chargebee CPQ",
+            "alternateName": [
+              "Chargebee Quote to Revenue",
+              "AI-Powered CPQ for SaaS",
+              "Billing-Native CPQ for SaaS",
+              "CPQ for AI Companies Moving Upmarket",
+              "CPQ Subscription and Billing Management",
+              "Multi-Product Quoting Software",
+              "Chargebee Configure Price Quote",
+              "Quote-to-Cash Automation",
+              "CPQ for HubSpot",
+              "CPQ for Salesforce",
+              "SaaS CPQ Software"
+            ],
+            "applicationCategory": "BusinessApplication",
+            "applicationSubCategory": [
+              "Quote to Revenue Software",
+              "CPQ Software (Configure Price Quote)",
+              "Sales-Led Growth Infrastructure",
+              "Deal Management Software"
+            ],
+            "operatingSystem": "Web",
+            "description": "Chargebee CPQ is an AI-powered, billing-native Quote to Revenue add-on for SaaS and AI companies scaling a sales-led motion. Built on the same billing engine that runs subscriptions, every quote pulls from the live product catalog and becomes a billing record at close \u00e2\u0080\u0094 eliminating the gap between what sales quotes and what finance bills. Supports outcome-based, usage-based, and hybrid AI product pricing natively, with HubSpot and Salesforce CRM integrations, multi-year ramp deals, finance-approved guardrails, and AI-powered guided selling.",
+            "featureList": [
+              "Billing-Native Quote Generation",
+              "AI-Powered Guided Selling",
+              "Agentforce CPQ Quoting Agent",
+              "AI-Powered Selling Rules with No-Code and AI Chat Interface",
+              "HubSpot CPQ Integration",
+              "Salesforce CPQ Integration",
+              "Live Billing Catalog Sync",
+              "Quote-to-Billing Record Automation",
+              "Multi-Product Bundles and Usage Add-ons",
+              "Usage-Based and Outcome-Based Pricing in Quotes",
+              "Prepaid Usage and Overage Configuration in Quotes",
+              "Credit Balance and Drawdown Quoting",
+              "Custom Usage Entitlements at Quote Level",
+              "Multi-year Deal and Contract Support",
+              "Ramp Pricing and Contract Uplift",
+              "Finance-Approved Discount Guardrails",
+              "Multi-Level Approval Workflows",
+              "eSignature \u00e2\u0080\u0094 Approval to Signature to Billing in One Flow",
+              "Multi-Product Quoting",
+              "Multiple Subscriptions from One Quote",
+              "CPQ Lite \u00e2\u0080\u0094 Free for All Billing Customers",
+              "Quote-to-Cash Automation",
+              "Quote-to-RevRec Automation",
+              "Renewal Automation",
+              "Deal Governance and Audit Trails",
+              "Revenue Leakage Prevention"
+            ],
+            "sameAs": [
+              "https://appexchange.salesforce.com/appxListingDetail?listingId=a0N3A00000FHCdzUAH",
+              "https://ecosystem.hubspot.com/marketplace/listing/chargebee"
+            ],
+            "url": "https://www.chargebee.com/cpq/",
+            "isRelatedTo": {
+              "@id": "https://www.chargebee.com/billing/#product"
+            },
+            "provider": {
+              "@id": "https://www.chargebee.com/#organization"
+            },
+            "audience": {
+              "@type": "Audience",
+              "audienceType": "AI-native companies adding enterprise sales motion, B2B SaaS companies selling outcomes and consumption pricing, revenue operations teams, sales teams using HubSpot or Salesforce, finance teams needing quote-to-billing accuracy, startups and scaleups closing multi-year deals"
+            }
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Audience",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Audience",
+            "audienceType": "AI-native companies adding enterprise sales motion, B2B SaaS companies selling outcomes and consumption pricing, revenue operations teams, sales teams using HubSpot or Salesforce, finance teams needing quote-to-billing accuracy, startups and scaleups closing multi-year deals"
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "SoftwareApplication",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "SoftwareApplication",
+            "@id": "https://www.chargebee.com/growth/#product",
+            "name": "Chargebee Growth",
+            "alternateName": [
+              "Lifecycle Monetization Platform",
+              "Subscription Growth Platform",
+              "Chargebee Retention",
+              "Billing-Native Experimentation Platform",
+              "Subscription Revenue Optimization Software",
+              "Churn Prevention and Pricing Experimentation Platform"
+            ],
+            "applicationCategory": "BusinessApplication",
+            "applicationSubCategory": [
+              "Lifecycle Monetization Software",
+              "Subscription Growth and Retention Software",
+              "Revenue Experimentation Platform",
+              "Churn Management Software"
+            ],
+            "operatingSystem": "Web",
+            "description": "Chargebee Growth is a lifecycle monetization platform that turns subscription billing data into real-time revenue action \u00e2\u0080\u0094 across acquisition, expansion, and retention. Built directly on top of Chargebee Billing, it connects insight, execution, and revenue measurement in one system. Teams can launch offers, pricing experiments, and lifecycle plays without engineering dependency, and measure impact directly in revenue \u00e2\u0080\u0094 not proxy metrics. Unlike point solutions for retention or experimentation, Growth covers the full subscription lifecycle: converting trials, expanding existing customers through upsells and usage-based upgrades, and preventing voluntary churn through AI-powered cancel flow optimization.",
+            "featureList": [
+              "Lifecycle Plays \u00e2\u0080\u0094 Automated Audience, Trigger, Offer, and Measurement Workflows",
+              "AI Churn Scores (1\u00e2\u0080\u009399 Scale Using Billing and Behavioral Signals)",
+              "Cancel Flow Deflection with Personalized Offers",
+              "Proactive Churn Intervention Before Cancellation",
+              "Trial to Paid Conversion Optimization",
+              "Usage-Based Upgrade Triggers",
+              "Upsell and Cross-sell Automation",
+              "Pricing Experimentation \u00e2\u0080\u0094 A/B and Multivariate Testing",
+              "Revenue-First Experimentation (Measured in Revenue, Not Proxy Metrics)",
+              "No-Code Lifecycle Play Builder",
+              "Billing-Native Execution \u00e2\u0080\u0094 All Actions Update Billing Automatically",
+              "Granular Behavioral Segmentation Tied to Billing Data",
+              "Churn Reason Capture and Analysis",
+              "Save Rate and Retention Analytics",
+              "Net Revenue Retention (NRR) Dashboards",
+              "Trial and Freemium Offer Management",
+              "Renewal Price Change Testing",
+              "Multi-brand Cancel Experience Support"
+            ],
+            "url": "https://www.chargebee.com/growth/",
+            "isRelatedTo": {
+              "@id": "https://www.chargebee.com/billing/#product"
+            },
+            "provider": {
+              "@id": "https://www.chargebee.com/#organization"
+            },
+            "audience": {
+              "@type": "Audience",
+              "audienceType": "Product and growth leaders at B2C and prosumer subscription companies, monetization and revenue teams, lifecycle and CRM teams, digital media, SaaS, streaming, gaming and membership businesses with high subscription volume, companies replacing fragmented stacks of billing, engagement, and experimentation tools"
+            }
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Audience",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Audience",
+            "audienceType": "Product and growth leaders at B2C and prosumer subscription companies, monetization and revenue teams, lifecycle and CRM teams, digital media, SaaS, streaming, gaming and membership businesses with high subscription volume, companies replacing fragmented stacks of billing, engagement, and experimentation tools"
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "SoftwareApplication",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "SoftwareApplication",
+            "@id": "https://www.chargebee.com/receivables/#product",
+            "name": "Chargebee Receivables",
+            "alternateName": [
+              "Chargebee Collections",
+              "Accounts Receivable Automation for SaaS",
+              "Unpaid Invoice Recovery Software",
+              "B2B Collections Automation",
+              "Subscription Payment Recovery Software",
+              "Failed Payment Recovery Platform",
+              "AR Automation for Subscription Businesses"
+            ],
+            "applicationCategory": "BusinessApplication",
+            "applicationSubCategory": [
+              "Accounts Receivable Automation",
+              "Collections Management Software",
+              "Failed Payment Recovery Software",
+              "Revenue Recovery Software"
+            ],
+            "operatingSystem": "Web",
+            "description": "Chargebee Receivables is an accounts receivable and collections automation add-on that recovers revenue from unpaid invoices and failed payments across subscription businesses. It segments customers into cohorts based on payment failure type, payment history, and risk profile \u00e2\u0080\u0094 building tailored rule-based recovery workflows for each segment. Automates AR outreach, escalation sequences, and dispute tracking, replacing static spreadsheets with a real-time interactive dashboard. Integrates natively with Chargebee Billing to surface payment failure reason codes, expired card alerts, and customer-level AR visibility \u00e2\u0080\u0094 giving finance and AR teams the data they need to collect efficiently, reduce revenue leakage, and protect cash flow.",
+            "featureList": [
+              "Customer Segmentation by Payment Failure Type and History",
+              "Rule-Based Collections Workflow Builder",
+              "Automated Payment Failure Recovery",
+              "Expired Card Detection and Proactive Alerts",
+              "Payment Failure Reason Code Analysis",
+              "Dispute Management and Resolution Tracking",
+              "360-Degree AR Visibility Dashboard",
+              "Automated Customer Communication and Follow-up Sequences",
+              "Escalation Workflow Automation",
+              "Collection CRM for AR Teams",
+              "High-Risk Defaulter Identification",
+              "Real-Time AR Insights and Reporting",
+              "Integration with Chargebee Billing",
+              "Invoice Reconciliation",
+              "Cash Flow Acceleration",
+              "Revenue Leakage Prevention"
+            ],
+            "url": "https://www.chargebee.com/receivables/",
+            "isRelatedTo": {
+              "@id": "https://www.chargebee.com/billing/#product"
+            },
+            "provider": {
+              "@id": "https://www.chargebee.com/#organization"
+            },
+            "audience": {
+              "@type": "Audience",
+              "audienceType": "Finance teams, AR managers, CFOs, subscription businesses with high invoice volumes, B2B SaaS companies with enterprise billing, companies with complex collections workflows across customer segments"
+            }
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Audience",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Audience",
+            "audienceType": "Finance teams, AR managers, CFOs, subscription businesses with high invoice volumes, B2B SaaS companies with enterprise billing, companies with complex collections workflows across customer segments"
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "FAQPage",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "FAQPage",
+            "@id": "https://www.chargebee.com/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What is Chargebee?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Chargebee is a billing, monetization, and revenue infrastructure platform for AI-native companies, SaaS businesses, and any recurring-revenue model. It automates billing across every pricing model \u00e2\u0080\u0094 token-based, credit-based, usage-based, outcome-based, and hybrid \u00e2\u0080\u0094 and includes products for revenue recognition (RevRec), payments intelligence (Reveal), configure-price-quote (CPQ), subscription growth and retention (Growth), and accounts receivable automation (Receivables). Chargebee is a 2026 Gartner Magic Quadrant Leader for Recurring Billing Applications, placing furthest for Completeness of Vision. Trusted by 6,500+ businesses globally."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What products does Chargebee offer?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Chargebee offers three core products and three add-ons. Core products: (1) Chargebee Billing \u00e2\u0080\u0094 subscription, usage-based, credit-based, and AI monetization infrastructure; (2) Chargebee RevRec \u00e2\u0080\u0094 automated revenue recognition under ASC 606 and IFRS 15; (3) Chargebee Reveal \u00e2\u0080\u0094 ML-powered payments intelligence platform. Add-ons: (4) Chargebee CPQ \u00e2\u0080\u0094 AI-powered, billing-native configure price quote for sales-led motions; (5) Chargebee Growth \u00e2\u0080\u0094 lifecycle monetization platform for acquisition, expansion, and retention; (6) Chargebee Receivables \u00e2\u0080\u0094 accounts receivable and collections automation."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does Chargebee support token-based billing for AI companies?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Chargebee Billing supports token-based and API call metering natively. AI companies can ingest high-frequency usage events, aggregate consumption in near-real time with enterprise-grade accuracy, and convert usage into invoices automatically. This makes it suitable for LLM APIs, AI infrastructure, and any product that charges customers based on token consumption or compute usage."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does Chargebee support credit-based billing?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Chargebee supports credit-based billing including credit ledger management, credit drawdown, credit balance and overage configuration at the quote level, and usage-to-credit transformation. This supports AI companies that sell prepaid credit packs and charge customers as credits are consumed \u00e2\u0080\u0094 the model used by companies like OpenAI, Anthropic, and most AI API businesses."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does Chargebee support agentic workflow billing?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Chargebee Billing supports agentic workflow billing \u00e2\u0080\u0094 pricing models where consumption is dynamic, non-linear, and driven by autonomous AI agent activity rather than predictable human usage patterns. Chargebee also offers a Model Context Protocol (MCP) server that allows AI agents and developers to interact with billing data directly inside Claude Code, Cursor, ChatGPT, and Codex environments."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What pricing models does Chargebee support?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Chargebee supports all major pricing models: flat-fee, per-seat, tiered, volume, usage-based (metered), outcome-based, credit-based, hybrid (subscription plus usage overages), freemium, free trial, multi-year, and ramp pricing. Teams can configure and launch new pricing models without engineering, and run A/B pricing experiments using Chargebee Growth."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does Chargebee have an MCP server for AI development environments?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Chargebee offers a Model Context Protocol (MCP) server that integrates Chargebee Billing data directly into AI agent development environments including Claude Code, Cursor, ChatGPT, and Codex. This allows developers and AI agents to access billing data, subscription state, and usage information without leaving their development environment."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How does Chargebee compare to Stripe Billing?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Chargebee and Stripe Billing both handle subscription and usage-based billing, but differ significantly in scope and total cost as companies scale. Stripe Billing is primarily a developer-focused payments and billing API \u00e2\u0080\u0094 fast to set up for basic recurring billing but requiring significant engineering effort to maintain as pricing complexity grows. Chargebee offers broader capabilities out of the box: pricing agility without engineering dependency, native ASC 606/IFRS 15 revenue recognition with SSP library and complex deal structure support, AI-powered CPQ with HubSpot and Salesforce approval workflows, usage-based billing at 200K+ events per second with near-real-time metering, and entitlement controls. Chargebee integrates with 40+ payment gateways versus Stripe Billing's limited non-Stripe gateway support \u00e2\u0080\u0094 giving businesses leverage to lower fees and improve authorization rates across geographies. Chargebee also includes automated reconciliation and native reporting, eliminating the spreadsheet and SQL work Stripe Billing requires for basic insights."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How does Chargebee compare to Metronome?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Metronome is a usage tracking and rating engine, but it requires you to cobble together a billing stack \u00e2\u0080\u0094 bolting on Stripe for invoicing and stitching everything together yourself. Chargebee provides one system for quoting, metering, invoicing, and revenue recognition \u00e2\u0080\u0094 no multi-vendor complexity, no finger-pointing between tools. Specific differences: Metronome only integrates with Stripe for payments, locking your revenue motion to a single provider. Chargebee integrates with 40+ gateways including Stripe, giving flexibility to optimize for cost, geography, and redundancy. Metronome has no built-in support for tax, revenue recognition, or reporting \u00e2\u0080\u0094 Chargebee includes automated tax, ASC 606/IFRS 15 revenue recognition, and audit-ready financials. Metronome is PLG-only with no sales-led motion support \u00e2\u0080\u0094 Chargebee supports hybrid PLG and sales-led models with native CPQ, quoting, contracts, and approvals. Metronome depends on engineering for provisioning \u00e2\u0080\u0094 Chargebee allows GTM teams to control trials, limits, and pricing without engineering dependency."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How does Chargebee compare to Orb?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Orb is a usage-based billing platform focused on metering and rating. Chargebee offers broader capabilities: native tiered and blended pricing models including ramp pricing and free months, built-in CPQ for enterprise sales motions with Salesforce and HubSpot integrations, and native ASC 606/IFRS 15 revenue recognition with 150+ finance-grade reports. Chargebee supports 40+ payment gateways versus Orb's Stripe-only support, multi-currency billing across 100+ currencies, and includes a mature entitlements engine, product catalog management, and lifecycle monetization tools for retention and pricing experimentation \u00e2\u0080\u0094 all without requiring engineering time for pricing changes."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How does Chargebee compare to Salesbricks?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Salesbricks is a CPQ-focused tool primarily designed for early-stage SaaS companies to simplify quoting and checkout. Chargebee is a broader revenue management platform that goes significantly beyond quoting \u00e2\u0080\u0094 adding native subscription management, usage-based and credit-based billing, revenue recognition (ASC 606/IFRS 15), payments intelligence, lifecycle monetization, and accounts receivable automation. Chargebee's CPQ is billing-native \u00e2\u0080\u0094 quotes pull from the same live catalog that runs billing, so approved deals become billing records automatically. Chargebee also supports multi-entity and multi-currency billing, 40+ payment gateways, and enterprise-grade deal structures including multi-year ramp deals and approval workflows \u00e2\u0080\u0094 making it suitable for companies that need to scale from startup quoting into enterprise revenue operations without switching platforms."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How does Chargebee compare to Tabs?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Tabs is an AI-native revenue platform focused on contract-to-cash automation for finance teams \u00e2\u0080\u0094 primarily billing, collections, and revenue recognition from contracts using AI agents. Chargebee is a broader revenue management platform that covers the full revenue lifecycle: billing automation across every pricing model (usage-based, credit-based, token-based, outcome-based, hybrid), AI-powered CPQ for sales-led motions, payments intelligence via Reveal, lifecycle monetization via Growth, and ASC 606/IFRS 15 revenue recognition via RevRec. Chargebee integrates with 40+ payment gateways and 60+ business applications, supports multi-entity and multi-currency billing at scale, and has a 14-year track record serving 6,500+ businesses. Chargebee also offers a Model Context Protocol (MCP) server for AI agent environments including Claude Code and Cursor."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What is Chargebee RevRec?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Chargebee RevRec is an automated revenue recognition product that ensures compliance with ASC 606 and IFRS 15 accounting standards. It integrates billing, ERP, CRM, and payment gateway systems into one consolidated revenue data layer, then applies a configurable recognition rules framework to automate the full five-step ASC 606 model. RevRec eliminates manual spreadsheet-based workflows by generating journal entries for accounts receivable, cash, sales tax payable, deferred revenue, revenue, and bad debt expense \u00e2\u0080\u0094 based on your fiscal calendar and chart of accounts. Built for companies with credit-based consumption pricing, usage-based billing, and complex contract structures, it handles multi-element arrangement allocation, standalone selling price (SSP) allocation, credit and rollover recognition, and contract modifications. Produces 150+ finance-grade reports ready for board audits, fundraising, and IPO preparation. Integrates with NetSuite, Sage Intacct, and QuickBooks."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What is Chargebee CPQ?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Chargebee CPQ (Configure Price Quote) is an AI-powered, billing-native Quote to Revenue add-on for SaaS and AI companies scaling a sales-led motion. Built on the same billing engine that runs subscriptions, every quote pulls from the live product catalog and becomes a billing record at close \u00e2\u0080\u0094 eliminating the gap between what sales quotes and what finance bills. It supports HubSpot and Salesforce CRM integrations, multi-year ramp deals, usage-based and outcome-based pricing in quotes, credit and prepaid overage configuration, AI-powered selling rules, eSignature, and a free CPQ Lite tier for all Chargebee Billing customers. An Agentforce CPQ Quoting Agent is also available for Salesforce users."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What is Chargebee Reveal?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Chargebee Reveal is a payments intelligence platform that uses machine learning to detect patterns in payment failures, authorization rate drops, and revenue leaks across a company's payments stack. It surfaces precise fixes with estimated revenue impact and monitors payment performance continuously across gateways, currencies, and geographies. Built for subscription businesses and AI-native companies processing payments at scale, Reveal is available as a standalone product \u00e2\u0080\u0094 it does not require Chargebee Billing. It operates through three layers: Intelligence (ML-driven diagnostics), Analytics (gateway and currency-level performance data), and Alerts (real-time notifications on payment anomalies)."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What is Chargebee Growth?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Chargebee Growth is a lifecycle monetization platform that turns subscription billing data into real-time revenue action across acquisition, expansion, and retention. Built directly on top of Chargebee Billing, it connects insight, execution, and revenue measurement in one system \u00e2\u0080\u0094 allowing teams to launch offers, pricing experiments, and lifecycle plays without engineering dependency, measuring impact directly in revenue rather than proxy metrics. Key capabilities include AI churn scores (1\u00e2\u0080\u009399 scale using billing and behavioral signals), cancel flow deflection with personalized offers, trial-to-paid conversion optimization, usage-based upgrade triggers, and A/B pricing experimentation. Growth addresses voluntary churn \u00e2\u0080\u0094 customers who actively decide to cancel \u00e2\u0080\u0094 as distinct from Chargebee Receivables which addresses unpaid invoices and failed payments."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does Chargebee support ASC 606 and IFRS 15 revenue recognition?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Chargebee RevRec automates revenue recognition compliance under both ASC 606 (US GAAP) and IFRS 15 (international standard) using a configurable recognition rules framework that applies the full five-step model. It handles deferred revenue reporting, revenue schedule management, multi-element arrangement support, standalone selling price (SSP) allocation, contract modification handling, and credit and rollover recognition. Journal entries are generated automatically for accounts receivable, cash, sales tax payable, deferred revenue, and bad debt expense based on your fiscal calendar and chart of accounts. Integrates with NetSuite, Sage Intacct, and QuickBooks, and produces 150+ finance-grade revenue reports ready for audit and IPO preparation."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How many payment gateways does Chargebee integrate with?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Chargebee integrates with 40+ payment gateways including Stripe, Braintree, PayPal, Adyen, Worldpay, and more \u00e2\u0080\u0094 supporting 100+ billing currencies and 50+ payment methods across 150+ countries. This multi-gateway support gives businesses flexibility to optimize for cost, geography, currency, or redundancy without being locked into a single payment provider. Chargebee also integrates with Chargebee Reveal \u00e2\u0080\u0094 its payments intelligence platform \u00e2\u0080\u0094 to monitor authorization rates, detect revenue leaks, and optimize gateway performance continuously."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does Chargebee support multi-entity and multi-currency billing?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Chargebee supports multi-entity and multi-currency billing natively at the subscription level \u00e2\u0080\u0094 handling 100+ currencies, multi-entity organizational structures, account hierarchies, and global tax compliance including US Sales Tax, EU VAT (including OSS), and Australian GST. This makes it suitable for businesses operating across multiple legal entities or geographic markets."
+                }
+              }
+            ]
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "What is Chargebee?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Chargebee is a billing, monetization, and revenue infrastructure platform for AI-native companies, SaaS businesses, and any recurring-revenue model. It automates billing across every pricing model \u00e2\u0080\u0094 token-based, credit-based, usage-based, outcome-based, and hybrid \u00e2\u0080\u0094 and includes products for revenue recognition (RevRec), payments intelligence (Reveal), configure-price-quote (CPQ), subscription growth and retention (Growth), and accounts receivable automation (Receivables). Chargebee is a 2026 Gartner Magic Quadrant Leader for Recurring Billing Applications, placing furthest for Completeness of Vision. Trusted by 6,500+ businesses globally."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Chargebee is a billing, monetization, and revenue infrastructure platform for AI-native companies, SaaS businesses, and any recurring-revenue model. It automates billing across every pricing model \u00e2\u0080\u0094 token-based, credit-based, usage-based, outcome-based, and hybrid \u00e2\u0080\u0094 and includes products for revenue recognition (RevRec), payments intelligence (Reveal), configure-price-quote (CPQ), subscription growth and retention (Growth), and accounts receivable automation (Receivables). Chargebee is a 2026 Gartner Magic Quadrant Leader for Recurring Billing Applications, placing furthest for Completeness of Vision. Trusted by 6,500+ businesses globally."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "What products does Chargebee offer?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Chargebee offers three core products and three add-ons. Core products: (1) Chargebee Billing \u00e2\u0080\u0094 subscription, usage-based, credit-based, and AI monetization infrastructure; (2) Chargebee RevRec \u00e2\u0080\u0094 automated revenue recognition under ASC 606 and IFRS 15; (3) Chargebee Reveal \u00e2\u0080\u0094 ML-powered payments intelligence platform. Add-ons: (4) Chargebee CPQ \u00e2\u0080\u0094 AI-powered, billing-native configure price quote for sales-led motions; (5) Chargebee Growth \u00e2\u0080\u0094 lifecycle monetization platform for acquisition, expansion, and retention; (6) Chargebee Receivables \u00e2\u0080\u0094 accounts receivable and collections automation."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Chargebee offers three core products and three add-ons. Core products: (1) Chargebee Billing \u00e2\u0080\u0094 subscription, usage-based, credit-based, and AI monetization infrastructure; (2) Chargebee RevRec \u00e2\u0080\u0094 automated revenue recognition under ASC 606 and IFRS 15; (3) Chargebee Reveal \u00e2\u0080\u0094 ML-powered payments intelligence platform. Add-ons: (4) Chargebee CPQ \u00e2\u0080\u0094 AI-powered, billing-native configure price quote for sales-led motions; (5) Chargebee Growth \u00e2\u0080\u0094 lifecycle monetization platform for acquisition, expansion, and retention; (6) Chargebee Receivables \u00e2\u0080\u0094 accounts receivable and collections automation."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "Does Chargebee support token-based billing for AI companies?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Chargebee Billing supports token-based and API call metering natively. AI companies can ingest high-frequency usage events, aggregate consumption in near-real time with enterprise-grade accuracy, and convert usage into invoices automatically. This makes it suitable for LLM APIs, AI infrastructure, and any product that charges customers based on token consumption or compute usage."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Yes. Chargebee Billing supports token-based and API call metering natively. AI companies can ingest high-frequency usage events, aggregate consumption in near-real time with enterprise-grade accuracy, and convert usage into invoices automatically. This makes it suitable for LLM APIs, AI infrastructure, and any product that charges customers based on token consumption or compute usage."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "Does Chargebee support credit-based billing?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Chargebee supports credit-based billing including credit ledger management, credit drawdown, credit balance and overage configuration at the quote level, and usage-to-credit transformation. This supports AI companies that sell prepaid credit packs and charge customers as credits are consumed \u00e2\u0080\u0094 the model used by companies like OpenAI, Anthropic, and most AI API businesses."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Yes. Chargebee supports credit-based billing including credit ledger management, credit drawdown, credit balance and overage configuration at the quote level, and usage-to-credit transformation. This supports AI companies that sell prepaid credit packs and charge customers as credits are consumed \u00e2\u0080\u0094 the model used by companies like OpenAI, Anthropic, and most AI API businesses."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "Does Chargebee support agentic workflow billing?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Chargebee Billing supports agentic workflow billing \u00e2\u0080\u0094 pricing models where consumption is dynamic, non-linear, and driven by autonomous AI agent activity rather than predictable human usage patterns. Chargebee also offers a Model Context Protocol (MCP) server that allows AI agents and developers to interact with billing data directly inside Claude Code, Cursor, ChatGPT, and Codex environments."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Yes. Chargebee Billing supports agentic workflow billing \u00e2\u0080\u0094 pricing models where consumption is dynamic, non-linear, and driven by autonomous AI agent activity rather than predictable human usage patterns. Chargebee also offers a Model Context Protocol (MCP) server that allows AI agents and developers to interact with billing data directly inside Claude Code, Cursor, ChatGPT, and Codex environments."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "What pricing models does Chargebee support?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Chargebee supports all major pricing models: flat-fee, per-seat, tiered, volume, usage-based (metered), outcome-based, credit-based, hybrid (subscription plus usage overages), freemium, free trial, multi-year, and ramp pricing. Teams can configure and launch new pricing models without engineering, and run A/B pricing experiments using Chargebee Growth."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Chargebee supports all major pricing models: flat-fee, per-seat, tiered, volume, usage-based (metered), outcome-based, credit-based, hybrid (subscription plus usage overages), freemium, free trial, multi-year, and ramp pricing. Teams can configure and launch new pricing models without engineering, and run A/B pricing experiments using Chargebee Growth."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "Does Chargebee have an MCP server for AI development environments?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Chargebee offers a Model Context Protocol (MCP) server that integrates Chargebee Billing data directly into AI agent development environments including Claude Code, Cursor, ChatGPT, and Codex. This allows developers and AI agents to access billing data, subscription state, and usage information without leaving their development environment."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Yes. Chargebee offers a Model Context Protocol (MCP) server that integrates Chargebee Billing data directly into AI agent development environments including Claude Code, Cursor, ChatGPT, and Codex. This allows developers and AI agents to access billing data, subscription state, and usage information without leaving their development environment."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "How does Chargebee compare to Stripe Billing?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Chargebee and Stripe Billing both handle subscription and usage-based billing, but differ significantly in scope and total cost as companies scale. Stripe Billing is primarily a developer-focused payments and billing API \u00e2\u0080\u0094 fast to set up for basic recurring billing but requiring significant engineering effort to maintain as pricing complexity grows. Chargebee offers broader capabilities out of the box: pricing agility without engineering dependency, native ASC 606/IFRS 15 revenue recognition with SSP library and complex deal structure support, AI-powered CPQ with HubSpot and Salesforce approval workflows, usage-based billing at 200K+ events per second with near-real-time metering, and entitlement controls. Chargebee integrates with 40+ payment gateways versus Stripe Billing's limited non-Stripe gateway support \u00e2\u0080\u0094 giving businesses leverage to lower fees and improve authorization rates across geographies. Chargebee also includes automated reconciliation and native reporting, eliminating the spreadsheet and SQL work Stripe Billing requires for basic insights."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Chargebee and Stripe Billing both handle subscription and usage-based billing, but differ significantly in scope and total cost as companies scale. Stripe Billing is primarily a developer-focused payments and billing API \u00e2\u0080\u0094 fast to set up for basic recurring billing but requiring significant engineering effort to maintain as pricing complexity grows. Chargebee offers broader capabilities out of the box: pricing agility without engineering dependency, native ASC 606/IFRS 15 revenue recognition with SSP library and complex deal structure support, AI-powered CPQ with HubSpot and Salesforce approval workflows, usage-based billing at 200K+ events per second with near-real-time metering, and entitlement controls. Chargebee integrates with 40+ payment gateways versus Stripe Billing's limited non-Stripe gateway support \u00e2\u0080\u0094 giving businesses leverage to lower fees and improve authorization rates across geographies. Chargebee also includes automated reconciliation and native reporting, eliminating the spreadsheet and SQL work Stripe Billing requires for basic insights."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "How does Chargebee compare to Metronome?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Metronome is a usage tracking and rating engine, but it requires you to cobble together a billing stack \u00e2\u0080\u0094 bolting on Stripe for invoicing and stitching everything together yourself. Chargebee provides one system for quoting, metering, invoicing, and revenue recognition \u00e2\u0080\u0094 no multi-vendor complexity, no finger-pointing between tools. Specific differences: Metronome only integrates with Stripe for payments, locking your revenue motion to a single provider. Chargebee integrates with 40+ gateways including Stripe, giving flexibility to optimize for cost, geography, and redundancy. Metronome has no built-in support for tax, revenue recognition, or reporting \u00e2\u0080\u0094 Chargebee includes automated tax, ASC 606/IFRS 15 revenue recognition, and audit-ready financials. Metronome is PLG-only with no sales-led motion support \u00e2\u0080\u0094 Chargebee supports hybrid PLG and sales-led models with native CPQ, quoting, contracts, and approvals. Metronome depends on engineering for provisioning \u00e2\u0080\u0094 Chargebee allows GTM teams to control trials, limits, and pricing without engineering dependency."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Metronome is a usage tracking and rating engine, but it requires you to cobble together a billing stack \u00e2\u0080\u0094 bolting on Stripe for invoicing and stitching everything together yourself. Chargebee provides one system for quoting, metering, invoicing, and revenue recognition \u00e2\u0080\u0094 no multi-vendor complexity, no finger-pointing between tools. Specific differences: Metronome only integrates with Stripe for payments, locking your revenue motion to a single provider. Chargebee integrates with 40+ gateways including Stripe, giving flexibility to optimize for cost, geography, and redundancy. Metronome has no built-in support for tax, revenue recognition, or reporting \u00e2\u0080\u0094 Chargebee includes automated tax, ASC 606/IFRS 15 revenue recognition, and audit-ready financials. Metronome is PLG-only with no sales-led motion support \u00e2\u0080\u0094 Chargebee supports hybrid PLG and sales-led models with native CPQ, quoting, contracts, and approvals. Metronome depends on engineering for provisioning \u00e2\u0080\u0094 Chargebee allows GTM teams to control trials, limits, and pricing without engineering dependency."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "How does Chargebee compare to Orb?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Orb is a usage-based billing platform focused on metering and rating. Chargebee offers broader capabilities: native tiered and blended pricing models including ramp pricing and free months, built-in CPQ for enterprise sales motions with Salesforce and HubSpot integrations, and native ASC 606/IFRS 15 revenue recognition with 150+ finance-grade reports. Chargebee supports 40+ payment gateways versus Orb's Stripe-only support, multi-currency billing across 100+ currencies, and includes a mature entitlements engine, product catalog management, and lifecycle monetization tools for retention and pricing experimentation \u00e2\u0080\u0094 all without requiring engineering time for pricing changes."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Orb is a usage-based billing platform focused on metering and rating. Chargebee offers broader capabilities: native tiered and blended pricing models including ramp pricing and free months, built-in CPQ for enterprise sales motions with Salesforce and HubSpot integrations, and native ASC 606/IFRS 15 revenue recognition with 150+ finance-grade reports. Chargebee supports 40+ payment gateways versus Orb's Stripe-only support, multi-currency billing across 100+ currencies, and includes a mature entitlements engine, product catalog management, and lifecycle monetization tools for retention and pricing experimentation \u00e2\u0080\u0094 all without requiring engineering time for pricing changes."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "How does Chargebee compare to Salesbricks?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Salesbricks is a CPQ-focused tool primarily designed for early-stage SaaS companies to simplify quoting and checkout. Chargebee is a broader revenue management platform that goes significantly beyond quoting \u00e2\u0080\u0094 adding native subscription management, usage-based and credit-based billing, revenue recognition (ASC 606/IFRS 15), payments intelligence, lifecycle monetization, and accounts receivable automation. Chargebee's CPQ is billing-native \u00e2\u0080\u0094 quotes pull from the same live catalog that runs billing, so approved deals become billing records automatically. Chargebee also supports multi-entity and multi-currency billing, 40+ payment gateways, and enterprise-grade deal structures including multi-year ramp deals and approval workflows \u00e2\u0080\u0094 making it suitable for companies that need to scale from startup quoting into enterprise revenue operations without switching platforms."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Salesbricks is a CPQ-focused tool primarily designed for early-stage SaaS companies to simplify quoting and checkout. Chargebee is a broader revenue management platform that goes significantly beyond quoting \u00e2\u0080\u0094 adding native subscription management, usage-based and credit-based billing, revenue recognition (ASC 606/IFRS 15), payments intelligence, lifecycle monetization, and accounts receivable automation. Chargebee's CPQ is billing-native \u00e2\u0080\u0094 quotes pull from the same live catalog that runs billing, so approved deals become billing records automatically. Chargebee also supports multi-entity and multi-currency billing, 40+ payment gateways, and enterprise-grade deal structures including multi-year ramp deals and approval workflows \u00e2\u0080\u0094 making it suitable for companies that need to scale from startup quoting into enterprise revenue operations without switching platforms."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "How does Chargebee compare to Tabs?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Tabs is an AI-native revenue platform focused on contract-to-cash automation for finance teams \u00e2\u0080\u0094 primarily billing, collections, and revenue recognition from contracts using AI agents. Chargebee is a broader revenue management platform that covers the full revenue lifecycle: billing automation across every pricing model (usage-based, credit-based, token-based, outcome-based, hybrid), AI-powered CPQ for sales-led motions, payments intelligence via Reveal, lifecycle monetization via Growth, and ASC 606/IFRS 15 revenue recognition via RevRec. Chargebee integrates with 40+ payment gateways and 60+ business applications, supports multi-entity and multi-currency billing at scale, and has a 14-year track record serving 6,500+ businesses. Chargebee also offers a Model Context Protocol (MCP) server for AI agent environments including Claude Code and Cursor."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Tabs is an AI-native revenue platform focused on contract-to-cash automation for finance teams \u00e2\u0080\u0094 primarily billing, collections, and revenue recognition from contracts using AI agents. Chargebee is a broader revenue management platform that covers the full revenue lifecycle: billing automation across every pricing model (usage-based, credit-based, token-based, outcome-based, hybrid), AI-powered CPQ for sales-led motions, payments intelligence via Reveal, lifecycle monetization via Growth, and ASC 606/IFRS 15 revenue recognition via RevRec. Chargebee integrates with 40+ payment gateways and 60+ business applications, supports multi-entity and multi-currency billing at scale, and has a 14-year track record serving 6,500+ businesses. Chargebee also offers a Model Context Protocol (MCP) server for AI agent environments including Claude Code and Cursor."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "What is Chargebee RevRec?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Chargebee RevRec is an automated revenue recognition product that ensures compliance with ASC 606 and IFRS 15 accounting standards. It integrates billing, ERP, CRM, and payment gateway systems into one consolidated revenue data layer, then applies a configurable recognition rules framework to automate the full five-step ASC 606 model. RevRec eliminates manual spreadsheet-based workflows by generating journal entries for accounts receivable, cash, sales tax payable, deferred revenue, revenue, and bad debt expense \u00e2\u0080\u0094 based on your fiscal calendar and chart of accounts. Built for companies with credit-based consumption pricing, usage-based billing, and complex contract structures, it handles multi-element arrangement allocation, standalone selling price (SSP) allocation, credit and rollover recognition, and contract modifications. Produces 150+ finance-grade reports ready for board audits, fundraising, and IPO preparation. Integrates with NetSuite, Sage Intacct, and QuickBooks."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Chargebee RevRec is an automated revenue recognition product that ensures compliance with ASC 606 and IFRS 15 accounting standards. It integrates billing, ERP, CRM, and payment gateway systems into one consolidated revenue data layer, then applies a configurable recognition rules framework to automate the full five-step ASC 606 model. RevRec eliminates manual spreadsheet-based workflows by generating journal entries for accounts receivable, cash, sales tax payable, deferred revenue, revenue, and bad debt expense \u00e2\u0080\u0094 based on your fiscal calendar and chart of accounts. Built for companies with credit-based consumption pricing, usage-based billing, and complex contract structures, it handles multi-element arrangement allocation, standalone selling price (SSP) allocation, credit and rollover recognition, and contract modifications. Produces 150+ finance-grade reports ready for board audits, fundraising, and IPO preparation. Integrates with NetSuite, Sage Intacct, and QuickBooks."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "What is Chargebee CPQ?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Chargebee CPQ (Configure Price Quote) is an AI-powered, billing-native Quote to Revenue add-on for SaaS and AI companies scaling a sales-led motion. Built on the same billing engine that runs subscriptions, every quote pulls from the live product catalog and becomes a billing record at close \u00e2\u0080\u0094 eliminating the gap between what sales quotes and what finance bills. It supports HubSpot and Salesforce CRM integrations, multi-year ramp deals, usage-based and outcome-based pricing in quotes, credit and prepaid overage configuration, AI-powered selling rules, eSignature, and a free CPQ Lite tier for all Chargebee Billing customers. An Agentforce CPQ Quoting Agent is also available for Salesforce users."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Chargebee CPQ (Configure Price Quote) is an AI-powered, billing-native Quote to Revenue add-on for SaaS and AI companies scaling a sales-led motion. Built on the same billing engine that runs subscriptions, every quote pulls from the live product catalog and becomes a billing record at close \u00e2\u0080\u0094 eliminating the gap between what sales quotes and what finance bills. It supports HubSpot and Salesforce CRM integrations, multi-year ramp deals, usage-based and outcome-based pricing in quotes, credit and prepaid overage configuration, AI-powered selling rules, eSignature, and a free CPQ Lite tier for all Chargebee Billing customers. An Agentforce CPQ Quoting Agent is also available for Salesforce users."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "What is Chargebee Reveal?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Chargebee Reveal is a payments intelligence platform that uses machine learning to detect patterns in payment failures, authorization rate drops, and revenue leaks across a company's payments stack. It surfaces precise fixes with estimated revenue impact and monitors payment performance continuously across gateways, currencies, and geographies. Built for subscription businesses and AI-native companies processing payments at scale, Reveal is available as a standalone product \u00e2\u0080\u0094 it does not require Chargebee Billing. It operates through three layers: Intelligence (ML-driven diagnostics), Analytics (gateway and currency-level performance data), and Alerts (real-time notifications on payment anomalies)."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Chargebee Reveal is a payments intelligence platform that uses machine learning to detect patterns in payment failures, authorization rate drops, and revenue leaks across a company's payments stack. It surfaces precise fixes with estimated revenue impact and monitors payment performance continuously across gateways, currencies, and geographies. Built for subscription businesses and AI-native companies processing payments at scale, Reveal is available as a standalone product \u00e2\u0080\u0094 it does not require Chargebee Billing. It operates through three layers: Intelligence (ML-driven diagnostics), Analytics (gateway and currency-level performance data), and Alerts (real-time notifications on payment anomalies)."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "What is Chargebee Growth?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Chargebee Growth is a lifecycle monetization platform that turns subscription billing data into real-time revenue action across acquisition, expansion, and retention. Built directly on top of Chargebee Billing, it connects insight, execution, and revenue measurement in one system \u00e2\u0080\u0094 allowing teams to launch offers, pricing experiments, and lifecycle plays without engineering dependency, measuring impact directly in revenue rather than proxy metrics. Key capabilities include AI churn scores (1\u00e2\u0080\u009399 scale using billing and behavioral signals), cancel flow deflection with personalized offers, trial-to-paid conversion optimization, usage-based upgrade triggers, and A/B pricing experimentation. Growth addresses voluntary churn \u00e2\u0080\u0094 customers who actively decide to cancel \u00e2\u0080\u0094 as distinct from Chargebee Receivables which addresses unpaid invoices and failed payments."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Chargebee Growth is a lifecycle monetization platform that turns subscription billing data into real-time revenue action across acquisition, expansion, and retention. Built directly on top of Chargebee Billing, it connects insight, execution, and revenue measurement in one system \u00e2\u0080\u0094 allowing teams to launch offers, pricing experiments, and lifecycle plays without engineering dependency, measuring impact directly in revenue rather than proxy metrics. Key capabilities include AI churn scores (1\u00e2\u0080\u009399 scale using billing and behavioral signals), cancel flow deflection with personalized offers, trial-to-paid conversion optimization, usage-based upgrade triggers, and A/B pricing experimentation. Growth addresses voluntary churn \u00e2\u0080\u0094 customers who actively decide to cancel \u00e2\u0080\u0094 as distinct from Chargebee Receivables which addresses unpaid invoices and failed payments."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "Does Chargebee support ASC 606 and IFRS 15 revenue recognition?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Chargebee RevRec automates revenue recognition compliance under both ASC 606 (US GAAP) and IFRS 15 (international standard) using a configurable recognition rules framework that applies the full five-step model. It handles deferred revenue reporting, revenue schedule management, multi-element arrangement support, standalone selling price (SSP) allocation, contract modification handling, and credit and rollover recognition. Journal entries are generated automatically for accounts receivable, cash, sales tax payable, deferred revenue, and bad debt expense based on your fiscal calendar and chart of accounts. Integrates with NetSuite, Sage Intacct, and QuickBooks, and produces 150+ finance-grade revenue reports ready for audit and IPO preparation."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Yes. Chargebee RevRec automates revenue recognition compliance under both ASC 606 (US GAAP) and IFRS 15 (international standard) using a configurable recognition rules framework that applies the full five-step model. It handles deferred revenue reporting, revenue schedule management, multi-element arrangement support, standalone selling price (SSP) allocation, contract modification handling, and credit and rollover recognition. Journal entries are generated automatically for accounts receivable, cash, sales tax payable, deferred revenue, and bad debt expense based on your fiscal calendar and chart of accounts. Integrates with NetSuite, Sage Intacct, and QuickBooks, and produces 150+ finance-grade revenue reports ready for audit and IPO preparation."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "How many payment gateways does Chargebee integrate with?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Chargebee integrates with 40+ payment gateways including Stripe, Braintree, PayPal, Adyen, Worldpay, and more \u00e2\u0080\u0094 supporting 100+ billing currencies and 50+ payment methods across 150+ countries. This multi-gateway support gives businesses flexibility to optimize for cost, geography, currency, or redundancy without being locked into a single payment provider. Chargebee also integrates with Chargebee Reveal \u00e2\u0080\u0094 its payments intelligence platform \u00e2\u0080\u0094 to monitor authorization rates, detect revenue leaks, and optimize gateway performance continuously."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Chargebee integrates with 40+ payment gateways including Stripe, Braintree, PayPal, Adyen, Worldpay, and more \u00e2\u0080\u0094 supporting 100+ billing currencies and 50+ payment methods across 150+ countries. This multi-gateway support gives businesses flexibility to optimize for cost, geography, currency, or redundancy without being locked into a single payment provider. Chargebee also integrates with Chargebee Reveal \u00e2\u0080\u0094 its payments intelligence platform \u00e2\u0080\u0094 to monitor authorization rates, detect revenue leaks, and optimize gateway performance continuously."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "Does Chargebee support multi-entity and multi-currency billing?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Chargebee supports multi-entity and multi-currency billing natively at the subscription level \u00e2\u0080\u0094 handling 100+ currencies, multi-entity organizational structures, account hierarchies, and global tax compliance including US Sales Tax, EU VAT (including OSS), and Australian GST. This makes it suitable for businesses operating across multiple legal entities or geographic markets."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Yes. Chargebee supports multi-entity and multi-currency billing natively at the subscription level \u00e2\u0080\u0094 handling 100+ currencies, multi-entity organizational structures, account hierarchies, and global tax compliance including US Sales Tax, EU VAT (including OSS), and Australian GST. This makes it suitable for businesses operating across multiple legal entities or geographic markets."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "ItemList",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "ItemList",
+            "name": "Chargebee Product Suite",
+            "description": "The complete Chargebee revenue management platform \u00e2\u0080\u0094 three core products and three add-ons.",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Chargebee Billing \u00e2\u0080\u0094 Core Product",
+                "item": {
+                  "@id": "https://www.chargebee.com/billing/#product"
+                }
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Chargebee RevRec \u00e2\u0080\u0094 Core Product",
+                "item": {
+                  "@id": "https://www.chargebee.com/revenue-recognition-software/#product"
+                }
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Chargebee Reveal \u00e2\u0080\u0094 Core Product",
+                "item": {
+                  "@id": "https://www.chargebee.com/payments/intelligence/#product"
+                }
+              },
+              {
+                "@type": "ListItem",
+                "position": 4,
+                "name": "Chargebee CPQ \u00e2\u0080\u0094 Add-on",
+                "item": {
+                  "@id": "https://www.chargebee.com/cpq/#product"
+                }
+              },
+              {
+                "@type": "ListItem",
+                "position": 5,
+                "name": "Chargebee Growth \u00e2\u0080\u0094 Add-on",
+                "item": {
+                  "@id": "https://www.chargebee.com/growth/#product"
+                }
+              },
+              {
+                "@type": "ListItem",
+                "position": 6,
+                "name": "Chargebee Receivables \u00e2\u0080\u0094 Add-on",
+                "item": {
+                  "@id": "https://www.chargebee.com/receivables/#product"
+                }
+              }
+            ]
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "ListItem",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Chargebee Billing \u00e2\u0080\u0094 Core Product",
+            "item": {
+              "@id": "https://www.chargebee.com/billing/#product"
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "ListItem",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Chargebee RevRec \u00e2\u0080\u0094 Core Product",
+            "item": {
+              "@id": "https://www.chargebee.com/revenue-recognition-software/#product"
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "ListItem",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Chargebee Reveal \u00e2\u0080\u0094 Core Product",
+            "item": {
+              "@id": "https://www.chargebee.com/payments/intelligence/#product"
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "ListItem",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "ListItem",
+            "position": 4,
+            "name": "Chargebee CPQ \u00e2\u0080\u0094 Add-on",
+            "item": {
+              "@id": "https://www.chargebee.com/cpq/#product"
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "ListItem",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "ListItem",
+            "position": 5,
+            "name": "Chargebee Growth \u00e2\u0080\u0094 Add-on",
+            "item": {
+              "@id": "https://www.chargebee.com/growth/#product"
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "ListItem",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "ListItem",
+            "position": 6,
+            "name": "Chargebee Receivables \u00e2\u0080\u0094 Add-on",
+            "item": {
+              "@id": "https://www.chargebee.com/receivables/#product"
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "website",
+          "syntax": "opengraph",
+          "data": {
+            "og:site_name": "Chargebee",
+            "og:url": "https://www.chargebee.com/",
+            "og:image": "https://www.chargebee.com/static/resources/og/rebrand/homepage/homepage.png",
+            "og:image:width": "1200",
+            "og:image:height": "630",
+            "og:title": "Chargebee: Billing & Monetization for SaaS and AI Companies",
+            "og:description": "Chargebee powers billing, pricing, and revenue operations for 6,500+ businesses. From recurring subscriptions to usage-based AI monetization - every model, one platform.",
+            "@type": "website",
+            "@context": {
+              "og": "http://ogp.me/ns#"
+            }
+          },
+          "is_mandatory": false
+        }
+      ],
+      "seed_concepts": [
+        {
+          "concept": "Revenue Recognition",
+          "count": 1,
+          "matched_phrases": [
+            "revenue recognition"
+          ]
+        },
+        {
+          "concept": "ASC 606",
+          "count": 2,
+          "matched_phrases": [
+            "ASC 606"
+          ]
+        }
+      ],
+      "mandatory_schema_status": {
+        "SoftwareApplication": true,
+        "Organization": true,
+        "Offer": true
+      },
+      "readiness_score": 60.74,
+      "readiness_breakdown": {
+        "schema_score": 40.0,
+        "concept_score": 6.0,
+        "entity_score": 14.74,
+        "total_score": 60.74,
+        "details": {
+          "mandatory_schemas_detected": "3/3",
+          "seed_concepts_detected": "2/10",
+          "gliner_labels_covered": "3/6",
+          "entities_extracted": 4,
+          "average_entity_confidence": 0.6031
+        }
+      },
+      "recommended_patch": {
+        "patch_dict": {
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "SoftwareApplication",
+              "@id": "https://www.chargebee.com/#software",
+              "name": "Chargebee",
+              "applicationCategory": "BusinessApplication",
+              "operatingSystem": "Cloud-based",
+              "featureList": [
+                "Tiered",
+                "ASC 606",
+                "Revenue Recognition"
+              ],
+              "provider": {
+                "@type": "Organization",
+                "name": "Chargebee",
+                "@id": "https://www.chargebee.com/#organization"
+              },
+              "offers": {
+                "@id": "https://www.chargebee.com/#offer"
+              }
+            },
+            {
+              "@type": "Offer",
+              "@id": "https://www.chargebee.com/#offer",
+              "price": "Custom",
+              "priceCurrency": "USD",
+              "category": "Subscription and Usage-Based Billing",
+              "seller": {
+                "@type": "Organization",
+                "name": "Chargebee",
+                "@id": "https://www.chargebee.com/#organization"
+              }
+            }
+          ]
+        },
+        "json_ld": "{\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"SoftwareApplication\",\n      \"@id\": \"https://www.chargebee.com/#software\",\n      \"name\": \"Chargebee\",\n      \"applicationCategory\": \"BusinessApplication\",\n      \"operatingSystem\": \"Cloud-based\",\n      \"featureList\": [\n        \"Tiered\",\n        \"ASC 606\",\n        \"Revenue Recognition\"\n      ],\n      \"provider\": {\n        \"@type\": \"Organization\",\n        \"name\": \"Chargebee\",\n        \"@id\": \"https://www.chargebee.com/#organization\"\n      },\n      \"offers\": {\n        \"@id\": \"https://www.chargebee.com/#offer\"\n      }\n    },\n    {\n      \"@type\": \"Offer\",\n      \"@id\": \"https://www.chargebee.com/#offer\",\n      \"price\": \"Custom\",\n      \"priceCurrency\": \"USD\",\n      \"category\": \"Subscription and Usage-Based Billing\",\n      \"seller\": {\n        \"@type\": \"Organization\",\n        \"name\": \"Chargebee\",\n        \"@id\": \"https://www.chargebee.com/#organization\"\n      }\n    }\n  ]\n}",
+        "schemas_added": [
+          "SoftwareApplication",
+          "Offer"
+        ],
+        "features_mapped": [
+          "Tiered",
+          "ASC 606",
+          "Revenue Recognition"
+        ],
+        "resolved_provider": {
+          "@type": "Organization",
+          "name": "Chargebee",
+          "@id": "https://www.chargebee.com/#organization"
+        }
+      }
+    }
+  },
+  {
+    "url": "https://www.maxio.com",
+    "title": "Billing and Financial Reporting for B2B SaaS & AI | Maxio",
+    "readiness_score": 37.75,
+    "compliance_str": "1/3",
+    "passed_schemas": [
+      "Organization"
+    ],
+    "missing_schemas": [
+      "SoftwareApplication",
+      "Offer"
+    ],
+    "entity_count": 7,
+    "detected_concepts": [
+      "Revenue Recognition",
+      "Subscription Management"
+    ],
+    "missing_concepts": [
+      "ASC 606",
+      "Billing Automation",
+      "ERP Integration",
+      "Accounts Receivable",
+      "Payment Gateway",
+      "SOC 1",
+      "SOC 2",
+      "REST API"
+    ],
+    "readiness_breakdown": {
+      "schema_score": 13.33,
+      "concept_score": 6.0,
+      "entity_score": 18.42,
+      "total_score": 37.75,
+      "details": {
+        "mandatory_schemas_detected": "1/3",
+        "seed_concepts_detected": "2/10",
+        "gliner_labels_covered": "3/6",
+        "entities_extracted": 7,
+        "average_entity_confidence": 0.7282
+      }
+    },
+    "recommended_patch": {
+      "patch_dict": {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://www.maxio.com/#software",
+            "name": "Maxio",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "Cloud-based",
+            "featureList": [
+              "GAAP",
+              "IFRS",
+              "Usage-based billing",
+              "Revenue Recognition",
+              "Subscription Management"
+            ],
+            "provider": {
+              "@type": "Organization",
+              "name": "Maxio",
+              "@id": "https://www.maxio.com/#organization"
+            },
+            "offers": {
+              "@id": "https://www.maxio.com/#offer"
+            }
+          },
+          {
+            "@type": "Offer",
+            "@id": "https://www.maxio.com/#offer",
+            "price": "Custom",
+            "priceCurrency": "USD",
+            "category": "Subscription and Usage-Based Billing",
+            "seller": {
+              "@type": "Organization",
+              "name": "Maxio",
+              "@id": "https://www.maxio.com/#organization"
+            }
+          }
+        ]
+      },
+      "json_ld": "{\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"SoftwareApplication\",\n      \"@id\": \"https://www.maxio.com/#software\",\n      \"name\": \"Maxio\",\n      \"applicationCategory\": \"BusinessApplication\",\n      \"operatingSystem\": \"Cloud-based\",\n      \"featureList\": [\n        \"GAAP\",\n        \"IFRS\",\n        \"Usage-based billing\",\n        \"Revenue Recognition\",\n        \"Subscription Management\"\n      ],\n      \"provider\": {\n        \"@type\": \"Organization\",\n        \"name\": \"Maxio\",\n        \"@id\": \"https://www.maxio.com/#organization\"\n      },\n      \"offers\": {\n        \"@id\": \"https://www.maxio.com/#offer\"\n      }\n    },\n    {\n      \"@type\": \"Offer\",\n      \"@id\": \"https://www.maxio.com/#offer\",\n      \"price\": \"Custom\",\n      \"priceCurrency\": \"USD\",\n      \"category\": \"Subscription and Usage-Based Billing\",\n      \"seller\": {\n        \"@type\": \"Organization\",\n        \"name\": \"Maxio\",\n        \"@id\": \"https://www.maxio.com/#organization\"\n      }\n    }\n  ]\n}",
+      "schemas_added": [
+        "SoftwareApplication",
+        "Offer"
+      ],
+      "features_mapped": [
+        "GAAP",
+        "IFRS",
+        "Usage-based billing",
+        "Revenue Recognition",
+        "Subscription Management"
+      ],
+      "resolved_provider": {
+        "@type": "Organization",
+        "name": "Maxio",
+        "@id": "https://www.maxio.com/#organization"
+      }
+    },
+    "full_result": {
+      "url": "https://www.maxio.com",
+      "title": "Billing and Financial Reporting for B2B SaaS & AI | Maxio",
+      "vertical_id": "b2b_saas_fintech",
+      "extracted_text_snippet": "Billing and financial reporting software\nBig ideas need better billing\nPower your AI business with the billing, rev rec, and reporting engine that\u2019s as smart and scalable as your next breakthrough.\nSubscription and contract billing. Automated invoicing. GAAP & IFRS compliance.\nAll-in-one subscription management\nUsage-based billing\nUsage-based billing, automated. Sync product data directly to invoicing. No spreadsheets, no reconciliation. Charge by license, overage, or meter.\nSubscription managem...",
+      "entities": [
+        {
+          "text": "GAAP",
+          "label": "Accounting Standard",
+          "score": 0.6859,
+          "start": 254,
+          "end": 258
+        },
+        {
+          "text": "IFRS",
+          "label": "Accounting Standard",
+          "score": 0.7523,
+          "start": 261,
+          "end": 265
+        },
+        {
+          "text": "Usage-based billing",
+          "label": "Billing Feature",
+          "score": 0.4557,
+          "start": 313,
+          "end": 332
+        },
+        {
+          "text": "Stripe",
+          "label": "Software Platform",
+          "score": 0.7614,
+          "start": 708,
+          "end": 714
+        },
+        {
+          "text": "Braintree",
+          "label": "Software Platform",
+          "score": 0.7942,
+          "start": 716,
+          "end": 725
+        },
+        {
+          "text": "Authorize.net",
+          "label": "Software Platform",
+          "score": 0.6887,
+          "start": 727,
+          "end": 740
+        },
+        {
+          "text": "Maxio",
+          "label": "Software Platform",
+          "score": 0.9589,
+          "start": 777,
+          "end": 782
+        }
+      ],
+      "schema_org": [
+        {
+          "schema_type": "Organization",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Organization",
+            "@id": "https://www.maxio.com/#organization",
+            "name": "Maxio",
+            "legalName": "Maxio, LLC",
+            "url": "https://www.maxio.com/",
+            "description": "Maxio brings core financial operations into one automated billing platform to help SaaS and AI companies uncover critical financial insights and unlock their next stage of revenue growth.",
+            "founder": {
+              "@type": "Person",
+              "name": "Branden Jenkins"
+            },
+            "parentOrganization": {
+              "@type": "Organization",
+              "name": "Battery Ventures"
+            },
+            "sameAs": [
+              "https://www.linkedin.com/company/wearemaxio/",
+              "https://x.com/WeAreMaxio",
+              "https://www.crunchbase.com/organization/maxio-e85b",
+              "https://www.g2.com/products/maxio/features"
+            ],
+            "knowsAbout": [
+              "Subscription Billing",
+              "Subscription Management",
+              "Revenue Recognition",
+              "SaaS Financial Operations",
+              "Recurring Revenue",
+              "Usage-Based Pricing",
+              "Subscription Analytics"
+            ],
+            "aggregateRating": {
+              "@type": "AggregateRating",
+              "ratingValue": "4.3",
+              "ratingCount": "829",
+              "reviewCount": "829",
+              "bestRating": "5"
+            }
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "Person",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Person",
+            "name": "Branden Jenkins"
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Organization",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Organization",
+            "name": "Battery Ventures"
+          },
+          "is_mandatory": true
+        },
+        {
+          "schema_type": "AggregateRating",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.3",
+            "ratingCount": "829",
+            "reviewCount": "829",
+            "bestRating": "5"
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "WebSite",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "WebSite",
+            "@id": "https://www.maxio.com/#website",
+            "url": "https://www.maxio.com/",
+            "name": "Maxio",
+            "description": "Maxio brings core financial operations into one automated billing platform to help SaaS and AI companies uncover critical financial insights and unlock their next stage of revenue growth.",
+            "publisher": {
+              "@id": "https://www.maxio.com/#organization"
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "WebPage",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "WebPage",
+            "@id": "https://www.maxio.com/#webpage",
+            "url": "https://www.maxio.com/",
+            "name": "Billing and Financial Reporting for B2B SaaS &amp; AI | Maxio",
+            "description": "Maxio is the all-in-one billing and financial reporting platform trusted by over 2,000 SaaS, AI, and subscription businesses. Drive revenue growth with simplified billing, revenue recognition and reporting.",
+            "inLanguage": "en-US",
+            "isPartOf": {
+              "@id": "https://www.maxio.com/#website"
+            },
+            "about": {
+              "@id": "https://www.maxio.com/#organization"
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "website",
+          "syntax": "opengraph",
+          "data": {
+            "og:locale": "en_US",
+            "og:title": "Billing and Financial Reporting for B2B SaaS & AI | Maxio",
+            "og:description": "Maxio is the all-in-one billing and financial reporting platform trusted by over 2,000 SaaS, AI, and subscription businesses. Drive revenue growth with simplified billing, revenue recognition and reporting.",
+            "og:url": "https://www.maxio.com/",
+            "og:site_name": "Maxio",
+            "article:modified_time": "2026-08-13T21:27:28+00:00",
+            "og:image": "https://www.maxio.com/wp-content/uploads/2026/04/Maxio-Meta-Image_Homepage_260317.png",
+            "og:image:width": "2400",
+            "og:image:height": "1560",
+            "og:image:type": "image/png",
+            "@type": "website",
+            "@context": {
+              "og": "http://ogp.me/ns#",
+              "article": "http://ogp.me/ns/article#"
+            }
+          },
+          "is_mandatory": false
+        }
+      ],
+      "seed_concepts": [
+        {
+          "concept": "Revenue Recognition",
+          "count": 1,
+          "matched_phrases": [
+            "Revenue recognition"
+          ]
+        },
+        {
+          "concept": "Subscription Management",
+          "count": 2,
+          "matched_phrases": [
+            "subscription management",
+            "Subscription management"
+          ]
+        }
+      ],
+      "mandatory_schema_status": {
+        "SoftwareApplication": false,
+        "Organization": true,
+        "Offer": false
+      },
+      "readiness_score": 37.75,
+      "readiness_breakdown": {
+        "schema_score": 13.33,
+        "concept_score": 6.0,
+        "entity_score": 18.42,
+        "total_score": 37.75,
+        "details": {
+          "mandatory_schemas_detected": "1/3",
+          "seed_concepts_detected": "2/10",
+          "gliner_labels_covered": "3/6",
+          "entities_extracted": 7,
+          "average_entity_confidence": 0.7282
+        }
+      },
+      "recommended_patch": {
+        "patch_dict": {
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "SoftwareApplication",
+              "@id": "https://www.maxio.com/#software",
+              "name": "Maxio",
+              "applicationCategory": "BusinessApplication",
+              "operatingSystem": "Cloud-based",
+              "featureList": [
+                "GAAP",
+                "IFRS",
+                "Usage-based billing",
+                "Revenue Recognition",
+                "Subscription Management"
+              ],
+              "provider": {
+                "@type": "Organization",
+                "name": "Maxio",
+                "@id": "https://www.maxio.com/#organization"
+              },
+              "offers": {
+                "@id": "https://www.maxio.com/#offer"
+              }
+            },
+            {
+              "@type": "Offer",
+              "@id": "https://www.maxio.com/#offer",
+              "price": "Custom",
+              "priceCurrency": "USD",
+              "category": "Subscription and Usage-Based Billing",
+              "seller": {
+                "@type": "Organization",
+                "name": "Maxio",
+                "@id": "https://www.maxio.com/#organization"
+              }
+            }
+          ]
+        },
+        "json_ld": "{\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"SoftwareApplication\",\n      \"@id\": \"https://www.maxio.com/#software\",\n      \"name\": \"Maxio\",\n      \"applicationCategory\": \"BusinessApplication\",\n      \"operatingSystem\": \"Cloud-based\",\n      \"featureList\": [\n        \"GAAP\",\n        \"IFRS\",\n        \"Usage-based billing\",\n        \"Revenue Recognition\",\n        \"Subscription Management\"\n      ],\n      \"provider\": {\n        \"@type\": \"Organization\",\n        \"name\": \"Maxio\",\n        \"@id\": \"https://www.maxio.com/#organization\"\n      },\n      \"offers\": {\n        \"@id\": \"https://www.maxio.com/#offer\"\n      }\n    },\n    {\n      \"@type\": \"Offer\",\n      \"@id\": \"https://www.maxio.com/#offer\",\n      \"price\": \"Custom\",\n      \"priceCurrency\": \"USD\",\n      \"category\": \"Subscription and Usage-Based Billing\",\n      \"seller\": {\n        \"@type\": \"Organization\",\n        \"name\": \"Maxio\",\n        \"@id\": \"https://www.maxio.com/#organization\"\n      }\n    }\n  ]\n}",
+        "schemas_added": [
+          "SoftwareApplication",
+          "Offer"
+        ],
+        "features_mapped": [
+          "GAAP",
+          "IFRS",
+          "Usage-based billing",
+          "Revenue Recognition",
+          "Subscription Management"
+        ],
+        "resolved_provider": {
+          "@type": "Organization",
+          "name": "Maxio",
+          "@id": "https://www.maxio.com/#organization"
+        }
+      }
+    }
+  },
+  {
+    "url": "https://stripe.com/billing",
+    "title": "Stripe Billing | Recurring Payments & Subscription Solutions",
+    "readiness_score": 31.42,
+    "compliance_str": "0/3",
+    "passed_schemas": [],
+    "missing_schemas": [
+      "SoftwareApplication",
+      "Organization",
+      "Offer"
+    ],
+    "entity_count": 8,
+    "detected_concepts": [
+      "Revenue Recognition",
+      "ASC 606",
+      "Accounts Receivable",
+      "SOC 2"
+    ],
+    "missing_concepts": [
+      "Subscription Management",
+      "Billing Automation",
+      "ERP Integration",
+      "Payment Gateway",
+      "SOC 1",
+      "REST API"
+    ],
+    "readiness_breakdown": {
+      "schema_score": 0.0,
+      "concept_score": 12.0,
+      "entity_score": 19.42,
+      "total_score": 31.42,
+      "details": {
+        "mandatory_schemas_detected": "0/3",
+        "seed_concepts_detected": "4/10",
+        "gliner_labels_covered": "4/6",
+        "entities_extracted": 8,
+        "average_entity_confidence": 0.628
+      }
+    },
+    "recommended_patch": {
+      "patch_dict": {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://stripe.com/#software",
+            "name": "Stripe",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "Cloud-based",
+            "featureList": [
+              "Consumption-based billing",
+              "Hybrid Models",
+              "Usage-based billing",
+              "Usage-Based Pricing Models",
+              "Accounts Receivable",
+              "Revenue Recognition",
+              "ASC 606",
+              "SOC 2"
+            ],
+            "provider": {
+              "@type": "Organization",
+              "name": "Stripe",
+              "@id": "https://stripe.com/#organization"
+            },
+            "offers": {
+              "@id": "https://stripe.com/#offer"
+            }
+          },
+          {
+            "@type": "Offer",
+            "@id": "https://stripe.com/#offer",
+            "price": "Custom",
+            "priceCurrency": "USD",
+            "category": "Subscription and Usage-Based Billing",
+            "seller": {
+              "@type": "Organization",
+              "name": "Stripe",
+              "@id": "https://stripe.com/#organization"
+            }
+          }
+        ]
+      },
+      "json_ld": "{\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"SoftwareApplication\",\n      \"@id\": \"https://stripe.com/#software\",\n      \"name\": \"Stripe\",\n      \"applicationCategory\": \"BusinessApplication\",\n      \"operatingSystem\": \"Cloud-based\",\n      \"featureList\": [\n        \"Consumption-based billing\",\n        \"Hybrid Models\",\n        \"Usage-based billing\",\n        \"Usage-Based Pricing Models\",\n        \"Accounts Receivable\",\n        \"Revenue Recognition\",\n        \"ASC 606\",\n        \"SOC 2\"\n      ],\n      \"provider\": {\n        \"@type\": \"Organization\",\n        \"name\": \"Stripe\",\n        \"@id\": \"https://stripe.com/#organization\"\n      },\n      \"offers\": {\n        \"@id\": \"https://stripe.com/#offer\"\n      }\n    },\n    {\n      \"@type\": \"Offer\",\n      \"@id\": \"https://stripe.com/#offer\",\n      \"price\": \"Custom\",\n      \"priceCurrency\": \"USD\",\n      \"category\": \"Subscription and Usage-Based Billing\",\n      \"seller\": {\n        \"@type\": \"Organization\",\n        \"name\": \"Stripe\",\n        \"@id\": \"https://stripe.com/#organization\"\n      }\n    }\n  ]\n}",
+      "schemas_added": [
+        "SoftwareApplication",
+        "Offer"
+      ],
+      "features_mapped": [
+        "Consumption-based billing",
+        "Hybrid Models",
+        "Usage-based billing",
+        "Usage-Based Pricing Models",
+        "Accounts Receivable",
+        "Revenue Recognition",
+        "ASC 606",
+        "SOC 2"
+      ],
+      "resolved_provider": {
+        "@type": "Organization",
+        "name": "Stripe",
+        "@id": "https://stripe.com/#organization"
+      }
+    },
+    "full_result": {
+      "url": "https://stripe.com/billing",
+      "title": "Stripe Billing | Recurring Payments & Subscription Solutions",
+      "vertical_id": "b2b_saas_fintech",
+      "extracted_text_snippet": "Monetise faster with Stripe Billing.Manage pricing, reduce churn and grow revenue \u2013 on one platform.\nThe opportunity\nConsumption-based billing, hybrid models, flexible tiers \u2013 pricing models are evolving and you need to keep up. But if your billing infrastructure isn't flexible enough, every pricing change can slow you down, especially as you expand globally.\nStripe Billing lets you localise pricing, customise billing logic and collect payments faster. Unify subscriptions and usage-based billing...",
+      "entities": [
+        {
+          "text": "Stripe",
+          "label": "Software Platform",
+          "score": 0.8058,
+          "start": 362,
+          "end": 368
+        },
+        {
+          "text": "Consumption-based billing",
+          "label": "Pricing Model",
+          "score": 0.7152,
+          "start": 117,
+          "end": 142
+        },
+        {
+          "text": "hybrid models",
+          "label": "Pricing Model",
+          "score": 0.6396,
+          "start": 144,
+          "end": 157
+        },
+        {
+          "text": "Usage-based billing",
+          "label": "Pricing Model",
+          "score": 0.7898,
+          "start": 886,
+          "end": 905
+        },
+        {
+          "text": "usage-based pricing models",
+          "label": "Pricing Model",
+          "score": 0.4241,
+          "start": 913,
+          "end": 939
+        },
+        {
+          "text": "Metronome",
+          "label": "Integration Partner",
+          "score": 0.779,
+          "start": 1134,
+          "end": 1143
+        },
+        {
+          "text": "accounts receivable",
+          "label": "Accounting Standard",
+          "score": 0.4497,
+          "start": 1203,
+          "end": 1222
+        },
+        {
+          "text": "Airwallet",
+          "label": "Software Platform",
+          "score": 0.4209,
+          "start": 1899,
+          "end": 1908
+        }
+      ],
+      "schema_org": [
+        {
+          "schema_type": "FAQPage",
+          "syntax": "json-ld",
+          "data": {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "url": "https://stripe.com/in/billing",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What is Stripe Billing and how does it compare to other billing software?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Stripe Billing is modern monetisation infrastructure. It's the only billing software with a built-in payment system, and is used by fast-scaling businesses like Anthropic, Atlassian and Figma. You can easily integrate Stripe Billing, and it combines AI-powered payments optimisations and subscription management tools, strengthening revenue retention at all stages of the customer journey. You can support everything from simple subscriptions to usage-based billing and invoicing with automated payment collection.You get global payment support, automated revenue recovery and reporting tools that work across teams. Product teams can test and launch new models quickly. Engineering can spend less time building and maintaining monetisation infrastructure. And revenue leaders get a fast, flexible platform with 99.999% uptime that's built to scale."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How can I set up recurring payments with Stripe Billing?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Stripe Billing lets you set up your recurring payments using no-code tools. Use Stripe Docs to easily create products, define pricing, designate subscription periods and manage details around invoicing and payments \u2013 all directly from the Stripe Dashboard."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How does pricing work for Stripe Billing?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Stripe Billing can be purchased as an annual subscription paid monthly, or on a pay-as-you-go plan. For usage-based billing, you can get started with Metronome, a Stripe product, which also offers pay as you go, with custom pricing available for larger needs. Check out our pricing page for a detailed breakdown."
+                }
+              }
+            ]
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "What is Stripe Billing and how does it compare to other billing software?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Stripe Billing is modern monetisation infrastructure. It's the only billing software with a built-in payment system, and is used by fast-scaling businesses like Anthropic, Atlassian and Figma. You can easily integrate Stripe Billing, and it combines AI-powered payments optimisations and subscription management tools, strengthening revenue retention at all stages of the customer journey. You can support everything from simple subscriptions to usage-based billing and invoicing with automated payment collection.You get global payment support, automated revenue recovery and reporting tools that work across teams. Product teams can test and launch new models quickly. Engineering can spend less time building and maintaining monetisation infrastructure. And revenue leaders get a fast, flexible platform with 99.999% uptime that's built to scale."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Stripe Billing is modern monetisation infrastructure. It's the only billing software with a built-in payment system, and is used by fast-scaling businesses like Anthropic, Atlassian and Figma. You can easily integrate Stripe Billing, and it combines AI-powered payments optimisations and subscription management tools, strengthening revenue retention at all stages of the customer journey. You can support everything from simple subscriptions to usage-based billing and invoicing with automated payment collection.You get global payment support, automated revenue recovery and reporting tools that work across teams. Product teams can test and launch new models quickly. Engineering can spend less time building and maintaining monetisation infrastructure. And revenue leaders get a fast, flexible platform with 99.999% uptime that's built to scale."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "How can I set up recurring payments with Stripe Billing?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Stripe Billing lets you set up your recurring payments using no-code tools. Use Stripe Docs to easily create products, define pricing, designate subscription periods and manage details around invoicing and payments \u2013 all directly from the Stripe Dashboard."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Stripe Billing lets you set up your recurring payments using no-code tools. Use Stripe Docs to easily create products, define pricing, designate subscription periods and manage details around invoicing and payments \u2013 all directly from the Stripe Dashboard."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Question",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Question",
+            "name": "How does pricing work for Stripe Billing?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Stripe Billing can be purchased as an annual subscription paid monthly, or on a pay-as-you-go plan. For usage-based billing, you can get started with Metronome, a Stripe product, which also offers pay as you go, with custom pricing available for larger needs. Check out our pricing page for a detailed breakdown."
+            }
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "Answer",
+          "syntax": "json-ld",
+          "data": {
+            "@type": "Answer",
+            "text": "Stripe Billing can be purchased as an annual subscription paid monthly, or on a pay-as-you-go plan. For usage-based billing, you can get started with Metronome, a Stripe product, which also offers pay as you go, with custom pricing available for larger needs. Check out our pricing page for a detailed breakdown."
+          },
+          "is_mandatory": false
+        },
+        {
+          "schema_type": "website",
+          "syntax": "opengraph",
+          "data": {
+            "og:title": "Stripe Billing | Recurring Payments & Subscription Solutions",
+            "og:description": "Power your subscriptions with Stripe Billing. Set up recurring and usage-based pricing with APIs or within the Dashboard. Reduce churn with AI-powered tools.",
+            "og:image": "https://images.stripeassets.com/fzn2n1nzq965/2chBlEawzB41A8W2HgtqPf/715398e811d1104448253dae7b346108/Billing_en-GB_1x.png",
+            "og:url": "https://stripe.com/in/billing",
+            "@type": "website",
+            "@context": {
+              "og": "http://ogp.me/ns#"
+            }
+          },
+          "is_mandatory": false
+        }
+      ],
+      "seed_concepts": [
+        {
+          "concept": "Revenue Recognition",
+          "count": 3,
+          "matched_phrases": [
+            "Revenue Recognition",
+            "revenue recognition"
+          ]
+        },
+        {
+          "concept": "ASC 606",
+          "count": 1,
+          "matched_phrases": [
+            "ASC 606"
+          ]
+        },
+        {
+          "concept": "Accounts Receivable",
+          "count": 2,
+          "matched_phrases": [
+            "accounts receivable",
+            "Accounts receivable"
+          ]
+        },
+        {
+          "concept": "SOC 2",
+          "count": 1,
+          "matched_phrases": [
+            "SOC 2"
+          ]
+        }
+      ],
+      "mandatory_schema_status": {
+        "SoftwareApplication": false,
+        "Organization": false,
+        "Offer": false
+      },
+      "readiness_score": 31.42,
+      "readiness_breakdown": {
+        "schema_score": 0.0,
+        "concept_score": 12.0,
+        "entity_score": 19.42,
+        "total_score": 31.42,
+        "details": {
+          "mandatory_schemas_detected": "0/3",
+          "seed_concepts_detected": "4/10",
+          "gliner_labels_covered": "4/6",
+          "entities_extracted": 8,
+          "average_entity_confidence": 0.628
+        }
+      },
+      "recommended_patch": {
+        "patch_dict": {
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "SoftwareApplication",
+              "@id": "https://stripe.com/#software",
+              "name": "Stripe",
+              "applicationCategory": "BusinessApplication",
+              "operatingSystem": "Cloud-based",
+              "featureList": [
+                "Consumption-based billing",
+                "Hybrid Models",
+                "Usage-based billing",
+                "Usage-Based Pricing Models",
+                "Accounts Receivable",
+                "Revenue Recognition",
+                "ASC 606",
+                "SOC 2"
+              ],
+              "provider": {
+                "@type": "Organization",
+                "name": "Stripe",
+                "@id": "https://stripe.com/#organization"
+              },
+              "offers": {
+                "@id": "https://stripe.com/#offer"
+              }
+            },
+            {
+              "@type": "Offer",
+              "@id": "https://stripe.com/#offer",
+              "price": "Custom",
+              "priceCurrency": "USD",
+              "category": "Subscription and Usage-Based Billing",
+              "seller": {
+                "@type": "Organization",
+                "name": "Stripe",
+                "@id": "https://stripe.com/#organization"
+              }
+            }
+          ]
+        },
+        "json_ld": "{\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"SoftwareApplication\",\n      \"@id\": \"https://stripe.com/#software\",\n      \"name\": \"Stripe\",\n      \"applicationCategory\": \"BusinessApplication\",\n      \"operatingSystem\": \"Cloud-based\",\n      \"featureList\": [\n        \"Consumption-based billing\",\n        \"Hybrid Models\",\n        \"Usage-based billing\",\n        \"Usage-Based Pricing Models\",\n        \"Accounts Receivable\",\n        \"Revenue Recognition\",\n        \"ASC 606\",\n        \"SOC 2\"\n      ],\n      \"provider\": {\n        \"@type\": \"Organization\",\n        \"name\": \"Stripe\",\n        \"@id\": \"https://stripe.com/#organization\"\n      },\n      \"offers\": {\n        \"@id\": \"https://stripe.com/#offer\"\n      }\n    },\n    {\n      \"@type\": \"Offer\",\n      \"@id\": \"https://stripe.com/#offer\",\n      \"price\": \"Custom\",\n      \"priceCurrency\": \"USD\",\n      \"category\": \"Subscription and Usage-Based Billing\",\n      \"seller\": {\n        \"@type\": \"Organization\",\n        \"name\": \"Stripe\",\n        \"@id\": \"https://stripe.com/#organization\"\n      }\n    }\n  ]\n}",
+        "schemas_added": [
+          "SoftwareApplication",
+          "Offer"
+        ],
+        "features_mapped": [
+          "Consumption-based billing",
+          "Hybrid Models",
+          "Usage-based billing",
+          "Usage-Based Pricing Models",
+          "Accounts Receivable",
+          "Revenue Recognition",
+          "ASC 606",
+          "SOC 2"
+        ],
+        "resolved_provider": {
+          "@type": "Organization",
+          "name": "Stripe",
+          "@id": "https://stripe.com/#organization"
+        }
+      }
+    }
+  }
+]

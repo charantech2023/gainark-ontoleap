@@ -1,0 +1,184 @@
+{
+  "url": "https://example.com/maxio-demo",
+  "title": "Maxio - B2B SaaS Billing Automation & Financial Operations",
+  "vertical_id": "b2b_saas_fintech",
+  "extracted_text_snippet": "Maxio delivers robust billing automation and end-to-end subscription management. Our software platform seamlessly ensures full compliance with ASC 606 and IFRS 15 for automated revenue recognition.\nIntegrate directly with your favorite payment gateway like Stripe, or connect to Salesforce and NetSuite through our high-throughput REST API. With comprehensive accounts receivable tracking, automated dunning, and enterprise-grade SOC 2 Type II compliance, finance teams can scale friction-free. Choos...",
+  "entities": [
+    {
+      "text": "Maxio",
+      "label": "Software Platform",
+      "score": 0.8624,
+      "start": 0,
+      "end": 5
+    },
+    {
+      "text": "ASC 606",
+      "label": "Accounting Standard",
+      "score": 0.9727,
+      "start": 143,
+      "end": 150
+    },
+    {
+      "text": "IFRS 15",
+      "label": "Accounting Standard",
+      "score": 0.9556,
+      "start": 155,
+      "end": 162
+    },
+    {
+      "text": "Stripe",
+      "label": "Software Platform",
+      "score": 0.6635,
+      "start": 257,
+      "end": 263
+    },
+    {
+      "text": "Salesforce",
+      "label": "Software Platform",
+      "score": 0.8742,
+      "start": 279,
+      "end": 289
+    },
+    {
+      "text": "NetSuite",
+      "label": "Software Platform",
+      "score": 0.9201,
+      "start": 294,
+      "end": 302
+    },
+    {
+      "text": "comprehensive accounts receivable tracking",
+      "label": "Billing Feature",
+      "score": 0.4006,
+      "start": 346,
+      "end": 388
+    },
+    {
+      "text": "automated dunning",
+      "label": "Billing Feature",
+      "score": 0.5761,
+      "start": 390,
+      "end": 407
+    },
+    {
+      "text": "flexible pricing options",
+      "label": "Billing Feature",
+      "score": 0.422,
+      "start": 502,
+      "end": 526
+    },
+    {
+      "text": "usage-based pricing models",
+      "label": "Pricing Model",
+      "score": 0.5487,
+      "start": 548,
+      "end": 574
+    }
+  ],
+  "schema_org": [
+    {
+      "schema_type": "SoftwareApplication",
+      "syntax": "json-ld",
+      "data": {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Maxio Billing Platform",
+        "applicationCategory": "BusinessApplication",
+        "offers": {
+          "@type": "Offer",
+          "price": "599",
+          "priceCurrency": "USD",
+          "category": "Usage-Based Pricing"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Maxio Inc"
+        }
+      },
+      "is_mandatory": true
+    },
+    {
+      "schema_type": "Offer",
+      "syntax": "json-ld",
+      "data": {
+        "@type": "Offer",
+        "price": "599",
+        "priceCurrency": "USD",
+        "category": "Usage-Based Pricing"
+      },
+      "is_mandatory": true
+    },
+    {
+      "schema_type": "Organization",
+      "syntax": "json-ld",
+      "data": {
+        "@type": "Organization",
+        "name": "Maxio Inc"
+      },
+      "is_mandatory": true
+    }
+  ],
+  "seed_concepts": [
+    {
+      "concept": "Revenue Recognition",
+      "count": 1,
+      "matched_phrases": [
+        "revenue recognition"
+      ]
+    },
+    {
+      "concept": "ASC 606",
+      "count": 1,
+      "matched_phrases": [
+        "ASC 606"
+      ]
+    },
+    {
+      "concept": "Subscription Management",
+      "count": 1,
+      "matched_phrases": [
+        "subscription management"
+      ]
+    },
+    {
+      "concept": "Billing Automation",
+      "count": 1,
+      "matched_phrases": [
+        "billing automation"
+      ]
+    },
+    {
+      "concept": "Accounts Receivable",
+      "count": 1,
+      "matched_phrases": [
+        "accounts receivable"
+      ]
+    },
+    {
+      "concept": "Payment Gateway",
+      "count": 1,
+      "matched_phrases": [
+        "payment gateway"
+      ]
+    },
+    {
+      "concept": "SOC 2",
+      "count": 1,
+      "matched_phrases": [
+        "SOC 2"
+      ]
+    },
+    {
+      "concept": "REST API",
+      "count": 1,
+      "matched_phrases": [
+        "REST API"
+      ]
+    }
+  ],
+  "mandatory_schema_status": {
+    "SoftwareApplication": true,
+    "Organization": true,
+    "Offer": true
+  }
+}
