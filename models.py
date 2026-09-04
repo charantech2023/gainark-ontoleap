@@ -178,18 +178,38 @@ class SchemaValidationReport(BaseModel):
     compliance_percentage: float = 100.0
 
 
+class TopicHubMetadata(BaseModel):
+    concept: str
+    canonical_url: str
+    taxonomy_role: str
+    pagerank_score: float = 0.0
+    betweenness_centrality: float = 0.0
+    inbound_internal_links: int = 0
+
+
+class CannibalizationRiskItem(BaseModel):
+    concept: str
+    competing_urls: List[str]
+    recommended_canonical_hub: str
+    recommendation: str
+
+
 class SiteAuditAndLinkResult(BaseModel):
     root_domain: str
     pages_analyzed: int
     opportunities_count: int
     opportunities: List[InternalLinkOpportunity] = Field(default_factory=list)
     topic_hubs: Dict[str, str] = Field(default_factory=dict, description="Map of entity/topic -> canonical URL")
+    topic_hubs_detailed: List[TopicHubMetadata] = Field(default_factory=list)
+    orphan_pages: List[str] = Field(default_factory=list)
+    cannibalization_risks: List[CannibalizationRiskItem] = Field(default_factory=list)
     unified_site_graph: Optional[UnifiedSiteGraph] = None
     ai_citation_readiness: Optional[AICitationReadiness] = None
     cluster_topology: Optional[ClusterTopology] = None
     wordpress_php_hook: Optional[str] = None
     llms_txt: Optional[str] = None
     robots_txt_ai: Optional[str] = None
+    rdf_turtle: Optional[str] = None
     validation_report: Optional[SchemaValidationReport] = None
 
 

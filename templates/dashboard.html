@@ -654,27 +654,37 @@
                     </div>
                 </div>
 
-                <!-- 4 KPI Summary Cards -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pages Analyzed</span>
-                        <div class="text-2xl font-extrabold text-slate-900 mt-1" id="link-kpi-pages">0</div>
-                        <p class="text-[11px] text-slate-500 mt-0.5">Sitemap / Seed targets</p>
+                <!-- 6 KPI Summary Cards -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pages Crawled</span>
+                        <div class="text-xl font-extrabold text-slate-900 mt-1" id="link-kpi-pages">0</div>
+                        <p class="text-[10px] text-slate-500 mt-0.5">Sitemap / Seeds</p>
                     </div>
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Canonical Topic Hubs</span>
-                        <div class="text-2xl font-extrabold text-brand-600 mt-1" id="link-kpi-hubs">0</div>
-                        <p class="text-[11px] text-slate-500 mt-0.5">Resolved authority pillars</p>
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Topic Hubs</span>
+                        <div class="text-xl font-extrabold text-brand-600 mt-1" id="link-kpi-hubs">0</div>
+                        <p class="text-[10px] text-slate-500 mt-0.5">Authority pillars</p>
                     </div>
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Link Opportunities</span>
-                        <div class="text-2xl font-extrabold text-indigo-600 mt-1" id="link-kpi-opps">0</div>
-                        <p class="text-[11px] text-slate-500 mt-0.5">Unlinked entity mentions</p>
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Link Opps</span>
+                        <div class="text-xl font-extrabold text-indigo-600 mt-1" id="link-kpi-opps">0</div>
+                        <p class="text-[10px] text-slate-500 mt-0.5">Unlinked mentions</p>
                     </div>
-                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Mesh Entities</span>
-                        <div class="text-2xl font-extrabold text-emerald-600 mt-1" id="link-kpi-entities">0</div>
-                        <p class="text-[11px] text-slate-500 mt-0.5">Unique entities in graph</p>
+                        <div class="text-xl font-extrabold text-emerald-600 mt-1" id="link-kpi-entities">0</div>
+                        <p class="text-[10px] text-slate-500 mt-0.5">Unique in graph</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-amber-600">Orphan Pages</span>
+                        <div class="text-xl font-extrabold text-amber-600 mt-1" id="link-kpi-orphans">0</div>
+                        <p class="text-[10px] text-slate-500 mt-0.5">0 inbound links</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-rose-600">Cannibalization</span>
+                        <div class="text-xl font-extrabold text-rose-600 mt-1" id="link-kpi-cannibalization">0</div>
+                        <p class="text-[10px] text-slate-500 mt-0.5">Competing URLs</p>
                     </div>
                 </div>
 
@@ -877,8 +887,9 @@
                             <thead>
                                 <tr class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
                                     <th class="py-2.5 px-4 w-1/4">Entity / Capability</th>
-                                    <th class="py-2.5 px-4 w-1/2">Canonical Hub Landing Page</th>
-                                    <th class="py-2.5 px-4 w-1/4 text-right">Taxonomy Role</th>
+                                    <th class="py-2.5 px-4 w-2/5">Canonical Hub Landing Page</th>
+                                    <th class="py-2.5 px-4 w-1/6 text-center">PageRank &amp; Equity</th>
+                                    <th class="py-2.5 px-4 w-1/6 text-right">Taxonomy Role</th>
                                 </tr>
                             </thead>
                             <tbody id="topic-hubs-tbody" class="divide-y divide-slate-100 font-sans">
@@ -979,6 +990,51 @@
                             </button>
                         </div>
                         <pre class="bg-slate-900 text-sky-300 p-4 rounded-xl text-xs overflow-x-auto max-h-72 font-mono"><code id="cms-json-rules-code">[]</code></pre>
+                    </div>
+                </div>
+
+                <!-- Orphan Content & Topic Cannibalization Radar Card -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h3 class="text-base font-bold text-slate-900">Orphan Content &amp; Topic Cannibalization Radar</h3>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 uppercase tracking-wider">NetworkX Algorithmic Engine</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-0.5">Calculates internal directed in-degree to flag unlinked orphan pages, and analyzes entity dispersion across URLs to detect keyword cannibalization.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+                        <!-- Left: Orphan Pages Radar -->
+                        <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                                    <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Orphan Pages (0 Inbound Links)</h4>
+                                </div>
+                                <span id="orphan-count-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">0 Pages</span>
+                            </div>
+                            <p class="text-[11px] text-slate-500">Crawled pages with zero discovered internal editorial links from other pages. These isolated nodes leak equity and risk crawl abandonment.</p>
+                            <div id="orphan-pages-list" class="space-y-2 max-h-64 overflow-y-auto">
+                                <div class="p-3 bg-white rounded-lg border border-slate-200 text-xs text-slate-400 text-center">Run audit to evaluate orphan content.</div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Cannibalization Radar -->
+                        <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                                    <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Topic Cannibalization Risks</h4>
+                                </div>
+                                <span id="cannibalization-count-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">0 Risks</span>
+                            </div>
+                            <p class="text-[11px] text-slate-500">Entity concepts competing across multiple URLs without clear canonical anchoring. Consolidate authority with targeted anchor links to designated hubs.</p>
+                            <div id="cannibalization-list" class="space-y-2 max-h-64 overflow-y-auto">
+                                <div class="p-3 bg-white rounded-lg border border-slate-200 text-xs text-slate-400 text-center">Run audit to detect keyword cannibalization.</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -1094,30 +1150,59 @@
                     </div>
                 </div>
 
-                <!-- Site-Wide Schema Graph JSON-LD Card -->
+                <!-- Site-Wide Schema Graph & RDF Turtle Card -->
                 <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-                    <div class="flex items-center justify-between">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div>
                             <div class="flex items-center space-x-2">
-                                <h3 class="text-base font-bold text-slate-900">Consolidated Site-Wide Schema.org Knowledge Graph</h3>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 uppercase">Unified Mesh</span>
+                                <h3 class="text-base font-bold text-slate-900">Consolidated Site-Wide Knowledge Graph</h3>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 uppercase">Unified Multi-Page Mesh</span>
                             </div>
-                            <p class="text-xs text-slate-500 mt-0.5">Synthesized from all crawled pages, deduplicating capabilities, integrations, and pricing nodes.</p>
+                            <p class="text-xs text-slate-500 mt-0.5">Synthesized from all crawled pages, deduplicating capabilities, integrations, and pricing nodes into standard JSON-LD and W3C RDF Turtle.</p>
                         </div>
-                        <button
-                            type="button"
-                            onclick="copySiteGraphJson()"
-                            id="site-graph-copy-btn"
-                            class="inline-flex items-center justify-center px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition"
-                        >
-                            <svg class="w-3.5 h-3.5 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
-                            </svg>
-                            <span id="site-graph-copy-text">Copy Graph JSON</span>
-                        </button>
+
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                                <button
+                                    type="button"
+                                    id="tab-btn-graph-json"
+                                    onclick="switchSiteGraphTab('json')"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-purple-700 shadow-sm border border-purple-200 transition cursor-pointer"
+                                >JSON-LD</button>
+                                <button
+                                    type="button"
+                                    id="tab-btn-graph-turtle"
+                                    onclick="switchSiteGraphTab('turtle')"
+                                    class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer"
+                                >W3C Turtle (.ttl)</button>
+                            </div>
+
+                            <button
+                                type="button"
+                                onclick="copySiteGraphJson()"
+                                id="site-graph-copy-btn"
+                                class="inline-flex items-center justify-center px-3 py-1.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition cursor-pointer"
+                            >
+                                <svg class="w-3.5 h-3.5 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+                                </svg>
+                                <span id="site-graph-copy-text">Copy Graph</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onclick="downloadRdfTurtle()"
+                                id="site-turtle-dl-btn"
+                                class="inline-flex items-center justify-center px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition cursor-pointer"
+                            >
+                                <svg class="w-3.5 h-3.5 mr-1.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                <span>Download Turtle (.ttl)</span>
+                            </button>
+                        </div>
                     </div>
 
-                    <pre class="bg-slate-900 text-slate-100 p-4 rounded-xl text-xs overflow-x-auto max-h-80 font-mono"><code id="site-graph-code">Loading site-wide schema graph...</code></pre>
+                    <pre id="site-graph-pre" class="bg-slate-900 text-slate-100 p-4 rounded-xl text-xs overflow-x-auto max-h-80 font-mono"><code id="site-graph-code">Loading site-wide schema graph...</code></pre>
+                    <pre id="site-turtle-pre" class="hidden bg-slate-900 text-purple-300 p-4 rounded-xl text-xs overflow-x-auto max-h-80 font-mono"><code id="site-turtle-code">Loading W3C RDF Turtle ontology...</code></pre>
                 </div>
 
             </div>
@@ -1141,6 +1226,8 @@
         let currentModalJson = '';
         let currentLinkingData = null;
         let currentSiteGraphJson = '';
+        let currentSiteGraphTurtle = '';
+        let currentSiteGraphTab = 'json';
 
         function escapeHtml(str) {
             if (!str) return '';
@@ -2037,59 +2124,64 @@
 
             const uniqueEntities = (data.unified_site_graph && data.unified_site_graph.unique_entities) || [];
             document.getElementById('link-kpi-entities').innerText = uniqueEntities.length;
+            document.getElementById('link-kpi-orphans').innerText = (data.orphan_pages || []).length;
+            document.getElementById('link-kpi-cannibalization').innerText = (data.cannibalization_risks || []).length;
 
             document.getElementById('link-matrix-badge').innerText = `${data.opportunities_count || 0} Opportunities`;
 
             // Render Topic Hubs Table
             const hubsTbody = document.getElementById('topic-hubs-tbody');
             hubsTbody.innerHTML = '';
-            const hubs = data.topic_hubs || {};
-            if (Object.keys(hubs).length === 0) {
-                hubsTbody.innerHTML = '<tr><td colspan="3" class="py-4 text-center text-slate-400">No canonical topic hubs identified.</td></tr>';
+            
+            const detailedHubs = (data.topic_hubs_detailed && data.topic_hubs_detailed.length > 0)
+                ? data.topic_hubs_detailed
+                : Object.entries(data.topic_hubs || {}).map(([concept, hubUrl]) => ({
+                    concept: concept,
+                    canonical_url: hubUrl,
+                    taxonomy_role: 'Topic Hub',
+                    pagerank_score: 0.0,
+                    betweenness_centrality: 0.0,
+                    inbound_internal_links: 0
+                }));
+
+            if (detailedHubs.length === 0) {
+                hubsTbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-slate-400">No canonical topic hubs identified.</td></tr>';
             } else {
-                for (const [concept, hubUrl] of Object.entries(hubs)) {
+                for (const item of detailedHubs) {
                     const tr = document.createElement('tr');
                     tr.className = 'hover:bg-slate-50/80 transition';
+                    const hubUrl = item.canonical_url;
+                    const concept = item.concept;
                     const path = (() => { try { return new URL(hubUrl).pathname; } catch { return hubUrl; } })();
-                    const lowerPath = (path || '').toLowerCase();
                     
-                    let roleName = 'Topic Hub';
+                    let roleName = item.taxonomy_role || 'Topic Hub';
                     let roleBadge = 'bg-slate-100 text-slate-700 border border-slate-200';
-                    if (!path || path === '/' || path === '') {
-                        roleName = 'Root Authority';
+                    if (roleName === 'Authority Anchor' || !path || path === '/' || path === '') {
                         roleBadge = 'bg-purple-100 text-purple-800 border border-purple-200';
-                    } else if (lowerPath.includes('solution') || lowerPath.includes('product') || lowerPath.includes('platform')) {
-                        roleName = 'Solutions Hub';
+                    } else if (roleName === 'Supporting Hub') {
                         roleBadge = 'bg-indigo-100 text-indigo-700 border border-indigo-200';
-                    } else if (lowerPath.includes('pricing') || lowerPath.includes('plan') || lowerPath.includes('tier')) {
-                        roleName = 'Pricing Hub';
-                        roleBadge = 'bg-emerald-100 text-emerald-700 border border-emerald-200';
-                    } else if (lowerPath.includes('integration') || lowerPath.includes('partner') || lowerPath.includes('app')) {
-                        roleName = 'Integration Hub';
-                        roleBadge = 'bg-sky-100 text-sky-700 border border-sky-200';
-                    } else if (lowerPath.includes('video') || lowerPath.includes('blog') || lowerPath.includes('resource') || lowerPath.includes('event') || lowerPath.includes('post')) {
-                        roleName = 'Resource Hub';
-                        roleBadge = 'bg-amber-100 text-amber-800 border border-amber-200';
-                    } else if (lowerPath.includes('doc') || lowerPath.includes('guide') || lowerPath.includes('kb')) {
-                        roleName = 'Documentation Hub';
-                        roleBadge = 'bg-teal-100 text-teal-800 border border-teal-200';
-                    } else {
-                        const segments = path.split('/').filter(Boolean);
-                        if (segments.length > 0) {
-                            const seg = segments[0].replace(/[-_]/g, ' ');
-                            roleName = seg.charAt(0).toUpperCase() + seg.slice(1, 15) + ' Hub';
-                        }
+                    } else if (roleName === 'Spoke Node') {
+                        roleBadge = 'bg-slate-100 text-slate-600 border border-slate-200';
                     }
+
+                    const prScore = Number(item.pagerank_score || 0).toFixed(3);
+                    const inCount = item.inbound_internal_links || 0;
 
                     tr.innerHTML = `
                         <td class="py-3 px-4 font-semibold text-slate-900 max-w-[200px]">
                             <div class="truncate" title="${escapeHtml(concept)}">${escapeHtml(concept)}</div>
                         </td>
-                        <td class="py-3 px-4 max-w-[380px]">
+                        <td class="py-3 px-4 max-w-[320px]">
                             <a href="${escapeHtml(hubUrl)}" target="_blank" class="text-brand-600 hover:underline font-mono text-[11px] inline-flex items-center gap-1.5 max-w-full truncate" title="${escapeHtml(hubUrl)}">
                                 <span class="truncate">${escapeHtml(hubUrl)}</span>
                                 <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                             </a>
+                        </td>
+                        <td class="py-3 px-4 text-center whitespace-nowrap font-mono text-[11px]">
+                            <div class="inline-flex items-center justify-center gap-1.5">
+                                <span class="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold border border-indigo-200">PR: ${prScore}</span>
+                                <span class="text-slate-400 text-[10px]">${inCount} in</span>
+                            </div>
                         </td>
                         <td class="py-3 px-4 text-right whitespace-nowrap">
                             <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${roleBadge}">${escapeHtml(roleName)}</span>
@@ -2234,12 +2326,78 @@
                 document.getElementById('cms-json-rules-code').innerText = JSON.stringify(rules, null, 2);
             }
 
-            // Render Site Graph Code
+            // Render Orphan Pages Radar
+            const orphanPages = data.orphan_pages || [];
+            document.getElementById('orphan-count-badge').innerText = `${orphanPages.length} Page${orphanPages.length === 1 ? '' : 's'}`;
+            const orphanList = document.getElementById('orphan-pages-list');
+            orphanList.innerHTML = '';
+            if (orphanPages.length === 0) {
+                orphanList.innerHTML = '<div class="p-3 bg-white rounded-lg border border-slate-200 text-xs text-emerald-600 font-semibold text-center">✓ 0 Orphan Pages Detected. All crawled nodes have incoming internal links.</div>';
+            } else {
+                orphanPages.forEach(u => {
+                    const row = document.createElement('div');
+                    row.className = 'flex items-center justify-between p-2.5 bg-white rounded-lg border border-amber-200 gap-2';
+                    row.innerHTML = `
+                        <a href="${escapeHtml(u)}" target="_blank" class="font-mono text-xs text-amber-950 truncate hover:underline hover:text-brand-600" title="${escapeHtml(u)}">
+                            ${escapeHtml(u)}
+                        </a>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 shrink-0">
+                            0 Inbound Links
+                        </span>
+                    `;
+                    orphanList.appendChild(row);
+                });
+            }
+
+            // Render Topic Cannibalization Radar
+            const risks = data.cannibalization_risks || [];
+            document.getElementById('cannibalization-count-badge').innerText = `${risks.length} Risk${risks.length === 1 ? '' : 's'}`;
+            const cannibalList = document.getElementById('cannibalization-list');
+            cannibalList.innerHTML = '';
+            if (risks.length === 0) {
+                cannibalList.innerHTML = '<div class="p-3 bg-white rounded-lg border border-slate-200 text-xs text-emerald-600 font-semibold text-center">✓ 0 Keyword Cannibalization Conflicts Identified across crawled pages.</div>';
+            } else {
+                risks.forEach(r => {
+                    const box = document.createElement('div');
+                    box.className = 'p-3 bg-white rounded-lg border border-rose-200 space-y-1.5';
+                    const compRows = (r.competing_urls || []).map(u => `
+                        <div class="truncate text-slate-500 hover:text-slate-800">
+                            • <a href="${escapeHtml(u)}" target="_blank" class="hover:underline">${escapeHtml(u)}</a>
+                        </div>
+                    `).join('');
+
+                    box.innerHTML = `
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="font-bold text-xs text-slate-900 truncate">${escapeHtml(r.concept)}</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 shrink-0">
+                                Competing on ${(r.competing_urls || []).length} URLs
+                            </span>
+                        </div>
+                        <div class="text-[11px] font-mono space-y-0.5 text-slate-600">
+                            ${compRows}
+                        </div>
+                        <div class="text-[11px] text-brand-700 font-semibold pt-1 border-t border-slate-100 flex items-center justify-between">
+                            <span class="truncate">Canonical Hub: <a href="${escapeHtml(r.recommended_canonical_hub)}" target="_blank" class="hover:underline font-mono text-brand-800">${escapeHtml(r.recommended_canonical_hub)}</a></span>
+                        </div>
+                    `;
+                    cannibalList.appendChild(box);
+                });
+            }
+
+            // Render Site Graph Code (JSON-LD & Turtle)
             if (data.unified_site_graph && data.unified_site_graph.schema_graph_jsonld) {
                 currentSiteGraphJson = JSON.stringify(data.unified_site_graph.schema_graph_jsonld, null, 2);
                 document.getElementById('site-graph-code').innerText = currentSiteGraphJson;
             } else {
                 document.getElementById('site-graph-code').innerText = '{}';
+            }
+
+            if (data.rdf_turtle) {
+                currentSiteGraphTurtle = data.rdf_turtle;
+                document.getElementById('site-turtle-code').innerText = currentSiteGraphTurtle;
+            } else {
+                currentSiteGraphTurtle = '# No RDF Turtle generated';
+                document.getElementById('site-turtle-code').innerText = currentSiteGraphTurtle;
             }
 
             // Render Autonomous /llms.txt and robots.txt AI rules
@@ -2663,16 +2821,54 @@
             }
         }
 
+        function switchSiteGraphTab(tab) {
+            currentSiteGraphTab = tab;
+            const isJson = tab === 'json';
+            document.getElementById('site-graph-pre').classList.toggle('hidden', !isJson);
+            document.getElementById('site-turtle-pre').classList.toggle('hidden', isJson);
+
+            const btnJson = document.getElementById('tab-btn-graph-json');
+            const btnTurtle = document.getElementById('tab-btn-graph-turtle');
+            if (isJson) {
+                btnJson.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-purple-700 shadow-sm border border-purple-200 transition cursor-pointer';
+                btnTurtle.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer';
+            } else {
+                btnTurtle.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-purple-700 shadow-sm border border-purple-200 transition cursor-pointer';
+                btnJson.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer';
+            }
+        }
+
         async function copySiteGraphJson() {
-            if (!currentSiteGraphJson) return;
+            const content = currentSiteGraphTab === 'turtle'
+                ? (currentSiteGraphTurtle || document.getElementById('site-turtle-code').innerText)
+                : (currentSiteGraphJson || document.getElementById('site-graph-code').innerText);
+            if (!content) return;
             try {
-                await navigator.clipboard.writeText(currentSiteGraphJson);
+                await navigator.clipboard.writeText(content);
                 const txt = document.getElementById('site-graph-copy-text');
                 txt.innerText = 'Copied!';
-                setTimeout(() => { txt.innerText = 'Copy Graph JSON'; }, 2000);
+                setTimeout(() => { txt.innerText = 'Copy Graph'; }, 2000);
             } catch(e) {
                 alert('Copy failed.');
             }
+        }
+
+        function downloadRdfTurtle() {
+            const turtle = currentSiteGraphTurtle || (currentLinkingData && currentLinkingData.rdf_turtle) || '';
+            if (!turtle || turtle.startsWith('# No RDF Turtle')) {
+                alert('No RDF Turtle content available to download. Please run an internal links audit first.');
+                return;
+            }
+            const domain = (currentLinkingData && currentLinkingData.root_domain) || 'site';
+            const cleanDomain = domain.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const blob = new Blob([turtle], { type: 'text/turtle;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${cleanDomain}-knowledge-graph.ttl`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
         }
 
         function exportLinksCsv() {

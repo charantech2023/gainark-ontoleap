@@ -19,8 +19,12 @@ from models import (
     ClusterTopology,
     CitationSource,
     SearchSimulationResponse,
-    SchemaValidationReport
+    SchemaValidationReport,
+    TopicHubMetadata,
+    CannibalizationRiskItem
 )
+import networkx as nx
+from rdflib import Graph, Literal, RDF, RDFS, URIRef, Namespace
 from validator import validate_schema_patch
 from pipeline import (
     OntologyPipeline,
@@ -386,6 +390,76 @@ async def audit_internal_links(
     hubs = engine.discover_topic_hubs()
     opportunities = engine.find_link_opportunities()
 
+    # Build NetworkX Internal Directed Graph & Run PageRank + Centrality
+    nx_g = nx.DiGraph()
+    norm_url_map = {p.url.rstrip('/'): p.url for p in pages_data}
+    for p in pages_data:
+        nx_g.add_node(p.url, title=p.title)
+
+    for p in pages_data:
+        for link in p.existing_links:
+            clean_link = link.rstrip('/')
+            if clean_link in norm_url_map and norm_url_map[clean_link] != p.url:
+                nx_g.add_edge(p.url, norm_url_map[clean_link])
+
+    pagerank_scores = compute_graph_pagerank(nx_g, alpha=0.85)
+    try:
+        centrality_scores = nx.betweenness_centrality(nx_g)
+    except Exception:
+        centrality_scores = {p.url: 0.0 for p in pages_data}
+
+    # Detect Orphan Pages (crawled subpages with zero inbound internal links)
+    orphan_pages = [p.url for p in pages_data[1:] if nx_g.in_degree(p.url) == 0]
+
+    # Build Detailed Topic Hubs Metadata
+    topic_hubs_detailed: List[TopicHubMetadata] = []
+    for concept, hub_url in hubs.items():
+        pr = round(float(pagerank_scores.get(hub_url, 0.0)), 4)
+        cent = round(float(centrality_scores.get(hub_url, 0.0)), 4)
+        in_links = int(nx_g.in_degree(hub_url)) if nx_g.has_node(hub_url) else 0
+
+        # Classify taxonomy role
+        if pr >= 0.15 or in_links >= 3:
+            role = "Authority Anchor"
+        elif pr >= 0.08 or in_links >= 1:
+            role = "Supporting Hub"
+        else:
+            role = "Spoke Node"
+
+        topic_hubs_detailed.append(TopicHubMetadata(
+            concept=concept,
+            canonical_url=hub_url,
+            taxonomy_role=role,
+            pagerank_score=pr,
+            betweenness_centrality=cent,
+            inbound_internal_links=in_links
+        ))
+    topic_hubs_detailed.sort(key=lambda x: (x.pagerank_score, x.inbound_internal_links), reverse=True)
+
+    # Detect Keyword & Topic Cannibalization Risks
+    cannibalization_risks: List[CannibalizationRiskItem] = []
+    for concept, hub_url in hubs.items():
+        c_low = concept.lower().strip()
+        if len(c_low) < 3:
+            continue
+        competing = []
+        for p in pages_data:
+            if p.url == hub_url:
+                continue
+            has_title = c_low in (p.title or '').lower()
+            has_sc = any(sc.concept.lower() == c_low and sc.count >= 2 for sc in p.result.seed_concepts)
+            has_text = len(re.findall(rf'\b{re.escape(c_low)}\b', p.text.lower())) >= 2
+            if has_title or has_sc or has_text:
+                competing.append(p.url)
+        if competing:
+            cannibalization_risks.append(CannibalizationRiskItem(
+                concept=concept,
+                competing_urls=competing[:3],
+                recommended_canonical_hub=hub_url,
+                recommendation=f"Consolidate authority signals: Point internal links with exact anchor '{concept}' from competing URLs to canonical hub {hub_url}."
+            ))
+    cannibalization_risks = cannibalization_risks[:10]
+
     # Build site graph
     deduped_triples = deduplicate_site_triples(collected_triples)
     site_schema = build_site_wide_schema_graph(domain, deduped_triples, list(collected_entities))
@@ -415,18 +489,25 @@ async def audit_internal_links(
     llms_manifest = generate_llms_txt(domain, hubs, deduped_triples, list(collected_entities))
     robots_manifest = generate_robots_txt_ai(domain, hubs)
 
+    # Generate Enterprise RDF Turtle Knowledge Graph
+    rdf_turtle = export_to_rdf_turtle(domain, deduped_triples, hubs, list(collected_entities))
+
     return SiteAuditAndLinkResult(
         root_domain=domain,
         pages_analyzed=len(pages_data),
         opportunities_count=len(opportunities),
         opportunities=opportunities,
         topic_hubs=hubs,
+        topic_hubs_detailed=topic_hubs_detailed,
+        orphan_pages=orphan_pages,
+        cannibalization_risks=cannibalization_risks,
         unified_site_graph=site_graph,
         ai_citation_readiness=ai_readiness,
         cluster_topology=topology,
         wordpress_php_hook=wp_hook,
         llms_txt=llms_manifest,
         robots_txt_ai=robots_manifest,
+        rdf_turtle=rdf_turtle,
         validation_report=validation_rep
     )
 
@@ -776,8 +857,102 @@ def generate_robots_txt_ai(domain: str, hubs: Dict[str, str]) -> str:
         "User-agent: Google-Extended\n"
         "Allow: /\n\n"
         "# Canonical Topic Silo Hubs for AI Ingestion\n"
-        f"{hub_comments}\n"
     )
+
+
+def compute_graph_pagerank(G: nx.DiGraph, alpha: float = 0.85) -> Dict[str, float]:
+    """
+    Computes internal PageRank on the directed graph using NetworkX.
+    Uses pure-python algorithm to avoid requiring heavy scipy binaries.
+    """
+    if not G or len(G) == 0:
+        return {}
+    try:
+        import networkx.algorithms.link_analysis.pagerank_alg as pa
+        return pa._pagerank_python(G, alpha=alpha)
+    except Exception:
+        try:
+            return nx.pagerank(G, alpha=alpha)
+        except Exception:
+            n = len(G)
+            return {node: round(1.0 / n, 4) for node in G.nodes()}
+
+
+def export_to_rdf_turtle(
+    domain: str,
+    triples: List[SemanticTriple],
+    hubs: Dict[str, str],
+    entities: List[str]
+) -> str:
+    """
+    Serializes the unified site knowledge graph, semantic triples, and canonical topic hubs
+    into W3C standard RDF Turtle (.ttl) format using RDFLib.
+    """
+    g = Graph()
+    SCHEMA = Namespace("https://schema.org/")
+    LOCAL = Namespace(f"https://{domain}/ontology/")
+
+    g.bind("schema", SCHEMA)
+    g.bind("onto", LOCAL)
+    g.bind("rdfs", RDFS)
+    g.bind("rdf", RDF)
+
+    brand = triples[0].subject if triples else domain.split(".")[0].capitalize()
+    brand_clean = re.sub(r'[^a-zA-Z0-9]+', '', brand) or "Platform"
+    root_uri = URIRef(f"https://{domain}/#{brand_clean}")
+
+    g.add((root_uri, RDF.type, SCHEMA.SoftwareApplication))
+    g.add((root_uri, RDF.type, SCHEMA.Organization))
+    g.add((root_uri, SCHEMA.name, Literal(brand)))
+    g.add((root_uri, SCHEMA.url, URIRef(f"https://{domain}/")))
+
+    pred_map = {
+        "automates": SCHEMA.potentialAction,
+        "integratesWith": SCHEMA.isRelatedTo,
+        "compliesWith": SCHEMA.legislationApplies,
+        "supportsPricingModel": SCHEMA.priceSpecification
+    }
+
+    seen_triples = set()
+    for t in triples:
+        key = (t.subject, t.predicate, t.object)
+        if key in seen_triples:
+            continue
+        seen_triples.add(key)
+
+        obj_clean = re.sub(r'[^a-zA-Z0-9]+', '', t.object)
+        obj_uri = URIRef(f"https://{domain}/entity/{obj_clean}") if obj_clean else None
+
+        rel = pred_map.get(t.predicate, SCHEMA.knowsAbout)
+
+        if obj_uri:
+            g.add((root_uri, rel, obj_uri))
+            g.add((obj_uri, RDFS.label, Literal(t.object)))
+            if t.predicate in pred_map:
+                g.add((obj_uri, RDF.type, LOCAL[t.predicate.capitalize()]))
+            if t.evidence_sentence:
+                g.add((obj_uri, SCHEMA.description, Literal(t.evidence_sentence)))
+        else:
+            g.add((root_uri, rel, Literal(t.object)))
+
+    # Add Topic Hubs as WebPage nodes linked to root
+    for concept, hub_url in hubs.items():
+        try:
+            hub_uri = URIRef(hub_url)
+            g.add((root_uri, SCHEMA.hasPart, hub_uri))
+            g.add((hub_uri, RDF.type, SCHEMA.WebPage))
+            g.add((hub_uri, SCHEMA.about, Literal(concept)))
+            g.add((hub_uri, SCHEMA.name, Literal(f"{concept} Canonical Authority Hub")))
+            g.add((hub_uri, SCHEMA.url, hub_uri))
+        except Exception:
+            continue
+
+    # Add top entities as schema:knowsAbout
+    for ent in entities[:25]:
+        g.add((root_uri, SCHEMA.knowsAbout, Literal(ent)))
+
+    return g.serialize(format="turtle")
+
 
 
 
