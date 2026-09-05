@@ -545,6 +545,18 @@ class OntologyPipeline:
             headings=headings
         )
 
+        # 5. Google Knowledge Graph Presence Verification
+        try:
+            import google_kg_client
+            brand_to_lookup = site_name or subject
+            if not brand_to_lookup or brand_to_lookup == "The Platform":
+                from urllib.parse import urlparse
+                brand_to_lookup = urlparse(url).netloc.replace("www.", "").split(".")[0].capitalize()
+            if brand_to_lookup and len(brand_to_lookup) > 1:
+                result.google_kg_presence = google_kg_client.search_entity(brand_to_lookup)
+        except Exception as kg_err:
+            logger.warning("Google Knowledge Graph lookup error: %s", kg_err)
+
         result.recommended_patch = generate_schema_patch(result)
         return result
 

@@ -84,7 +84,7 @@ def test_api():
     print("  Brief Target PAS:", b_res["target_alignment_score"])
     print("  Must Include Ent:", b_res["must_include_entities"])
 
-    print("\n[7] Testing POST /api/export-pdf (1-Click Executive PDF) ...")
+    print("\n[7] Testing POST /api/export-pdf (1-Click Executive PDF with Google KG) ...")
     pdf_req = {
         "url": "https://www.ordwaylabs.com",
         "vertical_id": "b2b_saas_fintech",
@@ -92,7 +92,16 @@ def test_api():
         "mandatory_schema_status": {"SoftwareApplication": True, "Organization": True, "Offer": False},
         "triples": [
             {"subject": "Ordway", "predicate": "automates", "object": "Revenue Recognition"}
-        ]
+        ],
+        "google_kg_presence": {
+            "query": "Ordway",
+            "is_recognized": False,
+            "status": "Absent from Google Knowledge Graph",
+            "google_mid": None,
+            "score": 0.0,
+            "types": [],
+            "ai_overview_risk": "High Omission Risk"
+        }
     }
     r_pdf = client.post("/api/export-pdf", json=pdf_req)
     assert r_pdf.status_code == 200, f"Error: {r_pdf.text}"
@@ -115,7 +124,24 @@ def test_api():
     print("  Grounding Risk  :", s_res.get("hallucination_risk"))
     print("  Synthesized Ans :", s_res.get("synthesized_answer")[:90], "...")
 
+    print("\n[9] Testing POST /api/google-kg (Google Knowledge Graph Search API) ...")
+    r_kg_stripe = client.post("/api/google-kg", json={"query": "Stripe"})
+    assert r_kg_stripe.status_code == 200, f"Error: {r_kg_stripe.text}"
+    kg_stripe = r_kg_stripe.json()
+    print("  Stripe KG Status :", kg_stripe.get("status"))
+    print("  Stripe MID       :", kg_stripe.get("google_mid"))
+    print("  Stripe Salience  :", kg_stripe.get("score"))
+    assert kg_stripe.get("is_recognized") is True
+    assert kg_stripe.get("google_mid") is not None
+
+    r_kg_ordway = client.post("/api/google-kg", json={"query": "Ordway Labs Software"})
+    assert r_kg_ordway.status_code == 200
+    kg_ordway = r_kg_ordway.json()
+    print("  Ordway KG Status :", kg_ordway.get("status"))
+    print("  Ordway Risk      :", kg_ordway.get("ai_overview_risk"))
+
     print("\nAll API tests PASSED successfully!")
 
 if __name__ == "__main__":
     test_api()
+

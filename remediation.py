@@ -575,6 +575,13 @@ def generate_schema_patch(extraction_result: Any) -> Dict[str, Any]:
         software_description = f"{verified_org_name} is an enterprise cloud-based {category_info['sub_category'].lower()} built for {category_info['audience'].lower()}."
 
     # 6. Build Schema Nodes
+    google_kg = res.get("google_kg_presence") or {}
+    same_as_list = []
+    if google_kg.get("google_kg_url"):
+        same_as_list.append(google_kg["google_kg_url"])
+    if google_kg.get("wikipedia_url"):
+        same_as_list.append(google_kg["wikipedia_url"])
+
     provider = {
         "@type": "Organization",
         "@id": org_id,
@@ -582,6 +589,8 @@ def generate_schema_patch(extraction_result: Any) -> Dict[str, Any]:
         "url": base_url,
         "description": f"{verified_org_name} — official corporate provider of {category_info['sub_category']}."
     }
+    if same_as_list:
+        provider["sameAs"] = same_as_list
 
     software_node = {
         "@type": "SoftwareApplication",
@@ -605,6 +614,8 @@ def generate_schema_patch(extraction_result: Any) -> Dict[str, Any]:
             "@id": offer_id
         }
     }
+    if same_as_list:
+        software_node["sameAs"] = same_as_list
 
     # Map extracted relational triples
     triples = res.get("triples", [])

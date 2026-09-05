@@ -98,6 +98,10 @@ class ExtractionResult(BaseModel):
     meta_description: Optional[str] = Field(default=None, description="Page meta or OpenGraph description")
     site_name: Optional[str] = Field(default=None, description="OpenGraph site name or brand")
     headings: List[str] = Field(default_factory=list, description="Extracted H1 and H2 headings")
+    google_kg_presence: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Google Knowledge Graph verification data, MID, salience score, and AI Overview risk"
+    )
 
     @property
     def extraction(self) -> "ExtractionResult":
@@ -416,4 +420,14 @@ class ExportPdfRequest(BaseModel):
     mandatory_schema_status: Optional[Dict[str, bool]] = Field(default_factory=dict)
     triples: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
     benchmark_table: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
+    google_kg_presence: Optional[Dict[str, Any]] = Field(default=None, description="Google Knowledge Graph verification data")
+
+
+class GoogleKgRequest(BaseModel):
+    """
+    Request model for Google Knowledge Graph search.
+    """
+    query: str = Field(..., max_length=500, description="Brand, company, or concept to search")
+
+
 

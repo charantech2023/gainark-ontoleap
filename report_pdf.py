@@ -221,10 +221,52 @@ def generate_executive_pdf_report(
     story.append(Spacer(1, 14))
 
     # -------------------------------------------------------------------------
-    # Section 3: Competitor Benchmark Gap Matrix (if available)
+    # Section 3: Google Knowledge Graph & Generative Engine Optimization (GEO)
+    # -------------------------------------------------------------------------
+    google_kg = audit_data.get("google_kg_presence")
+    section_num = 3
+    if google_kg:
+        story.append(Paragraph(f"{section_num}. Google Knowledge Graph & Generative Engine Optimization (GEO)", h1_style))
+        story.append(Paragraph(
+            "Google's Generative AI Overviews, SearchGPT, and Gemini rely on Google Knowledge Graph nodes to establish canonical entity authority. "
+            "Without an indexed Google Machine ID (MID), brands risk being omitted from AI answer snapshots or having brand queries misattributed.",
+            body_style
+        ))
+        story.append(Spacer(1, 6))
+
+        is_rec = google_kg.get("is_recognized", False)
+        status_text = f"<font color='{SUCCESS.hexval()}'><b>Recognized in Google KG</b></font>" if is_rec else f"<font color='{WARNING.hexval()}'><b>Absent from Google KG</b></font>"
+        mid = google_kg.get("google_mid") or "None (Not Indexed)"
+        score = google_kg.get("score", 0.0)
+        types_str = ", ".join(google_kg.get("types", [])) or "None Detected"
+        risk_str = google_kg.get("ai_overview_risk", "High Omission Risk")
+
+        kg_rows = [
+            [Paragraph("<b>Audit Metric</b>", bold_body), Paragraph("<b>Verification Value / Observation</b>", bold_body)],
+            [Paragraph("Google KG Entity Status", body_style), Paragraph(status_text, body_style)],
+            [Paragraph("Google Machine ID (MID)", body_style), Paragraph(f"<code>{mid}</code>", body_style)],
+            [Paragraph("Google Prominence Score", body_style), Paragraph(f"<b>{score:.1f}</b> (Internal Google Salience)", body_style)],
+            [Paragraph("Classified Entity Types", body_style), Paragraph(types_str, body_style)],
+            [Paragraph("AI Overview Omission Risk", body_style), Paragraph(risk_str, body_style)],
+            [Paragraph("OntoLeap Remediation Action", body_style), Paragraph("Injected canonical <code>schema:sameAs</code> link into 1-Click JSON-LD patch.", body_style)],
+        ]
+        kg_table = Table(kg_rows, colWidths=[180, 360])
+        kg_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), LIGHT_BG),
+            ('GRID', (0, 0), (-1, -1), 0.5, BORDER_COL),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        story.append(kg_table)
+        story.append(Spacer(1, 14))
+        section_num += 1
+
+    # -------------------------------------------------------------------------
+    # Competitive Benchmarking Gap Matrix (if available)
     # -------------------------------------------------------------------------
     if benchmark_data and benchmark_data.get("comparative_table"):
-        story.append(Paragraph("3. Competitive Benchmarking & Content Gap Matrix", h1_style))
+        story.append(Paragraph(f"{section_num}. Competitive Benchmarking & Content Gap Matrix", h1_style))
         bench_rows = [
             [Paragraph("<b>Domain / URL</b>", bold_body), Paragraph("<b>Readiness Score</b>", bold_body), Paragraph("<b>Schemas</b>", bold_body), Paragraph("<b>Entities</b>", bold_body)]
         ]
@@ -244,11 +286,12 @@ def generate_executive_pdf_report(
         ]))
         story.append(bench_table)
         story.append(Spacer(1, 14))
+        section_num += 1
 
     # -------------------------------------------------------------------------
-    # Section 4: Prioritized Strategic Action Plan
+    # Strategic Action Plan
     # -------------------------------------------------------------------------
-    story.append(Paragraph("4. Strategic Remediation Plan (Immediate ROI Actions)", h1_style))
+    story.append(Paragraph(f"{section_num}. Strategic Remediation Plan (Immediate ROI Actions)", h1_style))
     plan_items = [
         "<b>Action 1 (Instant Rich Results):</b> Inject the dynamic JSON-LD remediation patch into your CMS header to eliminate schema validation penalties.",
         "<b>Action 2 (Internal PageRank Flow):</b> Link orphan blog posts and subpages back to your canonical integration and compliance pillar hubs.",

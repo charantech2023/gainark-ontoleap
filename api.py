@@ -23,6 +23,7 @@ from rdflib import Graph
 import vertex_ai_client
 import report_pdf
 import alignment
+import google_kg_client
 
 from pipeline import OntologyPipeline, crawl_and_build_unified_graph, validate_url_for_fetch
 from linking import (
@@ -58,7 +59,8 @@ from models import (
     DraftAlignmentResponse,
     ProductBriefRequest,
     ProductBriefResponse,
-    ExportPdfRequest
+    ExportPdfRequest,
+    GoogleKgRequest
 )
 
 # ---------------------------------------------------------------------------
@@ -915,7 +917,8 @@ def api_export_pdf(req: ExportPdfRequest):
             "url": req.url,
             "readiness_score": req.readiness_score or 0.0,
             "mandatory_schema_status": req.mandatory_schema_status or {},
-            "triples": req.triples or []
+            "triples": req.triples or [],
+            "google_kg_presence": req.google_kg_presence
         }
         benchmark_data = None
         if req.benchmark_table:
@@ -939,6 +942,26 @@ def api_export_pdf(req: ExportPdfRequest):
     except Exception as e:
         logger.error("PDF export failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="PDF export failed. Check server logs.")
+
+
+@app.post("/api/google-kg", summary="Verify Entity Recognition in Google Knowledge Graph")
+def api_google_kg_search_post(req: GoogleKgRequest):
+    """
+    Directly queries Google's Knowledge Graph Search API (kgsearch.googleapis.com)
+    and returns Google Machine Identifier (MID), entity salience score, types, and AI overview risk.
+    """
+    res = google_kg_client.search_entity(req.query)
+    if not res:
+        raise HTTPException(status_code=500, detail="Google Knowledge Graph search failed or unconfigured.")
+    return res
+
+
+@app.get("/api/google-kg", summary="Verify Entity Recognition in Google Knowledge Graph (Query)")
+def api_google_kg_search_get(query: str = Query(..., description="Brand or company query")):
+    res = google_kg_client.search_entity(query)
+    if not res:
+        raise HTTPException(status_code=500, detail="Google Knowledge Graph search failed or unconfigured.")
+    return res
 
 
 if __name__ == "__main__":
