@@ -26,6 +26,7 @@ import alignment
 import google_kg_client
 import industry_profiler
 import product_truth
+import competitive_alignment
 
 from pipeline import OntologyPipeline, crawl_and_build_unified_graph, validate_url_for_fetch
 from linking import (
@@ -66,7 +67,9 @@ from models import (
     IndustryDiscoveryRequest,
     IndustryDiscoveryResponse,
     ProductTruthRequest,
-    ProductTruthMatrixResponse
+    ProductTruthMatrixResponse,
+    TriOntologyAlignmentRequest,
+    TriOntologyAlignmentResponse
 )
 
 # ---------------------------------------------------------------------------
@@ -367,7 +370,8 @@ def api_info():
             "product_truth_draft_alignment_pas": True,
             "executive_pdf_export": True,
             "autonomous_industry_discovery": True,
-            "product_truth_matrix": True
+            "product_truth_matrix": True,
+            "tri_ontology_alignment": True
         },
         "endpoints": {
             "dashboard": "GET /dashboard",
@@ -390,6 +394,7 @@ def api_info():
             "google-kg": "POST /api/google-kg",
             "discover-industry": "POST /api/discover-industry",
             "product-truth": "POST /api/product-truth",
+            "tri-ontology-align": "POST /api/tri-ontology-align",
             "health": "GET /api/health"
         }
     }
@@ -1055,8 +1060,38 @@ def api_product_truth_audit(req: ProductTruthRequest):
         raise HTTPException(status_code=500, detail=f"Product Truth audit failed: {str(e)}")
 
 
+@app.post(
+    "/api/tri-ontology-align",
+    response_model=TriOntologyAlignmentResponse,
+    summary="Tri-Ontology Competitive Alignment: Company vs. Competitors vs. Industry Standards",
+    tags=["Product Truth & Governance"]
+)
+def api_tri_ontology_align(req: TriOntologyAlignmentRequest):
+    """
+    Performs full Tri-Ontology comparative alignment across:
+    1. Industry Ontology (Domain standards and expected capabilities)
+    2. Company Product Truth (Verified capabilities vs. marketing claims)
+    3. Competitor Product Truth (Competitor verified reality vs. competitor marketing claims)
+    Generates Company Superiority vectors, Competitor Fluff vulnerabilities, and
+    actionable Sales & Marketing Counter-Positioning battlecards.
+    """
+    validate_url_for_fetch(req.company.marketing_url)
+    for comp in req.competitors:
+        validate_url_for_fetch(comp.marketing_url)
+
+    pipeline = get_pipeline(req.vertical_id)
+
+    try:
+        alignment_report = competitive_alignment.execute_tri_ontology_alignment(req, pipeline)
+        return alignment_report
+    except Exception as e:
+        logger.exception("Tri-Ontology alignment failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"Tri-Ontology alignment failed: {str(e)}")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
+
 
 

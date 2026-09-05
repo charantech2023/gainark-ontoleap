@@ -499,3 +499,55 @@ class ProductTruthMatrixResponse(BaseModel):
     drift_alerts: List[str] = Field(default_factory=list, description="Actionable governance risk alerts")
     growth_recommendations: List[str] = Field(default_factory=list, description="Recommendations to market hidden technical gems")
     executive_summary: str
+
+
+class ComparativeCapability(BaseModel):
+    """
+    Detailed comparison of a capability between Company and Competitor.
+    """
+    concept: str
+    predicate: str
+    company_status: str = Field(..., description="'verified', 'unbacked_claim', or 'missing'")
+    competitor_status: str = Field(..., description="'verified', 'unbacked_claim', or 'missing'")
+    competitor_name: str
+    insight: str
+    company_evidence: Optional[str] = None
+    competitor_evidence: Optional[str] = None
+
+
+class CounterPositioningAngle(BaseModel):
+    """
+    Strategic sales & marketing battlecard angle exploiting verified capability gaps.
+    """
+    target_competitor: str
+    angle_title: str
+    core_narrative: str
+    company_differentiator: str
+    competitor_vulnerability: str
+    suggested_campaign_topics: List[str] = Field(default_factory=list)
+
+
+class TriOntologyAlignmentRequest(BaseModel):
+    """
+    Request model for full Tri-Ontology alignment across Company, Competitors, and Industry standards.
+    """
+    company: ProductTruthRequest
+    competitors: List[ProductTruthRequest] = Field(..., min_length=1, max_length=5)
+    vertical_id: Optional[str] = Field(default="b2b_saas_fintech")
+
+
+class TriOntologyAlignmentResponse(BaseModel):
+    """
+    Structured Tri-Ontology alignment report revealing competitive advantages and marketing angles.
+    """
+    company_name: str
+    competitor_names: List[str]
+    vertical_id: str
+    industry_category: str
+    company_advantages: List[ComparativeCapability] = Field(default_factory=list, description="Capabilities verified in Company where competitor is unbacked or missing")
+    competitor_vulnerabilities: List[ComparativeCapability] = Field(default_factory=list, description="Competitor marketing claims unbacked by technical docs")
+    competitor_advantages: List[ComparativeCapability] = Field(default_factory=list, description="Real technical capabilities verified in competitor that company lacks")
+    table_stakes: List[str] = Field(default_factory=list, description="Baseline capabilities expected by industry ontology and shared by all")
+    counter_positioning_briefs: List[CounterPositioningAngle] = Field(default_factory=list, description="Actionable sales and marketing battlecard angles")
+    executive_summary: str
+
