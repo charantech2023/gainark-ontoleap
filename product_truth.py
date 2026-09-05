@@ -27,6 +27,7 @@ from models import (
     ProductTruthMatrixResponse
 )
 from pipeline import OntologyPipeline, validate_url_for_fetch
+from constants import KNOWN_AUTOMATION, KNOWN_COMPLIANCE, KNOWN_PRICING, KNOWN_INTEGRATIONS
 
 logger = logging.getLogger("gainark.product_truth")
 
@@ -143,6 +144,20 @@ def parse_openapi_spec(
                         f"{source_origin}#{method.upper()}{path_str}"
                     )
 
+            # Scan operation summary & description for capabilities, compliance, and pricing models
+            text_to_scan = f"{summary} {desc}".strip()
+            if text_to_scan:
+                for item in KNOWN_AUTOMATION:
+                    if item.lower() in text_to_scan.lower():
+                        _add_triple("automates", item, 0.92, f"Endpoint {method.upper()} {path_str}: {summary or item}", f"{source_origin}#{method.upper()}{path_str}")
+                for std in KNOWN_COMPLIANCE:
+                    if re.search(rf'\b{re.escape(std.lower())}\b', text_to_scan.lower()):
+                        _add_triple("compliesWith", std, 0.96, f"Endpoint {method.upper()} {path_str}: {summary or std}", f"{source_origin}#{method.upper()}{path_str}")
+                for pm in KNOWN_PRICING:
+                    pm_simple = pm.lower().replace(" pricing", "").replace(" billing", "")
+                    if pm.lower() in text_to_scan.lower() or pm_simple in text_to_scan.lower():
+                        _add_triple("supportsPricingModel", pm, 0.90, f"Endpoint {method.upper()} {path_str}: {summary or pm}", f"{source_origin}#{method.upper()}{path_str}")
+
     # 3. Inspect global tags
     for tag_obj in spec.get("tags", []):
         if isinstance(tag_obj, dict):
@@ -190,7 +205,8 @@ def extract_technical_triples_from_text(
     Extracts semantic triples from raw technical text or documentation using the OntologyPipeline,
     tagging each triple as technical_truth.
     """
-    raw_triples = pipeline.extract_relational_triples(text)
+    res = pipeline.process(text=text)
+    raw_triples = res.triples
     tech_triples: List[SemanticTriple] = []
 
     for t in raw_triples:
@@ -198,7 +214,7 @@ def extract_technical_triples_from_text(
             subject=brand_name,
             predicate=t.predicate,
             object=t.object,
-            confidence=round(t.confidence * 1.05, 3),  # High confidence for technical docs
+            confidence=round(min(1.0, t.confidence * 1.05), 2),
             evidence_sentence=t.evidence_sentence,
             source_type="technical_truth",
             provenance=provenance
@@ -365,12 +381,47 @@ def execute_product_truth_audit(
                     parsed_spec_triples = parse_openapi_spec(json_data, brand_name=brand, source_origin=req.tech_docs_url)
                     technical_triples.extend(parsed_spec_triples)
                 else:
-                    # Generic JSON or text
                     t_from_text = extract_technical_triples_from_text(clean_docs, pipeline, brand, req.tech_docs_url)
                     technical_triples.extend(t_from_text)
             except (json.JSONDecodeError, ValueError):
-                # HTML technical documentation page
-                t_from_text = extract_technical_triples_from_text(clean_docs, pipeline, brand, req.tech_docs_url)
+                # HTML technical documentation or support portal page
+                headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+                doc_texts = [clean_docs]
+                try:
+                    soup = BeautifulSoup(raw_docs, "html.parser")
+                    sub_links = []
+                    parsed_base = urlparse(req.tech_docs_url)
+                    base_origin = f"{parsed_base.scheme}://{parsed_base.netloc}"
+                    for a in soup.find_all("a", href=True):
+                        href = a["href"].strip()
+                        if any(pattern in href.lower() for pattern in ["/article", "/hc/", "/guide", "/docs/", "/api/", "/integration", "/billing", "/revenue", "/invoic"]):
+                            if href.startswith("/"):
+                                full_url = base_origin + href
+                            elif href.startswith("http"):
+                                full_url = href
+                            else:
+                                continue
+                            if urlparse(full_url).netloc == parsed_base.netloc and full_url != req.tech_docs_url:
+                                if full_url not in sub_links and not any(skip in full_url.lower() for skip in ["signin", "signup", "login", "auth", "search"]):
+                                    sub_links.append(full_url)
+                    # Fetch top documentation sub-articles
+                    for sub_url in sub_links[:6]:
+                        try:
+                            s_resp = requests.get(sub_url, headers=headers, timeout=6.0)
+                            if s_resp.status_code == 200:
+                                s_soup = BeautifulSoup(s_resp.text, "html.parser")
+                                for el in s_soup(["script", "style", "nav", "footer", "noscript"]):
+                                    el.decompose()
+                                sub_txt = s_soup.get_text(separator=" ", strip=True)
+                                if len(sub_txt) > 50:
+                                    doc_texts.append(sub_txt)
+                        except Exception:
+                            pass
+                except Exception as sub_e:
+                    logger.debug("Subpage discovery error on docs: %s", sub_e)
+
+                combined_doc_text = " \n".join(doc_texts)
+                t_from_text = extract_technical_triples_from_text(combined_doc_text, pipeline, brand, req.tech_docs_url)
                 technical_triples.extend(t_from_text)
         except Exception as e:
             logger.warning("Failed to ingest tech_docs_url %s: %s", req.tech_docs_url, e)
@@ -380,6 +431,16 @@ def execute_product_truth_audit(
         logger.info("Extracting technical triples from raw documentation text...")
         t_from_text = extract_technical_triples_from_text(req.tech_docs_text, pipeline, brand, "uploaded_docs_text")
         technical_triples.extend(t_from_text)
+
+    # Deduplicate technical triples by (predicate, normalized object)
+    dedup_tech: List[SemanticTriple] = []
+    seen_tech = set()
+    for tt in technical_triples:
+        k = (tt.predicate.lower(), _normalize_concept(tt.object))
+        if k not in seen_tech:
+            seen_tech.add(k)
+            dedup_tech.append(tt)
+    technical_triples = dedup_tech
 
     # 3. Build Truth Matrix
     return build_product_truth_matrix(

@@ -2457,8 +2457,10 @@ SELECT ?capability ?evidence WHERE {
         function loadSampleTruthAudit() {
             const brand = document.getElementById('truth-brand-name');
             const mktUrl = document.getElementById('truth-marketing-url');
+            const docsUrl = document.getElementById('truth-docs-url');
             if (brand) brand.value = 'Ordway';
             if (mktUrl) mktUrl.value = 'https://www.ordwaylabs.com';
+            if (docsUrl) docsUrl.value = 'https://support.ordwaylabs.com/hc/en-us';
             loadSampleOpenApi();
         }
 
