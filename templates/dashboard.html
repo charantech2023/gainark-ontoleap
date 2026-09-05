@@ -952,13 +952,13 @@
                     </div>
                 </div>
 
-                <!-- AI Knowledge Graph Link Prediction & Completion Card (PyKEEN Paradigm) -->
+                <!-- AI Knowledge Graph Link Prediction & Completion Card (Ontological Priors) -->
                 <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div>
                             <div class="flex items-center space-x-2">
                                 <h3 class="text-base font-bold text-slate-900">AI Knowledge Graph Link Prediction &amp; Completion</h3>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-800">PyKEEN Paradigm · TransE / ComplEx</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-800">Ontological Priors · Rule-Based</span>
                             </div>
                             <p class="text-xs text-slate-500 mt-0.5">Infers missing high-confidence relational triples from ontological priors, calculates relational completeness, and grounds predicted entities to Wikidata Q-IDs.</p>
                         </div>
@@ -2628,8 +2628,9 @@ SELECT ?capability ?evidence WHERE {
                 renderSemanticClusters(data.semantic_clustering);
             }
 
-            // Render AI Link Predictions & Graph Completion (PyKEEN Paradigm)
-            renderPredictedLinks(data.predicted_links || []);
+            // Render AI Link Predictions & Graph Completion (Ontological Priors)
+            const siteTriplesCount = (data.unified_site_graph && data.unified_site_graph.triples) ? data.unified_site_graph.triples.length : (data.triples ? data.triples.length : 0);
+            renderPredictedLinks(data.predicted_links || [], data.graph_completeness_score, siteTriplesCount);
 
             // Render Autonomous /llms.txt and robots.txt AI rules
             if (data.llms_txt) {
@@ -3319,11 +3320,13 @@ SELECT ?capability ?evidence WHERE {
             }
         }
 
-        function renderPredictedLinks(links, completenessScore) {
+        function renderPredictedLinks(links, completenessScore, existingCount) {
             const tbody = document.getElementById('predicted-links-tbody');
             const compEl = document.getElementById('kg-completeness-score');
             if (compEl && completenessScore !== undefined) {
-                compEl.innerText = `${completenessScore}%`;
+                const exist = (existingCount !== undefined) ? existingCount : (currentLinkingData?.unified_site_graph?.triples?.length || 0);
+                const gaps = (links || []).length;
+                compEl.innerText = `${completenessScore}% (${exist} relations found, ${gaps} gaps identified)`;
             }
             if (!tbody) return;
             if (!links || links.length === 0) {

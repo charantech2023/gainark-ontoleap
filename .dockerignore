@@ -7,3 +7,10 @@ __pycache__/
 .env
 *.log
 .pytest_cache/
+benchmark_results.json
+ordway_extraction.json
+sample_output.json
+models_backup.py
+ANTIGRAVITY_TASKS.md
+*.md
+verify_*.py

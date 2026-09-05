@@ -7,7 +7,7 @@ def test_api():
     print("[1] Testing GET /dashboard and GET /api/info ...")
     r_dash = client.get("/dashboard")
     assert r_dash.status_code == 200, f"Expected 200, got {r_dash.status_code}"
-    assert "Ontology Intelligence & Readiness Dashboard" in r_dash.text
+    assert "GainARK OntoLeap" in r_dash.text
     print("  Dashboard Status: 200 OK (HTML served)")
 
     r_info = client.get("/api/info")

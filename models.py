@@ -5,10 +5,15 @@ This module defines Pydantic data models representing the full lifecycle of
 ontological SEO analysis, structured data extraction, semantic knowledge graphs,
 topic silo clustering, NetworkX topological metrics, generative AI search simulations,
 and W3C standard RDF/SPARQL representations.
+
+Changes:
+- FIX #17: datetime.utcnow() replaced with timezone-aware datetime.now(timezone.utc)
+- FIX #3:  max_length validators on raw string inputs (SPARQL, RDF Turtle) to
+           prevent memory-bomb payloads from crashing the container.
 """
 
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 
 
@@ -128,7 +133,8 @@ class PageCrawlSummary(BaseModel):
 
 class UnifiedSiteGraph(BaseModel):
     root_domain: str
-    crawled_at: datetime = Field(default_factory=datetime.utcnow)
+    # FIX #17: timezone-aware UTC timestamp
+    crawled_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     total_pages_crawled: int
     unique_entities: List[str]
     triples: List[SemanticTriple]
@@ -205,7 +211,7 @@ class CannibalizationRiskItem(BaseModel):
 
 class PredictedLink(BaseModel):
     """
-    AI Knowledge Graph Link Prediction item (PyKEEN / TransE embedding paradigm).
+    AI Knowledge Graph Link Prediction item derived from rule-based ontological priors.
     Represents an ontologically inferred relation missing from crawled content.
     """
     subject: str = Field(..., description="Subject entity (e.g. Domain Platform)")
@@ -238,6 +244,7 @@ class SiteAuditAndLinkResult(BaseModel):
     owl_xml: Optional[str] = Field(default=None, description="Serialized W3C OWL 2 DL Ontology in RDF/XML format")
     semantic_clustering: Optional[Dict[str, Any]] = Field(default=None, description="TF-IDF cosine similarity clusters and cannibalization matrix")
     predicted_links: List[PredictedLink] = Field(default_factory=list, description="AI-predicted high-confidence missing KG relations")
+    graph_completeness_score: Optional[float] = Field(default=None, description="Knowledge graph completeness score against vertical benchmark")
     validation_report: Optional[SchemaValidationReport] = None
 
 
@@ -274,14 +281,20 @@ class SearchSimulationResponse(BaseModel):
 class SparqlQueryRequest(BaseModel):
     """
     Request model for querying the RDF knowledge graph via W3C SPARQL 1.1.
+    FIX #3: max_length=500_000 (~500 KB) prevents memory-bomb payloads.
     """
     query: str = Field(
         ...,
-        description="W3C SPARQL 1.1 query string",
+        max_length=5000,
+        description="W3C SPARQL 1.1 SELECT query string (max 5000 chars)",
         example="PREFIX schema: <https://schema.org/>\nSELECT ?pred ?obj WHERE { ?sub ?pred ?obj } LIMIT 25"
     )
     root_domain: Optional[str] = Field(default="site", description="Target domain context")
-    rdf_turtle: Optional[str] = Field(default=None, description="Turtle RDF string to query against")
+    rdf_turtle: Optional[str] = Field(
+        default=None,
+        max_length=500_000,
+        description="Turtle RDF string to query against (max 500 KB)"
+    )
 
 
 class SparqlQueryResponse(BaseModel):
@@ -298,7 +311,7 @@ class SparqlQueryResponse(BaseModel):
 
 class LinkPredictionRequest(BaseModel):
     """
-    Request model for inferring missing knowledge graph relations (PyKEEN / TransE paradigm).
+    Request model for inferring missing knowledge graph relations from ontological priors.
     """
     domain: str = Field(default="example.com", description="Target domain of the knowledge graph")
     triples: List[SemanticTriple] = Field(default_factory=list, description="Existing extracted relational triples")
@@ -315,7 +328,7 @@ class LinkPredictionResponse(BaseModel):
     predicted_links_count: int
     predicted_links: List[PredictedLink] = Field(default_factory=list)
     graph_completeness_score: float = Field(..., description="Overall relational completeness (0-100)")
-    model_name: str = Field(default="TransE / ComplEx KG Link Predictor (PyKEEN Paradigm)")
+    model_name: str = Field(default="Rule-Based Relation Inference (Ontological Priors)")
 
 
 class ExportGraphHtmlRequest(BaseModel):
@@ -329,7 +342,12 @@ class ExportGraphHtmlRequest(BaseModel):
     predicted_links: List[PredictedLink] = Field(default_factory=list)
 
 
-
-
-
-
+class NTriplesExportRequest(BaseModel):
+    """
+    FIX #3: max_length prevents memory-bomb payloads.
+    """
+    rdf_turtle: str = Field(
+        ...,
+        max_length=500_000,
+        description="RDF Turtle serialization to convert into N-Triples (max 500 KB)"
+    )

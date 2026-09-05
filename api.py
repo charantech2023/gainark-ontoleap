@@ -8,14 +8,19 @@ W3C RDF Turtle and N-Triples exports, and interactive SPARQL 1.1 querying.
 
 import os
 import json
+import time
+import logging
+import threading
+from collections import defaultdict
 from typing import List, Dict, Any, Optional
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel, Field
 from rdflib import Graph
 
-from pipeline import OntologyPipeline, crawl_and_build_unified_graph
+from pipeline import OntologyPipeline, crawl_and_build_unified_graph, validate_url_for_fetch
 from linking import (
     audit_internal_links,
     simulate_search_response,
@@ -46,34 +51,116 @@ from models import (
     ExportGraphHtmlRequest
 )
 
+# ---------------------------------------------------------------------------
+# FIX #21: Structured Logging
+# ---------------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger("ontoleap.api")
+
 app = FastAPI(
     title="GainARK OntoLeap — Autonomous Ontology Intelligence & Semantic Graph Engine",
     description="Enterprise ontology intelligence, zero-shot entity grounding, relational triples extraction, and semantic internal linking for B2B SaaS.",
     version="2.0.0"
 )
 
-# Enable CORS for local and web frontends
+# ---------------------------------------------------------------------------
+# FIX #14: CORS Configuration with Environment Variable & Safe Production Defaults
+# ---------------------------------------------------------------------------
+allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "").strip()
+if allowed_origins_env:
+    allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+else:
+    allowed_origins = [
+        "https://gainark-ontoleap-35509275124.asia-south1.run.app",
+        "http://localhost:8080",
+        "http://localhost:8000",
+        "http://localhost:3000",
+        "http://127.0.0.1:8080",
+        "http://127.0.0.1:8000"
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins (localhost:3000, 5173, etc.)
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
+
+# ---------------------------------------------------------------------------
+# FIX #2: In-Memory Sliding Window Rate Limiting Middleware
+# ---------------------------------------------------------------------------
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """
+    In-memory rolling-window rate limiter per client IP.
+    Protects heavy model inference and multi-page crawl endpoints from DoS.
+    """
+    def __init__(self, app):
+        super().__init__(app)
+        self.history = defaultdict(list)
+        self.lock = threading.Lock()
+        self.limits = {
+            "/api/audit": 10,           # Max 10 audits/min per IP
+            "/api/benchmark": 3,       # Max 3 multi-domain benchmarks/min
+            "/api/batch-crawl": 3,     # Max 3 sitemap crawls/min
+            "/api/internal-links": 5,  # Max 5 internal linking crawls/min
+        }
+        self.default_limit = 60        # Default 60 requests/min
+
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        if request.method == "POST" and path.startswith("/api/"):
+            client_ip = request.client.host if request.client else "127.0.0.1"
+            forwarded = request.headers.get("x-forwarded-for")
+            if forwarded:
+                client_ip = forwarded.split(",")[0].strip()
+
+            max_requests = self.limits.get(path, self.default_limit)
+            now = time.time()
+            window_start = now - 60.0
+
+            with self.lock:
+                key = f"{client_ip}:{path}"
+                recent = [t for t in self.history[key] if t > window_start]
+                if len(recent) >= max_requests:
+                    retry_after = int(60 - (now - recent[0])) + 1
+                    logger.warning("Rate limit exceeded for %s from IP %s", path, client_ip)
+                    return JSONResponse(
+                        status_code=429,
+                        content={"detail": f"Rate limit exceeded for {path}. Max {max_requests} requests per minute."},
+                        headers={"Retry-After": str(max(1, retry_after))}
+                    )
+                recent.append(now)
+                self.history[key] = recent
+
+        return await call_next(request)
+
+app.add_middleware(RateLimitMiddleware)
+
+
 # Pipeline instances cache to reuse loaded GLiNER models
 pipeline_cache: Dict[str, OntologyPipeline] = {}
+SUPPORTED_VERTICALS = {"b2b_saas_fintech"}
 
 
+# FIX #23: Validate vertical_id and return 400 if unsupported
 def get_pipeline(vertical_id: Optional[str] = None) -> OntologyPipeline:
     target_id = vertical_id or "b2b_saas_fintech"
+    if vertical_id and vertical_id not in SUPPORTED_VERTICALS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported vertical_id '{vertical_id}'. Supported verticals: {sorted(list(SUPPORTED_VERTICALS))}"
+        )
     if target_id not in pipeline_cache:
-        # Check if custom config exists or use default vertical_config.json
         config_file = f"configs/{target_id}.json"
         if not os.path.exists(config_file):
             config_file = "vertical_config.json"
-        
-        print(f"Instantiating OntologyPipeline for vertical '{target_id}' using {config_file}...")
+
+        logger.info("Instantiating OntologyPipeline for vertical '%s' using %s...", target_id, config_file)
         pipeline_cache[target_id] = OntologyPipeline(config_path=config_file)
     return pipeline_cache[target_id]
 
@@ -247,10 +334,18 @@ async def api_batch_crawl(req: BatchCrawlRequest):
     Crawls pages discovered in the target XML sitemap and synthesizes a site-wide knowledge graph
     with deduplicated relational triples and Schema.org @graph JSON-LD.
     """
+    # FIX #1: SSRF protection
+    try:
+        validate_url_for_fetch(req.sitemap_url)
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
+
     try:
         return await crawl_and_build_unified_graph(req.sitemap_url, max_pages=req.max_pages)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Batch crawl failed for '{req.sitemap_url}': {str(e)}")
+        # FIX #20: Sanitize exception leak
+        logger.error("Batch crawl failed for %s: %s", req.sitemap_url, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Batch crawl failed for '{req.sitemap_url}'. Check server logs for details.")
 
 
 @app.post("/api/internal-links", response_model=SiteAuditAndLinkResult)
@@ -259,6 +354,16 @@ async def api_internal_links(req: InternalLinkAuditRequest):
     Crawls multiple pages across a site, identifies canonical topic authority hubs,
     and generates high-intent internal link recommendations for unlinked entity & triple mentions.
     """
+    # FIX #1: SSRF protection
+    try:
+        if req.sitemap_url:
+            validate_url_for_fetch(req.sitemap_url)
+        if req.urls:
+            for u in req.urls:
+                validate_url_for_fetch(u)
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
+
     try:
         return await audit_internal_links(
             sitemap_url=req.sitemap_url,
@@ -266,7 +371,9 @@ async def api_internal_links(req: InternalLinkAuditRequest):
             max_pages=req.max_pages
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal link audit failed: {str(e)}")
+        # FIX #20: Sanitize exception leak
+        logger.error("Internal link audit failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal link audit failed. Check server logs for details.")
 
 
 @app.post("/api/simulate-search", response_model=SearchSimulationResponse)
@@ -284,7 +391,8 @@ def api_simulate_search(req: SearchSimulationRequest):
             entities=req.entities
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Search simulation failed: {str(e)}")
+        logger.error("Search simulation failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Search simulation failed. Check server logs.")
 
 
 @app.post("/api/sparql", response_model=SparqlQueryResponse, summary="Execute SPARQL 1.1 Query on Knowledge Graph")
@@ -304,19 +412,29 @@ def api_execute_sparql(req: SparqlQueryRequest):
             row_count=res["row_count"],
             execution_status="success"
         )
-    except Exception as e:
+    except ValueError as val_err:
         return SparqlQueryResponse(
             query=req.query,
             columns=[],
             rows=[],
             row_count=0,
             execution_status="failed",
-            error=str(e)
+            error=str(val_err)
+        )
+    except Exception as e:
+        logger.error("SPARQL execution error: %s", e, exc_info=True)
+        return SparqlQueryResponse(
+            query=req.query,
+            columns=[],
+            rows=[],
+            row_count=0,
+            execution_status="failed",
+            error="SPARQL query failed during evaluation. Please verify syntax and prefixes."
         )
 
 
 class NTriplesExportRequest(BaseModel):
-    rdf_turtle: str = Field(..., description="RDF Turtle serialization to convert into N-Triples")
+    rdf_turtle: str = Field(..., max_length=500_000, description="RDF Turtle serialization to convert into N-Triples")
 
 
 @app.post("/api/export-ntriples", summary="Convert RDF Turtle to W3C N-Triples")
@@ -333,7 +451,8 @@ def api_export_ntriples(req: NTriplesExportRequest):
         nt_data = g.serialize(format="nt")
         return PlainTextResponse(content=nt_data, media_type="application/n-triples")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to serialize N-Triples: {str(e)}")
+        logger.error("Failed to serialize N-Triples: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to serialize N-Triples.")
 
 
 class OwlExportRequest(BaseModel):
@@ -341,7 +460,7 @@ class OwlExportRequest(BaseModel):
     triples: List[SemanticTriple] = Field(default_factory=list, description="Extracted relational triples")
     topic_hubs: Dict[str, str] = Field(default_factory=dict, description="Canonical topic hubs map")
     entities: List[str] = Field(default_factory=list, description="Extracted entities")
-    rdf_turtle: Optional[str] = Field(default=None, description="Optional Turtle to convert directly")
+    rdf_turtle: Optional[str] = Field(default=None, max_length=500_000, description="Optional Turtle to convert directly")
 
 
 @app.post("/api/export-owl", summary="Generate and Export W3C OWL 2 DL Ontology")
@@ -360,7 +479,8 @@ def api_export_owl(req: OwlExportRequest):
         owl_xml = export_to_owl_xml(req.root_domain, req.triples, req.topic_hubs, req.entities)
         return PlainTextResponse(content=owl_xml, media_type="application/rdf+xml")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate OWL ontology: {str(e)}")
+        logger.error("Failed to generate OWL ontology: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to generate OWL ontology.")
 
 
 class SemanticClustersRequest(BaseModel):
@@ -379,7 +499,8 @@ async def api_semantic_clusters(req: SemanticClustersRequest):
         audit_res = await audit_internal_links(sitemap_url=req.sitemap_url, urls=req.urls, max_pages=req.max_pages)
         return audit_res.semantic_clustering or {}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Semantic cluster analysis failed: {str(e)}")
+        logger.error("Semantic cluster analysis failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Semantic cluster analysis failed.")
 
 
 class BenchmarkCsvExportRequest(BaseModel):
@@ -409,7 +530,7 @@ def api_export_benchmark_csv(req: BenchmarkCsvExportRequest):
     return PlainTextResponse(content=output.getvalue(), media_type="text/csv")
 
 
-@app.post("/api/predict-links", response_model=LinkPredictionResponse, summary="Predict Missing Knowledge Graph Relations (PyKEEN Paradigm)")
+@app.post("/api/predict-links", response_model=LinkPredictionResponse, summary="Predict Missing Knowledge Graph Relations (Ontological Priors)")
 def api_predict_links(req: LinkPredictionRequest):
     """
     Infers missing high-probability relational links across the knowledge graph,
@@ -418,7 +539,8 @@ def api_predict_links(req: LinkPredictionRequest):
     try:
         return predict_kg_links(req.domain, req.triples, req.entities, req.topic_hubs)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Link prediction failed: {str(e)}")
+        logger.error("Link prediction failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Link prediction failed.")
 
 
 @app.post("/api/export-graph-html", summary="Export Standalone Interactive PyVis/Vis.js Graph HTML")
@@ -437,10 +559,8 @@ def api_export_graph_html(req: ExportGraphHtmlRequest):
         )
         return HTMLResponse(content=html, media_type="text/html")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate interactive graph HTML: {str(e)}")
-
-
-
+        logger.error("Failed to generate graph HTML: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to generate interactive graph HTML. Check server logs.")
 
 
 @app.post("/api/audit", response_model=AuditResponse)
@@ -454,6 +574,12 @@ def audit_endpoint(request: AuditRequest):
     - Dynamically generates the Schema.org remediation patch
     - Optionally deep-crawls up to 3 high-value sub-pages (pricing, features, integrations)
     """
+    # FIX #1: SSRF protection — block private IPs and non-HTTP schemes
+    try:
+        validate_url_for_fetch(request.url)
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
+
     try:
         pipeline = get_pipeline(request.vertical_id)
         result = pipeline.process(url=request.url, deep_crawl=request.deep_crawl)
@@ -485,8 +611,12 @@ def audit_endpoint(request: AuditRequest):
             meta_description=result.meta_description,
             site_name=result.site_name
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to audit URL '{request.url}': {str(e)}")
+        # FIX #20: Sanitize exception leak
+        logger.error("Failed to audit URL '%s': %s", request.url, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to audit URL '{request.url}'. Check server logs.")
 
 
 @app.post("/api/benchmark", response_model=BenchmarkResponse)
@@ -511,6 +641,13 @@ def benchmark_endpoint(request: BenchmarkRequest):
 
     if not all_urls:
         raise HTTPException(status_code=400, detail="Must provide 'primary_url' and 'competitor_urls' (or 'urls').")
+
+    # FIX #1: SSRF protection — validate every target URL
+    for target_url, _ in all_urls:
+        try:
+            validate_url_for_fetch(target_url)
+        except ValueError as val_err:
+            raise HTTPException(status_code=400, detail=f"Invalid benchmark target URL '{target_url}': {val_err}")
 
     try:
         pipeline = get_pipeline(request.vertical_id)
@@ -590,8 +727,12 @@ def benchmark_endpoint(request: BenchmarkRequest):
             comparative_table=items,
             gap_analysis=gap_analysis
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Benchmark execution failed: {str(e)}")
+        # FIX #20: Sanitize exception leak
+        logger.error("Benchmark execution failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Benchmark execution failed. Check server logs for details.")
 
 
 if __name__ == "__main__":

@@ -34,31 +34,40 @@ python dashboard.py --port 8080
 | File | Purpose |
 | :--- | :--- |
 | **dashboard.py** | Server launcher with dynamic port negotiation (8080/8000/fallback) and logging banner. |
-| **pi.py** | FastAPI application hosting all endpoints (/api/audit, /api/benchmark, /api/internal-links, /api/simulate-search, /api/batch-crawl, /dashboard). |
-| **pipeline.py** | GLiNER-powered zero-shot entity extraction, rule-based relational semantic triple extractors (utomates, integratesWith, compliesWith, supportsPricingModel), and async multi-page sitemap batch crawler. |
-| **linking.py** | Topic authority hub resolution, contextual internal link opportunity matrix, megamenu/nav stripping, AI Citation Readiness Index, topological graph builder, /llms.txt generator, 
-obots.txt generator, and WordPress PHP auto-injector hook. |
-| **
-emediation.py** | Dynamic, domain-aware Schema.org remediation engine generating validated SoftwareApplication, Organization, and Offer JSON-LD nodes. |
-| **alidator.py** | Google Rich Results and Schema.org compliance validator checking required attributes, recommended properties, and calculating penalty-free compliance scores. |
+| **api.py** | FastAPI application hosting all endpoints (/api/audit, /api/benchmark, /api/internal-links, /api/simulate-search, /api/batch-crawl, /dashboard). |
+| **pipeline.py** | GLiNER-powered zero-shot entity extraction, rule-based relational semantic triple extractors (automates, integratesWith, compliesWith, supportsPricingModel), and async multi-page sitemap batch crawler. |
+| **linking.py** | Topic authority hub resolution, contextual internal link opportunity matrix, megamenu/nav stripping, AI Citation Readiness Index, topological graph builder, /llms.txt generator, robots.txt generator, and WordPress PHP auto-injector hook. |
+| **remediation.py** | Dynamic, domain-aware Schema.org remediation engine generating validated SoftwareApplication, Organization, and Offer JSON-LD nodes. |
+| **validator.py** | Google Rich Results and Schema.org compliance validator checking required attributes, recommended properties, and calculating penalty-free compliance scores. |
+| **link_prediction.py** | Rule-based relation inference from ontological priors and non-circular knowledge graph completeness scoring. |
 | **models.py** | Pydantic data contracts for Semantic Triples, Site Graphs, Topic Hubs, AI Readiness, Validation Reports, and Search Simulations. |
-| **	emplates/dashboard.html** | Single-page Tailwind CSS dashboard featuring 3 interactive views: Single-Page Audit, Competitive Benchmarking, and Site Graph & Internal Linking (with Canvas Visualizer, Visual Diff Modal, Search Simulator, and Export tools). |
+| **templates/dashboard.html** | Single-page Tailwind CSS dashboard featuring 3 interactive views: Single-Page Audit, Competitive Benchmarking, and Site Graph & Internal Linking (with Canvas Visualizer, Visual Diff Modal, Search Simulator, and Export tools). |
 | **Dockerfile** | Production container build with PyTorch CPU optimization and pre-cached GLiNER model for instant Cloud Run cold starts. |
 
 ---
 
-## Core Capabilities Implemented
+## Core Capabilities & Readiness Scoring Frameworks
 
-1. **Semantic Triples Extraction**: 4 B2B SaaS predicates (utomates, integratesWith, compliesWith, supportsPricingModel).
+1. **Semantic Triples Extraction**: 4 B2B SaaS predicates (automates, integratesWith, compliesWith, supportsPricingModel).
 2. **Multi-Page & Sitemap Crawling**: Async crawling of XML sitemaps and index feeds into a consolidated Schema.org @graph.
 3. **Contextual Internal Linking**: Discovers missing internal links to canonical authority hubs while ignoring megamenus and nav tags.
-4. **AI Search Citation Readiness Index**: 0–100% composite score across Entity Grounding, Relational Density, Silo Integrity, and Schema Coverage.
+4. **Two-Tier Readiness Assessment**:
+   - **Single-Page Structured Data Readiness (0–100%)**: Evaluates immediate on-page semantic markup for single URLs:
+     - Mandatory Schema Coverage (40%)
+     - Core Seed Concept Presence (30%)
+     - Named Entity Richness & Confidence (30%)
+   - **Site-Wide AI Search Citation Readiness Index (0–100%)**: Comprehensive architectural evaluation for full site crawls:
+     - Entity Grounding Depth (25%)
+     - Relational Semantic Triple Density (25%)
+     - Topic Silo & Internal Link Integrity (25%)
+     - Site-Wide Schema.org Graph Coverage (25%)
 5. **Interactive Canvas Visualizer**: Force-directed topological graph of hubs, spokes, entities, and recommended links.
 6. **Perplexity & SearchGPT Simulator**: Synthesizes generative answers grounded in verified domain triples with [1], [2] citations.
-7. **Autonomous /llms.txt & robots.txt**: Standards-compliant manifest for AI crawler discovery.
-8. **Google Rich Results Validation**: Pre-deployment audit preventing structured data penalties.
-9. **Automated CMS Auto-Injector**: WordPress 	he_content filter hook + Headless CMS JSON rules.
-10. **In-Content Placement Visual Diff**: Side-by-side modal with 1-click HTML copy.
+7. **Rule-Based Link Prediction**: Infers missing relations from curated ontological priors with non-circular completeness benchmarks.
+8. **Autonomous /llms.txt & robots.txt**: Standards-compliant manifest for AI crawler discovery.
+9. **Google Rich Results Validation**: Pre-deployment audit preventing structured data penalties.
+10. **Automated CMS Auto-Injector**: WordPress the_content filter hook + Headless CMS JSON rules.
+11. **In-Content Placement Visual Diff**: Side-by-side modal with 1-click HTML copy.
 
 ---
 _Generated by GainARK OntoLeap — Autonomous Ontology Intelligence_

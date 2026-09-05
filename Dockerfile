@@ -4,7 +4,8 @@ FROM python:3.11-slim
 # Prevent Python from writing .pyc and buffer stdout/stderr
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8080
+    PORT=8080 \
+    HF_HOME=/app/.cache/huggingface
 
 WORKDIR /app
 
@@ -26,6 +27,10 @@ RUN python -c "from gliner import GLiNER; GLiNER.from_pretrained('urchade/gliner
 
 # Copy application source code
 COPY . .
+
+# FIX #18: Run as non-root user for security
+RUN useradd --create-home --shell /bin/bash appuser && chown -R appuser:appuser /app
+USER appuser
 
 # Expose port (Cloud Run injects PORT environment variable at runtime)
 EXPOSE 8080

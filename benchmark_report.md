@@ -1,6 +1,9 @@
-# Ontology Pipeline Benchmark: Competitive Readiness Analysis
+# Ontology Pipeline Benchmark: Competitive Structured Data Readiness Analysis
 
-| Target URL | Overall Readiness Score | Mandatory Schema Compliance | Number of Detected Entities | Top Missing Concepts |
+> **Executive Note on Brand Authority vs. Single-Page Schema Readiness:**
+> This audit measures **Single-Page Structured Data & Schema Implementation** (Mandatory Schema 40%, Seed Concept Coverage 30%, Entity Richness 30%) on specific landing pages. High brand citation authority across AI answer engines (such as Stripe) can coexist with low single-page structured data scores when individual product landing pages omit static `SoftwareApplication`, `Organization`, or `Offer` JSON-LD nodes. For comprehensive domain-level generative search authority, evaluate using the **Site-Wide AI Citation Readiness Index**.
+
+| Target URL | Structured Data Readiness (Single-Page) | Mandatory Schema Compliance | Number of Detected Entities | Top Missing Concepts |
 | :--- | :---: | :---: | :---: | :--- |
 | `https://www.chargebee.com` | **60.74 / 100** | 3/3 | 4 | Subscription Management, Billing Automation, ERP Integration (+5 more) |
 | `https://www.maxio.com` | **37.75 / 100** | 1/3 | 7 | ASC 606, Billing Automation, ERP Integration (+5 more) |

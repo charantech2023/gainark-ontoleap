@@ -13,10 +13,19 @@ This module executes the multi-stage ontology extraction and analysis pipeline:
    /features, /integrations, /solutions) to enrich entity coverage.
 6. Multi-Page XML Sitemap Crawler: Crawls full sitemaps and indexes, consolidating deduplicated
    triples into a unified multi-page `@graph` JSON-LD schema with Wikidata entity grounding.
+
+Changes:
+- FIX #1:  SSRF protection — validate URLs before fetching to block localhost/internal IPs.
+- FIX #5:  All knowledge bases consolidated into constants.py (no more triple-duplication).
+- FIX #6:  run_audit_pipeline fixed to use keyword args so batch crawl actually works.
+- FIX #12: Sitemap recursion depth guard to prevent infinite loops on circular sitemaps.
+- FIX #21: All print() replaced with structured Python logging.
 """
 
 import json
 import re
+import socket
+import logging
 import xml.etree.ElementTree as ET
 import asyncio
 from typing import Optional, List, Dict, Any, Set
@@ -33,37 +42,56 @@ from models import (
     SeedConceptMatch, ReadinessBreakdown, KeywordGapItem, CompetitiveGapAnalysis,
     SemanticTriple, PageCrawlSummary, UnifiedSiteGraph
 )
+from constants import (
+    WIKIDATA_KB, KNOWN_INTEGRATIONS, KNOWN_COMPLIANCE,
+    KNOWN_PRICING, KNOWN_AUTOMATION, DEEP_CRAWL_PATHS, DEEP_CRAWL_MAX,
+    BLOCKED_IP_PREFIXES, BLOCKED_HOSTNAMES,
+)
+
+# ---------------------------------------------------------------------------
+# Structured logger — writes JSON-compatible records for Google Cloud Logging
+# ---------------------------------------------------------------------------
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# FIX #1: SSRF Protection — URL Validation
+# ---------------------------------------------------------------------------
+
+def validate_url_for_fetch(url: str) -> None:
+    """
+    Validates that a URL is safe to fetch. Raises ValueError if the URL
+    points to a private IP, localhost, cloud metadata service, or uses
+    a non-HTTP scheme. This prevents Server-Side Request Forgery (SSRF) attacks.
+    """
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        raise ValueError(f"Malformed URL: {url!r}")
+
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Unsafe URL scheme '{parsed.scheme}'. Only http and https are allowed.")
+
+    hostname = (parsed.hostname or "").lower().strip(".")
+
+    if not hostname:
+        raise ValueError("URL must contain a valid hostname.")
+
+    # Block reserved/private hostnames
+    if hostname in BLOCKED_HOSTNAMES:
+        raise ValueError(f"Blocked hostname: {hostname!r}")
+
+    # Resolve to IP and check against blocked private ranges
+    try:
+        resolved_ip = socket.gethostbyname(hostname)
+        if any(resolved_ip.startswith(prefix) for prefix in BLOCKED_IP_PREFIXES):
+            raise ValueError(f"URL resolves to a private/reserved IP address: {resolved_ip}")
+    except socket.gaierror:
+        # Cannot resolve — still allow it (some valid domains may not resolve from container)
+        pass
+
+
 from remediation import generate_schema_patch
-
-# Sub-paths that are high-value for product ontology signals
-DEEP_CRAWL_PATHS = ["/pricing", "/features", "/product", "/integrations", "/solutions", "/platform"]
-DEEP_CRAWL_MAX = 3
-
-# Knowledge lists for rule-based relational semantic predicate extraction
-KNOWN_INTEGRATIONS = [
-    "Salesforce", "NetSuite", "QuickBooks", "Stripe", "Workday", "HubSpot",
-    "Sage Intacct", "Sage", "Xero", "Avalara", "TaxJar", "SAP", "Oracle",
-    "Zendesk", "Slack", "Plaid", "Datadog", "Snowflake", "Microsoft Dynamics"
-]
-
-KNOWN_COMPLIANCE = [
-    "ASC 606", "IFRS 15", "SOC 1", "SOC 2", "SOC 2 Type II", "SOC 1 Type II",
-    "GAAP", "US GAAP", "GDPR", "PCI-DSS", "ISO 27001", "HIPAA", "CCPA"
-]
-
-KNOWN_PRICING = [
-    "Usage-Based Pricing", "Subscription Pricing", "Consumption-Based Pricing",
-    "Transaction Pricing", "Hybrid Pricing", "Tiered Pricing",
-    "Per-Seat Pricing", "Recurring Billing", "Dynamic Pricing",
-    "Flat-Fee Pricing", "Overage Pricing", "Milestone-Based Billing"
-]
-
-KNOWN_AUTOMATION = [
-    "Billing Automation", "Revenue Recognition", "Accounts Receivable",
-    "Invoicing", "Payment Collection", "Dunning Automation", "Contract Modifications",
-    "Order-to-Revenue Cycle", "Revenue Operations", "Deferred Revenue Schedules",
-    "Invoice Calculations", "Subscription Billing"
-]
 
 
 class OntologyPipeline:
@@ -86,11 +114,13 @@ class OntologyPipeline:
     @property
     def model(self) -> GLiNER:
         if self._model is None:
-            print(f"Loading GLiNER model: {self.gliner_model_name}...")
+            logger.info("Loading GLiNER model: %s", self.gliner_model_name)
             self._model = GLiNER.from_pretrained(self.gliner_model_name)
         return self._model
 
     def fetch_url(self, url: str, timeout: int = 15) -> str:
+        # FIX #1: SSRF protection — validate before any network call
+        validate_url_for_fetch(url)
         headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -107,8 +137,10 @@ class OntologyPipeline:
         try:
             raw_schemas = extruct.extract(html, uniform=True)
         except Exception as e:
-            print(f"Warning: extruct failed to parse HTML: {e}")
+            # FIX #21: use logger instead of print
+            logger.warning("extruct failed to parse HTML: %s", e)
             raw_schemas = {}
+
 
         mandatory_set = {t.lower() for t in self.config.mandatory_schema_types}
 
@@ -443,7 +475,7 @@ class OntologyPipeline:
             subpages = self.discover_subpages(url, html)
             for sub_url in subpages:
                 try:
-                    print(f"  [DeepCrawl] Fetching sub-page: {sub_url}")
+                    logger.info("[DeepCrawl] Fetching sub-page: %s", sub_url)
                     sub_html = self.fetch_url(sub_url)
                     sub_soup = BeautifulSoup(sub_html, "html.parser")
                     sub_text = trafilatura.extract(sub_html) or sub_soup.get_text(separator=" ", strip=True)
@@ -486,7 +518,7 @@ class OntologyPipeline:
 
                     crawled_subpages.append(sub_url)
                 except Exception as ex:
-                    print(f"  [DeepCrawl] Failed to fetch {sub_url}: {ex}")
+                    logger.warning("[DeepCrawl] Failed to fetch %s: %s", sub_url, ex)
 
         snippet = text[:500] + "..." if len(text) > 500 else text
         readiness = self.calculate_readiness_score(mandatory_status, seed_matches, entities)
@@ -642,10 +674,17 @@ class OntologyPipeline:
         )
 
 
-async def fetch_sitemap_urls(sitemap_url: str, max_urls: int = 15) -> List[str]:
+async def fetch_sitemap_urls(sitemap_url: str, max_urls: int = 15, _depth: int = 0) -> List[str]:
     """
     Parses standard sitemaps and sitemap indexes, returning up to max_urls.
+    FIX #12: _depth parameter guards against infinite recursion on circular
+    sitemap references. Maximum recursion depth is 2 (index → sub-sitemap → URLs).
     """
+    # FIX #12: Never recurse deeper than 2 levels
+    if _depth > 2:
+        logger.warning("Sitemap recursion depth exceeded for %s — skipping", sitemap_url)
+        return []
+
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     urls: List[str] = []
 
@@ -654,10 +693,10 @@ async def fetch_sitemap_urls(sitemap_url: str, max_urls: int = 15) -> List[str]:
             resp = await client.get(sitemap_url)
             if resp.status_code != 200:
                 return urls
-            
+
             root = ET.fromstring(resp.content)
             namespace = {'ns': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
-            
+
             # Check for sitemap index
             sub_sitemaps = root.findall('ns:sitemap/ns:loc', namespace)
             if not sub_sitemaps:
@@ -666,7 +705,12 @@ async def fetch_sitemap_urls(sitemap_url: str, max_urls: int = 15) -> List[str]:
             if sub_sitemaps:
                 for sub in sub_sitemaps[:3]:
                     if sub.text:
-                        sub_urls = await fetch_sitemap_urls(sub.text.strip(), max_urls=max_urls - len(urls))
+                        # FIX #12: pass incremented depth to prevent circular recursion
+                        sub_urls = await fetch_sitemap_urls(
+                            sub.text.strip(),
+                            max_urls=max_urls - len(urls),
+                            _depth=_depth + 1
+                        )
                         urls.extend(sub_urls)
                         if len(urls) >= max_urls:
                             break
@@ -684,9 +728,11 @@ async def fetch_sitemap_urls(sitemap_url: str, max_urls: int = 15) -> List[str]:
                     if len(urls) >= max_urls:
                         break
         except Exception as e:
-            print(f"Error parsing sitemap {sitemap_url}: {e}")
-            
+            # FIX #21: use logger instead of print
+            logger.error("Error parsing sitemap %s: %s", sitemap_url, e)
+
     return urls[:max_urls]
+
 
 
 def deduplicate_site_triples(all_triples: List[SemanticTriple]) -> List[SemanticTriple]:
@@ -706,39 +752,11 @@ def deduplicate_site_triples(all_triples: List[SemanticTriple]) -> List[Semantic
     return list(seen.values())
 
 
-WIKIDATA_MAP: Dict[str, str] = {
-    "asc 606": "https://www.wikidata.org/wiki/Q2819869",
-    "ifrs 15": "https://www.wikidata.org/wiki/Q16996614",
-    "soc 1": "https://www.wikidata.org/wiki/Q105822363",
-    "soc 2": "https://www.wikidata.org/wiki/Q105822363",
-    "soc 2 type ii": "https://www.wikidata.org/wiki/Q105822363",
-    "soc 1 type ii": "https://www.wikidata.org/wiki/Q105822363",
-    "gaap": "https://www.wikidata.org/wiki/Q478440",
-    "us gaap": "https://www.wikidata.org/wiki/Q478440",
-    "gdpr": "https://www.wikidata.org/wiki/Q11723205",
-    "pci-dss": "https://www.wikidata.org/wiki/Q1051515",
-    "iso 27001": "https://www.wikidata.org/wiki/Q1135272",
-    "hipaa": "https://www.wikidata.org/wiki/Q1586524",
-    "ccpa": "https://www.wikidata.org/wiki/Q55606411",
-    "salesforce": "https://www.wikidata.org/wiki/Q760814",
-    "netsuite": "https://www.wikidata.org/wiki/Q1978731",
-    "quickbooks": "https://www.wikidata.org/wiki/Q7271981",
-    "stripe": "https://www.wikidata.org/wiki/Q7624119",
-    "workday": "https://www.wikidata.org/wiki/Q2592881",
-    "hubspot": "https://www.wikidata.org/wiki/Q17055745",
-    "sage intacct": "https://www.wikidata.org/wiki/Q28956947",
-    "sage": "https://www.wikidata.org/wiki/Q1197415",
-    "xero": "https://www.wikidata.org/wiki/Q8043818",
-    "avalara": "https://www.wikidata.org/wiki/Q16836798",
-    "taxjar": "https://www.wikidata.org/wiki/Q106726884",
-    "sap": "https://www.wikidata.org/wiki/Q5528",
-    "oracle": "https://www.wikidata.org/wiki/Q19900",
-    "zendesk": "https://www.wikidata.org/wiki/Q8069151",
-    "slack": "https://www.wikidata.org/wiki/Q16202723",
-    "plaid": "https://www.wikidata.org/wiki/Q65069792",
-    "snowflake": "https://www.wikidata.org/wiki/Q104862415",
-    "microsoft dynamics": "https://www.wikidata.org/wiki/Q1050212"
-}
+
+# FIX #5: WIKIDATA_MAP is now an alias of the canonical WIKIDATA_KB from constants.py.
+# This preserves backward compatibility with any code that still references WIKIDATA_MAP.
+WIKIDATA_MAP = WIKIDATA_KB
+
 
 
 def build_site_wide_schema_graph(domain: str, triples: List[SemanticTriple], entities: List[str]) -> Dict:
@@ -812,10 +830,22 @@ def get_default_pipeline() -> OntologyPipeline:
 async def run_audit_pipeline(url: str, pipeline: Optional[OntologyPipeline] = None) -> ExtractionResult:
     """
     Asynchronously runs the ontology audit pipeline for a single URL using an executor thread.
+
+    FIX #6: Previously called p.process(url, False) which passed url as the 'html'
+    parameter and False as 'text', causing the pipeline to process the string "False"
+    instead of actually fetching the URL. Now uses a lambda with keyword args.
+
+    FIX #11: asyncio.get_event_loop() replaced with asyncio.get_running_loop()
+    (deprecated/incorrect inside an already-running async context like FastAPI).
     """
     p = pipeline or get_default_pipeline()
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, p.process, url, False)
+    loop = asyncio.get_running_loop()
+    # Use keyword arguments so url= is correctly interpreted as the URL to fetch
+    return await loop.run_in_executor(
+        None,
+        lambda: p.process(url=url, deep_crawl=False)
+    )
+
 
 
 async def crawl_and_build_unified_graph(

@@ -1,9 +1,8 @@
 """
 GainARK OntoLeap — Knowledge Graph Link Prediction & Entity Completion Engine
 
-Inspired by PyKEEN and Knowledge Graph Embedding (TransE / ComplEx) paradigms,
-this module analyzes existing knowledge graph triples, recognized entity distributions,
-and domain taxonomies to:
+Rule-based relation inference over hand-curated ontological priors. Given the triples,
+entities and topic hubs already extracted from a site, this module:
 1. Predict high-probability missing ontological relationships (e.g., compliesWith, integratesWith, supportsPricingModel).
 2. Ground predicted entities against canonical Wikidata Q-IDs via schema:sameAs.
 3. Quantify Knowledge Graph Completeness and identify high-value semantic content gaps.
@@ -21,50 +20,7 @@ from models import (
     LinkPredictionResponse
 )
 
-# Reference Wikidata mapping
-WIKIDATA_KB: Dict[str, str] = {
-    # Compliance & Standards
-    "asc 606": "https://www.wikidata.org/wiki/Q2819869",
-    "ifrs 15": "https://www.wikidata.org/wiki/Q16996614",
-    "soc 1": "https://www.wikidata.org/wiki/Q105822363",
-    "soc 2": "https://www.wikidata.org/wiki/Q105822363",
-    "soc 2 type ii": "https://www.wikidata.org/wiki/Q105822363",
-    "soc 1 type ii": "https://www.wikidata.org/wiki/Q105822363",
-    "gaap": "https://www.wikidata.org/wiki/Q478440",
-    "us gaap": "https://www.wikidata.org/wiki/Q478440",
-    "gdpr": "https://www.wikidata.org/wiki/Q11723205",
-    "pci-dss": "https://www.wikidata.org/wiki/Q1051515",
-    "iso 27001": "https://www.wikidata.org/wiki/Q1135272",
-    "hipaa": "https://www.wikidata.org/wiki/Q1586524",
-    "ccpa": "https://www.wikidata.org/wiki/Q55606411",
-
-    # Software Integrations
-    "salesforce": "https://www.wikidata.org/wiki/Q760814",
-    "netsuite": "https://www.wikidata.org/wiki/Q1978731",
-    "quickbooks": "https://www.wikidata.org/wiki/Q7271981",
-    "stripe": "https://www.wikidata.org/wiki/Q7624119",
-    "workday": "https://www.wikidata.org/wiki/Q2592881",
-    "hubspot": "https://www.wikidata.org/wiki/Q17055745",
-    "sage intacct": "https://www.wikidata.org/wiki/Q28956947",
-    "sage": "https://www.wikidata.org/wiki/Q1197415",
-    "xero": "https://www.wikidata.org/wiki/Q8043818",
-    "avalara": "https://www.wikidata.org/wiki/Q16836798",
-    "taxjar": "https://www.wikidata.org/wiki/Q106726884",
-    "sap": "https://www.wikidata.org/wiki/Q5528",
-    "oracle": "https://www.wikidata.org/wiki/Q19900",
-    "zendesk": "https://www.wikidata.org/wiki/Q8069151",
-    "slack": "https://www.wikidata.org/wiki/Q16202723",
-    "plaid": "https://www.wikidata.org/wiki/Q65069792",
-    "snowflake": "https://www.wikidata.org/wiki/Q104862415",
-    "microsoft dynamics": "https://www.wikidata.org/wiki/Q1050212",
-
-    # Core Capabilities
-    "revenue recognition": "https://www.wikidata.org/wiki/Q7318047",
-    "accounts receivable": "https://www.wikidata.org/wiki/Q478440",
-    "invoicing": "https://www.wikidata.org/wiki/Q185521",
-    "usage-based pricing": "https://www.wikidata.org/wiki/Q1134591",
-    "subscription business model": "https://www.wikidata.org/wiki/Q381373"
-}
+from constants import WIKIDATA_KB
 
 # Domain link prediction heuristics & relational priors
 PREDICTION_TEMPLATES: List[Dict[str, Any]] = [
@@ -288,14 +244,15 @@ def predict_kg_links(
     predicted_items.sort(key=lambda x: x.confidence, reverse=True)
 
     # Calculate overall knowledge graph completeness score
+    # FIX Task 3: Non-circular completeness score.
+    # Rather than existing / (existing + predicted) which inverted meaning by rewarding
+    # sites that matched fewer trigger keywords, completeness is evaluated against a fixed
+    # benchmark denominator of expected canonical relations for the vertical (16).
+    EXPECTED_VERTICAL_RELATIONS_BENCHMARK = 16
     existing_count = len(triples)
     predicted_count = len(predicted_items)
-    total_potential = existing_count + predicted_count
 
-    if total_potential > 0:
-        completeness = round((existing_count / total_potential) * 100.0, 1)
-    else:
-        completeness = 50.0
+    completeness = min(100.0, round((existing_count / EXPECTED_VERTICAL_RELATIONS_BENCHMARK) * 100.0, 1))
 
     return LinkPredictionResponse(
         domain=domain,
@@ -303,5 +260,5 @@ def predict_kg_links(
         predicted_links_count=predicted_count,
         predicted_links=predicted_items,
         graph_completeness_score=completeness,
-        model_name="TransE / ComplEx KG Link Predictor (PyKEEN Paradigm)"
+        model_name="Rule-Based Relation Inference (Ontological Priors)"
     )

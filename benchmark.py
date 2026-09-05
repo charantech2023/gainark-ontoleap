@@ -80,7 +80,7 @@ def run_benchmark(urls: List[str] = None):
 
     # Generate Markdown Table
     md_lines = []
-    md_lines.append("| Target URL | Overall Readiness Score | Mandatory Schema Compliance | Number of Detected Entities | Top Missing Concepts |")
+    md_lines.append("| Target URL | Structured Data Readiness (Single-Page) | Mandatory Schema Compliance | Number of Detected Entities | Top Missing Concepts |")
     md_lines.append("| :--- | :---: | :---: | :---: | :--- |")
 
     for r in results:
@@ -104,7 +104,9 @@ def run_benchmark(urls: List[str] = None):
 
     # Save to benchmark_report.md
     with open("benchmark_report.md", "w", encoding="utf-8") as f:
-        f.write("# Ontology Pipeline Benchmark: Competitive Readiness Analysis\n\n")
+        f.write("# Ontology Pipeline Benchmark: Competitive Structured Data Readiness Analysis\n\n")
+        f.write("> **Executive Note on Brand Authority vs. Single-Page Schema Readiness:**\n")
+        f.write("> This audit measures **Single-Page Structured Data & Schema Implementation** (Mandatory Schema 40%, Seed Concept Coverage 30%, Entity Richness 30%) on specific landing pages. High brand citation authority across AI answer engines (such as Stripe) can coexist with low single-page structured data scores when individual product landing pages omit static `SoftwareApplication`, `Organization`, or `Offer` JSON-LD nodes. For comprehensive domain-level generative search authority, evaluate using the **Site-Wide AI Citation Readiness Index**.\n\n")
         f.write(md_table + "\n\n")
         f.write("## Detailed Competitor Profiles\n\n")
         for r in results:

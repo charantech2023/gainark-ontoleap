@@ -53,7 +53,8 @@ async def resolve_wikidata(query: str) -> Optional[dict]:
     encoded = quote(cleaned)
     url = f"https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&language=en&limit=3&search={encoded}"
     headers = {
-        "User-Agent": "OntologyIntelligenceBot/1.0 (https://github.com/gainARK/ontology; contact@gainark.com)"
+        # FIX #4: Generic user-agent — does not expose private repo URL or contact email
+        "User-Agent": "GainARK-OntoLeap/2.0 (Enterprise SEO Intelligence; https://gainark.com)"
     }
 
     try:
