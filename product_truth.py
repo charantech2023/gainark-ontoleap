@@ -16,7 +16,7 @@ import os
 import re
 import json
 import logging
-import urllib.parse
+from urllib.parse import urlparse
 from typing import Dict, Any, List, Optional, Set, Tuple
 import requests
 from bs4 import BeautifulSoup
@@ -331,7 +331,7 @@ def execute_product_truth_audit(
     2. Ingests technical documentation (OpenAPI spec, tech docs URL, or text)
     3. Builds differential matrix and returns governance report
     """
-    brand = req.brand_name or urlparse(req.marketing_url).netloc.split(".")[0].capitalize()
+    brand = req.brand_name or req.company_name or (urlparse(req.marketing_url).netloc.replace("www.", "").split(".")[0].capitalize() if req.marketing_url else "Unknown")
 
     # 1. Marketing Claims Ingestion
     logger.info("Extracting marketing claims from %s for %s...", req.marketing_url, brand)

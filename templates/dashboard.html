@@ -2490,6 +2490,7 @@ SELECT ?capability ?evidence WHERE {
 
             try {
                 const payload = {
+                    brand_name: brand,
                     company_name: brand,
                     marketing_url: mktUrl,
                     tech_docs_url: docsUrl,
@@ -2533,23 +2534,28 @@ SELECT ?capability ?evidence WHERE {
                     bar.className = 'h-3 rounded-full bg-rose-500 transition-all duration-500';
                 }
 
+                const verifiedCount = data.verified_claims_count ?? data.verified_capabilities_count ?? 0;
+                const unbackedCount = data.unbacked_claims_count ?? data.unbacked_marketing_claims_count ?? 0;
+                const hiddenCount = data.hidden_capabilities_count ?? 0;
+                const totalMkt = data.total_marketing_claims ?? 0;
+
                 document.getElementById('truth-mgi-verdict').innerText = 
-                    `${data.verified_capabilities_count} of ${data.total_marketing_claims} marketing claims verified in code. ${data.unbacked_marketing_claims_count} unbacked drift claims flagged.`;
+                    `${verifiedCount} of ${totalMkt} marketing claims verified in code. ${unbackedCount} unbacked drift claims flagged.`;
 
                 // Counts
-                document.getElementById('truth-verified-count').innerText = data.verified_capabilities_count;
-                document.getElementById('truth-unbacked-count').innerText = data.unbacked_marketing_claims_count;
-                document.getElementById('truth-hidden-count').innerText = data.hidden_capabilities_count;
+                document.getElementById('truth-verified-count').innerText = verifiedCount;
+                document.getElementById('truth-unbacked-count').innerText = unbackedCount;
+                document.getElementById('truth-hidden-count').innerText = hiddenCount;
 
-                document.getElementById('col-verified-badge').innerText = data.verified_capabilities_count;
-                document.getElementById('col-unbacked-badge').innerText = data.unbacked_marketing_claims_count;
-                document.getElementById('col-hidden-badge').innerText = data.hidden_capabilities_count;
+                document.getElementById('col-verified-badge').innerText = verifiedCount;
+                document.getElementById('col-unbacked-badge').innerText = unbackedCount;
+                document.getElementById('col-hidden-badge').innerText = hiddenCount;
 
                 // Alerts
                 const alertsCard = document.getElementById('truth-alerts-card');
                 const alertsList = document.getElementById('truth-alerts-list');
                 alertsList.innerHTML = '';
-                const allAlerts = (data.drift_alerts || []).concat(data.growth_alerts || []);
+                const allAlerts = (data.drift_alerts || []).concat(data.growth_recommendations || data.growth_alerts || []);
                 if (allAlerts.length > 0) {
                     alertsCard.classList.remove('hidden');
                     allAlerts.forEach(al => {
@@ -2568,8 +2574,9 @@ SELECT ?capability ?evidence WHERE {
                 // Differential Column 1: Verified
                 const colVer = document.getElementById('truth-col-verified');
                 colVer.innerHTML = '';
-                if (data.verified_capabilities && data.verified_capabilities.length > 0) {
-                    data.verified_capabilities.forEach(t => {
+                const verList = data.verified_triples || data.verified_capabilities || [];
+                if (verList.length > 0) {
+                    verList.forEach(t => {
                         const div = document.createElement('div');
                         div.className = 'p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-xl';
                         div.innerHTML = `
@@ -2590,8 +2597,9 @@ SELECT ?capability ?evidence WHERE {
                 // Differential Column 2: Unbacked Claims
                 const colUnb = document.getElementById('truth-col-unbacked');
                 colUnb.innerHTML = '';
-                if (data.unbacked_marketing_claims && data.unbacked_marketing_claims.length > 0) {
-                    data.unbacked_marketing_claims.forEach(t => {
+                const unbList = data.unbacked_claims || data.unbacked_marketing_claims || [];
+                if (unbList.length > 0) {
+                    unbList.forEach(t => {
                         const div = document.createElement('div');
                         div.className = 'p-2.5 bg-rose-50/70 border border-rose-200 rounded-xl';
                         div.innerHTML = `
@@ -2612,8 +2620,9 @@ SELECT ?capability ?evidence WHERE {
                 // Differential Column 3: Unmarketed Capabilities
                 const colHid = document.getElementById('truth-col-hidden');
                 colHid.innerHTML = '';
-                if (data.hidden_capabilities && data.hidden_capabilities.length > 0) {
-                    data.hidden_capabilities.forEach(t => {
+                const hidList = data.hidden_capabilities || [];
+                if (hidList.length > 0) {
+                    hidList.forEach(t => {
                         const div = document.createElement('div');
                         div.className = 'p-2.5 bg-sky-50/70 border border-sky-200 rounded-xl';
                         div.innerHTML = `
@@ -2647,7 +2656,7 @@ SELECT ?capability ?evidence WHERE {
             const bName = document.getElementById('battle-company-name');
             const bUrl = document.getElementById('battle-company-url');
             const bSpec = document.getElementById('battle-company-spec');
-            if (bName) bName.value = currentTruthMatrix.company_name || 'Ordway';
+            if (bName) bName.value = currentTruthMatrix.brand_name || currentTruthMatrix.company_name || 'Ordway';
             if (bUrl) bUrl.value = currentTruthMatrix.marketing_url || 'https://www.ordwaylabs.com';
             const specEl = document.getElementById('truth-spec-json');
             if (bSpec && specEl && specEl.value) bSpec.value = specEl.value;
@@ -2657,11 +2666,11 @@ SELECT ?capability ?evidence WHERE {
         function sendTruthToLinter() {
             if (!currentTruthMatrix) return;
             const brandInput = document.getElementById('draft-brand-input');
-            if (brandInput) brandInput.value = currentTruthMatrix.company_name || 'Ordway';
-            // Pre-seed currentAuditData.triples with verified capabilities
-            if (currentTruthMatrix.verified_capabilities && currentTruthMatrix.verified_capabilities.length > 0) {
+            if (brandInput) brandInput.value = currentTruthMatrix.brand_name || currentTruthMatrix.company_name || 'Ordway';
+            const verList = currentTruthMatrix.verified_triples || currentTruthMatrix.verified_capabilities || [];
+            if (verList.length > 0) {
                 currentAuditData = currentAuditData || {};
-                currentAuditData.triples = currentTruthMatrix.verified_capabilities;
+                currentAuditData.triples = verList;
             }
             switchTab('alignment');
             const draftText = document.getElementById('draft-text-input');

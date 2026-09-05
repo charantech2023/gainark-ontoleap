@@ -474,6 +474,7 @@ class ProductTruthRequest(BaseModel):
     """
     marketing_url: str = Field(..., max_length=2048, description="Brand marketing website or landing page")
     brand_name: Optional[str] = Field(default=None, description="Brand name (optional, will auto-detect if omitted)")
+    company_name: Optional[str] = Field(default=None, description="Company name alias for brand_name")
     vertical_id: Optional[str] = Field(default=None, description="Industry vertical ID (optional)")
     tech_docs_url: Optional[str] = Field(default=None, max_length=2048, description="Public documentation, developer portal, or OpenAPI URL")
     openapi_spec: Optional[Dict[str, Any]] = Field(default=None, description="Optional raw OpenAPI / Swagger JSON specification")
