@@ -328,7 +328,7 @@ def api_info():
         "status": "online",
         "name": "GainARK OntoLeap Platform",
         "service": "GainARK OntoLeap Platform",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "features": {
             "llms_txt_manifest": True,
             "google_rich_results_validation": True,
@@ -344,7 +344,12 @@ def api_info():
             "semantic_clustering": True,
             "benchmark_csv_export": True,
             "kg_link_prediction": True,
-            "pyvis_graph_html_export": True
+            "pyvis_graph_html_export": True,
+            "google_gemini_2_5_flash_hybrid": True,
+            "google_knowledge_graph_search_api": True,
+            "multi_vertical_expansion": True,
+            "product_truth_draft_alignment_pas": True,
+            "executive_pdf_export": True
         },
         "endpoints": {
             "dashboard": "GET /dashboard",
@@ -360,6 +365,11 @@ def api_info():
             "benchmark-export-csv": "POST /api/benchmark/export-csv",
             "predict-links": "POST /api/predict-links",
             "export-graph-html": "POST /api/export-graph-html",
+            "check-draft": "POST /api/check-draft",
+            "content-brief": "POST /api/content-brief",
+            "export-pdf": "POST /api/export-pdf",
+            "verticals": "GET /api/verticals",
+            "google-kg": "POST /api/google-kg",
             "health": "GET /api/health"
         }
     }
