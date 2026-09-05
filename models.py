@@ -430,4 +430,41 @@ class GoogleKgRequest(BaseModel):
     query: str = Field(..., max_length=500, description="Brand, company, or concept to search")
 
 
+class GroundedConcept(BaseModel):
+    name: str
+    wikidata_id: Optional[str] = None
+    wikidata_url: Optional[str] = None
+    description: Optional[str] = None
+
+
+class IndustryDiscoveryRequest(BaseModel):
+    """
+    Request model for autonomous industry and vertical ontology discovery.
+    """
+    url: str = Field(..., max_length=2048, description="Target company or product website URL")
+    brand_hint: Optional[str] = Field(default=None, description="Optional brand name hint")
+
+
+class IndustryDiscoveryResponse(BaseModel):
+    """
+    Structured industry ontology profile dynamically bootstrapped from a domain.
+    """
+    url: str
+    brand_name: str
+    vertical_id: str
+    display_name: str
+    category: str
+    core_seed_concepts: List[str] = Field(default_factory=list)
+    known_compliance: List[str] = Field(default_factory=list)
+    known_integrations: List[str] = Field(default_factory=list)
+    known_pricing: List[str] = Field(default_factory=list)
+    gliner_labels: List[str] = Field(default_factory=list)
+    suggested_competitors: List[str] = Field(default_factory=list)
+    grounded_entities: List[GroundedConcept] = Field(default_factory=list)
+    config_file: Optional[str] = None
+    confidence_score: float = Field(default=0.95)
+    discovery_summary: str
+
+
+
 

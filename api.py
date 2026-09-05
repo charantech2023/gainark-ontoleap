@@ -24,6 +24,7 @@ import vertex_ai_client
 import report_pdf
 import alignment
 import google_kg_client
+import industry_profiler
 
 from pipeline import OntologyPipeline, crawl_and_build_unified_graph, validate_url_for_fetch
 from linking import (
@@ -60,7 +61,9 @@ from models import (
     ProductBriefRequest,
     ProductBriefResponse,
     ExportPdfRequest,
-    GoogleKgRequest
+    GoogleKgRequest,
+    IndustryDiscoveryRequest,
+    IndustryDiscoveryResponse
 )
 
 # ---------------------------------------------------------------------------
@@ -167,11 +170,15 @@ SUPPORTED_VERTICALS = {
 # FIX #23: Validate vertical_id and return 400 if unsupported
 def get_pipeline(vertical_id: Optional[str] = None) -> OntologyPipeline:
     target_id = vertical_id or "b2b_saas_fintech"
-    if vertical_id and vertical_id not in SUPPORTED_VERTICALS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported vertical_id '{vertical_id}'. Supported verticals: {sorted(list(SUPPORTED_VERTICALS))}"
-        )
+    if target_id not in SUPPORTED_VERTICALS:
+        # Check if dynamically discovered profile exists
+        if os.path.exists(f"verticals/{target_id}.json"):
+            SUPPORTED_VERTICALS.add(target_id)
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported vertical_id '{vertical_id}'. Supported verticals: {sorted(list(SUPPORTED_VERTICALS))}"
+            )
     if target_id not in pipeline_cache:
         config_file = f"verticals/{target_id}.json"
         if not os.path.exists(config_file):
@@ -188,7 +195,13 @@ def get_pipeline(vertical_id: Optional[str] = None) -> OntologyPipeline:
 def api_list_verticals():
     """
     Returns all registered domain ontology profiles with their display metadata.
+    Automatically discovers and includes any newly discovered profiles from verticals/.
     """
+    if os.path.exists("verticals"):
+        for fname in os.listdir("verticals"):
+            if fname.endswith(".json"):
+                SUPPORTED_VERTICALS.add(fname[:-5])
+
     profiles = []
     for vid in sorted(list(SUPPORTED_VERTICALS)):
         cfg_file = f"verticals/{vid}.json"
@@ -349,7 +362,8 @@ def api_info():
             "google_knowledge_graph_search_api": True,
             "multi_vertical_expansion": True,
             "product_truth_draft_alignment_pas": True,
-            "executive_pdf_export": True
+            "executive_pdf_export": True,
+            "autonomous_industry_discovery": True
         },
         "endpoints": {
             "dashboard": "GET /dashboard",
@@ -370,6 +384,7 @@ def api_info():
             "export-pdf": "POST /api/export-pdf",
             "verticals": "GET /api/verticals",
             "google-kg": "POST /api/google-kg",
+            "discover-industry": "POST /api/discover-industry",
             "health": "GET /api/health"
         }
     }
@@ -972,6 +987,36 @@ def api_google_kg_search_get(query: str = Query(..., description="Brand or compa
     if not res:
         raise HTTPException(status_code=500, detail="Google Knowledge Graph search failed or unconfigured.")
     return res
+
+
+@app.post(
+    "/api/discover-industry",
+    response_model=IndustryDiscoveryResponse,
+    summary="Zero-Shot Autonomous Industry & Vertical Discovery",
+    tags=["Industry Ontology"]
+)
+async def api_discover_industry(req: IndustryDiscoveryRequest):
+    """
+    Autonomously bootstraps an Industry Ontology profile for any B2B SaaS domain.
+    1. Crawls homepage title, headings, and metadata
+    2. Synthesizes vertical taxonomy, seed concepts, compliance standards, integrations, and competitors
+    3. Grounds concepts against canonical Wikidata Q-IDs
+    4. Automatically saves and registers the vertical profile into the live pipeline
+    """
+    validate_url_for_fetch(req.url)
+    try:
+        res = await industry_profiler.discover_industry_profile_async(
+            url=req.url,
+            brand_hint=req.brand_hint,
+            save_config=True
+        )
+        # Register new vertical in live memory
+        SUPPORTED_VERTICALS.add(res.vertical_id)
+        return res
+    except Exception as e:
+        logger.exception("Failed to discover industry for %s: %s", req.url, e)
+        raise HTTPException(status_code=500, detail=f"Industry discovery failed: {str(e)}")
+
 
 
 if __name__ == "__main__":

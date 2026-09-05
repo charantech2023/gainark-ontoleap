@@ -29,7 +29,13 @@ def is_available() -> bool:
     return bool(GEMINI_API_KEY)
 
 
-def _call_gemini(prompt: str, system_instruction: Optional[str] = None, temperature: float = 0.2) -> Optional[str]:
+def _call_gemini(
+    prompt: str,
+    system_instruction: Optional[str] = None,
+    temperature: float = 0.2,
+    max_output_tokens: int = 4096,
+    thinking_budget: int = 256
+) -> Optional[str]:
     """Call Gemini 2.5 Flash via REST API with timeout and error handling."""
     if not GEMINI_API_KEY:
         logger.warning("Gemini API key is not configured.")
@@ -38,12 +44,16 @@ def _call_gemini(prompt: str, system_instruction: Optional[str] = None, temperat
     url = f"{BASE_URL}/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
     headers = {"Content-Type": "application/json"}
 
+    gen_config: Dict[str, Any] = {
+        "temperature": temperature,
+        "maxOutputTokens": max_output_tokens,
+    }
+    if thinking_budget is not None:
+        gen_config["thinkingConfig"] = {"thinkingBudget": thinking_budget}
+
     payload: Dict[str, Any] = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": temperature,
-            "maxOutputTokens": 1024,
-        }
+        "generationConfig": gen_config
     }
 
     if system_instruction:

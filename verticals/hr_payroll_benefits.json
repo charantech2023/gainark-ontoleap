@@ -1,0 +1,59 @@
+{
+  "vertical_id": "hr_payroll_benefits",
+  "display_name": "HR, Payroll & Benefits Management",
+  "gliner_labels": [
+    "Payroll Software",
+    "Benefits Administration",
+    "HR Management System",
+    "Compliance Standard",
+    "Employee Self-Service",
+    "Tax Filing"
+  ],
+  "mandatory_schema_types": [
+    "SoftwareApplication",
+    "Organization",
+    "Offer"
+  ],
+  "core_seed_concepts": [
+    "Payroll processing",
+    "Direct deposit",
+    "Tax calculation and filing",
+    "Health insurance benefits",
+    "Retirement plans (401k)",
+    "Time tracking",
+    "PTO management",
+    "Onboarding workflows",
+    "HR reporting and analytics",
+    "Worker's compensation",
+    "Employee self-service portal",
+    "Compliance management"
+  ],
+  "known_integrations": [
+    "QuickBooks",
+    "Xero",
+    "FreshBooks",
+    "Stripe",
+    "Zoom",
+    "Slack",
+    "Google Workspace",
+    "Microsoft 365",
+    "Applicant Tracking Systems (ATS)",
+    "Learning Management Systems (LMS)",
+    "Performance Management Software"
+  ],
+  "known_compliance": [
+    "IRS regulations",
+    "FLSA",
+    "ACA",
+    "ERISA",
+    "State labor laws",
+    "HIPAA",
+    "SOC 2"
+  ],
+  "known_pricing": [
+    "Per-Employee Per-Month",
+    "Tiered Plans",
+    "Base Fee + Per-Employee",
+    "Custom Enterprise Pricing"
+  ]
+}
