@@ -116,21 +116,32 @@
     </header>
 
     <!-- Navigation Tabs -->
-    <div class="bg-white border-b border-slate-200">
+    <div class="bg-white border-b border-slate-200 sticky top-16 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-6 sm:space-x-8 overflow-x-auto">
-            <button id="tab-audit-btn" onclick="switchTab('audit')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors tab-active whitespace-nowrap">
-                Single Site Audit
+            <button id="tab-truth-btn" onclick="switchTab('truth')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors tab-active flex items-center gap-1.5 whitespace-nowrap">
+                <span>⚖️ Product Truth Matrix</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 uppercase">Dual Ingest</span>
             </button>
-            <button id="tab-bench-btn" onclick="switchTab('bench')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors whitespace-nowrap">
-                Competitor Benchmark
+            <button id="tab-battlecards-btn" onclick="switchTab('battlecards')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors flex items-center gap-1.5 whitespace-nowrap">
+                <span>⚔️ Tri-Ontology Battlecards</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 uppercase">Grounded AI</span>
             </button>
-            <button id="tab-linking-btn" onclick="switchTab('linking')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors flex items-center gap-1.5 whitespace-nowrap">
-                <span>🕸️ Site Graph &amp; Internal Linking</span>
-                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 uppercase">New</span>
+            <button id="tab-industry-btn" onclick="switchTab('industry')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors flex items-center gap-1.5 whitespace-nowrap">
+                <span>🌐 Industry Profiler</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 uppercase">Zero-Shot</span>
             </button>
             <button id="tab-alignment-btn" onclick="switchTab('alignment')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors flex items-center gap-1.5 whitespace-nowrap">
-                <span>🎯 Product Truth &amp; Draft Alignment</span>
-                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 uppercase">Gemini AI</span>
+                <span>📝 Pre-Publish Linter (PAS)</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 uppercase">Fluff Radar</span>
+            </button>
+            <button id="tab-audit-btn" onclick="switchTab('audit')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors whitespace-nowrap">
+                🔍 Single Site Audit
+            </button>
+            <button id="tab-bench-btn" onclick="switchTab('bench')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors whitespace-nowrap">
+                📊 Competitor Benchmark
+            </button>
+            <button id="tab-linking-btn" onclick="switchTab('linking')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors flex items-center gap-1.5 whitespace-nowrap">
+                <span>🕸️ Site Graph &amp; Linking</span>
             </button>
         </div>
     </div>
@@ -141,7 +152,563 @@
         <!-- ============================================================= -->
         <!-- TAB 1: SINGLE SITE AUDIT -->
         <!-- ============================================================= -->
-        <section id="view-audit" class="space-y-8">
+        
+        <!-- ============================================================= -->
+        <!-- TAB: PRODUCT TRUTH MATRIX (DUAL INGESTION & MGI) -->
+        <!-- ============================================================= -->
+        <section id="view-truth" class="space-y-8">
+            <!-- Header Banner -->
+            <div class="bg-gradient-to-r from-slate-900 via-sky-950 to-brand-900 rounded-2xl p-6 text-white shadow-md">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-sky-500/20 text-sky-200 border border-sky-400/30">
+                                Dual Ingestion Engine · Grounded Product Truth
+                            </span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                                Step 2 Complete
+                            </span>
+                        </div>
+                        <h2 class="text-xl font-extrabold mt-2">Marketing Claims vs. Technical Reality</h2>
+                        <p class="text-xs text-slate-300 mt-1 max-w-2xl">
+                            Cross-examine public marketing claims against live OpenAPI / Swagger specs and technical documentation. Computes the Marketing Grounding Index (MGI), catches product drift, and uncovers unmarketed capabilities.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="loadSampleTruthAudit()" class="px-3.5 py-2 text-xs font-bold text-sky-900 bg-white hover:bg-sky-50 rounded-xl shadow-sm transition">
+                            ⚡ Quick Test: Ordway + OpenAPI
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ingestion Form Card -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+                <div class="border-b border-slate-100 pb-4">
+                    <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <span>⚖️ Dual Ingestion Configuration</span>
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        Specify the marketing domain to crawl and pair it with an OpenAPI/Swagger JSON specification or docs URL.
+                    </p>
+                </div>
+
+                <form id="truth-audit-form" onsubmit="handleProductTruthAudit(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="truth-brand-name" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                                Company / Brand Name
+                            </label>
+                            <input type="text" id="truth-brand-name" value="Ordway" required placeholder="e.g. Ordway"
+                                class="block w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 focus:bg-white text-slate-900 transition">
+                        </div>
+                        <div>
+                            <label for="truth-marketing-url" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                                Marketing Website URL
+                            </label>
+                            <input type="url" id="truth-marketing-url" value="https://www.ordwaylabs.com" required placeholder="https://brand.com"
+                                class="block w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 focus:bg-white text-slate-900 transition">
+                        </div>
+                        <div>
+                            <label for="truth-docs-url" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                                Tech Docs URL <span class="text-slate-400 font-normal">(Optional)</span>
+                            </label>
+                            <input type="url" id="truth-docs-url" placeholder="https://docs.brand.com"
+                                class="block w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 focus:bg-white text-slate-900 transition">
+                        </div>
+                    </div>
+
+                    <!-- OpenAPI Spec Box -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label for="truth-spec-json" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                Technical Truth Surface: OpenAPI / Swagger Specification (JSON)
+                            </label>
+                            <div class="flex items-center gap-2">
+                                <label class="cursor-pointer text-[11px] font-semibold text-brand-600 hover:text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
+                                    📁 Upload .json
+                                    <input type="file" id="truth-spec-file" accept=".json" class="hidden" onchange="handleSpecFileUpload(event)">
+                                </label>
+                                <button type="button" onclick="loadSampleOpenApi()" class="text-[11px] font-semibold text-slate-600 hover:text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                    Load Sample OpenAPI Spec
+                                </button>
+                                <button type="button" onclick="clearOpenApiSpec()" class="text-[11px] text-rose-600 hover:text-rose-700">
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                        <textarea id="truth-spec-json" rows="6" placeholder="Paste OpenAPI 3.x or Swagger 2.0 JSON specification here..."
+                            class="block w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-brand-500 focus:bg-white text-slate-900 transition"></textarea>
+                        <p class="text-[11px] text-slate-500 mt-1">
+                            Parses endpoints, tags, operation descriptions, and security schemes into canonical truth triples with source provenance.
+                        </p>
+                    </div>
+
+                    <button type="submit" id="truth-submit-btn"
+                        class="w-full inline-flex items-center justify-center px-5 py-3 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-md shadow-brand-500/20 transition disabled:opacity-50 gap-2">
+                        <span id="truth-btn-icon">⚖️</span>
+                        <span id="truth-btn-text">Execute Dual Ingestion &amp; Compute Product Truth Matrix</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Results Container -->
+            <div id="truth-results-container" class="hidden space-y-6">
+                
+                <!-- KPI Dashboard Row -->
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <!-- MGI Meter Card -->
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between col-span-1 md:col-span-2">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Marketing Grounding Index (MGI)</span>
+                                <span id="truth-mgi-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                                    Verified
+                                </span>
+                            </div>
+                            <div class="flex items-baseline gap-2 mt-3">
+                                <span id="truth-mgi-score" class="text-4xl font-extrabold text-slate-900">--%</span>
+                                <span class="text-xs text-slate-500">grounded claims</span>
+                            </div>
+                            <!-- Progress Bar -->
+                            <div class="w-full bg-slate-100 rounded-full h-3 mt-3 overflow-hidden">
+                                <div id="truth-mgi-bar" class="h-3 rounded-full bg-emerald-500 transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <p id="truth-mgi-verdict" class="text-xs text-slate-600 mt-3 italic">
+                            Awaiting analysis...
+                        </p>
+                    </div>
+
+                    <!-- Metric 1: Verified in Code -->
+                    <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col justify-between">
+                        <div class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">🟢 Verified Truth</div>
+                        <div class="text-3xl font-extrabold text-slate-900 mt-2" id="truth-verified-count">0</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Backed by API / code</div>
+                    </div>
+
+                    <!-- Metric 2: Unbacked Claims -->
+                    <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col justify-between">
+                        <div class="text-[11px] font-bold text-rose-700 uppercase tracking-wider">🔴 Marketing Drift</div>
+                        <div class="text-3xl font-extrabold text-slate-900 mt-2" id="truth-unbacked-count">0</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Unbacked marketing claims</div>
+                    </div>
+
+                    <!-- Metric 3: Unmarketed Gold -->
+                    <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col justify-between">
+                        <div class="text-[11px] font-bold text-sky-700 uppercase tracking-wider">🔵 Engineering Gold</div>
+                        <div class="text-3xl font-extrabold text-slate-900 mt-2" id="truth-hidden-count">0</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Unmarketed capabilities</div>
+                    </div>
+                </div>
+
+                <!-- Governance & Drift Alerts Card -->
+                <div id="truth-alerts-card" class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-3">
+                    <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <span>🚨 Executive Governance &amp; Drift Alerts</span>
+                    </h4>
+                    <div id="truth-alerts-list" class="space-y-2">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- 3-Column Differential Matrix -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    <!-- Column 1: Verified Capabilities -->
+                    <div class="bg-white rounded-2xl p-5 border border-emerald-200 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between border-b border-emerald-100 pb-2.5">
+                            <h4 class="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                                <span>🟢 Verified Capabilities</span>
+                            </h4>
+                            <span id="col-verified-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800">0</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500">
+                            Promoted on marketing website and verified in production OpenAPI / Swagger specs.
+                        </p>
+                        <div id="truth-col-verified" class="space-y-2 text-xs max-h-96 overflow-y-auto pr-1">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Unbacked Marketing Claims -->
+                    <div class="bg-white rounded-2xl p-5 border border-rose-200 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between border-b border-rose-100 pb-2.5">
+                            <h4 class="text-xs font-bold text-rose-900 uppercase tracking-wider flex items-center gap-1.5">
+                                <span>🔴 Unbacked Claims (Drift Risk)</span>
+                            </h4>
+                            <span id="col-unbacked-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-800">0</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500">
+                            Advertised to buyers on the website with zero matching API endpoints or docs backing.
+                        </p>
+                        <div id="truth-col-unbacked" class="space-y-2 text-xs max-h-96 overflow-y-auto pr-1">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Column 3: Unmarketed Capabilities -->
+                    <div class="bg-white rounded-2xl p-5 border border-sky-200 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between border-b border-sky-100 pb-2.5">
+                            <h4 class="text-xs font-bold text-sky-900 uppercase tracking-wider flex items-center gap-1.5">
+                                <span>🔵 Unmarketed Engineering Gold</span>
+                            </h4>
+                            <span id="col-hidden-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-800">0</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500">
+                            Real endpoints live in production that marketing copy completely ignores.
+                        </p>
+                        <div id="truth-col-hidden" class="space-y-2 text-xs max-h-96 overflow-y-auto pr-1">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Action Bridge Bar -->
+                <div class="bg-slate-900 rounded-2xl p-5 text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
+                    <div>
+                        <div class="text-xs font-bold text-sky-400 uppercase tracking-wider">Next-Step Workflows</div>
+                        <div class="text-sm font-semibold mt-0.5">Use this Product Truth Graph across Marketing Operations</div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <button type="button" onclick="sendTruthToBattlecards()"
+                            class="px-4 py-2 text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl transition shadow-sm flex items-center gap-1.5">
+                            <span>⚔️ Cross-Examine with Competitors</span>
+                        </button>
+                        <button type="button" onclick="sendTruthToLinter()"
+                            class="px-4 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition shadow-sm flex items-center gap-1.5">
+                            <span>📝 Pre-Publish Lint Drafts</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+
+        <!-- ============================================================= -->
+        <!-- TAB: TRI-ONTOLOGY COMPETITIVE BATTLECARDS -->
+        <!-- ============================================================= -->
+        <section id="view-battlecards" class="hidden space-y-8">
+            <!-- Header Banner -->
+            <div class="bg-gradient-to-r from-amber-950 via-slate-900 to-indigo-950 rounded-2xl p-6 text-white shadow-md">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-amber-500/20 text-amber-200 border border-amber-400/30">
+                                Tri-Ontology Differential Alignment · Gemini 2.5 Flash
+                            </span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                                Step 3 Complete
+                            </span>
+                        </div>
+                        <h2 class="text-xl font-extrabold mt-2">Tri-Ontology Competitive Battlecard Engine</h2>
+                        <p class="text-xs text-slate-300 mt-1 max-w-2xl">
+                            Triangulates Company Truth, Competitor Truth, and the Industry Ontology. Identifies genuine Company Advantages, exposes Competitor Fluff vulnerabilities, and generates sales counter-positioning angles.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="loadSampleBattlecards()" class="px-3.5 py-2 text-xs font-bold text-amber-950 bg-white hover:bg-amber-50 rounded-xl shadow-sm transition">
+                            ⚡ Quick Test: Ordway vs. Chargebee
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alignment Configuration Form -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+                <div class="border-b border-slate-100 pb-4">
+                    <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <span>⚔️ Competitor Alignment Setup</span>
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        Compare your company's product truth against one or more competitor marketing sites.
+                    </p>
+                </div>
+
+                <form id="battlecards-form" onsubmit="handleTriOntologyAlign(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Company Box -->
+                        <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <div class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                <span>🏢 Your Company (Subject)</span>
+                            </div>
+                            <div>
+                                <label for="battle-company-name" class="block text-[11px] font-semibold text-slate-600 mb-1">Company Name</label>
+                                <input type="text" id="battle-company-name" value="Ordway" required
+                                    class="block w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-amber-500 text-slate-900">
+                            </div>
+                            <div>
+                                <label for="battle-company-url" class="block text-[11px] font-semibold text-slate-600 mb-1">Marketing Website URL</label>
+                                <input type="url" id="battle-company-url" value="https://www.ordwaylabs.com" required
+                                    class="block w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-amber-500 text-slate-900">
+                            </div>
+                            <div>
+                                <label for="battle-company-spec" class="block text-[11px] font-semibold text-slate-600 mb-1">Technical OpenAPI Spec (Optional)</label>
+                                <textarea id="battle-company-spec" rows="3" placeholder="Pasted OpenAPI JSON spec or leave empty to use current Product Truth..."
+                                    class="block w-full p-2 bg-white border border-slate-300 rounded-lg text-[11px] font-mono focus:ring-2 focus:ring-amber-500 text-slate-900"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Competitor Box -->
+                        <div class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <div class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                <span>🥊 Competitor Targets</span>
+                            </div>
+                            <div>
+                                <label for="battle-comp-urls" class="block text-[11px] font-semibold text-slate-600 mb-1">
+                                    Competitor Marketing URL(s) <span class="text-slate-400 font-normal">(One per line)</span>
+                                </label>
+                                <textarea id="battle-comp-urls" rows="6" required placeholder="https://www.chargebee.com&#10;https://www.maxio.com"
+                                    class="block w-full p-2.5 bg-white border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-amber-500 text-slate-900">https://www.chargebee.com</textarea>
+                            </div>
+                            <p class="text-[11px] text-slate-500">
+                                The engine crawls competitor homepages and automatically deep-crawls key feature and pricing pages to extract claims.
+                            </p>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="battle-submit-btn"
+                        class="w-full inline-flex items-center justify-center px-5 py-3 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl shadow-md shadow-amber-500/20 transition disabled:opacity-50 gap-2">
+                        <span id="battle-btn-icon">⚡</span>
+                        <span id="battle-btn-text">Align Tri-Ontologies &amp; Synthesize Grounded Battlecards</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Results Container -->
+            <div id="battle-results-container" class="hidden space-y-6">
+                
+                <!-- Executive Summary Box -->
+                <div class="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-6 text-white shadow-md border border-slate-700 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-amber-400">Grounded Differential Summary</span>
+                        <span id="battle-industry-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-white/10 text-white border border-white/20">
+                            B2B SaaS
+                        </span>
+                    </div>
+                    <p id="battle-exec-summary" class="text-sm text-slate-200 leading-relaxed">
+                        Analyzing competitive positioning...
+                    </p>
+                </div>
+
+                <!-- Differential Stats Strip -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-white rounded-2xl p-4 border border-emerald-200 shadow-sm">
+                        <div class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">🏆 Company Advantages</div>
+                        <div class="text-3xl font-extrabold text-slate-900 mt-2" id="battle-adv-count">0</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Grounded vectors to exploit</div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-4 border border-rose-200 shadow-sm">
+                        <div class="text-[11px] font-bold text-rose-700 uppercase tracking-wider">🎯 Competitor Fluff</div>
+                        <div class="text-3xl font-extrabold text-slate-900 mt-2" id="battle-vuln-count">0</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Unbacked competitor claims</div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+                        <div class="text-[11px] font-bold text-slate-600 uppercase tracking-wider">⚖️ Industry Table Stakes</div>
+                        <div class="text-3xl font-extrabold text-slate-900 mt-2" id="battle-stakes-count">0</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Shared baseline requirements</div>
+                    </div>
+                    <div class="bg-white rounded-2xl p-4 border border-amber-200 shadow-sm flex flex-col justify-between">
+                        <div class="text-[11px] font-bold text-amber-800 uppercase tracking-wider">📋 Battlecard Briefs</div>
+                        <div class="text-3xl font-extrabold text-slate-900 mt-2" id="battle-briefs-count">0</div>
+                        <button type="button" onclick="copyBattlecardsToClipboard()" class="text-[11px] font-semibold text-amber-700 hover:text-amber-900 mt-1">
+                            📋 Copy Briefs to Clipboard &rarr;
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter Controls -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Filter:</span>
+                        <button type="button" onclick="filterBattlecards('all')" id="btn-filter-all"
+                            class="px-3 py-1 rounded-lg text-xs font-bold bg-slate-900 text-white">All</button>
+                        <button type="button" onclick="filterBattlecards('advantage')" id="btn-filter-adv"
+                            class="px-3 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">Company Advantages</button>
+                        <button type="button" onclick="filterBattlecards('vulnerability')" id="btn-filter-vuln"
+                            class="px-3 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">Competitor Fluff</button>
+                        <button type="button" onclick="filterBattlecards('tablestakes')" id="btn-filter-stakes"
+                            class="px-3 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">Table Stakes</button>
+                    </div>
+                </div>
+
+                <!-- Battlecard Deck (Dynamic Cards) -->
+                <div id="battle-cards-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Populated dynamically -->
+                </div>
+
+            </div>
+        </section>
+
+
+        <!-- ============================================================= -->
+        <!-- TAB: AUTONOMOUS INDUSTRY PROFILER -->
+        <!-- ============================================================= -->
+        <section id="view-industry" class="hidden space-y-8">
+            <!-- Header Banner -->
+            <div class="bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 rounded-2xl p-6 text-white shadow-md">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-emerald-500/20 text-emerald-200 border border-emerald-400/30">
+                                Zero-Shot Discovery · Wikidata Entity Grounded
+                            </span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                                Step 1 Complete
+                            </span>
+                        </div>
+                        <h2 class="text-xl font-extrabold mt-2">Autonomous Industry Profiler &amp; Taxonomy Discovery</h2>
+                        <p class="text-xs text-slate-300 mt-1 max-w-2xl">
+                            Bootstrap a full Industry Ontology baseline for any domain. Crawls the target homepage, synthesizes compliance standards, integration partners, seed concepts, and direct competitors, and auto-registers the profile dynamically.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Discovery Form Card -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+                <div class="border-b border-slate-100 pb-4">
+                    <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <span>🌐 Zero-Shot Industry Discovery</span>
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        Enter any B2B website URL to discover its category taxonomy and industry baseline.
+                    </p>
+                </div>
+
+                <!-- Quick Samples -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-semibold text-slate-500">Quick Test:</span>
+                    <button type="button" onclick="loadIndustrySample('https://snyk.io', 'Snyk')"
+                        class="text-xs px-2.5 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded-lg font-medium hover:bg-sky-100 transition">
+                        🛡️ Snyk (Cybersecurity / DevSecOps)
+                    </button>
+                    <button type="button" onclick="loadIndustrySample('https://gusto.com', 'Gusto')"
+                        class="text-xs px-2.5 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg font-medium hover:bg-purple-100 transition">
+                        👥 Gusto (HR &amp; Payroll)
+                    </button>
+                    <button type="button" onclick="loadIndustrySample('https://www.ordwaylabs.com', 'Ordway')"
+                        class="text-xs px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg font-medium hover:bg-emerald-100 transition">
+                        💳 Ordway (Billing &amp; RevRec)
+                    </button>
+                </div>
+
+                <form id="industry-discovery-form" onsubmit="handleIndustryDiscovery(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="ind-url-input" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                                Target Website URL
+                            </label>
+                            <input type="url" id="ind-url-input" value="https://snyk.io" required placeholder="https://domain.com"
+                                class="block w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:bg-white text-slate-900 transition">
+                        </div>
+                        <div>
+                            <label for="ind-brand-input" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                                Brand Name Hint <span class="text-slate-400 font-normal">(Optional)</span>
+                            </label>
+                            <input type="text" id="ind-brand-input" value="Snyk" placeholder="e.g. Snyk"
+                                class="block w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:bg-white text-slate-900 transition">
+                        </div>
+                    </div>
+
+                    <button type="submit" id="ind-submit-btn"
+                        class="w-full inline-flex items-center justify-center px-5 py-3 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md shadow-emerald-500/20 transition disabled:opacity-50 gap-2">
+                        <span id="ind-btn-icon">🌐</span>
+                        <span id="ind-btn-text">Discover Industry Ontology Baseline</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Results Container -->
+            <div id="ind-results-container" class="hidden space-y-6">
+                
+                <!-- Category Banner -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span id="ind-id-badge" class="px-2.5 py-0.5 rounded text-xs font-mono font-bold bg-slate-100 text-slate-800">
+                                vertical_id
+                            </span>
+                            <span id="ind-cat-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                                Category Name
+                            </span>
+                        </div>
+                        <h3 id="ind-display-name" class="text-xl font-extrabold text-slate-900 mt-2">Display Name</h3>
+                        <p id="ind-description" class="text-xs text-slate-600 mt-1 max-w-3xl">
+                            Description of vertical scope...
+                        </p>
+                    </div>
+                    <button type="button" id="ind-apply-btn" onclick="applyDiscoveredVertical()"
+                        class="px-4 py-2.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-sm transition whitespace-nowrap">
+                        ✅ Set as Active System Vertical
+                    </button>
+                </div>
+
+                <!-- 4 Pillars Knowledge Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Pillar 1: Compliance Standards -->
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                                <span>🔒 Compliance &amp; Regulatory Frameworks</span>
+                            </h4>
+                            <span id="ind-compliance-count" class="text-xs font-bold text-slate-500">0</span>
+                        </div>
+                        <div id="ind-compliance-tags" class="flex flex-wrap gap-1.5 pt-1">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Pillar 2: Ecosystem Integrations -->
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                                <span>🔌 Ecosystem Integrations</span>
+                            </h4>
+                            <span id="ind-integrations-count" class="text-xs font-bold text-slate-500">0</span>
+                        </div>
+                        <div id="ind-integrations-tags" class="flex flex-wrap gap-1.5 pt-1">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Pillar 3: Seed Concepts -->
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                                <span>📚 Core Taxonomy Seed Concepts</span>
+                            </h4>
+                            <span id="ind-concepts-count" class="text-xs font-bold text-slate-500">0</span>
+                        </div>
+                        <div id="ind-concepts-tags" class="flex flex-wrap gap-1.5 pt-1">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Pillar 4: Direct Competitors -->
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                                <span>🏢 Identified Direct Competitors</span>
+                            </h4>
+                            <span id="ind-competitors-count" class="text-xs font-bold text-slate-500">0</span>
+                        </div>
+                        <div id="ind-competitors-tags" class="flex flex-wrap gap-1.5 pt-1">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+
+        <!-- ============================================================= -->
+        <!-- TAB: SINGLE SITE AUDIT (ORIGINAL) -->
+        <!-- ============================================================= -->
+        <section id="view-audit" class="hidden space-y-8">
             
             <!-- Search & Filter Card -->
             <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
@@ -1769,38 +2336,690 @@ SELECT ?capability ?evidence WHERE {
             }
         });
 
-        function switchTab(tab) {
-            const auditTabBtn = document.getElementById('tab-audit-btn');
-            const benchTabBtn = document.getElementById('tab-bench-btn');
-            const linkingTabBtn = document.getElementById('tab-linking-btn');
-            const alignmentTabBtn = document.getElementById('tab-alignment-btn');
-            const auditView = document.getElementById('view-audit');
-            const benchView = document.getElementById('view-bench');
-            const linkingView = document.getElementById('view-linking');
-            const alignmentView = document.getElementById('view-alignment');
 
-            [auditTabBtn, benchTabBtn, linkingTabBtn, alignmentTabBtn].forEach(b => b && b.classList.remove('tab-active'));
-            [auditView, benchView, linkingView, alignmentView].forEach(v => v && v.classList.add('hidden'));
+        /* ============================================================= */
+        /* STEP 4: TRI-ONTOLOGY MARKETING GOVERNANCE ENGINE JAVASCRIPT   */
+        /* ============================================================= */
+        
+        let currentTruthMatrix = null;
+        let currentBattlecardData = null;
+        let currentDiscoveredVertical = null;
+        let currentBattleFilter = 'all';
 
-            if (tab === 'audit') {
-                auditTabBtn && auditTabBtn.classList.add('tab-active');
-                auditView && auditView.classList.remove('hidden');
-            } else if (tab === 'bench') {
-                benchTabBtn && benchTabBtn.classList.add('tab-active');
-                benchView && benchView.classList.remove('hidden');
-            } else if (tab === 'linking') {
-                linkingTabBtn && linkingTabBtn.classList.add('tab-active');
-                linkingView && linkingView.classList.remove('hidden');
-                if (currentLinkingData && currentLinkingData.cluster_topology) {
-                    setTimeout(() => {
-                        initClusterGraph(currentLinkingData.cluster_topology);
-                    }, 50);
-                }
-            } else if (tab === 'alignment') {
-                alignmentTabBtn && alignmentTabBtn.classList.add('tab-active');
-                alignmentView && alignmentView.classList.remove('hidden');
+        const SAMPLE_ORDWAY_OPENAPI = {
+          "openapi": "3.0.0",
+          "info": {
+            "title": "Ordway Labs Billing & Invoicing API",
+            "version": "v1.4",
+            "description": "Enterprise Billing and Revenue Recognition API"
+          },
+          "components": {
+            "securitySchemes": {
+              "oauth2": { "type": "oauth2" },
+              "apiKey": { "type": "apiKey", "name": "X-API-KEY", "in": "header" }
+            }
+          },
+          "paths": {
+            "/v1/invoices": {
+              "post": { "summary": "Create automated invoice and recurring billing schedule", "tags": ["invoicing"] }
+            },
+            "/v1/revenue_schedules": {
+              "post": { "summary": "Automates Revenue Recognition compliant with ASC 606 and IFRS 15", "tags": ["revrec"] }
+            },
+            "/v1/integrations/netsuite": {
+              "post": { "summary": "Bi-directional synchronization with Oracle NetSuite ERP", "tags": ["integrations"] }
+            },
+            "/v1/integrations/salesforce": {
+              "post": { "summary": "Sync accounts, opportunities and contracts from Salesforce CRM", "tags": ["integrations"] }
+            },
+            "/v1/usage_charges": {
+              "post": { "summary": "Ingest real-time usage metrics for Usage-Based Pricing models", "tags": ["billing"] }
+            },
+            "/v1/plans": {
+              "get": { "summary": "List multi-currency subscription and pricing tiers", "tags": ["plans"] }
+            },
+            "/v1/payments/stripe": {
+              "post": { "summary": "Process payment gateway transactions via Stripe", "tags": ["payments"] }
+            }
+          }
+        };
+
+        async function loadVerticalsDropdown() {
+            try {
+                const res = await fetch('/api/verticals');
+                if (!res.ok) return;
+                const data = await res.json();
+                const sel = document.getElementById('vertical-select');
+                if (!sel || !data.verticals) return;
+                const currentVal = sel.value;
+                sel.innerHTML = '';
+                data.verticals.forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v.vertical_id;
+                    opt.innerText = v.display_name || v.vertical_id;
+                    if (v.vertical_id === currentVal) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+            } catch (err) {
+                console.warn('Could not refresh verticals dropdown:', err);
             }
         }
+
+        const ALL_DASHBOARD_TABS = ['truth', 'battlecards', 'industry', 'alignment', 'audit', 'bench', 'linking'];
+
+        function switchTab(tab) {
+            ALL_DASHBOARD_TABS.forEach(t => {
+                const btn = document.getElementById(`tab-${t}-btn`);
+                const view = document.getElementById(`view-${t}`);
+                if (btn) btn.classList.remove('tab-active');
+                if (view) view.classList.add('hidden');
+            });
+            const activeBtn = document.getElementById(`tab-${tab}-btn`);
+            const activeView = document.getElementById(`view-${tab}`);
+            if (activeBtn) activeBtn.classList.add('tab-active');
+            if (activeView) activeView.classList.remove('hidden');
+
+            if (tab === 'linking' && currentLinkingData && currentLinkingData.cluster_topology) {
+                setTimeout(() => {
+                    if (typeof initClusterGraph === 'function') {
+                        initClusterGraph(currentLinkingData.cluster_topology);
+                    }
+                }, 50);
+            }
+        }
+
+        /* ------------------------------------------------------------- */
+        /* TAB 1: PRODUCT TRUTH MATRIX FUNCTIONS                         */
+        /* ------------------------------------------------------------- */
+        function loadSampleOpenApi() {
+            const specEl = document.getElementById('truth-spec-json');
+            if (specEl) {
+                specEl.value = JSON.stringify(SAMPLE_ORDWAY_OPENAPI, null, 2);
+            }
+        }
+
+        function clearOpenApiSpec() {
+            const specEl = document.getElementById('truth-spec-json');
+            if (specEl) specEl.value = '';
+        }
+
+        function handleSpecFileUpload(e) {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const specEl = document.getElementById('truth-spec-json');
+                if (specEl) specEl.value = evt.target.result;
+            };
+            reader.readAsText(file);
+        }
+
+        function loadSampleTruthAudit() {
+            const brand = document.getElementById('truth-brand-name');
+            const mktUrl = document.getElementById('truth-marketing-url');
+            if (brand) brand.value = 'Ordway';
+            if (mktUrl) mktUrl.value = 'https://www.ordwaylabs.com';
+            loadSampleOpenApi();
+        }
+
+        async function handleProductTruthAudit(e) {
+            e.preventDefault();
+            const brand = document.getElementById('truth-brand-name').value.trim();
+            const mktUrl = document.getElementById('truth-marketing-url').value.trim();
+            const docsUrl = document.getElementById('truth-docs-url').value.trim() || null;
+            const specText = document.getElementById('truth-spec-json').value.trim();
+            const submitBtn = document.getElementById('truth-submit-btn');
+            const btnText = document.getElementById('truth-btn-text');
+            const btnIcon = document.getElementById('truth-btn-icon');
+            const resultsBox = document.getElementById('truth-results-container');
+            const selectedVertical = document.getElementById('vertical-select') ? document.getElementById('vertical-select').value : 'b2b_saas_fintech';
+
+            let openapiSpec = null;
+            if (specText) {
+                try {
+                    openapiSpec = JSON.parse(specText);
+                } catch (err) {
+                    alert("Invalid JSON in OpenAPI Specification: " + err.message);
+                    return;
+                }
+            }
+
+            submitBtn.disabled = true;
+            btnText.innerText = 'Crawling Marketing & Cross-Examining OpenAPI Spec...';
+            btnIcon.innerText = '⏳';
+
+            try {
+                const payload = {
+                    company_name: brand,
+                    marketing_url: mktUrl,
+                    tech_docs_url: docsUrl,
+                    openapi_spec: openapiSpec,
+                    vertical_id: selectedVertical
+                };
+
+                const res = await fetch('/api/product-truth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) {
+                    const errMsg = await getApiErrorMessage(res, 'Product Truth audit failed');
+                    throw new Error(errMsg);
+                }
+
+                const data = await res.json();
+                currentTruthMatrix = data;
+                resultsBox.classList.remove('hidden');
+
+                // Render MGI Score
+                const mgi = data.marketing_grounding_index;
+                document.getElementById('truth-mgi-score').innerText = `${mgi.toFixed(1)}%`;
+                const bar = document.getElementById('truth-mgi-bar');
+                bar.style.width = `${Math.min(100, Math.max(0, mgi))}%`;
+
+                const badge = document.getElementById('truth-mgi-badge');
+                if (mgi >= 80) {
+                    badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800';
+                    badge.innerText = 'High Grounding';
+                    bar.className = 'h-3 rounded-full bg-emerald-500 transition-all duration-500';
+                } else if (mgi >= 50) {
+                    badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800';
+                    badge.innerText = 'Moderate Drift';
+                    bar.className = 'h-3 rounded-full bg-amber-500 transition-all duration-500';
+                } else {
+                    badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800';
+                    badge.innerText = 'Severe Drift';
+                    bar.className = 'h-3 rounded-full bg-rose-500 transition-all duration-500';
+                }
+
+                document.getElementById('truth-mgi-verdict').innerText = 
+                    `${data.verified_capabilities_count} of ${data.total_marketing_claims} marketing claims verified in code. ${data.unbacked_marketing_claims_count} unbacked drift claims flagged.`;
+
+                // Counts
+                document.getElementById('truth-verified-count').innerText = data.verified_capabilities_count;
+                document.getElementById('truth-unbacked-count').innerText = data.unbacked_marketing_claims_count;
+                document.getElementById('truth-hidden-count').innerText = data.hidden_capabilities_count;
+
+                document.getElementById('col-verified-badge').innerText = data.verified_capabilities_count;
+                document.getElementById('col-unbacked-badge').innerText = data.unbacked_marketing_claims_count;
+                document.getElementById('col-hidden-badge').innerText = data.hidden_capabilities_count;
+
+                // Alerts
+                const alertsCard = document.getElementById('truth-alerts-card');
+                const alertsList = document.getElementById('truth-alerts-list');
+                alertsList.innerHTML = '';
+                const allAlerts = (data.drift_alerts || []).concat(data.growth_alerts || []);
+                if (allAlerts.length > 0) {
+                    alertsCard.classList.remove('hidden');
+                    allAlerts.forEach(al => {
+                        const div = document.createElement('div');
+                        const isDrift = (data.drift_alerts || []).includes(al);
+                        div.className = isDrift
+                            ? 'p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 font-medium flex items-center gap-2'
+                            : 'p-2.5 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-900 font-medium flex items-center gap-2';
+                        div.innerHTML = `<span>${isDrift ? '⚠️' : '💡'}</span><span>${escapeHtml(al)}</span>`;
+                        alertsList.appendChild(div);
+                    });
+                } else {
+                    alertsCard.classList.add('hidden');
+                }
+
+                // Differential Column 1: Verified
+                const colVer = document.getElementById('truth-col-verified');
+                colVer.innerHTML = '';
+                if (data.verified_capabilities && data.verified_capabilities.length > 0) {
+                    data.verified_capabilities.forEach(t => {
+                        const div = document.createElement('div');
+                        div.className = 'p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-xl';
+                        div.innerHTML = `
+                            <div class="font-bold text-emerald-950 flex items-center justify-between">
+                                <span>✓ ${escapeHtml(t.object)}</span>
+                                <span class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">${escapeHtml(t.predicate)}</span>
+                            </div>
+                            <div class="text-[10px] text-emerald-700 mt-1 font-mono truncate">
+                                ${escapeHtml(t.provenance || 'API Spec')}
+                            </div>
+                        `;
+                        colVer.appendChild(div);
+                    });
+                } else {
+                    colVer.innerHTML = '<div class="text-xs text-slate-400 italic">No verified claims found.</div>';
+                }
+
+                // Differential Column 2: Unbacked Claims
+                const colUnb = document.getElementById('truth-col-unbacked');
+                colUnb.innerHTML = '';
+                if (data.unbacked_marketing_claims && data.unbacked_marketing_claims.length > 0) {
+                    data.unbacked_marketing_claims.forEach(t => {
+                        const div = document.createElement('div');
+                        div.className = 'p-2.5 bg-rose-50/70 border border-rose-200 rounded-xl';
+                        div.innerHTML = `
+                            <div class="font-bold text-rose-950 flex items-center justify-between">
+                                <span>⚠️ ${escapeHtml(t.object)}</span>
+                                <span class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-rose-100 text-rose-800">${escapeHtml(t.predicate)}</span>
+                            </div>
+                            <div class="text-[10px] text-rose-700 mt-1">
+                                Advertised on marketing, 0 technical endpoints.
+                            </div>
+                        `;
+                        colUnb.appendChild(div);
+                    });
+                } else {
+                    colUnb.innerHTML = '<div class="text-xs text-emerald-600 font-medium italic">Zero unbacked claims! 100% truthful.</div>';
+                }
+
+                // Differential Column 3: Unmarketed Capabilities
+                const colHid = document.getElementById('truth-col-hidden');
+                colHid.innerHTML = '';
+                if (data.hidden_capabilities && data.hidden_capabilities.length > 0) {
+                    data.hidden_capabilities.forEach(t => {
+                        const div = document.createElement('div');
+                        div.className = 'p-2.5 bg-sky-50/70 border border-sky-200 rounded-xl';
+                        div.innerHTML = `
+                            <div class="font-bold text-sky-950 flex items-center justify-between">
+                                <span>⚡ ${escapeHtml(t.object)}</span>
+                                <span class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-sky-100 text-sky-800">${escapeHtml(t.predicate)}</span>
+                            </div>
+                            <div class="text-[10px] text-sky-700 mt-1 font-mono truncate">
+                                Provenance: ${escapeHtml(t.provenance || 'openapi.json')}
+                            </div>
+                        `;
+                        colHid.appendChild(div);
+                    });
+                } else {
+                    colHid.innerHTML = '<div class="text-xs text-slate-400 italic">No unmarketed capabilities detected.</div>';
+                }
+
+                resultsBox.scrollIntoView({ behavior: 'smooth' });
+
+            } catch (err) {
+                alert("Error during Product Truth audit: " + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                btnText.innerText = 'Execute Dual Ingestion & Compute Product Truth Matrix';
+                btnIcon.innerText = '⚖️';
+            }
+        }
+
+        function sendTruthToBattlecards() {
+            if (!currentTruthMatrix) return;
+            const bName = document.getElementById('battle-company-name');
+            const bUrl = document.getElementById('battle-company-url');
+            const bSpec = document.getElementById('battle-company-spec');
+            if (bName) bName.value = currentTruthMatrix.company_name || 'Ordway';
+            if (bUrl) bUrl.value = currentTruthMatrix.marketing_url || 'https://www.ordwaylabs.com';
+            const specEl = document.getElementById('truth-spec-json');
+            if (bSpec && specEl && specEl.value) bSpec.value = specEl.value;
+            switchTab('battlecards');
+        }
+
+        function sendTruthToLinter() {
+            if (!currentTruthMatrix) return;
+            const brandInput = document.getElementById('draft-brand-input');
+            if (brandInput) brandInput.value = currentTruthMatrix.company_name || 'Ordway';
+            // Pre-seed currentAuditData.triples with verified capabilities
+            if (currentTruthMatrix.verified_capabilities && currentTruthMatrix.verified_capabilities.length > 0) {
+                currentAuditData = currentAuditData || {};
+                currentAuditData.triples = currentTruthMatrix.verified_capabilities;
+            }
+            switchTab('alignment');
+            const draftText = document.getElementById('draft-text-input');
+            if (draftText && !draftText.value) loadCompliantDraft();
+        }
+
+        /* ------------------------------------------------------------- */
+        /* TAB 2: TRI-ONTOLOGY BATTLECARDS FUNCTIONS                     */
+        /* ------------------------------------------------------------- */
+        function loadSampleBattlecards() {
+            const name = document.getElementById('battle-company-name');
+            const url = document.getElementById('battle-company-url');
+            const compUrls = document.getElementById('battle-comp-urls');
+            const spec = document.getElementById('battle-company-spec');
+            if (name) name.value = 'Ordway';
+            if (url) url.value = 'https://www.ordwaylabs.com';
+            if (compUrls) compUrls.value = 'https://www.chargebee.com';
+            if (spec && !spec.value) {
+                spec.value = JSON.stringify(SAMPLE_ORDWAY_OPENAPI, null, 2);
+            }
+        }
+
+        async function handleTriOntologyAlign(e) {
+            e.preventDefault();
+            const companyName = document.getElementById('battle-company-name').value.trim();
+            const companyUrl = document.getElementById('battle-company-url').value.trim();
+            const companySpecText = document.getElementById('battle-company-spec').value.trim();
+            const compUrlsText = document.getElementById('battle-comp-urls').value.trim();
+            const submitBtn = document.getElementById('battle-submit-btn');
+            const btnText = document.getElementById('battle-btn-text');
+            const btnIcon = document.getElementById('battle-btn-icon');
+            const resultsBox = document.getElementById('battle-results-container');
+            const selectedVertical = document.getElementById('vertical-select') ? document.getElementById('vertical-select').value : 'b2b_saas_fintech';
+
+            const compUrls = compUrlsText.split('\n').map(u => u.trim()).filter(u => u.length > 0);
+            if (compUrls.length === 0) {
+                alert("Please provide at least one competitor URL.");
+                return;
+            }
+
+            let companySpec = null;
+            if (companySpecText) {
+                try { companySpec = JSON.parse(companySpecText); } catch (err) {
+                    alert("Invalid JSON in company OpenAPI spec: " + err.message);
+                    return;
+                }
+            } else if (currentTruthMatrix && currentTruthMatrix.company_name === companyName) {
+                // If user ran truth matrix earlier, use sample if no spec explicitly set
+            }
+
+            submitBtn.disabled = true;
+            btnText.innerText = 'Crawling Competitors & Aligning Tri-Ontology Graphs...';
+            btnIcon.innerText = '⏳';
+
+            try {
+                const payload = {
+                    company: {
+                        company_name: companyName,
+                        marketing_url: companyUrl,
+                        openapi_spec: companySpec
+                    },
+                    competitors: compUrls.map(u => ({
+                        company_name: u.replace(/^https?:\/\//, '').replace(/^www\./, '').split('.')[0],
+                        marketing_url: u
+                    })),
+                    vertical_id: selectedVertical
+                };
+
+                const res = await fetch('/api/tri-ontology-align', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) {
+                    const errMsg = await getApiErrorMessage(res, 'Tri-Ontology alignment failed');
+                    throw new Error(errMsg);
+                }
+
+                const data = await res.json();
+                currentBattlecardData = data;
+                resultsBox.classList.remove('hidden');
+
+                // Exec Summary
+                document.getElementById('battle-exec-summary').innerText = data.executive_summary;
+                document.getElementById('battle-industry-badge').innerText = data.industry_category;
+
+                // Stats
+                document.getElementById('battle-adv-count').innerText = (data.company_advantages || []).length;
+                document.getElementById('battle-vuln-count').innerText = (data.competitor_vulnerabilities || []).length;
+                document.getElementById('battle-stakes-count').innerText = (data.table_stakes || []).length;
+                document.getElementById('battle-briefs-count').innerText = (data.counter_positioning_briefs || []).length;
+
+                renderBattlecards('all');
+                resultsBox.scrollIntoView({ behavior: 'smooth' });
+
+            } catch (err) {
+                alert("Error during Tri-Ontology alignment: " + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                btnText.innerText = 'Align Tri-Ontologies & Synthesize Grounded Battlecards';
+                btnIcon.innerText = '⚡';
+            }
+        }
+
+        function filterBattlecards(type) {
+            currentBattleFilter = type;
+            const btns = {
+                'all': 'btn-filter-all',
+                'advantage': 'btn-filter-adv',
+                'vulnerability': 'btn-filter-vuln',
+                'tablestakes': 'btn-filter-stakes'
+            };
+            Object.keys(btns).forEach(k => {
+                const el = document.getElementById(btns[k]);
+                if (el) {
+                    if (k === type) {
+                        el.className = 'px-3 py-1 rounded-lg text-xs font-bold bg-slate-900 text-white';
+                    } else {
+                        el.className = 'px-3 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200';
+                    }
+                }
+            });
+            renderBattlecards(type);
+        }
+
+        function renderBattlecards(filter) {
+            if (!currentBattlecardData) return;
+            const container = document.getElementById('battle-cards-grid');
+            container.innerHTML = '';
+
+            const briefs = currentBattlecardData.counter_positioning_briefs || [];
+            let displayed = 0;
+
+            briefs.forEach(b => {
+                const status = b.comparative_status || '';
+                if (filter === 'advantage' && status !== 'company_advantage') return;
+                if (filter === 'vulnerability' && status !== 'competitor_fluff_vulnerability') return;
+                if (filter === 'tablestakes' && status !== 'industry_table_stakes' && status !== 'market_parity') return;
+
+                displayed++;
+                const card = document.createElement('div');
+                let badgeClass = 'bg-slate-100 text-slate-800';
+                let badgeLabel = 'Table Stakes';
+                let borderClass = 'border-slate-200';
+
+                if (status === 'company_advantage') {
+                    badgeClass = 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+                    badgeLabel = '🏆 Company Advantage';
+                    borderClass = 'border-emerald-300 shadow-emerald-500/5';
+                } else if (status === 'competitor_fluff_vulnerability') {
+                    badgeClass = 'bg-rose-100 text-rose-800 border border-rose-200';
+                    badgeLabel = '🎯 Competitor Fluff Vulnerability';
+                    borderClass = 'border-rose-300 shadow-rose-500/5';
+                }
+
+                card.className = `bg-white rounded-2xl p-5 border ${borderClass} shadow-sm space-y-4 flex flex-col justify-between`;
+                card.innerHTML = `
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${badgeClass}">
+                                ${badgeLabel}
+                            </span>
+                            <span class="text-[10px] font-mono text-slate-400 uppercase">${escapeHtml(b.predicate || 'capability')}</span>
+                        </div>
+                        <h4 class="text-sm font-extrabold text-slate-900">${escapeHtml(b.capability)}</h4>
+
+                        <!-- Attack Angle -->
+                        <div class="bg-amber-50/70 p-3 rounded-xl border border-amber-100 space-y-1">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1">
+                                <span>🎯 Attack Angle &amp; Messaging</span>
+                            </div>
+                            <p class="text-xs text-amber-950 font-medium leading-relaxed">
+                                ${escapeHtml(b.attack_angle)}
+                            </p>
+                        </div>
+
+                        <!-- Discovery Question -->
+                        <div class="bg-sky-50/70 p-3 rounded-xl border border-sky-100 space-y-1">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-sky-900 flex items-center gap-1">
+                                <span>❓ Buyer Discovery Question (RFP / Demo)</span>
+                            </div>
+                            <p class="text-xs text-sky-950 font-medium italic leading-relaxed">
+                                "${escapeHtml(b.discovery_question)}"
+                            </p>
+                        </div>
+
+                        <!-- FUD Defense -->
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1">
+                                <span>🛡️ FUD Counter-Defense</span>
+                            </div>
+                            <p class="text-xs text-slate-800 leading-relaxed">
+                                ${escapeHtml(b.fud_counter_defense)}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                        <span>Predicate: <code class="font-mono text-slate-700">${escapeHtml(b.predicate || 'automates')}</code></span>
+                        <button type="button" onclick="copySingleBattlecard('${escapeHtml(b.capability.replace(/'/g, "\\'"))}')" class="text-slate-600 hover:text-slate-900 font-semibold">
+                            Copy Card &rarr;
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            if (displayed === 0) {
+                container.innerHTML = '<div class="col-span-2 p-8 text-center text-slate-400 italic bg-slate-50 rounded-2xl border border-slate-200">No battlecards match this filter.</div>';
+            }
+        }
+
+        function copySingleBattlecard(capName) {
+            if (!currentBattlecardData) return;
+            const b = (currentBattlecardData.counter_positioning_briefs || []).find(x => x.capability === capName);
+            if (!b) return;
+            const text = `# BATTLECARD: ${b.capability}\n\nStatus: ${b.comparative_status}\n\n## 🎯 Attack Angle\n${b.attack_angle}\n\n## ❓ Killer Discovery Question\n"${b.discovery_question}"\n\n## 🛡️ FUD Defense\n${b.fud_counter_defense}`;
+            navigator.clipboard.writeText(text).then(() => {
+                alert(`Copied battlecard for "${b.capability}" to clipboard!`);
+            });
+        }
+
+        function copyBattlecardsToClipboard() {
+            if (!currentBattlecardData) return;
+            const briefs = currentBattlecardData.counter_positioning_briefs || [];
+            let md = `# TRI-ONTOLOGY SALES BATTLECARDS\n\nCompany: ${currentBattlecardData.company_name}\nCompetitors: ${currentBattlecardData.competitor_names.join(', ')}\nVertical: ${currentBattlecardData.industry_category}\n\n## Executive Summary\n${currentBattlecardData.executive_summary}\n\n---\n\n`;
+            briefs.forEach(b => {
+                md += `### [${b.comparative_status.toUpperCase()}] ${b.capability}\n\n- **Attack Angle**: ${b.attack_angle}\n- **Discovery Question**: "${b.discovery_question}"\n- **FUD Counter-Defense**: ${b.fud_counter_defense}\n\n`;
+            });
+            navigator.clipboard.writeText(md).then(() => {
+                alert("Copied complete Tri-Ontology Battlecards deck to clipboard in Markdown format!");
+            });
+        }
+
+        /* ------------------------------------------------------------- */
+        /* TAB 3: AUTONOMOUS INDUSTRY PROFILER FUNCTIONS                 */
+        /* ------------------------------------------------------------- */
+        function loadIndustrySample(url, brand) {
+            const urlEl = document.getElementById('ind-url-input');
+            const brandEl = document.getElementById('ind-brand-input');
+            if (urlEl) urlEl.value = url;
+            if (brandEl) brandEl.value = brand;
+        }
+
+        async function handleIndustryDiscovery(e) {
+            e.preventDefault();
+            const url = document.getElementById('ind-url-input').value.trim();
+            const brand = document.getElementById('ind-brand-input').value.trim();
+            const submitBtn = document.getElementById('ind-submit-btn');
+            const btnText = document.getElementById('ind-btn-text');
+            const btnIcon = document.getElementById('ind-btn-icon');
+            const resultsBox = document.getElementById('ind-results-container');
+
+            submitBtn.disabled = true;
+            btnText.innerText = 'Crawling Homepage & Synthesizing Taxonomy with Gemini...';
+            btnIcon.innerText = '⏳';
+
+            try {
+                const res = await fetch('/api/discover-industry', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, brand_hint: brand })
+                });
+
+                if (!res.ok) {
+                    const errMsg = await getApiErrorMessage(res, 'Industry discovery failed');
+                    throw new Error(errMsg);
+                }
+
+                const data = await res.json();
+                currentDiscoveredVertical = data;
+                resultsBox.classList.remove('hidden');
+
+                // Header
+                document.getElementById('ind-id-badge').innerText = data.vertical_id;
+                document.getElementById('ind-cat-badge').innerText = data.category_name;
+                document.getElementById('ind-display-name').innerText = data.display_name;
+                document.getElementById('ind-description').innerText = data.domain_scope_description;
+
+                // 1. Compliance
+                const compContainer = document.getElementById('ind-compliance-tags');
+                compContainer.innerHTML = '';
+                const compList = data.compliance_frameworks || [];
+                document.getElementById('ind-compliance-count').innerText = compList.length;
+                compList.forEach(c => {
+                    const span = document.createElement('span');
+                    span.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-900 border border-emerald-200';
+                    span.innerText = `🔒 ${c}`;
+                    compContainer.appendChild(span);
+                });
+
+                // 2. Integrations
+                const intContainer = document.getElementById('ind-integrations-tags');
+                intContainer.innerHTML = '';
+                const intList = data.ecosystem_integrations || [];
+                document.getElementById('ind-integrations-count').innerText = intList.length;
+                intList.forEach(i => {
+                    const span = document.createElement('span');
+                    span.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-50 text-sky-900 border border-sky-200';
+                    span.innerText = `🔌 ${i}`;
+                    intContainer.appendChild(span);
+                });
+
+                // 3. Concepts
+                const concContainer = document.getElementById('ind-concepts-tags');
+                concContainer.innerHTML = '';
+                const concList = data.core_seed_concepts || [];
+                document.getElementById('ind-concepts-count').innerText = concList.length;
+                concList.forEach(c => {
+                    const span = document.createElement('span');
+                    span.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-900 border border-indigo-200';
+                    span.innerText = c;
+                    concContainer.appendChild(span);
+                });
+
+                // 4. Competitors
+                const compTierContainer = document.getElementById('ind-competitors-tags');
+                compTierContainer.innerHTML = '';
+                const compTierList = data.direct_competitors || [];
+                document.getElementById('ind-competitors-count').innerText = compTierList.length;
+                compTierList.forEach(comp => {
+                    const a = document.createElement('a');
+                    a.href = comp.url || '#';
+                    a.target = '_blank';
+                    a.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200 transition';
+                    a.innerText = `🏢 ${comp.name}`;
+                    compTierContainer.appendChild(a);
+                });
+
+                // Reload vertical dropdown so new vertical is available right away!
+                await loadVerticalsDropdown();
+
+                resultsBox.scrollIntoView({ behavior: 'smooth' });
+
+            } catch (err) {
+                alert("Error during Industry Discovery: " + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                btnText.innerText = 'Discover Industry Ontology Baseline';
+                btnIcon.innerText = '🌐';
+            }
+        }
+
+        function applyDiscoveredVertical() {
+            if (!currentDiscoveredVertical) return;
+            const sel = document.getElementById('vertical-select');
+            if (sel) {
+                sel.value = currentDiscoveredVertical.vertical_id;
+                alert(`Active vertical updated to: ${currentDiscoveredVertical.display_name} (${currentDiscoveredVertical.vertical_id})!`);
+            }
+        }
+
+        // Initialize verticals on DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', () => {
+            loadVerticalsDropdown();
+        });
+
 
         function loadCompliantDraft() {
             const brand = document.getElementById('draft-brand-input');
