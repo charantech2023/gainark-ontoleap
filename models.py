@@ -64,6 +64,8 @@ class SemanticTriple(BaseModel):
     object: str = Field(..., description="Object entity, standard, system, or capability")
     confidence: float = Field(default=0.85, description="Extraction confidence score (0-1)")
     evidence_sentence: Optional[str] = Field(default=None, description="Source context sentence")
+    source_type: Optional[str] = Field(default="marketing_claim", description="'marketing_claim', 'technical_truth', or 'industry_standard'")
+    provenance: Optional[str] = Field(default=None, description="Exact source URI, endpoint path, or document section")
 
 
 class ExtractionResult(BaseModel):
@@ -466,5 +468,34 @@ class IndustryDiscoveryResponse(BaseModel):
     discovery_summary: str
 
 
+class ProductTruthRequest(BaseModel):
+    """
+    Request model for generating the Company Product Truth Matrix.
+    """
+    marketing_url: str = Field(..., max_length=2048, description="Brand marketing website or landing page")
+    brand_name: Optional[str] = Field(default=None, description="Brand name (optional, will auto-detect if omitted)")
+    vertical_id: Optional[str] = Field(default=None, description="Industry vertical ID (optional)")
+    tech_docs_url: Optional[str] = Field(default=None, max_length=2048, description="Public documentation, developer portal, or OpenAPI URL")
+    openapi_spec: Optional[Dict[str, Any]] = Field(default=None, description="Optional raw OpenAPI / Swagger JSON specification")
+    tech_docs_text: Optional[str] = Field(default=None, description="Optional raw markdown or text documentation")
 
 
+class ProductTruthMatrixResponse(BaseModel):
+    """
+    Structured Product Truth Matrix comparing Marketing Claims vs. Technical Ground Truth.
+    """
+    brand_name: str
+    marketing_url: str
+    tech_docs_url: Optional[str] = None
+    marketing_grounding_index: float = Field(..., description="Percentage of marketing claims backed by verified technical truth (0-100)")
+    total_marketing_claims: int
+    total_technical_capabilities: int
+    verified_claims_count: int
+    unbacked_claims_count: int
+    hidden_capabilities_count: int
+    verified_triples: List[SemanticTriple] = Field(default_factory=list, description="Claims proven in both marketing and technical documentation")
+    unbacked_claims: List[SemanticTriple] = Field(default_factory=list, description="Marketing claims with no technical backing (Product Drift / Fluff)")
+    hidden_capabilities: List[SemanticTriple] = Field(default_factory=list, description="Real technical capabilities omitted from marketing copy")
+    drift_alerts: List[str] = Field(default_factory=list, description="Actionable governance risk alerts")
+    growth_recommendations: List[str] = Field(default_factory=list, description="Recommendations to market hidden technical gems")
+    executive_summary: str

@@ -4,9 +4,9 @@
   "gliner_labels": [
     "AI Security Platform",
     "AI-Generated Code",
-    "AI Agent Security",
-    "AI Application Governance",
-    "Vulnerability Management",
+    "Security Vulnerability",
+    "Development Agent",
+    "AI-Native Application",
     "Security Posture"
   ],
   "mandatory_schema_types": [
@@ -15,18 +15,18 @@
     "Offer"
   ],
   "core_seed_concepts": [
-    "AI security platform",
+    "AI Security Platform",
     "AI-generated code security",
-    "AI agent governance",
+    "Agentic development governance",
     "AI-native application security",
-    "Automated AI attack prevention",
-    "Machine-speed threat detection",
-    "Vulnerability chaining",
-    "Security debt management",
-    "AI model inventory",
-    "Policy enforcement for AI systems",
-    "Continuous AI security validation",
-    "Developer-first security"
+    "Automated AI attacks",
+    "Vulnerability detection",
+    "Software supply chain security",
+    "Code analysis",
+    "Runtime protection",
+    "Policy enforcement",
+    "Risk posture improvement",
+    "Developer workflow integration"
   ],
   "known_integrations": [
     "GitHub",
@@ -34,21 +34,22 @@
     "Jira",
     "Azure DevOps",
     "AWS",
-    "Google Cloud Platform",
+    "Google Cloud",
     "Microsoft Azure",
+    "Jenkins",
+    "CircleCI",
+    "Docker",
     "Kubernetes",
-    "Slack",
-    "Datadog",
-    "OpenAI",
-    "Hugging Face"
+    "Slack"
   ],
   "known_compliance": [
-    "NIST AI Risk Management Framework",
-    "ISO 27001",
     "SOC 2",
+    "ISO 27001",
+    "NIST CSF",
     "GDPR",
-    "OWASP Top 10 for LLMs",
-    "AI Act (EU)"
+    "OWASP Top 10",
+    "CISA AI Security Guidelines",
+    "FedRAMP"
   ],
   "known_pricing": [
     "Per-Developer Pricing",

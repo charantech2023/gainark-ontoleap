@@ -25,6 +25,7 @@ import report_pdf
 import alignment
 import google_kg_client
 import industry_profiler
+import product_truth
 
 from pipeline import OntologyPipeline, crawl_and_build_unified_graph, validate_url_for_fetch
 from linking import (
@@ -63,7 +64,9 @@ from models import (
     ExportPdfRequest,
     GoogleKgRequest,
     IndustryDiscoveryRequest,
-    IndustryDiscoveryResponse
+    IndustryDiscoveryResponse,
+    ProductTruthRequest,
+    ProductTruthMatrixResponse
 )
 
 # ---------------------------------------------------------------------------
@@ -363,7 +366,8 @@ def api_info():
             "multi_vertical_expansion": True,
             "product_truth_draft_alignment_pas": True,
             "executive_pdf_export": True,
-            "autonomous_industry_discovery": True
+            "autonomous_industry_discovery": True,
+            "product_truth_matrix": True
         },
         "endpoints": {
             "dashboard": "GET /dashboard",
@@ -385,6 +389,7 @@ def api_info():
             "verticals": "GET /api/verticals",
             "google-kg": "POST /api/google-kg",
             "discover-industry": "POST /api/discover-industry",
+            "product-truth": "POST /api/product-truth",
             "health": "GET /api/health"
         }
     }
@@ -1019,7 +1024,39 @@ async def api_discover_industry(req: IndustryDiscoveryRequest):
 
 
 
+@app.post(
+    "/api/product-truth",
+    response_model=ProductTruthMatrixResponse,
+    summary="Company Product Truth Matrix: Marketing Claims vs. Technical Reality",
+    tags=["Product Truth & Governance"]
+)
+def api_product_truth_audit(req: ProductTruthRequest):
+    """
+    Cross-examines a brand's marketing website against its technical documentation or OpenAPI spec.
+    1. Extracts marketing claims from marketing_url
+    2. Parses technical capabilities from tech_docs_url, openapi_spec, or documentation text
+    3. Computes the Product Truth Matrix:
+       - Verified Capabilities (backed by code/API)
+       - Unbacked Marketing Claims (marketing drift, hallucination risk)
+       - Hidden Capabilities (unmarketed engineering capabilities)
+    4. Calculates the Marketing Grounding Index (MGI) and emits actionable governance alerts.
+    """
+    validate_url_for_fetch(req.marketing_url)
+    if req.tech_docs_url:
+        validate_url_for_fetch(req.tech_docs_url)
+
+    pipeline = get_pipeline(req.vertical_id)
+
+    try:
+        matrix_result = product_truth.execute_product_truth_audit(req, pipeline)
+        return matrix_result
+    except Exception as e:
+        logger.exception("Product Truth audit failed for %s: %s", req.marketing_url, e)
+        raise HTTPException(status_code=500, detail=f"Product Truth audit failed: {str(e)}")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
+
 

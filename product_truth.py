@@ -1,0 +1,391 @@
+"""
+GainARK OntoLeap — Company Product Truth & Dual Ingestion Engine
+Part of the Tri-Ontology Marketing Governance Platform (Step 2).
+
+Cross-examines Marketing Claims against Technical Reality:
+1. Ingests Marketing Websites (claims, promises, positioning)
+2. Ingests Technical Docs / OpenAPI Specs (actual endpoints, schemas, integrations)
+3. Computes the Product Truth Matrix:
+   - Verified Claims (proven in both)
+   - Marketing Drift & Fluff (unbacked marketing claims)
+   - Hidden Capabilities (unmarketed engineering gold)
+4. Calculates the Marketing Grounding Index (MGI 0-100) and governance alerts.
+"""
+
+import os
+import re
+import json
+import logging
+import urllib.parse
+from typing import Dict, Any, List, Optional, Set, Tuple
+import requests
+from bs4 import BeautifulSoup
+
+from models import (
+    SemanticTriple,
+    ProductTruthRequest,
+    ProductTruthMatrixResponse
+)
+from pipeline import OntologyPipeline, validate_url_for_fetch
+
+logger = logging.getLogger("gainark.product_truth")
+
+
+def _normalize_concept(text: str) -> str:
+    """Normalize concept string for semantic alignment."""
+    clean = re.sub(r'[^a-zA-Z0-9\s]', '', text.lower())
+    return " ".join(clean.split())
+
+
+def _concepts_match(c1: str, c2: str) -> bool:
+    """Check if two concepts match either exactly or via significant substring/stem."""
+    n1 = _normalize_concept(c1)
+    n2 = _normalize_concept(c2)
+    if not n1 or not n2:
+        return False
+    if n1 == n2:
+        return True
+    if n1 in n2 or n2 in n1:
+        return True
+    tokens1 = set(n1.split())
+    tokens2 = set(n2.split())
+    common = tokens1.intersection(tokens2)
+    return len(common) >= 1 and any(len(t) > 3 for t in common)
+
+
+def parse_openapi_spec(
+    spec: Dict[str, Any],
+    brand_name: str = "The Platform",
+    source_origin: str = "openapi.json"
+) -> List[SemanticTriple]:
+    """
+    Parses an OpenAPI 3.x or Swagger 2.0 JSON specification into technical ground-truth triples.
+    Extracts:
+    - automates: derived from paths, tags, operationId, and summaries
+    - integratesWith: derived from tags and endpoint parameters referencing third-party platforms
+    - compliesWith: derived from securitySchemes (OAuth2, OpenID, APIKey) and compliance tags
+    """
+    triples: List[SemanticTriple] = []
+    seen: Set[Tuple[str, str, str]] = set()
+
+    def _add_triple(pred: str, obj: str, confidence: float, evidence: str, prov: str):
+        key = (brand_name.lower(), pred.lower(), obj.lower())
+        if key not in seen and len(obj.strip()) > 1:
+            seen.add(key)
+            triples.append(SemanticTriple(
+                subject=brand_name,
+                predicate=pred,
+                object=obj.strip(),
+                confidence=confidence,
+                evidence_sentence=evidence,
+                source_type="technical_truth",
+                provenance=prov
+            ))
+
+    # 1. Inspect Security Schemes (compliesWith)
+    components = spec.get("components", {})
+    sec_schemes = components.get("securitySchemes", {}) or spec.get("securityDefinitions", {})
+    for s_name, s_def in sec_schemes.items():
+        s_type = s_def.get("type", "").lower()
+        if s_type == "oauth2":
+            _add_triple("compliesWith", "OAuth 2.0", 0.98, f"Configured OAuth2 security scheme '{s_name}'", f"{source_origin}#/security/{s_name}")
+        elif s_type == "http" and s_def.get("scheme", "").lower() == "bearer":
+            _add_triple("compliesWith", "Bearer Token Authentication", 0.95, f"Bearer token scheme '{s_name}'", f"{source_origin}#/security/{s_name}")
+        elif s_type == "apikey":
+            _add_triple("compliesWith", "API Key Authentication", 0.95, f"API Key in {s_def.get('in', 'header')}", f"{source_origin}#/security/{s_name}")
+        elif s_type == "openidconnect":
+            _add_triple("compliesWith", "OpenID Connect", 0.98, f"OpenID Connect scheme '{s_name}'", f"{source_origin}#/security/{s_name}")
+
+    # 2. Inspect Paths & Operations (automates & integratesWith)
+    paths = spec.get("paths", {})
+    known_integrations_detect = [
+        "salesforce", "netsuite", "stripe", "quickbooks", "workday", "hubspot",
+        "slack", "github", "gitlab", "jira", "aws", "azure", "google cloud",
+        "datadog", "splunk", "snowflake", "xero", "twilio", "zendesk"
+    ]
+
+    for path_str, path_item in paths.items():
+        if not isinstance(path_item, dict):
+            continue
+
+        for method in ["get", "post", "put", "patch", "delete"]:
+            op = path_item.get(method)
+            if not isinstance(op, dict):
+                continue
+
+            summary = op.get("summary", "")
+            desc = op.get("description", "")
+            tags = op.get("tags", [])
+            op_id = op.get("operationId", "")
+
+            combined_text = f"{path_str} {summary} {desc} {' '.join(tags)} {op_id}".lower()
+
+            # Capability extraction from tags
+            for tag in tags:
+                clean_tag = tag.replace("-", " ").replace("_", " ").title()
+                if len(clean_tag) > 3 and clean_tag.lower() not in ["api", "default", "v1", "v2"]:
+                    _add_triple(
+                        "automates",
+                        clean_tag,
+                        0.92,
+                        f"Endpoint {method.upper()} {path_str} implements capability: {summary or clean_tag}",
+                        f"{source_origin}#{method.upper()}{path_str}"
+                    )
+
+            # Detect ecosystem integrations
+            for ki in known_integrations_detect:
+                if ki in combined_text:
+                    _add_triple(
+                        "integratesWith",
+                        ki.title(),
+                        0.94,
+                        f"Endpoint {method.upper()} {path_str} references integration with {ki.title()}",
+                        f"{source_origin}#{method.upper()}{path_str}"
+                    )
+
+    # 3. Inspect global tags
+    for tag_obj in spec.get("tags", []):
+        if isinstance(tag_obj, dict):
+            t_name = tag_obj.get("name", "")
+            t_desc = tag_obj.get("description", "")
+            if t_name and len(t_name) > 3:
+                _add_triple("automates", t_name.title(), 0.90, f"API Tag: {t_name} - {t_desc}", f"{source_origin}#/tags/{t_name}")
+
+    return triples
+
+
+def fetch_docs_content(url: str, timeout: float = 15.0) -> Tuple[str, str]:
+    """
+    Fetches documentation HTML or JSON and returns (raw_content, clean_text).
+    """
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    resp = requests.get(url, headers=headers, timeout=timeout, verify=True)
+    resp.raise_for_status()
+    raw = resp.text
+
+    # Check if raw is JSON (e.g. openapi.json)
+    try:
+        json.loads(raw)
+        return raw, raw
+    except Exception:
+        pass
+
+    soup = BeautifulSoup(raw, "html.parser")
+    for el in soup(["script", "style", "nav", "footer", "noscript"]):
+        el.decompose()
+
+    clean_text = soup.get_text(separator=" ", strip=True)
+    return raw, clean_text
+
+
+def extract_technical_triples_from_text(
+    text: str,
+    pipeline: OntologyPipeline,
+    brand_name: str,
+    provenance: str = "technical_docs"
+) -> List[SemanticTriple]:
+    """
+    Extracts semantic triples from raw technical text or documentation using the OntologyPipeline,
+    tagging each triple as technical_truth.
+    """
+    raw_triples = pipeline.extract_relational_triples(text)
+    tech_triples: List[SemanticTriple] = []
+
+    for t in raw_triples:
+        tech_triples.append(SemanticTriple(
+            subject=brand_name,
+            predicate=t.predicate,
+            object=t.object,
+            confidence=round(t.confidence * 1.05, 3),  # High confidence for technical docs
+            evidence_sentence=t.evidence_sentence,
+            source_type="technical_truth",
+            provenance=provenance
+        ))
+
+    return tech_triples
+
+
+def build_product_truth_matrix(
+    marketing_triples: List[SemanticTriple],
+    technical_triples: List[SemanticTriple],
+    brand_name: str,
+    marketing_url: str,
+    tech_docs_url: Optional[str] = None
+) -> ProductTruthMatrixResponse:
+    """
+    Computes the differential truth matrix comparing Marketing Claims against Technical Truth.
+    Partitions into:
+    1. Verified Claims (marketing backed by technical documentation)
+    2. Unbacked Marketing Claims (marketing fluff, hallucination risk, product drift)
+    3. Hidden Capabilities (real capabilities in docs/API omitted from marketing copy)
+    """
+    verified: List[SemanticTriple] = []
+    unbacked: List[SemanticTriple] = []
+    hidden: List[SemanticTriple] = []
+
+    matched_tech_indices: Set[int] = set()
+
+    # Step 1: Evaluate each marketing claim against technical triples
+    for m_triple in marketing_triples:
+        match_found = False
+        for idx, t_triple in enumerate(technical_triples):
+            # Check predicate match and object concept match
+            if m_triple.predicate.lower() == t_triple.predicate.lower():
+                if _concepts_match(m_triple.object, t_triple.object):
+                    match_found = True
+                    matched_tech_indices.add(idx)
+                    # Verified triple combines marketing claim with technical evidence
+                    verified.append(SemanticTriple(
+                        subject=brand_name,
+                        predicate=m_triple.predicate,
+                        object=m_triple.object,
+                        confidence=max(m_triple.confidence, t_triple.confidence),
+                        evidence_sentence=f"[Marketing]: {m_triple.evidence_sentence or m_triple.object} | [Tech Reality]: {t_triple.evidence_sentence or t_triple.object}",
+                        source_type="verified_truth",
+                        provenance=f"{m_triple.provenance or 'marketing'} ⟷ {t_triple.provenance or 'tech_docs'}"
+                    ))
+                    break
+
+        if not match_found:
+            unbacked.append(SemanticTriple(
+                subject=brand_name,
+                predicate=m_triple.predicate,
+                object=m_triple.object,
+                confidence=m_triple.confidence,
+                evidence_sentence=m_triple.evidence_sentence,
+                source_type="unbacked_marketing_claim",
+                provenance=m_triple.provenance or marketing_url
+            ))
+
+    # Step 2: Any technical triple not matched is a hidden capability
+    for idx, t_triple in enumerate(technical_triples):
+        if idx not in matched_tech_indices:
+            hidden.append(t_triple)
+
+    # Step 3: Compute Marketing Grounding Index (MGI)
+    total_marketing = len(marketing_triples)
+    total_technical = len(technical_triples)
+    verified_count = len(verified)
+
+    if total_marketing > 0:
+        mgi = round((verified_count / total_marketing) * 100.0, 1)
+    else:
+        mgi = 100.0 if total_technical > 0 else 0.0
+
+    # Step 4: Generate Actionable Governance Alerts
+    drift_alerts: List[str] = []
+    for u in unbacked:
+        if u.predicate == "compliesWith":
+            drift_alerts.append(f"Regulatory Drift: Marketing claims compliance with '{u.object}', but no corresponding compliance standard or security scheme was verified in technical documentation.")
+        elif u.predicate == "integratesWith":
+            drift_alerts.append(f"Integration Drift: Marketing claims integration with '{u.object}', but no connector, endpoint, or SDK parameter was detected in the technical documentation.")
+        elif u.predicate == "automates":
+            drift_alerts.append(f"Capability Drift: Marketing advertises automated '{u.object}', which is absent from verified API methods and documentation.")
+
+    growth_recs: List[str] = []
+    for h in hidden[:5]:
+        growth_recs.append(f"Unmarketed Feature: Technical surface proves production support for {h.predicate} '{h.object}' ({h.provenance or 'API'}). Create dedicated marketing landing page copy to capture buyer search intent.")
+
+    # Executive Verdict Summary
+    if mgi >= 80.0:
+        status_text = "High Grounding (Marketing tightly aligned with technical reality)"
+    elif mgi >= 50.0:
+        status_text = "Moderate Product Drift (Noticeable gap between marketing promises and technical documentation)"
+    else:
+        status_text = "Severe Marketing Drift (High hallucination risk; critical claims lack technical verification)"
+
+    summary = (
+        f"{brand_name} Marketing Grounding Index: {mgi:.1f}/100 ({status_text}). "
+        f"Verified {verified_count}/{total_marketing} marketing claims against {total_technical} technical capabilities. "
+        f"Flagged {len(unbacked)} unbacked marketing claims and identified {len(hidden)} unmarketed engineering capabilities."
+    )
+
+    return ProductTruthMatrixResponse(
+        brand_name=brand_name,
+        marketing_url=marketing_url,
+        tech_docs_url=tech_docs_url,
+        marketing_grounding_index=mgi,
+        total_marketing_claims=total_marketing,
+        total_technical_capabilities=total_technical,
+        verified_claims_count=verified_count,
+        unbacked_claims_count=len(unbacked),
+        hidden_capabilities_count=len(hidden),
+        verified_triples=verified,
+        unbacked_claims=unbacked,
+        hidden_capabilities=hidden,
+        drift_alerts=drift_alerts,
+        growth_recommendations=growth_recs,
+        executive_summary=summary
+    )
+
+
+def execute_product_truth_audit(
+    req: ProductTruthRequest,
+    pipeline: OntologyPipeline
+) -> ProductTruthMatrixResponse:
+    """
+    Orchestrates the complete dual-ingestion product truth audit:
+    1. Crawls and extracts marketing claims from marketing_url
+    2. Ingests technical documentation (OpenAPI spec, tech docs URL, or text)
+    3. Builds differential matrix and returns governance report
+    """
+    brand = req.brand_name or urlparse(req.marketing_url).netloc.split(".")[0].capitalize()
+
+    # 1. Marketing Claims Ingestion
+    logger.info("Extracting marketing claims from %s for %s...", req.marketing_url, brand)
+    marketing_result = pipeline.process(url=req.marketing_url, deep_crawl=True)
+    marketing_triples = marketing_result.triples
+
+    # Tag provenance
+    for mt in marketing_triples:
+        mt.source_type = "marketing_claim"
+        mt.provenance = req.marketing_url
+
+    # 2. Technical Reality Ingestion
+    technical_triples: List[SemanticTriple] = []
+
+    # Priority A: Raw OpenAPI spec dict provided
+    if req.openapi_spec:
+        logger.info("Parsing provided OpenAPI specification for %s...", brand)
+        parsed_spec_triples = parse_openapi_spec(req.openapi_spec, brand_name=brand, source_origin="uploaded_spec.json")
+        technical_triples.extend(parsed_spec_triples)
+
+    # Priority B: Tech Docs URL provided
+    if req.tech_docs_url:
+        logger.info("Fetching and analyzing technical documentation at %s...", req.tech_docs_url)
+        try:
+            raw_docs, clean_docs = fetch_docs_content(req.tech_docs_url)
+            # Check if it was an OpenAPI / Swagger JSON endpoint
+            try:
+                json_data = json.loads(raw_docs)
+                if isinstance(json_data, dict) and ("paths" in json_data or "swagger" in json_data):
+                    logger.info("Detected OpenAPI/Swagger JSON at %s", req.tech_docs_url)
+                    parsed_spec_triples = parse_openapi_spec(json_data, brand_name=brand, source_origin=req.tech_docs_url)
+                    technical_triples.extend(parsed_spec_triples)
+                else:
+                    # Generic JSON or text
+                    t_from_text = extract_technical_triples_from_text(clean_docs, pipeline, brand, req.tech_docs_url)
+                    technical_triples.extend(t_from_text)
+            except (json.JSONDecodeError, ValueError):
+                # HTML technical documentation page
+                t_from_text = extract_technical_triples_from_text(clean_docs, pipeline, brand, req.tech_docs_url)
+                technical_triples.extend(t_from_text)
+        except Exception as e:
+            logger.warning("Failed to ingest tech_docs_url %s: %s", req.tech_docs_url, e)
+
+    # Priority C: Raw markdown / documentation text provided
+    if req.tech_docs_text:
+        logger.info("Extracting technical triples from raw documentation text...")
+        t_from_text = extract_technical_triples_from_text(req.tech_docs_text, pipeline, brand, "uploaded_docs_text")
+        technical_triples.extend(t_from_text)
+
+    # 3. Build Truth Matrix
+    return build_product_truth_matrix(
+        marketing_triples=marketing_triples,
+        technical_triples=technical_triples,
+        brand_name=brand,
+        marketing_url=req.marketing_url,
+        tech_docs_url=req.tech_docs_url
+    )

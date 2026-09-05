@@ -4,10 +4,10 @@
   "gliner_labels": [
     "Payroll Software",
     "Benefits Administration",
-    "HR Management System",
-    "Compliance Standard",
-    "Employee Self-Service",
-    "Tax Filing"
+    "HR Platform",
+    "Tax Filing",
+    "Time Tracking",
+    "Employee Onboarding"
   ],
   "mandatory_schema_types": [
     "SoftwareApplication",
@@ -17,22 +17,23 @@
   "core_seed_concepts": [
     "Payroll processing",
     "Direct deposit",
-    "Tax calculation and filing",
-    "Health insurance benefits",
-    "Retirement plans (401k)",
-    "Time tracking",
-    "PTO management",
-    "Onboarding workflows",
-    "HR reporting and analytics",
-    "Worker's compensation",
+    "Tax compliance",
+    "W-2 and 1099 forms",
+    "Health insurance administration",
+    "401(k) management",
+    "Workers' compensation",
+    "Paid time off (PTO) management",
     "Employee self-service portal",
-    "Compliance management"
+    "HR reporting and analytics",
+    "New hire reporting",
+    "Garnishment management"
   ],
   "known_integrations": [
     "QuickBooks",
     "Xero",
     "FreshBooks",
-    "Stripe",
+    "Expensify",
+    "When I Work",
     "Zoom",
     "Slack",
     "Google Workspace",
@@ -43,17 +44,18 @@
   ],
   "known_compliance": [
     "IRS regulations",
-    "FLSA",
-    "ACA",
-    "ERISA",
-    "State labor laws",
-    "HIPAA",
+    "FLSA (Fair Labor Standards Act)",
+    "ACA (Affordable Care Act)",
+    "ERISA (Employee Retirement Income Security Act)",
+    "State and local tax laws",
+    "HIPAA (Health Insurance Portability and Accountability Act)",
+    "GDPR (General Data Protection Regulation)",
     "SOC 2"
   ],
   "known_pricing": [
     "Per-Employee Per-Month",
-    "Tiered Plans",
-    "Base Fee + Per-Employee",
-    "Custom Enterprise Pricing"
+    "Tiered Plans (Simple, Plus, Premium)",
+    "Add-on Services (e.g., HR Advisory)",
+    "Free Trial"
   ]
 }
