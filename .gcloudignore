@@ -1,0 +1,13 @@
+﻿.gcloudignore
+.git
+.gitignore
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.log
+scratch/
+test_*.py
+verify_*.py
+*.bak
