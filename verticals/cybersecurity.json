@@ -1,0 +1,39 @@
+{
+  "vertical_id": "cybersecurity",
+  "display_name": "Enterprise CyberSecurity & SecOps",
+  "gliner_labels": [
+    "Security Platform",
+    "Security Standard",
+    "Threat Vector",
+    "Integration Partner",
+    "Security Architecture",
+    "Deployment Model"
+  ],
+  "mandatory_schema_types": [
+    "SoftwareApplication",
+    "Organization",
+    "Offer"
+  ],
+  "core_seed_concepts": [
+    "Zero Trust",
+    "Endpoint Detection and Response",
+    "SIEM",
+    "SOC 2",
+    "ISO 27001",
+    "Threat Hunting",
+    "Vulnerability Management",
+    "XDR",
+    "Incident Response",
+    "Identity and Access Management"
+  ],
+  "known_integrations": [
+    "CrowdStrike", "SentinelOne", "Splunk", "Okta", "Palo Alto Networks",
+    "Zscaler", "Microsoft Defender", "AWS Security Hub", "Datadog", "ServiceNow"
+  ],
+  "known_compliance": [
+    "SOC 2", "ISO 27001", "NIST CSF", "HIPAA", "PCI-DSS", "FedRAMP", "GDPR", "CMMC"
+  ],
+  "known_pricing": [
+    "Per-Endpoint Pricing", "Per-User Pricing", "Tiered Enterprise", "Usage-Based Ingestion"
+  ]
+}

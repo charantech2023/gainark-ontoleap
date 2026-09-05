@@ -97,6 +97,15 @@
                 </div>
             </div>
             <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
+                    <label for="vertical-select" class="text-xs font-bold text-slate-500 uppercase tracking-wider hidden sm:inline">Vertical:</label>
+                    <select id="vertical-select" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1 font-medium text-slate-700 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        <option value="b2b_saas_fintech" selected>💳 FinTech &amp; Billing SaaS</option>
+                        <option value="cybersecurity">🛡️ CyberSecurity &amp; SecOps</option>
+                        <option value="healthtech">🏥 HealthTech &amp; Clinical</option>
+                        <option value="developer_tools">⚙️ DevTools &amp; Cloud Infra</option>
+                    </select>
+                </div>
                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                     <span class="w-1.5 h-1.5 mr-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                     API Connected
@@ -108,16 +117,20 @@
 
     <!-- Navigation Tabs -->
     <div class="bg-white border-b border-slate-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-8">
-            <button id="tab-audit-btn" onclick="switchTab('audit')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors tab-active">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-6 sm:space-x-8 overflow-x-auto">
+            <button id="tab-audit-btn" onclick="switchTab('audit')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors tab-active whitespace-nowrap">
                 Single Site Audit
             </button>
-            <button id="tab-bench-btn" onclick="switchTab('bench')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors">
+            <button id="tab-bench-btn" onclick="switchTab('bench')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors whitespace-nowrap">
                 Competitor Benchmark
             </button>
-            <button id="tab-linking-btn" onclick="switchTab('linking')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors flex items-center gap-1.5">
+            <button id="tab-linking-btn" onclick="switchTab('linking')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors flex items-center gap-1.5 whitespace-nowrap">
                 <span>🕸️ Site Graph &amp; Internal Linking</span>
                 <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 uppercase">New</span>
+            </button>
+            <button id="tab-alignment-btn" onclick="switchTab('alignment')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors flex items-center gap-1.5 whitespace-nowrap">
+                <span>🎯 Product Truth &amp; Draft Alignment</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 uppercase">Gemini AI</span>
             </button>
         </div>
     </div>
@@ -209,12 +222,20 @@
                     <div class="mt-4 sm:mt-0 flex flex-col items-end gap-2">
                         <span class="text-xs text-slate-500">Ontology Readiness</span>
                         <div class="text-3xl font-extrabold" id="res-score-top">--</div>
-                        <button onclick="exportAuditReport()" class="no-print inline-flex items-center gap-1.5 px-3.5 py-1.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition">
-                            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                            </svg>
-                            Export Executive Report
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button id="pdf-export-btn" onclick="downloadAuditPdf()" class="no-print inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                <span>Export Executive PDF</span>
+                            </button>
+                            <button onclick="exportAuditReport()" class="no-print inline-flex items-center gap-1.5 px-3.5 py-1.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition">
+                                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                                </svg>
+                                Print / Save
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1398,6 +1419,203 @@ SELECT ?capability ?evidence WHERE {
             </div>
         </section>
 
+        <!-- ============================================================= -->
+        <!-- TAB 4: PRODUCT TRUTH & DRAFT ALIGNMENT (GEMINI AI) -->
+        <!-- ============================================================= -->
+        <section id="view-alignment" class="hidden space-y-8">
+            <!-- Header Banner -->
+            <div class="bg-gradient-to-r from-indigo-900 via-slate-900 to-sky-950 rounded-2xl p-6 text-white shadow-md">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
+                            Product Truth Layer · AI Content Governance
+                        </span>
+                        <h2 class="text-xl font-extrabold mt-2">Guard Against AI Content Sprawl &amp; Product Drift</h2>
+                        <p class="text-xs text-slate-300 mt-1 max-w-2xl">
+                            Score draft content against your canonical Knowledge Graph. Detect empty marketing buzzwords, flag ungrounded claims, and generate Product Truth Content Briefs powered by Google Gemini 2.5 Flash.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/10 text-white border border-white/20 backdrop-blur-xs">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Google Gemini 2.5 Flash
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two Column Core Module -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                <!-- Card 1: Draft Alignment Checker -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between space-y-5">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                <span>📝 Draft Alignment Checker (PAS)</span>
+                            </h3>
+                            <span class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">0–100 Health Score</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-4">
+                            Paste draft marketing copy, blog posts, or PR text to score its alignment with verified product capabilities.
+                        </p>
+
+                        <!-- Sample Pickers -->
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="text-[11px] font-semibold text-slate-500">Quick Test:</span>
+                            <button type="button" onclick="loadCompliantDraft()" class="text-[11px] px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded font-medium hover:bg-emerald-100 transition">
+                                ✓ High-Fidelity Draft
+                            </button>
+                            <button type="button" onclick="loadFluffDraft()" class="text-[11px] px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded font-medium hover:bg-amber-100 transition">
+                                ⚠️ Generic Buzzword Draft
+                            </button>
+                        </div>
+
+                        <!-- Form -->
+                        <form id="draft-check-form" onsubmit="handleCheckDraft(event)" class="space-y-3">
+                            <div>
+                                <label for="draft-brand-input" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Brand Name</label>
+                                <input type="text" id="draft-brand-input" value="Ordway" class="block w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:bg-white text-slate-900 transition">
+                            </div>
+                            <div>
+                                <label for="draft-text-input" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Draft Text / Article Body</label>
+                                <textarea id="draft-text-input" rows="5" required placeholder="Paste blog post or product marketing text here..." class="block w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-indigo-500 focus:bg-white text-slate-900 transition"></textarea>
+                            </div>
+                            <button type="submit" id="draft-submit-btn" class="w-full inline-flex items-center justify-center px-4 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md shadow-indigo-500/20 transition disabled:opacity-50">
+                                <span id="draft-btn-text">Analyze Draft Alignment &amp; Detect Fluff</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Draft Results Container -->
+                    <div id="draft-results-container" class="hidden space-y-4 pt-4 border-t border-slate-200">
+                        <!-- Score & Verdict Header -->
+                        <div class="flex items-center justify-between bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            <div>
+                                <div class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Product Alignment Score</div>
+                                <div class="text-3xl font-extrabold text-slate-900" id="draft-pas-score">--</div>
+                            </div>
+                            <div class="text-right">
+                                <span id="draft-pas-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">High Fidelity</span>
+                                <div class="text-[11px] text-slate-500 mt-1" id="draft-pas-verdict">Fidelity status</div>
+                            </div>
+                        </div>
+
+                        <!-- Component Breakdown -->
+                        <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                            <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                                <span class="text-slate-400 block text-[10px] uppercase">Coverage</span>
+                                <span class="font-bold text-slate-800" id="draft-bk-coverage">--/30</span>
+                            </div>
+                            <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                                <span class="text-slate-400 block text-[10px] uppercase">Relational</span>
+                                <span class="font-bold text-slate-800" id="draft-bk-density">--/25</span>
+                            </div>
+                            <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                                <span class="text-slate-400 block text-[10px] uppercase">Fidelity</span>
+                                <span class="font-bold text-slate-800" id="draft-bk-fidelity">--/25</span>
+                            </div>
+                        </div>
+
+                        <!-- Buzzword Fluff Radar -->
+                        <div id="draft-fluff-box" class="hidden p-3 rounded-xl bg-amber-50 border border-amber-200">
+                            <div class="text-xs font-bold text-amber-900 flex items-center justify-between mb-1">
+                                <span>⚠️ Generic Marketing Fluff Detected</span>
+                                <span class="text-[11px] font-semibold text-amber-700" id="draft-fluff-penalty">-0 pts penalty</span>
+                            </div>
+                            <p class="text-[11px] text-amber-800 mb-2">These empty phrases dilute citable semantic signals for AI search engines:</p>
+                            <div id="draft-fluff-tags" class="flex flex-wrap gap-1.5"></div>
+                        </div>
+
+                        <!-- Grounded Triples vs Missing Triples -->
+                        <div class="space-y-2 text-xs">
+                            <div class="font-bold text-slate-700">Verified Triples in Draft:</div>
+                            <div id="draft-grounded-triples" class="space-y-1 text-slate-600 font-mono text-[11px]"></div>
+                        </div>
+
+                        <!-- Gemini LLM-as-Judge Verdict -->
+                        <div id="draft-llm-judge-box" class="p-3.5 bg-indigo-50/70 rounded-xl border border-indigo-100 text-xs space-y-1.5">
+                            <div class="font-bold text-indigo-900 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+                                Google Gemini 2.5 Flash Audit Verdict
+                            </div>
+                            <p id="draft-llm-verdict" class="text-indigo-800 leading-relaxed"></p>
+                            <div class="pt-1">
+                                <span class="font-semibold text-indigo-950 block text-[11px]">Rewrite Recommendations:</span>
+                                <ul id="draft-llm-recs" class="list-disc list-inside text-[11px] text-indigo-800 space-y-0.5"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: Product Truth Content Brief Generator -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-between space-y-5">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                <span>📋 Product Truth Content Brief Generator</span>
+                            </h3>
+                            <span class="text-xs font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-100">Writer Guardrail</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-4">
+                            Generate structured, triple-grounded briefs for writers and AI copywriters to ensure newly published content never drifts from product reality.
+                        </p>
+
+                        <!-- Form -->
+                        <form id="brief-form" onsubmit="handleGenerateBrief(event)" class="space-y-3">
+                            <div>
+                                <label for="brief-topic-input" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Target Article Topic / Keyword</label>
+                                <input type="text" id="brief-topic-input" required value="Automated Revenue Recognition &amp; NetSuite ERP Sync" class="block w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-sky-500 focus:bg-white text-slate-900 transition">
+                            </div>
+                            <div>
+                                <label for="brief-brand-input" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Brand Name</label>
+                                <input type="text" id="brief-brand-input" value="Ordway" class="block w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-sky-500 focus:bg-white text-slate-900 transition">
+                            </div>
+                            <button type="submit" id="brief-submit-btn" class="w-full inline-flex items-center justify-center px-4 py-2.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-md shadow-sky-500/20 transition disabled:opacity-50">
+                                <span id="brief-btn-text">Generate Product Truth Brief</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Brief Results Container -->
+                    <div id="brief-results-container" class="hidden space-y-4 pt-4 border-t border-slate-200">
+                        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center justify-between">
+                            <div>
+                                <span class="text-[10px] uppercase font-bold text-slate-400">Target Fidelity</span>
+                                <div class="text-2xl font-extrabold text-sky-700" id="brief-target-score">90+ PAS</div>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-md text-xs font-semibold bg-sky-100 text-sky-800">Canonical Grounded</span>
+                        </div>
+
+                        <!-- Must-Include Entities -->
+                        <div class="space-y-1.5">
+                            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Must-Include Entities:</span>
+                            <div id="brief-entities-tags" class="flex flex-wrap gap-1.5"></div>
+                        </div>
+
+                        <!-- Required Triples -->
+                        <div class="space-y-1.5">
+                            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Required Relational Triples:</span>
+                            <ul id="brief-triples-list" class="space-y-1 text-xs font-mono text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-200"></ul>
+                        </div>
+
+                        <!-- Prohibited Claims -->
+                        <div class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs">
+                            <div class="font-bold text-rose-900 mb-1">🚫 Prohibited &amp; Ungrounded Claims to Avoid:</div>
+                            <ul id="brief-prohibited-list" class="list-disc list-inside text-rose-800 space-y-0.5 text-[11px]"></ul>
+                        </div>
+
+                        <!-- Suggested Outline -->
+                        <div class="space-y-1.5">
+                            <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Recommended Section Outline:</span>
+                            <ol id="brief-outline-list" class="list-decimal list-inside text-xs text-slate-700 space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-200"></ol>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
     </main>
 
     <!-- Footer -->
@@ -1485,12 +1703,14 @@ SELECT ?capability ?evidence WHERE {
             const auditTabBtn = document.getElementById('tab-audit-btn');
             const benchTabBtn = document.getElementById('tab-bench-btn');
             const linkingTabBtn = document.getElementById('tab-linking-btn');
+            const alignmentTabBtn = document.getElementById('tab-alignment-btn');
             const auditView = document.getElementById('view-audit');
             const benchView = document.getElementById('view-bench');
             const linkingView = document.getElementById('view-linking');
+            const alignmentView = document.getElementById('view-alignment');
 
-            [auditTabBtn, benchTabBtn, linkingTabBtn].forEach(b => b && b.classList.remove('tab-active'));
-            [auditView, benchView, linkingView].forEach(v => v && v.classList.add('hidden'));
+            [auditTabBtn, benchTabBtn, linkingTabBtn, alignmentTabBtn].forEach(b => b && b.classList.remove('tab-active'));
+            [auditView, benchView, linkingView, alignmentView].forEach(v => v && v.classList.add('hidden'));
 
             if (tab === 'audit') {
                 auditTabBtn && auditTabBtn.classList.add('tab-active');
@@ -1506,6 +1726,269 @@ SELECT ?capability ?evidence WHERE {
                         initClusterGraph(currentLinkingData.cluster_topology);
                     }, 50);
                 }
+            } else if (tab === 'alignment') {
+                alignmentTabBtn && alignmentTabBtn.classList.add('tab-active');
+                alignmentView && alignmentView.classList.remove('hidden');
+            }
+        }
+
+        function loadCompliantDraft() {
+            const brand = document.getElementById('draft-brand-input');
+            const txt = document.getElementById('draft-text-input');
+            if (brand) brand.value = 'Ordway';
+            if (txt) txt.value = 'Ordway is a billing automation platform that automates Revenue Recognition complying with ASC 606 and IFRS 15 standards. Ordway seamlessly integrates with NetSuite, Salesforce, and QuickBooks, and supports flexible Usage-Based Pricing and recurring billing models.';
+        }
+
+        function loadFluffDraft() {
+            const brand = document.getElementById('draft-brand-input');
+            const txt = document.getElementById('draft-text-input');
+            if (brand) brand.value = 'Ordway';
+            if (txt) txt.value = 'Our cutting-edge, all-in-one game-changing platform delivers an unparalleled seamless experience. We empower hyper-scalable business growth through next-generation synergy and revolutionary paradigm-shifting digital transformation.';
+        }
+
+        async function downloadAuditPdf() {
+            if (!currentAuditData) {
+                alert("Please run an audit first.");
+                return;
+            }
+            const btn = document.getElementById('pdf-export-btn');
+            const originalText = btn ? btn.innerHTML : '';
+            if (btn) btn.innerHTML = '⏳ Generating PDF...';
+            try {
+                const selectedVertical = document.getElementById('vertical-select') ? document.getElementById('vertical-select').value : 'b2b_saas_fintech';
+                const payload = {
+                    url: currentAuditData.url,
+                    vertical_id: selectedVertical,
+                    readiness_score: currentAuditData.readiness_score || 0,
+                    mandatory_schema_status: currentAuditData.mandatory_schema_status || {},
+                    triples: currentAuditData.triples || []
+                };
+                const res = await fetch('/api/export-pdf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) throw new Error('PDF generation failed');
+                const blob = await res.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                const cleanName = (currentAuditData.url || 'report').replace(/https?:\/\//, '').replace(/[^a-zA-Z0-9]/g, '_');
+                a.download = `GainARK_OntoLeap_${cleanName}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(blobUrl);
+            } catch (e) {
+                alert('Failed to export PDF: ' + e.message);
+            } finally {
+                if (btn) btn.innerHTML = originalText;
+            }
+        }
+
+        async function handleCheckDraft(e) {
+            e.preventDefault();
+            const brandInput = document.getElementById('draft-brand-input').value.trim() || 'The Platform';
+            const draftTextInput = document.getElementById('draft-text-input').value.trim();
+            const submitBtn = document.getElementById('draft-submit-btn');
+            const btnText = document.getElementById('draft-btn-text');
+            const resultsBox = document.getElementById('draft-results-container');
+            const selectedVertical = document.getElementById('vertical-select') ? document.getElementById('vertical-select').value : 'b2b_saas_fintech';
+
+            if (!draftTextInput) return;
+
+            submitBtn.disabled = true;
+            btnText.innerText = 'Analyzing Draft with Gemini 2.5 Flash...';
+
+            try {
+                const triplesToSend = (currentAuditData && currentAuditData.triples) ? currentAuditData.triples : [
+                    { subject: brandInput, predicate: 'automates', object: 'Revenue Recognition', confidence: 0.95 },
+                    { subject: brandInput, predicate: 'compliesWith', object: 'ASC 606', confidence: 0.95 },
+                    { subject: brandInput, predicate: 'integratesWith', object: 'NetSuite', confidence: 0.92 },
+                    { subject: brandInput, predicate: 'integratesWith', object: 'Salesforce', confidence: 0.90 },
+                    { subject: brandInput, predicate: 'supportsPricingModel', object: 'Usage-Based Pricing', confidence: 0.88 }
+                ];
+
+                const res = await fetch('/api/check-draft', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        draft_text: draftTextInput,
+                        brand_name: brandInput,
+                        vertical_id: selectedVertical,
+                        triples: triplesToSend
+                    })
+                });
+
+                if (!res.ok) {
+                    const errMsg = await getApiErrorMessage(res, 'Draft alignment check failed');
+                    throw new Error(errMsg);
+                }
+
+                const data = await res.json();
+                resultsBox.classList.remove('hidden');
+                document.getElementById('draft-pas-score').innerText = `${data.product_alignment_score.toFixed(1)} / 100`;
+                document.getElementById('draft-pas-verdict').innerText = data.verdict;
+
+                const badge = document.getElementById('draft-pas-badge');
+                if (data.product_alignment_score >= 80) {
+                    badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800';
+                    badge.innerText = 'High Fidelity';
+                } else if (data.product_alignment_score >= 50) {
+                    badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800';
+                    badge.innerText = 'Moderate Drift';
+                } else {
+                    badge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800';
+                    badge.innerText = 'Severe Drift';
+                }
+
+                document.getElementById('draft-bk-coverage').innerText = `${data.breakdown.entity_coverage_score.toFixed(1)}/30`;
+                document.getElementById('draft-bk-density').innerText = `${data.breakdown.relational_density_score.toFixed(1)}/25`;
+                document.getElementById('draft-bk-fidelity').innerText = `${data.breakdown.claim_fidelity_score.toFixed(1)}/25`;
+
+                // Fluff Radar
+                const fluffBox = document.getElementById('draft-fluff-box');
+                const fluffTags = document.getElementById('draft-fluff-tags');
+                fluffTags.innerHTML = '';
+                if (data.fluff_analysis && data.fluff_analysis.detected_phrases && data.fluff_analysis.detected_phrases.length > 0) {
+                    fluffBox.classList.remove('hidden');
+                    document.getElementById('draft-fluff-penalty').innerText = `-${data.fluff_analysis.fluff_penalty} pts penalty`;
+                    data.fluff_analysis.detected_phrases.forEach(p => {
+                        const tag = document.createElement('span');
+                        tag.className = 'px-2 py-0.5 rounded bg-rose-100 text-rose-800 text-[10px] font-semibold';
+                        tag.innerText = `"${p}"`;
+                        fluffTags.appendChild(tag);
+                    });
+                } else {
+                    fluffBox.classList.add('hidden');
+                }
+
+                // Grounded Triples
+                const gtContainer = document.getElementById('draft-grounded-triples');
+                gtContainer.innerHTML = '';
+                if (data.grounded_triples && data.grounded_triples.length > 0) {
+                    data.grounded_triples.forEach(t => {
+                        const div = document.createElement('div');
+                        div.className = 'p-1.5 bg-emerald-50 rounded text-emerald-900 border border-emerald-100';
+                        div.innerText = `✓ ${t.subject} --${t.predicate}--> ${t.object}`;
+                        gtContainer.appendChild(div);
+                    });
+                } else {
+                    gtContainer.innerHTML = '<div class="text-slate-400 italic">No verified product triples detected in this draft.</div>';
+                }
+
+                // LLM Judge Box
+                const verdictEl = document.getElementById('draft-llm-verdict');
+                const recsEl = document.getElementById('draft-llm-recs');
+                recsEl.innerHTML = '';
+                if (data.llm_judge && data.llm_judge.executive_verdict) {
+                    verdictEl.innerText = data.llm_judge.executive_verdict;
+                    (data.llm_judge.rewrite_recommendations || []).forEach(r => {
+                        const li = document.createElement('li');
+                        li.innerText = r;
+                        recsEl.appendChild(li);
+                    });
+                } else {
+                    verdictEl.innerText = data.verdict;
+                    (data.recommendations || []).forEach(r => {
+                        const li = document.createElement('li');
+                        li.innerText = r;
+                        recsEl.appendChild(li);
+                    });
+                }
+
+            } catch (err) {
+                alert('Error analyzing draft: ' + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                btnText.innerText = 'Analyze Draft Alignment & Detect Fluff';
+            }
+        }
+
+        async function handleGenerateBrief(e) {
+            e.preventDefault();
+            const topicInput = document.getElementById('brief-topic-input').value.trim();
+            const brandInput = document.getElementById('brief-brand-input').value.trim() || 'The Platform';
+            const submitBtn = document.getElementById('brief-submit-btn');
+            const btnText = document.getElementById('brief-btn-text');
+            const resultsBox = document.getElementById('brief-results-container');
+            const selectedVertical = document.getElementById('vertical-select') ? document.getElementById('vertical-select').value : 'b2b_saas_fintech';
+
+            if (!topicInput) return;
+
+            submitBtn.disabled = true;
+            btnText.innerText = 'Synthesizing Brief with Gemini...';
+
+            try {
+                const triplesToSend = (currentAuditData && currentAuditData.triples) ? currentAuditData.triples : [
+                    { subject: brandInput, predicate: 'automates', object: 'Revenue Recognition', confidence: 0.95 },
+                    { subject: brandInput, predicate: 'compliesWith', object: 'ASC 606', confidence: 0.95 },
+                    { subject: brandInput, predicate: 'integratesWith', object: 'NetSuite', confidence: 0.92 }
+                ];
+
+                const res = await fetch('/api/content-brief', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        topic: topicInput,
+                        brand_name: brandInput,
+                        vertical_id: selectedVertical,
+                        triples: triplesToSend
+                    })
+                });
+
+                if (!res.ok) {
+                    const errMsg = await getApiErrorMessage(res, 'Brief generation failed');
+                    throw new Error(errMsg);
+                }
+
+                const data = await res.json();
+                resultsBox.classList.remove('hidden');
+
+                document.getElementById('brief-target-score').innerText = `${data.target_alignment_score}+ PAS`;
+
+                // Must include entities
+                const entTags = document.getElementById('brief-entities-tags');
+                entTags.innerHTML = '';
+                (data.must_include_entities || []).forEach(ent => {
+                    const span = document.createElement('span');
+                    span.className = 'px-2 py-0.5 rounded bg-sky-100 text-sky-800 text-xs font-semibold';
+                    span.innerText = ent;
+                    entTags.appendChild(span);
+                });
+
+                // Required triples
+                const triplesList = document.getElementById('brief-triples-list');
+                triplesList.innerHTML = '';
+                (data.required_relational_triples || []).forEach(tr => {
+                    const li = document.createElement('li');
+                    li.innerText = `• ${tr}`;
+                    triplesList.appendChild(li);
+                });
+
+                // Prohibited claims
+                const prohibList = document.getElementById('brief-prohibited-list');
+                prohibList.innerHTML = '';
+                (data.prohibited_claims || []).forEach(cl => {
+                    const li = document.createElement('li');
+                    li.innerText = cl;
+                    prohibList.appendChild(li);
+                });
+
+                // Outline
+                const outlineList = document.getElementById('brief-outline-list');
+                outlineList.innerHTML = '';
+                (data.suggested_outline || []).forEach(sec => {
+                    const li = document.createElement('li');
+                    li.innerText = sec;
+                    outlineList.appendChild(li);
+                });
+
+            } catch (err) {
+                alert('Error generating brief: ' + err.message);
+            } finally {
+                submitBtn.disabled = false;
+                btnText.innerText = 'Generate Product Truth Brief';
             }
         }
 
@@ -1527,10 +2010,11 @@ SELECT ?capability ?evidence WHERE {
             if (deepScan) scanBadge.classList.remove('hidden');
 
             try {
+                const selectedVertical = document.getElementById('vertical-select') ? document.getElementById('vertical-select').value : 'b2b_saas_fintech';
                 const response = await fetch('/api/audit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: urlInput, vertical_id: 'b2b_saas_fintech', deep_crawl: deepScan })
+                    body: JSON.stringify({ url: urlInput, vertical_id: selectedVertical, deep_crawl: deepScan })
                 });
 
                 if (!response.ok) {

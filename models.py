@@ -351,3 +351,69 @@ class NTriplesExportRequest(BaseModel):
         max_length=500_000,
         description="RDF Turtle serialization to convert into N-Triples (max 500 KB)"
     )
+
+
+class DraftAlignmentRequest(BaseModel):
+    """
+    Request model for analyzing draft content against canonical Product Knowledge Graph.
+    """
+    draft_text: str = Field(..., max_length=20_000, description="Draft blog post, landing page, or PR copy")
+    brand_name: str = Field(default="The Platform", description="Brand under evaluation")
+    site_url: Optional[str] = Field(default="https://example.com")
+    vertical_id: str = Field(default="b2b_saas_fintech")
+    triples: List[SemanticTriple] = Field(default_factory=list)
+    entities: List[str] = Field(default_factory=list)
+
+
+class DraftAlignmentResponse(BaseModel):
+    """
+    Scored alignment report with LLM-as-judge claims verification and fluff analysis.
+    """
+    product_alignment_score: float = Field(..., description="0-100 Product Alignment Score (PAS)")
+    verdict: str
+    breakdown: Dict[str, Any]
+    fluff_analysis: Dict[str, Any]
+    grounded_triples_count: int
+    grounded_triples: List[Dict[str, Any]]
+    missing_triples_count: int
+    missing_triples: List[Dict[str, Any]]
+    contradictions: List[str]
+    recommendations: List[str]
+    llm_judge: Optional[Dict[str, Any]] = None
+
+
+class ProductBriefRequest(BaseModel):
+    """
+    Request model for generating a Product Truth Content Brief.
+    """
+    topic: str = Field(..., max_length=500, description="Content topic or target keyword")
+    brand_name: str = Field(default="The Platform")
+    vertical_id: str = Field(default="b2b_saas_fintech")
+    triples: List[SemanticTriple] = Field(default_factory=list)
+    gaps: List[str] = Field(default_factory=list)
+
+
+class ProductBriefResponse(BaseModel):
+    """
+    Structured Product Truth Content Brief for writers and AI generation.
+    """
+    topic: str
+    target_alignment_score: int
+    must_include_entities: List[str]
+    required_relational_triples: List[str]
+    prohibited_claims: List[str]
+    suggested_outline: List[str]
+    differentiation_angles: List[str]
+
+
+class ExportPdfRequest(BaseModel):
+    """
+    Request model for 1-Click Executive PDF report generation.
+    """
+    url: str = Field(..., max_length=2048)
+    vertical_id: str = Field(default="b2b_saas_fintech")
+    readiness_score: Optional[float] = 0.0
+    mandatory_schema_status: Optional[Dict[str, bool]] = Field(default_factory=dict)
+    triples: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
+    benchmark_table: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
+

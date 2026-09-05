@@ -1,0 +1,37 @@
+{
+  "vertical_id": "healthtech",
+  "display_name": "Healthcare & Clinical HealthTech",
+  "gliner_labels": [
+    "Clinical Platform",
+    "Medical Standard",
+    "Healthcare Integration",
+    "Compliance Regulation",
+    "Care Delivery Model"
+  ],
+  "mandatory_schema_types": [
+    "SoftwareApplication",
+    "Organization",
+    "Offer"
+  ],
+  "core_seed_concepts": [
+    "Electronic Health Record",
+    "HIPAA Compliance",
+    "HL7 FHIR",
+    "Telehealth",
+    "Patient Engagement",
+    "Clinical Decision Support",
+    "Revenue Cycle Management",
+    "DICOM",
+    "Interoperability"
+  ],
+  "known_integrations": [
+    "Epic Systems", "Cerner", "Athenahealth", "Allscripts",
+    "Salesforce Health Cloud", "Google Cloud Healthcare API", "AWS HealthLake"
+  ],
+  "known_compliance": [
+    "HIPAA", "HITECH", "FDA 21 CFR Part 11", "SOC 2", "HITRUST CSF", "GDPR"
+  ],
+  "known_pricing": [
+    "Per-Provider Pricing", "Per-Patient Pricing", "Enterprise License", "Tiered Annual"
+  ]
+}
