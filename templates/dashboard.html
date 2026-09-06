@@ -2737,10 +2737,14 @@ SELECT ?capability ?evidence WHERE {
                         marketing_url: companyUrl,
                         openapi_spec: companySpec
                     },
-                    competitors: compUrls.map(u => ({
-                        company_name: u.replace(/^https?:\/\//, '').replace(/^www\./, '').split('.')[0],
-                        marketing_url: u
-                    })),
+                    competitors: compUrls.map(u => {
+                        const cleanU = (u || '').trim();
+                        const host = cleanU.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0].split('.')[0] || 'Competitor';
+                        return {
+                            company_name: host.charAt(0).toUpperCase() + host.slice(1),
+                            marketing_url: cleanU
+                        };
+                    }),
                     vertical_id: selectedVertical
                 };
 
@@ -2832,6 +2836,12 @@ SELECT ?capability ?evidence WHERE {
                     borderClass = 'border-rose-300 shadow-rose-500/5';
                 }
 
+                const capName = b.capability || b.angle_title || 'Competitive Advantage';
+                const attackAngle = b.attack_angle || b.core_narrative || '';
+                const discQ = b.discovery_question || 'Does your solution provide programmatic API endpoints for this?';
+                const fudDef = b.fud_counter_defense || b.company_differentiator || '';
+                const safeCapName = String(capName).replace(/'/g, "\\'");
+
                 card.className = `bg-white rounded-2xl p-5 border ${borderClass} shadow-sm space-y-4 flex flex-col justify-between`;
                 card.innerHTML = `
                     <div class="space-y-3">
@@ -2841,7 +2851,7 @@ SELECT ?capability ?evidence WHERE {
                             </span>
                             <span class="text-[10px] font-mono text-slate-400 uppercase">${escapeHtml(b.predicate || 'capability')}</span>
                         </div>
-                        <h4 class="text-sm font-extrabold text-slate-900">${escapeHtml(b.capability)}</h4>
+                        <h4 class="text-sm font-extrabold text-slate-900">${escapeHtml(capName)}</h4>
 
                         <!-- Attack Angle -->
                         <div class="bg-amber-50/70 p-3 rounded-xl border border-amber-100 space-y-1">
@@ -2849,7 +2859,7 @@ SELECT ?capability ?evidence WHERE {
                                 <span>🎯 Attack Angle &amp; Messaging</span>
                             </div>
                             <p class="text-xs text-amber-950 font-medium leading-relaxed">
-                                ${escapeHtml(b.attack_angle)}
+                                ${escapeHtml(attackAngle)}
                             </p>
                         </div>
 
@@ -2859,7 +2869,7 @@ SELECT ?capability ?evidence WHERE {
                                 <span>❓ Buyer Discovery Question (RFP / Demo)</span>
                             </div>
                             <p class="text-xs text-sky-950 font-medium italic leading-relaxed">
-                                "${escapeHtml(b.discovery_question)}"
+                                "${escapeHtml(discQ)}"
                             </p>
                         </div>
 
@@ -2869,14 +2879,14 @@ SELECT ?capability ?evidence WHERE {
                                 <span>🛡️ FUD Counter-Defense</span>
                             </div>
                             <p class="text-xs text-slate-800 leading-relaxed">
-                                ${escapeHtml(b.fud_counter_defense)}
+                                ${escapeHtml(fudDef)}
                             </p>
                         </div>
                     </div>
 
                     <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
                         <span>Predicate: <code class="font-mono text-slate-700">${escapeHtml(b.predicate || 'automates')}</code></span>
-                        <button type="button" onclick="copySingleBattlecard('${escapeHtml(b.capability.replace(/'/g, "\\'"))}')" class="text-slate-600 hover:text-slate-900 font-semibold">
+                        <button type="button" onclick="copySingleBattlecard('${escapeHtml(safeCapName)}')" class="text-slate-600 hover:text-slate-900 font-semibold">
                             Copy Card &rarr;
                         </button>
                     </div>
@@ -2891,20 +2901,30 @@ SELECT ?capability ?evidence WHERE {
 
         function copySingleBattlecard(capName) {
             if (!currentBattlecardData) return;
-            const b = (currentBattlecardData.counter_positioning_briefs || []).find(x => x.capability === capName);
+            const b = (currentBattlecardData.counter_positioning_briefs || []).find(x => (x.capability === capName || x.angle_title === capName));
             if (!b) return;
-            const text = `# BATTLECARD: ${b.capability}\n\nStatus: ${b.comparative_status}\n\n## 🎯 Attack Angle\n${b.attack_angle}\n\n## ❓ Killer Discovery Question\n"${b.discovery_question}"\n\n## 🛡️ FUD Defense\n${b.fud_counter_defense}`;
+            const cap = b.capability || b.angle_title || 'Competitive Advantage';
+            const status = b.comparative_status || 'company_advantage';
+            const attack = b.attack_angle || b.core_narrative || '';
+            const disc = b.discovery_question || '';
+            const fud = b.fud_counter_defense || b.company_differentiator || '';
+            const text = `# BATTLECARD: ${cap}\n\nStatus: ${status}\n\n## 🎯 Attack Angle\n${attack}\n\n## ❓ Killer Discovery Question\n"${disc}"\n\n## 🛡️ FUD Defense\n${fud}`;
             navigator.clipboard.writeText(text).then(() => {
-                alert(`Copied battlecard for "${b.capability}" to clipboard!`);
+                alert(`Copied battlecard for "${cap}" to clipboard!`);
             });
         }
 
         function copyBattlecardsToClipboard() {
             if (!currentBattlecardData) return;
             const briefs = currentBattlecardData.counter_positioning_briefs || [];
-            let md = `# TRI-ONTOLOGY SALES BATTLECARDS\n\nCompany: ${currentBattlecardData.company_name}\nCompetitors: ${currentBattlecardData.competitor_names.join(', ')}\nVertical: ${currentBattlecardData.industry_category}\n\n## Executive Summary\n${currentBattlecardData.executive_summary}\n\n---\n\n`;
+            let md = `# TRI-ONTOLOGY SALES BATTLECARDS\n\nCompany: ${currentBattlecardData.company_name}\nCompetitors: ${(currentBattlecardData.competitor_names || []).join(', ')}\nVertical: ${currentBattlecardData.industry_category}\n\n## Executive Summary\n${currentBattlecardData.executive_summary}\n\n---\n\n`;
             briefs.forEach(b => {
-                md += `### [${b.comparative_status.toUpperCase()}] ${b.capability}\n\n- **Attack Angle**: ${b.attack_angle}\n- **Discovery Question**: "${b.discovery_question}"\n- **FUD Counter-Defense**: ${b.fud_counter_defense}\n\n`;
+                const cap = b.capability || b.angle_title || 'Differentiator';
+                const status = (b.comparative_status || 'advantage').toUpperCase();
+                const attack = b.attack_angle || b.core_narrative || '';
+                const disc = b.discovery_question || '';
+                const fud = b.fud_counter_defense || b.company_differentiator || '';
+                md += `### [${status}] ${cap}\n\n- **Attack Angle**: ${attack}\n- **Discovery Question**: "${disc}"\n- **FUD Counter-Defense**: ${fud}\n\n`;
             });
             navigator.clipboard.writeText(md).then(() => {
                 alert("Copied complete Tri-Ontology Battlecards deck to clipboard in Markdown format!");

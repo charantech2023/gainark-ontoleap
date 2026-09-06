@@ -209,18 +209,23 @@ Return ONLY a valid, raw JSON array (or enclosed in ```json fence) of objects ma
 [
   {{
     "target_competitor": "Competitor name",
+    "capability": "Exact technical capability or feature (e.g. 'ASC 606 Revenue Recognition' or 'NetSuite ERP Sync')",
+    "comparative_status": "company_advantage (if our verified strength) or competitor_fluff_vulnerability (if competitor unbacked claim)",
+    "predicate": "automates, integratesWith, or compliesWith",
     "angle_title": "Short, punchy campaign title (e.g., 'Real-Time Sync vs. Manual CSV Export')",
-    "core_narrative": "2-3 sentences explaining why buyers should choose our brand over the competitor based strictly on the verified technical facts.",
+    "attack_angle": "Exact messaging angle showing why buyers should choose our brand over the competitor based strictly on verified technical reality.",
+    "discovery_question": "High-impact question sales reps ask the buyer during demos or RFP reviews to expose competitor gap.",
+    "fud_counter_defense": "Rebuttal and proof points sales reps use when competitors spread doubts about this capability.",
+    "core_narrative": "2-3 sentences explaining the strategic positioning.",
     "company_differentiator": "The specific verified capability our engineering actually ships.",
-    "competitor_vulnerability": "The exact competitor limitation or unbacked marketing claim.",
-    "suggested_campaign_topics": ["List of 2-3 blog post or landing page headline ideas"]
+    "competitor_vulnerability": "The exact competitor limitation or unbacked marketing claim."
   }}
 ]
 """
 
     resp_text = vertex_ai_client._call_gemini(
         prompt=prompt,
-        system_instruction="You are a competitive intelligence strategist. Output valid JSON array only.",
+        system_instruction="You are an enterprise B2B competitive intelligence strategist. Output valid JSON array only.",
         temperature=0.2,
         max_output_tokens=3000,
         thinking_budget=256
@@ -229,14 +234,35 @@ Return ONLY a valid, raw JSON array (or enclosed in ```json fence) of objects ma
     if not resp_text:
         # Fallback battlecard if LLM is unavailable
         briefs = []
-        for adv in company_advantages[:2]:
+        for adv in company_advantages[:3]:
             briefs.append(CounterPositioningAngle(
                 target_competitor=adv.competitor_name,
                 angle_title=f"Verified {adv.concept} Leadership",
+                capability=adv.concept,
+                comparative_status="company_advantage",
+                predicate=adv.predicate,
+                attack_angle=f"{company_name} delivers native, production-verified {adv.predicate} for {adv.concept}. Position this as a core operational requirement that {adv.competitor_name} fails to substantiate.",
+                discovery_question=f"When evaluating {adv.concept}, does {adv.competitor_name} support native API endpoints and automated reconciliation, or does it require manual workflows?",
+                fud_counter_defense=f"If competitors claim equivalence on {adv.concept}, challenge them to demonstrate their live API endpoints. Our architecture provides full programmatic support.",
                 core_narrative=f"{company_name} delivers native, API-backed {adv.concept}, whereas {adv.competitor_name} fails to provide verifiable production support.",
                 company_differentiator=f"Production {adv.predicate} {adv.concept}",
                 competitor_vulnerability=f"Missing or unbacked {adv.concept} in documentation",
                 suggested_campaign_topics=[f"Why Native {adv.concept} Matters for Enterprise", f"{company_name} vs {adv.competitor_name}: The Technical Truth"]
+            ))
+        for vuln in competitor_vulnerabilities[:2]:
+            briefs.append(CounterPositioningAngle(
+                target_competitor=vuln.competitor_name,
+                angle_title=f"Exposing {vuln.competitor_name}'s {vuln.concept} Fluff",
+                capability=vuln.concept,
+                comparative_status="competitor_fluff_vulnerability",
+                predicate=vuln.predicate,
+                attack_angle=f"{vuln.competitor_name} aggressively markets {vuln.concept}, but technical docs and API specs show no proof of production support.",
+                discovery_question=f"Have you verified whether {vuln.competitor_name}'s {vuln.concept} is a native production capability or just a marketing roadmap promise?",
+                fud_counter_defense=f"Competitors may market roadmap features as live capabilities. Demand to see API documentation or customer references before committing.",
+                core_narrative=f"{vuln.competitor_name} markets {vuln.concept} as a feature, but lacks verified API endpoints.",
+                company_differentiator=f"Documented truth vs unbacked marketing claims",
+                competitor_vulnerability=f"Unbacked claim of {vuln.predicate} {vuln.concept}",
+                suggested_campaign_topics=[f"Evaluating {vuln.concept}: Marketing Claims vs Technical Reality"]
             ))
         return briefs
 
@@ -250,10 +276,23 @@ Return ONLY a valid, raw JSON array (or enclosed in ```json fence) of objects ma
         data = json.loads(cleaned)
         briefs = []
         for item in data:
+            cap = item.get("capability") or item.get("angle_title") or "Key Differentiator"
+            status = item.get("comparative_status") or "company_advantage"
+            pred = item.get("predicate") or "automates"
+            attack = item.get("attack_angle") or item.get("core_narrative") or ""
+            disc = item.get("discovery_question") or f"How does the vendor support {cap} in production?"
+            fud = item.get("fud_counter_defense") or item.get("company_differentiator") or ""
+            
             briefs.append(CounterPositioningAngle(
                 target_competitor=item.get("target_competitor", "Competitor"),
-                angle_title=item.get("angle_title", "Competitive Angle"),
-                core_narrative=item.get("core_narrative", ""),
+                angle_title=item.get("angle_title", f"Verified {cap} Leadership"),
+                capability=cap,
+                comparative_status=status,
+                predicate=pred,
+                attack_angle=attack,
+                discovery_question=disc,
+                fud_counter_defense=fud,
+                core_narrative=item.get("core_narrative", attack),
                 company_differentiator=item.get("company_differentiator", ""),
                 competitor_vulnerability=item.get("competitor_vulnerability", ""),
                 suggested_campaign_topics=item.get("suggested_campaign_topics", [])

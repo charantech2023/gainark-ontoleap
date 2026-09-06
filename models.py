@@ -525,11 +525,17 @@ class CounterPositioningAngle(BaseModel):
     """
     Strategic sales & marketing battlecard angle exploiting verified capability gaps.
     """
-    target_competitor: str
-    angle_title: str
-    core_narrative: str
-    company_differentiator: str
-    competitor_vulnerability: str
+    target_competitor: str = Field(default="Competitor")
+    angle_title: str = Field(default="Competitive Battlecard")
+    capability: str = Field(default="Verified Capability", description="Key capability or feature differentiator")
+    comparative_status: str = Field(default="company_advantage", description="'company_advantage', 'competitor_fluff_vulnerability', or 'industry_table_stakes'")
+    predicate: str = Field(default="automates", description="Predicate relation")
+    attack_angle: str = Field(default="", description="High-impact attack angle and messaging")
+    discovery_question: str = Field(default="", description="Killer discovery question for RFP / demo")
+    fud_counter_defense: str = Field(default="", description="FUD counter-defense backed by technical truth")
+    core_narrative: str = Field(default="", description="2-3 sentence strategic executive narrative")
+    company_differentiator: str = Field(default="", description="Verified technical truth")
+    competitor_vulnerability: str = Field(default="", description="Competitor limitation or fluff")
     suggested_campaign_topics: List[str] = Field(default_factory=list)
 
 
