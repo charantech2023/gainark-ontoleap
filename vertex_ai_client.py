@@ -15,11 +15,23 @@ from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger("gainark.gemini")
 
-# Default to project key or environment variable
-GEMINI_API_KEY = os.environ.get(
-    "GEMINI_API_KEY",
-    "AIzaSyATWbzBNPr1BZpcRnrRtutjiXKCYbAvQ4A"  # Project: robotic-catwalk-463901-h0
-)
+# Auto-load .env file if present
+_env_path = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.exists(_env_path):
+    try:
+        with open(_env_path, "r", encoding="utf-8") as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if _line and not _line.startswith("#") and "=" in _line:
+                    _k, _v = _line.split("=", 1)
+                    _k, _v = _k.strip(), _v.strip().strip("'\"")
+                    if _k and _k not in os.environ:
+                        os.environ[_k] = _v
+    except Exception:
+        pass
+
+# Default to environment variable
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 

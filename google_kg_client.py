@@ -13,10 +13,22 @@ from typing import Dict, Any, Optional, List
 
 logger = logging.getLogger("gainark.google_kg")
 
-GOOGLE_KG_API_KEY = os.environ.get(
-    "GOOGLE_KG_API_KEY",
-    "AIzaSyDLQurSsWq87g_9ia0lZLWIM6FGRyLrZYc"  # Project: robotic-catwalk-463901-h0
-)
+# Auto-load .env file if present
+_env_path = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.exists(_env_path):
+    try:
+        with open(_env_path, "r", encoding="utf-8") as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if _line and not _line.startswith("#") and "=" in _line:
+                    _k, _v = _line.split("=", 1)
+                    _k, _v = _k.strip(), _v.strip().strip("'\"")
+                    if _k and _k not in os.environ:
+                        os.environ[_k] = _v
+    except Exception:
+        pass
+
+GOOGLE_KG_API_KEY = os.environ.get("GOOGLE_KG_API_KEY", "")
 BASE_URL = "https://kgsearch.googleapis.com/v1/entities:search"
 
 
