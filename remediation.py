@@ -577,10 +577,13 @@ def generate_schema_patch(extraction_result: Any) -> Dict[str, Any]:
     # 6. Build Schema Nodes
     google_kg = res.get("google_kg_presence") or {}
     same_as_list = []
-    if google_kg.get("google_kg_url"):
-        same_as_list.append(google_kg["google_kg_url"])
-    if google_kg.get("wikipedia_url"):
-        same_as_list.append(google_kg["wikipedia_url"])
+    if google_kg.get("is_recognized") and google_kg.get("is_business_or_tech"):
+        if google_kg.get("google_kg_url"):
+            same_as_list.append(google_kg["google_kg_url"])
+        if google_kg.get("wikipedia_url"):
+            w_url = google_kg["wikipedia_url"]
+            if not any(bad in w_url.lower() for bad in ["actor", "actress", "model", "singer", "film", "album", "athlete"]):
+                same_as_list.append(w_url)
 
     provider = {
         "@type": "Organization",

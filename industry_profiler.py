@@ -332,16 +332,21 @@ async def discover_industry_profile_async(
         vertical_id=vertical_id,
         display_name=display_name,
         category=category,
+        category_name=category,
         core_seed_concepts=core_seed_concepts,
         known_compliance=known_compliance,
+        compliance_frameworks=known_compliance,
         known_integrations=known_integrations,
+        ecosystem_integrations=known_integrations,
         known_pricing=known_pricing,
         gliner_labels=gliner_labels,
         suggested_competitors=suggested_competitors,
+        direct_competitors=suggested_competitors,
         grounded_entities=grounded,
         config_file=config_file,
         confidence_score=0.96,
-        discovery_summary=discovery_summary
+        discovery_summary=discovery_summary,
+        domain_scope_description=discovery_summary
     )
 
 

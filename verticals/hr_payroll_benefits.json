@@ -4,10 +4,10 @@
   "gliner_labels": [
     "Payroll Software",
     "Benefits Administration",
-    "HR Platform",
-    "Tax Filing",
-    "Time Tracking",
-    "Employee Onboarding"
+    "HR Management System",
+    "Compliance Standard",
+    "Employee Self-Service",
+    "Tax Filing Service"
   ],
   "mandatory_schema_types": [
     "SoftwareApplication",
@@ -17,45 +17,45 @@
   "core_seed_concepts": [
     "Payroll processing",
     "Direct deposit",
-    "Tax compliance",
-    "W-2 and 1099 forms",
-    "Health insurance administration",
-    "401(k) management",
-    "Workers' compensation",
-    "Paid time off (PTO) management",
+    "Tax filing (federal, state, local)",
+    "Health insurance benefits",
+    "Retirement plans (401k)",
+    "Time tracking",
+    "PTO management",
+    "Onboarding workflows",
+    "HR reporting",
+    "Worker's compensation",
     "Employee self-service portal",
-    "HR reporting and analytics",
-    "New hire reporting",
-    "Garnishment management"
+    "Compliance management"
   ],
   "known_integrations": [
     "QuickBooks",
     "Xero",
     "FreshBooks",
-    "Expensify",
-    "When I Work",
     "Zoom",
     "Slack",
     "Google Workspace",
     "Microsoft 365",
+    "Time Tracking Software",
     "Applicant Tracking Systems (ATS)",
     "Learning Management Systems (LMS)",
+    "Expense Management Software",
     "Performance Management Software"
   ],
   "known_compliance": [
-    "IRS regulations",
-    "FLSA (Fair Labor Standards Act)",
-    "ACA (Affordable Care Act)",
-    "ERISA (Employee Retirement Income Security Act)",
-    "State and local tax laws",
-    "HIPAA (Health Insurance Portability and Accountability Act)",
-    "GDPR (General Data Protection Regulation)",
+    "IRS Regulations",
+    "FLSA",
+    "ACA",
+    "ERISA",
+    "HIPAA",
+    "State Labor Laws",
+    "GDPR (for international employees)",
     "SOC 2"
   ],
   "known_pricing": [
     "Per-Employee Per-Month",
-    "Tiered Plans (Simple, Plus, Premium)",
-    "Add-on Services (e.g., HR Advisory)",
-    "Free Trial"
+    "Tiered Plans (Basic, Plus, Premium)",
+    "Add-on Services Pricing",
+    "Annual Subscription Discount"
   ]
 }

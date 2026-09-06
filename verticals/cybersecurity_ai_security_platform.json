@@ -1,0 +1,60 @@
+{
+  "vertical_id": "cybersecurity_ai_security_platform",
+  "display_name": "AI Security Platform & DevSecOps for AI",
+  "gliner_labels": [
+    "AI Security Platform",
+    "AI-Generated Code",
+    "AI Agent Security",
+    "AI Application Security",
+    "Vulnerability Management",
+    "Security Posture"
+  ],
+  "mandatory_schema_types": [
+    "SoftwareApplication",
+    "Organization",
+    "Offer"
+  ],
+  "core_seed_concepts": [
+    "AI security platform",
+    "AI-generated code security",
+    "AI agent governance",
+    "AI-native application security",
+    "Automated AI attack prevention",
+    "Vulnerability detection",
+    "Runtime security for AI",
+    "Policy enforcement for AI systems",
+    "Supply chain security for AI",
+    "DevSecOps for AI development",
+    "Risk posture improvement",
+    "Continuous security validation"
+  ],
+  "known_integrations": [
+    "GitHub",
+    "GitLab",
+    "Jira",
+    "Azure DevOps",
+    "AWS",
+    "Google Cloud Platform",
+    "Microsoft Azure",
+    "Kubernetes",
+    "Jenkins",
+    "Slack",
+    "Datadog",
+    "OpenAI API"
+  ],
+  "known_compliance": [
+    "NIST AI Risk Management Framework",
+    "ISO 27001",
+    "SOC 2",
+    "GDPR",
+    "OWASP Top 10 for LLMs",
+    "HIPAA (for AI in healthcare)",
+    "PCI-DSS (for AI in fintech)"
+  ],
+  "known_pricing": [
+    "Per-Developer Pricing",
+    "Tiered Enterprise",
+    "Usage-Based (e.g., scans, repositories)",
+    "Custom Enterprise Quotes"
+  ]
+}

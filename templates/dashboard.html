@@ -2951,15 +2951,15 @@ SELECT ?capability ?evidence WHERE {
                 resultsBox.classList.remove('hidden');
 
                 // Header
-                document.getElementById('ind-id-badge').innerText = data.vertical_id;
-                document.getElementById('ind-cat-badge').innerText = data.category_name;
-                document.getElementById('ind-display-name').innerText = data.display_name;
-                document.getElementById('ind-description').innerText = data.domain_scope_description;
+                document.getElementById('ind-id-badge').innerText = data.vertical_id || 'custom_vertical';
+                document.getElementById('ind-cat-badge').innerText = data.category || data.category_name || 'B2B SaaS';
+                document.getElementById('ind-display-name').innerText = data.display_name || data.vertical_id;
+                document.getElementById('ind-description').innerText = data.discovery_summary || data.domain_scope_description || '';
 
                 // 1. Compliance
                 const compContainer = document.getElementById('ind-compliance-tags');
                 compContainer.innerHTML = '';
-                const compList = data.compliance_frameworks || [];
+                const compList = data.known_compliance || data.compliance_frameworks || [];
                 document.getElementById('ind-compliance-count').innerText = compList.length;
                 compList.forEach(c => {
                     const span = document.createElement('span');
@@ -2971,7 +2971,7 @@ SELECT ?capability ?evidence WHERE {
                 // 2. Integrations
                 const intContainer = document.getElementById('ind-integrations-tags');
                 intContainer.innerHTML = '';
-                const intList = data.ecosystem_integrations || [];
+                const intList = data.known_integrations || data.ecosystem_integrations || [];
                 document.getElementById('ind-integrations-count').innerText = intList.length;
                 intList.forEach(i => {
                     const span = document.createElement('span');
@@ -2995,14 +2995,16 @@ SELECT ?capability ?evidence WHERE {
                 // 4. Competitors
                 const compTierContainer = document.getElementById('ind-competitors-tags');
                 compTierContainer.innerHTML = '';
-                const compTierList = data.direct_competitors || [];
+                const compTierList = data.suggested_competitors || data.direct_competitors || [];
                 document.getElementById('ind-competitors-count').innerText = compTierList.length;
                 compTierList.forEach(comp => {
+                    const compName = typeof comp === 'string' ? comp : (comp.name || comp.title || comp);
+                    const compUrl = (typeof comp === 'object' && comp.url) ? comp.url : `https://www.google.com/search?q=${encodeURIComponent(compName)}`;
                     const a = document.createElement('a');
-                    a.href = comp.url || '#';
+                    a.href = compUrl;
                     a.target = '_blank';
                     a.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200 transition';
-                    a.innerText = `🏢 ${comp.name}`;
+                    a.innerText = `🏢 ${compName}`;
                     compTierContainer.appendChild(a);
                 });
 

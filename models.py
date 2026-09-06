@@ -456,16 +456,21 @@ class IndustryDiscoveryResponse(BaseModel):
     vertical_id: str
     display_name: str
     category: str
+    category_name: Optional[str] = None
     core_seed_concepts: List[str] = Field(default_factory=list)
     known_compliance: List[str] = Field(default_factory=list)
+    compliance_frameworks: List[str] = Field(default_factory=list)
     known_integrations: List[str] = Field(default_factory=list)
+    ecosystem_integrations: List[str] = Field(default_factory=list)
     known_pricing: List[str] = Field(default_factory=list)
     gliner_labels: List[str] = Field(default_factory=list)
     suggested_competitors: List[str] = Field(default_factory=list)
+    direct_competitors: List[Any] = Field(default_factory=list)
     grounded_entities: List[GroundedConcept] = Field(default_factory=list)
     config_file: Optional[str] = None
     confidence_score: float = Field(default=0.95)
     discovery_summary: str
+    domain_scope_description: Optional[str] = None
 
 
 class ProductTruthRequest(BaseModel):

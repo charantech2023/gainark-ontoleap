@@ -1,0 +1,60 @@
+{
+  "vertical_id": "fintech_subscription_billing_revenue_automation",
+  "display_name": "Subscription Billing & Revenue Automation",
+  "gliner_labels": [
+    "Billing Model",
+    "Revenue Stream",
+    "Financial Standard",
+    "Reporting Metric",
+    "Automation Workflow",
+    "Pricing Structure"
+  ],
+  "mandatory_schema_types": [
+    "SoftwareApplication",
+    "Organization",
+    "Offer"
+  ],
+  "core_seed_concepts": [
+    "Subscription Billing",
+    "Revenue Automation",
+    "Usage-Based Pricing",
+    "Transaction Pricing",
+    "Recurring Revenue Management",
+    "Quote-to-Cash Automation",
+    "Accounts Receivable Automation",
+    "Revenue Recognition",
+    "SaaS Metrics Reporting",
+    "Dunning Automation",
+    "Contract Modifications",
+    "Revenue Subledger"
+  ],
+  "known_integrations": [
+    "Salesforce CRM",
+    "NetSuite ERP",
+    "SAP ERP",
+    "Stripe Payments",
+    "Chargebee",
+    "Zuora",
+    "QuickBooks Accounting",
+    "Xero Accounting",
+    "Payment Gateways",
+    "Data Warehouses",
+    "BI Tools",
+    "CRM Systems"
+  ],
+  "known_compliance": [
+    "ASC 606",
+    "IFRS 15",
+    "PCI-DSS",
+    "SOC 2",
+    "GDPR",
+    "SOX"
+  ],
+  "known_pricing": [
+    "Transaction Volume Pricing",
+    "Subscription Tiered Pricing",
+    "Usage-Based Pricing",
+    "Per-Customer Pricing",
+    "Custom Enterprise Pricing"
+  ]
+}
