@@ -30,16 +30,16 @@ $$\text{Industry Standards Ontology} \;\cap\; \text{Company Product Truth} \;\ca
 
 ```mermaid
 graph TD
-    subgraph Tri-Ontology Architecture
-        Ind[🌐 Autonomous Industry Ontology<br>Taxonomy · Wikidata · Compliance Standards]
-        Prod[⚖️ Company Product Truth<br>Marketing Claims vs. OpenAPI/Docs Reality]
-        Comp[⚔️ Competitor Intelligence<br>Multi-Vendor Crawl & Claim Ingestion]
+    subgraph Architecture ["Tri-Ontology Architecture"]
+        Ind["🌐 Autonomous Industry Ontology<br/>Taxonomy · Wikidata · Compliance Standards"]
+        Prod["⚖️ Company Product Truth<br/>Marketing Claims vs. OpenAPI/Docs Reality"]
+        Comp["⚔️ Competitor Intelligence<br/>Multi-Vendor Crawl & Claim Ingestion"]
         
         Ind --- Prod
         Prod --- Comp
         Comp --- Ind
         
-        Core[🎯 Differential Matrix & Battlecards<br>• Verified Grounding (MGI Score)<br>• Fluff & Hallucination Drift Radar<br>• Unmarketed Engineering Gold<br>• Zero-Hallucination Sales Battlecards]
+        Core["🎯 Differential Matrix & Battlecards<br/>• Verified Grounding (MGI Score)<br/>• Fluff & Hallucination Drift Radar<br/>• Unmarketed Engineering Gold<br/>• Zero-Hallucination Sales Battlecards"]
         Prod --> Core
         Ind --> Core
         Comp --> Core
