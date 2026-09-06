@@ -557,3 +557,32 @@ class TriOntologyAlignmentResponse(BaseModel):
     counter_positioning_briefs: List[CounterPositioningAngle] = Field(default_factory=list, description="Actionable sales and marketing battlecard angles")
     executive_summary: str
 
+
+class CompetitorOntologyRequest(BaseModel):
+    """
+    Request model to crawl and extract the ontology of a competitor website.
+    """
+    url: str = Field(..., max_length=2048, description="Competitor homepage or product URL")
+    brand_name: Optional[str] = Field(default=None, description="Competitor brand name (optional)")
+    crawl_subpages: bool = Field(default=True, description="Whether to discover and crawl /pricing, /features, /integrations")
+    max_subpages: int = Field(default=3, ge=1, le=10, description="Max subpages to crawl")
+
+
+class CompetitorOntologyResponse(BaseModel):
+    """
+    Structured ontology of a competitor extracted from their public digital presence.
+    """
+    brand_name: str
+    url: str
+    pages_analyzed: int
+    total_claims: int
+    capabilities_automated: List[str] = Field(default_factory=list)
+    integrations_claimed: List[str] = Field(default_factory=list)
+    compliance_claimed: List[str] = Field(default_factory=list)
+    pricing_models: List[str] = Field(default_factory=list)
+    triples: List[SemanticTriple] = Field(default_factory=list)
+    schema_org_types: List[str] = Field(default_factory=list)
+    google_kg_grounded: bool = False
+    wikidata_grounded: bool = False
+    ontology_summary: str
+

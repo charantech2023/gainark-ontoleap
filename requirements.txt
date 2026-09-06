@@ -8,6 +8,7 @@ charset-normalizer==3.5.1
 click==8.5.0
 colorama==0.4.6
 courlan==1.4.0
+curl_cffi>=0.7.0
 dateparser==1.4.3
 extruct==0.18.0
 fastapi==0.141.1

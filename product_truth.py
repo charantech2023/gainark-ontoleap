@@ -27,6 +27,7 @@ from models import (
     ProductTruthMatrixResponse
 )
 from pipeline import OntologyPipeline, validate_url_for_fetch
+from scraper import smart_fetch
 from constants import KNOWN_AUTOMATION, KNOWN_COMPLIANCE, KNOWN_PRICING, KNOWN_INTEGRATIONS
 
 logger = logging.getLogger("gainark.product_truth")
@@ -171,25 +172,9 @@ def parse_openapi_spec(
 
 def fetch_docs_content(url: str, timeout: float = 15.0) -> Tuple[str, str]:
     """
-    Fetches documentation HTML or JSON and returns (raw_content, clean_text).
+    Fetches documentation HTML or JSON using the Smart Scraper and returns (raw_content, clean_text).
     """
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Sec-Ch-Ua": '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
-        "Sec-Ch-Ua-Mobile": "?0",
-        "Sec-Ch-Ua-Platform": '"Windows"',
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Sec-Fetch-User": "?1",
-        "Upgrade-Insecure-Requests": "1",
-    }
-    s = requests.Session()
-    resp = s.get(url, headers=headers, timeout=timeout, verify=True)
-    resp.raise_for_status()
-    raw = resp.text
+    raw = smart_fetch(url, timeout=int(timeout))
 
     # Check if raw is JSON (e.g. openapi.json)
     try:
@@ -418,14 +403,13 @@ def execute_product_truth_audit(
                     # Fetch top documentation sub-articles
                     for sub_url in sub_links[:6]:
                         try:
-                            s_resp = requests.get(sub_url, headers=headers, timeout=6.0)
-                            if s_resp.status_code == 200:
-                                s_soup = BeautifulSoup(s_resp.text, "html.parser")
-                                for el in s_soup(["script", "style", "nav", "footer", "noscript"]):
-                                    el.decompose()
-                                sub_txt = s_soup.get_text(separator=" ", strip=True)
-                                if len(sub_txt) > 50:
-                                    doc_texts.append(sub_txt)
+                            s_text = smart_fetch(sub_url, timeout=8)
+                            s_soup = BeautifulSoup(s_text, "html.parser")
+                            for el in s_soup(["script", "style", "nav", "footer", "noscript"]):
+                                el.decompose()
+                            sub_txt = s_soup.get_text(separator=" ", strip=True)
+                            if len(sub_txt) > 50:
+                                doc_texts.append(sub_txt)
                         except Exception:
                             pass
                 except Exception as sub_e:

@@ -42,6 +42,7 @@ from models import (
     SeedConceptMatch, ReadinessBreakdown, KeywordGapItem, CompetitiveGapAnalysis,
     SemanticTriple, PageCrawlSummary, UnifiedSiteGraph
 )
+from scraper import smart_fetch, smart_fetch_async, validate_url_for_fetch
 from constants import (
     WIKIDATA_KB, KNOWN_INTEGRATIONS, KNOWN_COMPLIANCE,
     KNOWN_PRICING, KNOWN_AUTOMATION, DEEP_CRAWL_PATHS, DEEP_CRAWL_MAX,
@@ -119,18 +120,8 @@ class OntologyPipeline:
         return self._model
 
     def fetch_url(self, url: str, timeout: int = 15) -> str:
-        # FIX #1: SSRF protection — validate before any network call
-        validate_url_for_fetch(url)
-        headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120.0.0.0 Safari/537.36"
-            )
-        }
-        resp = requests.get(url, headers=headers, timeout=timeout)
-        resp.raise_for_status()
-        return resp.text
+        # Smart fetch provides Chrome TLS impersonation, SSRF protection, and anti-bot fallback
+        return smart_fetch(url, timeout=timeout)
 
     def extract_schema_org(self, html: str) -> List[SchemaOrgData]:
         extracted_data = []
@@ -697,51 +688,50 @@ async def fetch_sitemap_urls(sitemap_url: str, max_urls: int = 15, _depth: int =
         logger.warning("Sitemap recursion depth exceeded for %s — skipping", sitemap_url)
         return []
 
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     urls: List[str] = []
 
-    async with httpx.AsyncClient(timeout=15.0, follow_redirects=True, headers=headers) as client:
-        try:
-            resp = await client.get(sitemap_url)
-            if resp.status_code != 200:
-                return urls
+    try:
+        content = await smart_fetch_async(sitemap_url, timeout=15)
+        if not content:
+            return urls
 
-            root = ET.fromstring(resp.content)
-            namespace = {'ns': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
+        content_bytes = content.encode("utf-8") if isinstance(content, str) else content
+        root = ET.fromstring(content_bytes)
+        namespace = {'ns': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
 
-            # Check for sitemap index
-            sub_sitemaps = root.findall('ns:sitemap/ns:loc', namespace)
-            if not sub_sitemaps:
-                sub_sitemaps = root.findall('sitemap/loc')
+        # Check for sitemap index
+        sub_sitemaps = root.findall('ns:sitemap/ns:loc', namespace)
+        if not sub_sitemaps:
+            sub_sitemaps = root.findall('sitemap/loc')
 
-            if sub_sitemaps:
-                for sub in sub_sitemaps[:3]:
-                    if sub.text:
-                        # FIX #12: pass incremented depth to prevent circular recursion
-                        sub_urls = await fetch_sitemap_urls(
-                            sub.text.strip(),
-                            max_urls=max_urls - len(urls),
-                            _depth=_depth + 1
-                        )
-                        urls.extend(sub_urls)
-                        if len(urls) >= max_urls:
-                            break
-            else:
-                loc_nodes = root.findall('ns:url/ns:loc', namespace)
-                if not loc_nodes:
-                    loc_nodes = root.findall('url/loc')
-                for loc in loc_nodes:
-                    if not loc.text:
-                        continue
-                    u = loc.text.strip()
-                    # Filter out asset URLs or non-HTML targets
-                    if not any(u.endswith(ext) for ext in ['.xml', '.pdf', '.png', '.jpg', '.jpeg', '.gif', '.svg']):
-                        urls.append(u)
+        if sub_sitemaps:
+            for sub in sub_sitemaps[:3]:
+                if sub.text:
+                    # FIX #12: pass incremented depth to prevent circular recursion
+                    sub_urls = await fetch_sitemap_urls(
+                        sub.text.strip(),
+                        max_urls=max_urls - len(urls),
+                        _depth=_depth + 1
+                    )
+                    urls.extend(sub_urls)
                     if len(urls) >= max_urls:
                         break
-        except Exception as e:
-            # FIX #21: use logger instead of print
-            logger.error("Error parsing sitemap %s: %s", sitemap_url, e)
+        else:
+            loc_nodes = root.findall('ns:url/ns:loc', namespace)
+            if not loc_nodes:
+                loc_nodes = root.findall('url/loc')
+            for loc in loc_nodes:
+                if not loc.text:
+                    continue
+                u = loc.text.strip()
+                # Filter out asset URLs or non-HTML targets
+                if not any(u.endswith(ext) for ext in ['.xml', '.pdf', '.png', '.jpg', '.jpeg', '.gif', '.svg']):
+                    urls.append(u)
+                if len(urls) >= max_urls:
+                    break
+    except Exception as e:
+        # FIX #21: use logger instead of print
+        logger.error("Error parsing sitemap %s: %s", sitemap_url, e)
 
     return urls[:max_urls]
 

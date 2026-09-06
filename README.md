@@ -101,7 +101,7 @@ graph TD
 | `linking.py` | Knowledge Graph | Topic authority resolution, contextual internal link opportunity matrix. |
 | `remediation.py` | Structured Data | Dynamic Schema.org JSON-LD generator (SoftwareApplication, Organization, Offer). |
 | `validator.py` | Governance | Google Rich Results validator and PAS compliance scorer. |
-| `link_prediction.py` | Graph Completion | Rule-based relation inference over ontological priors. |
+| `scraper.py` | Networking | Smart anti-bot scraper with Chrome 124 TLS (JA3/JA4) impersonation, challenge detection, and Firecrawl fallback. |
 | `models.py` | Schema Contracts | Pydantic data models for tri-ontology, triples, battlecards, and site graphs. |
 | `verticals/*.json` | Domain Ontologies | Domain-specific taxonomies (Fintech, DevSecOps, Healthcare, HR/Payroll). |
 | `Dockerfile` | Deployment | Production container with PyTorch CPU optimization and pre-cached GLiNER model. |

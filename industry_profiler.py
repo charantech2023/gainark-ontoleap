@@ -20,6 +20,7 @@ from bs4 import BeautifulSoup
 import vertex_ai_client
 import google_kg_client
 from remediation import resolve_wikidata
+from scraper import smart_fetch
 from models import (
     IndustryDiscoveryRequest,
     IndustryDiscoveryResponse,
@@ -43,17 +44,11 @@ def extract_page_summary(url: str, timeout: float = 12.0) -> Dict[str, Any]:
     if not url.startswith("http://") and not url.startswith("https://"):
         url = "https://" + url
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-
     parsed = urlparse(url)
     domain = parsed.netloc or parsed.path
 
     try:
-        resp = requests.get(url, headers=headers, timeout=timeout, verify=True)
-        resp.raise_for_status()
-        html = resp.text
+        html = smart_fetch(url, timeout=int(timeout))
     except Exception as e:
         logger.warning("Failed to fetch %s: %s. Using URL fallback.", url, e)
         return {

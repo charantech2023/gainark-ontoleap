@@ -69,7 +69,9 @@ from models import (
     ProductTruthRequest,
     ProductTruthMatrixResponse,
     TriOntologyAlignmentRequest,
-    TriOntologyAlignmentResponse
+    TriOntologyAlignmentResponse,
+    CompetitorOntologyRequest,
+    CompetitorOntologyResponse
 )
 
 # ---------------------------------------------------------------------------
@@ -1087,6 +1089,27 @@ def api_tri_ontology_align(req: TriOntologyAlignmentRequest):
     except Exception as e:
         logger.exception("Tri-Ontology alignment failed: %s", e)
         raise HTTPException(status_code=500, detail=f"Tri-Ontology alignment failed: {str(e)}")
+
+
+@app.post(
+    "/api/competitor-ontology",
+    response_model=CompetitorOntologyResponse,
+    summary="Crawl and extract the public ontology and capabilities of a competitor",
+    tags=["Product Truth & Governance"]
+)
+def api_competitor_ontology(req: CompetitorOntologyRequest):
+    """
+    Crawls a competitor's domain and high-signal subpages (/pricing, /features, /integrations)
+    using the SmartScraper (Chrome TLS impersonation).
+    Extracts relational triples, Schema.org nodes, and entity grounding.
+    """
+    validate_url_for_fetch(req.url)
+    pipeline = get_pipeline()
+    try:
+        return competitive_alignment.extract_competitor_ontology(req, pipeline)
+    except Exception as e:
+        logger.exception("Competitor ontology extraction failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"Competitor ontology extraction failed: {str(e)}")
 
 
 if __name__ == "__main__":

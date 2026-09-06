@@ -18,9 +18,11 @@ import os
 import json
 import logging
 from typing import Dict, Any, List, Optional, Set
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
+from bs4 import BeautifulSoup
 
 import vertex_ai_client
+import google_kg_client
 from models import (
     SemanticTriple,
     ProductTruthRequest,
@@ -28,10 +30,14 @@ from models import (
     ComparativeCapability,
     CounterPositioningAngle,
     TriOntologyAlignmentRequest,
-    TriOntologyAlignmentResponse
+    TriOntologyAlignmentResponse,
+    CompetitorOntologyRequest,
+    CompetitorOntologyResponse
 )
 from pipeline import OntologyPipeline
+from scraper import smart_fetch, validate_url_for_fetch
 from product_truth import execute_product_truth_audit, _concepts_match
+from constants import DEEP_CRAWL_PATHS, WIKIDATA_KB
 
 logger = logging.getLogger("gainark.competitive_alignment")
 
@@ -290,3 +296,115 @@ def execute_tri_ontology_alignment(
         vertical_config=pipeline.config,
         vertical_id=req.vertical_id or "b2b_saas_fintech"
     )
+
+
+def extract_competitor_ontology(
+    req: CompetitorOntologyRequest,
+    pipeline: OntologyPipeline
+) -> CompetitorOntologyResponse:
+    """
+    Crawls and extracts the public ontology of a competitor using SmartScraper:
+    1. Fetches homepage and discovers high-signal subpages (/pricing, /features, /integrations).
+    2. Mines semantic triples (automates, integratesWith, compliesWith, supportsPricingModel).
+    3. Gathers Schema.org markup types.
+    4. Evaluates Google Knowledge Graph and Wikidata grounding.
+    5. Synthesizes a structured CompetitorOntologyResponse.
+    """
+    validate_url_for_fetch(req.url)
+    parsed = urlparse(req.url)
+    clean_domain = parsed.netloc.replace("www.", "")
+    brand_name = req.brand_name or clean_domain.split(".")[0].capitalize()
+
+    logger.info("Extracting competitor ontology for %s (%s)...", brand_name, req.url)
+
+    pages_to_crawl = [req.url]
+
+    # Discover subpages if requested
+    if req.crawl_subpages:
+        base_origin = f"{parsed.scheme}://{parsed.netloc}"
+        for p in DEEP_CRAWL_PATHS[:req.max_subpages]:
+            pages_to_crawl.append(urljoin(base_origin, p))
+
+    collected_triples: List[SemanticTriple] = []
+    seen_triple_keys: Set[Tuple[str, str, str]] = set()
+    schema_types: Set[str] = set()
+    successful_pages = 0
+
+    for page_url in pages_to_crawl:
+        try:
+            html = smart_fetch(page_url, timeout=12)
+            if not html or len(html.strip()) < 100:
+                continue
+
+            successful_pages += 1
+            res = pipeline.process(html=html, text="")
+
+            # Extract triples
+            for t in (res.triples or []):
+                key = (t.subject.lower().strip(), t.predicate.lower().strip(), t.object.lower().strip())
+                if key not in seen_triple_keys:
+                    seen_triple_keys.add(key)
+                    t.subject = brand_name
+                    collected_triples.append(t)
+
+            # Extract schema types
+            for s in (res.schema_org or []):
+                schema_types.add(s.schema_type)
+
+            # Also check if page had explicit links to deep subpages we haven't visited
+            if len(pages_to_crawl) <= req.max_subpages + 1:
+                soup = BeautifulSoup(html, "html.parser")
+                for a in soup.find_all("a", href=True):
+                    href = a["href"].strip()
+                    full = urljoin(page_url, href)
+                    if urlparse(full).netloc == parsed.netloc:
+                        path_lower = urlparse(full).path.lower()
+                        if any(k in path_lower for k in ["pricing", "features", "integrations", "product", "solutions"]):
+                            if full not in pages_to_crawl and len(pages_to_crawl) < req.max_subpages + 1:
+                                pages_to_crawl.append(full)
+        except Exception as e:
+            logger.warning("Failed to crawl competitor page %s: %s", page_url, e)
+
+    # Group extracted triples by predicate
+    capabilities_automated = sorted(list({t.object for t in collected_triples if t.predicate == "automates"}))
+    integrations_claimed = sorted(list({t.object for t in collected_triples if t.predicate == "integratesWith"}))
+    compliance_claimed = sorted(list({t.object for t in collected_triples if t.predicate == "compliesWith"}))
+    pricing_models = sorted(list({t.object for t in collected_triples if t.predicate == "supportsPricingModel"}))
+
+    # Google KG check
+    google_kg_grounded = False
+    try:
+        kg_res = google_kg_client.search_entity(brand_name)
+        if kg_res and kg_res.get("found"):
+            google_kg_grounded = True
+    except Exception:
+        pass
+
+    # Wikidata check
+    wikidata_grounded = brand_name.lower() in WIKIDATA_KB
+
+    summary = (
+        f"Competitor Ontology for {brand_name} ({req.url}): "
+        f"Analyzed {successful_pages} pages. Extracted {len(collected_triples)} semantic triples "
+        f"({len(capabilities_automated)} automated capabilities, {len(integrations_claimed)} ecosystem integrations, "
+        f"{len(compliance_claimed)} compliance frameworks, {len(pricing_models)} pricing models). "
+        f"Entity Grounding: Google KG {'[VERIFIED]' if google_kg_grounded else '[UNGROUNDED]'}, "
+        f"Wikidata {'[VERIFIED]' if wikidata_grounded else '[UNGROUNDED]'}."
+    )
+
+    return CompetitorOntologyResponse(
+        brand_name=brand_name,
+        url=req.url,
+        pages_analyzed=successful_pages,
+        total_claims=len(collected_triples),
+        capabilities_automated=capabilities_automated,
+        integrations_claimed=integrations_claimed,
+        compliance_claimed=compliance_claimed,
+        pricing_models=pricing_models,
+        triples=collected_triples,
+        schema_org_types=sorted(list(schema_types)),
+        google_kg_grounded=google_kg_grounded,
+        wikidata_grounded=wikidata_grounded,
+        ontology_summary=summary
+    )
+
