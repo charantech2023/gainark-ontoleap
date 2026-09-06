@@ -150,6 +150,9 @@ Return ONLY a valid, raw JSON object (without markdown fences, or with standard 
   "known_pricing": [
     "List of 3 to 5 common B2B pricing models for this vertical (e.g. 'Per-Developer Pricing', 'Usage-Based Ingestion', 'Tiered Enterprise')"
   ],
+  "known_automation": [
+    "List of 8 to 12 core operational capabilities that products in this vertical automate, phrased as the buyer would name them (e.g. 'Vulnerability Scanning', 'Clinical Documentation', 'Payroll Runs', 'Revenue Recognition'). These are what marketing claims are checked against, so favour concrete workflows over abstract benefits."
+  ],
   "suggested_competitors": [
     "List of 3 to 5 real-world direct market competitors offering alternative software solutions in this exact vertical"
   ],
@@ -177,6 +180,7 @@ Return ONLY a valid, raw JSON object (without markdown fences, or with standard 
             "known_compliance": ["SOC 2 Type II", "ISO 27001", "GDPR", "CCPA"],
             "known_integrations": ["Salesforce", "Slack", "AWS", "Google Cloud", "Microsoft Azure"],
             "known_pricing": ["Subscription Pricing", "Usage-Based Pricing", "Tiered Enterprise"],
+            "known_automation": ["Workflow Automation", "Reporting", "User Provisioning", "Data Sync", "Alerting"],
             "suggested_competitors": [],
             "summary": f"Autonomous ontology profile generated for {brand} based on domain structure."
         }
@@ -203,6 +207,7 @@ Return ONLY a valid, raw JSON object (without markdown fences, or with standard 
             "known_compliance": ["SOC 2", "ISO 27001", "GDPR"],
             "known_integrations": ["Slack", "Salesforce"],
             "known_pricing": ["Tiered Pricing", "Usage-Based"],
+            "known_automation": ["Workflow Automation", "Reporting", "Data Sync"],
             "suggested_competitors": [],
             "summary": f"Fallback profile for {brand}."
         }
@@ -243,7 +248,8 @@ def save_vertical_configuration(
     core_seed_concepts: List[str],
     known_integrations: List[str],
     known_compliance: List[str],
-    known_pricing: List[str]
+    known_pricing: List[str],
+    known_automation: Optional[List[str]] = None
 ) -> str:
     """
     Saves the discovered vertical configuration into verticals/<vertical_id>.json
@@ -265,7 +271,9 @@ def save_vertical_configuration(
         "core_seed_concepts": core_seed_concepts,
         "known_integrations": known_integrations,
         "known_compliance": known_compliance,
-        "known_pricing": known_pricing
+        "known_pricing": known_pricing,
+        # Drives what triple extraction looks for on every site in this vertical.
+        "known_automation": known_automation or []
     }
 
     with open(config_path, "w", encoding="utf-8") as f:
@@ -302,6 +310,7 @@ async def discover_industry_profile_async(
     known_compliance = discovered.get("known_compliance") or []
     known_integrations = discovered.get("known_integrations") or []
     known_pricing = discovered.get("known_pricing") or []
+    known_automation = discovered.get("known_automation") or []
     suggested_competitors = discovered.get("suggested_competitors") or []
     discovery_summary = discovered.get("summary") or f"Discovered {display_name} ontology for {brand_name}."
 
@@ -318,7 +327,8 @@ async def discover_industry_profile_async(
             core_seed_concepts=core_seed_concepts,
             known_integrations=known_integrations,
             known_compliance=known_compliance,
-            known_pricing=known_pricing
+            known_pricing=known_pricing,
+            known_automation=known_automation
         )
 
     return IndustryDiscoveryResponse(

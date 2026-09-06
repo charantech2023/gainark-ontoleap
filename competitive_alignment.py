@@ -32,11 +32,12 @@ from models import (
     TriOntologyAlignmentRequest,
     TriOntologyAlignmentResponse,
     CompetitorOntologyRequest,
-    CompetitorOntologyResponse
+    CompetitorOntologyResponse,
+    CategoryWhitespace
 )
 from pipeline import OntologyPipeline
 from scraper import smart_fetch, validate_url_for_fetch
-from product_truth import execute_product_truth_audit, _concepts_match
+from product_truth import execute_product_truth_audit, _concepts_match, _normalize_concept
 from constants import DEEP_CRAWL_PATHS, WIKIDATA_KB
 
 logger = logging.getLogger("gainark.competitive_alignment")
@@ -147,6 +148,44 @@ def align_tri_ontologies(
     for seed in core_seeds[:6]:
         table_stakes_set.add(f"Category Standard: {seed}")
 
+    # Category whitespace: what the industry ontology expects that nobody in this set
+    # is claiming. Every other output here is relative to a competitor and can only
+    # say "you are ahead" or "you are behind". This one is derived from the industry
+    # layer, so it can surface positioning no rival has named yet - which is the whole
+    # reason for having a third ontology rather than just company vs competitor.
+    marketed: Set[str] = set()
+    for matrix in [company_matrix] + competitor_matrices:
+        for triple in (matrix.verified_triples + matrix.unbacked_claims
+                       + matrix.hidden_capabilities):
+            marketed.add(_normalize_concept(triple.object))
+
+    def _is_covered(concept: str) -> bool:
+        norm = _normalize_concept(concept)
+        if not norm:
+            return True  # nothing to say about an empty concept
+        return any(norm == m or norm in m or m in norm for m in marketed)
+
+    expectations = [(c, "seed_concept") for c in core_seeds]
+    expectations += [(c, "automation") for c in getattr(vertical_config, "known_automation", []) or []]
+
+    category_whitespace: List[CategoryWhitespace] = []
+    seen_whitespace: Set[str] = set()
+    for concept, source in expectations:
+        norm = _normalize_concept(concept)
+        if norm in seen_whitespace or _is_covered(concept):
+            continue
+        seen_whitespace.add(norm)
+        category_whitespace.append(CategoryWhitespace(
+            concept=concept,
+            source=source,
+            insight=(
+                f"'{concept}' is expected in {industry_category}, but neither {company_name} "
+                f"nor {', '.join(competitor_names)} markets it. Unclaimed positioning: if the "
+                f"capability exists, it is available to own outright; if it does not, it is a "
+                f"category gap worth understanding before a rival names it."
+            ),
+        ))
+
     # Synthesize Counter-Positioning Briefs via Gemini 2.5 Flash
     briefs = synthesize_counter_positioning_briefs(
         company_name=company_name,
@@ -159,7 +198,8 @@ def align_tri_ontologies(
         f"Tri-Ontology Alignment for {company_name} against {', '.join(competitor_names)} in {industry_category}: "
         f"Identified {len(company_advantages)} Company Advantage vectors, "
         f"{len(competitor_vulnerabilities)} Competitor Fluff vulnerabilities to exploit, and "
-        f"{len(table_stakes_set)} shared table-stakes capabilities."
+        f"{len(table_stakes_set)} shared table-stakes capabilities, and "
+        f"{len(category_whitespace)} category concepts nobody in the set markets."
     )
 
     # Append to Compounding Truth Ledger
@@ -186,6 +226,7 @@ def align_tri_ontologies(
         competitor_vulnerabilities=competitor_vulnerabilities,
         competitor_advantages=competitor_advantages,
         table_stakes=sorted(list(table_stakes_set)),
+        category_whitespace=category_whitespace,
         counter_positioning_briefs=briefs,
         executive_summary=summary
     )

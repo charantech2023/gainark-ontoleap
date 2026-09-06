@@ -591,6 +591,28 @@ class CounterPositioningAngle(BaseModel):
     suggested_campaign_topics: List[str] = Field(default_factory=list)
 
 
+class CategoryWhitespace(BaseModel):
+    """A concept the category expects that nobody in the analysed set is claiming.
+
+    Derived from the industry ontology rather than from any competitor, so unlike the
+    other outputs it can surface an opportunity no rival has named yet.
+    """
+    concept: str = Field(..., description="The industry concept nobody markets")
+    source: str = Field(
+        ...,
+        description="Which part of the industry ontology expects it: 'seed_concept' or 'automation'",
+    )
+    company_markets_it: bool = Field(
+        default=False,
+        description="Always False for whitespace; kept explicit so the claim is auditable.",
+    )
+    competitors_marketing_it: List[str] = Field(
+        default_factory=list,
+        description="Always empty for whitespace; present so a near-miss can be reported later.",
+    )
+    insight: str = Field(..., description="What a marketer should do with it")
+
+
 class TriOntologyAlignmentRequest(BaseModel):
     """
     Request model for full Tri-Ontology alignment across Company, Competitors, and Industry standards.
@@ -612,6 +634,14 @@ class TriOntologyAlignmentResponse(BaseModel):
     competitor_vulnerabilities: List[ComparativeCapability] = Field(default_factory=list, description="Competitor marketing claims unbacked by technical docs")
     competitor_advantages: List[ComparativeCapability] = Field(default_factory=list, description="Real technical capabilities verified in competitor that company lacks")
     table_stakes: List[str] = Field(default_factory=list, description="Baseline capabilities expected by industry ontology and shared by all")
+    category_whitespace: List[CategoryWhitespace] = Field(
+        default_factory=list,
+        description=(
+            "Concepts the industry ontology expects of this category that neither the "
+            "company nor any analysed competitor markets. Unclaimed positioning: the only "
+            "output here derived from the industry layer rather than from a rival."
+        ),
+    )
     counter_positioning_briefs: List[CounterPositioningAngle] = Field(default_factory=list, description="Actionable sales and marketing battlecard angles")
     executive_summary: str
 
