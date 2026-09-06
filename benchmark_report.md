@@ -1,39 +1,36 @@
 # Ontology Pipeline Benchmark: Competitive Structured Data Readiness Analysis
 
 > **Executive Note on Brand Authority vs. Single-Page Schema Readiness:**
-> This audit measures **Single-Page Structured Data & Schema Implementation** (Mandatory Schema 40%, Seed Concept Coverage 30%, Entity Richness 30%) on specific landing pages. High brand citation authority across AI answer engines (such as Stripe) can coexist with low single-page structured data scores when individual product landing pages omit static `SoftwareApplication`, `Organization`, or `Offer` JSON-LD nodes. For comprehensive domain-level generative search authority, evaluate using the **Site-Wide AI Citation Readiness Index**.
+> This audit measures **Single-Page Structured Data & Schema Implementation** (Mandatory Schema 40%, Seed Concept Coverage 30%, Entity Richness 30%) on specific landing pages. High brand citation authority across AI answer engines (such as Stripe) can coexist with low single-page structured data scores when individual product landing pages omit static `SoftwareApplication`, `Organization`, or `Offer` JSON-LD nodes. For comprehensive domain-level generative search authority, evaluate using the **Site-Wide AI Citation Readiness Index**. This single-page score is deliberately not calibrated against AI citation frequency; `test_calibration.py` records the evidence behind that decision.
 
 | Target URL | Structured Data Readiness (Single-Page) | Mandatory Schema Compliance | Number of Detected Entities | Top Missing Concepts |
 | :--- | :---: | :---: | :---: | :--- |
-| `https://www.chargebee.com` | **60.74 / 100** | 3/3 | 4 | Subscription Management, Billing Automation, ERP Integration (+5 more) |
-| `https://www.maxio.com` | **37.75 / 100** | 1/3 | 7 | ASC 606, Billing Automation, ERP Integration (+5 more) |
-| `https://stripe.com/billing` | **31.42 / 100** | 0/3 | 8 | Subscription Management, Billing Automation, ERP Integration (+3 more) |
+| `https://www.chargebee.com` | **59.15 / 100** | 3/3 | 1 | ERP Integration, Accounts Receivable, SOC 1 (+2 more) |
+| `https://www.maxio.com` | **40.75 / 100** | 1/3 | 7 | ASC 606, Billing Automation, ERP Integration (+4 more) |
+| `https://stripe.com/billing` | **40.42 / 100** | 0/3 | 8 | Subscription Management, ERP Integration, Payment Gateway |
 
 ## Detailed Competitor Profiles
 
 ### https://www.chargebee.com
 - **Page Title**: Chargebee: Billing & Monetization for SaaS and AI Companies
-- **Overall Readiness Score**: 60.74 / 100.0
+- **Structured Data Readiness Score**: 59.15 / 100.0
 - **Mandatory Schemas Detected**: SoftwareApplication, Organization, Offer (3/3)
 - **Missing Schemas**: None
-- **Total Entities Extracted**: 4
-- **Detected Seed Concepts**: Revenue Recognition, ASC 606
-- **Missing Seed Concepts**: Subscription Management, Billing Automation, ERP Integration, Accounts Receivable, Payment Gateway, SOC 1, SOC 2, REST API
+- **Total Entities Extracted**: 1
+- **Detected Seed Concepts**: Revenue Recognition, ASC 606, Subscription Management, Billing Automation, Payment Gateway
+- **Missing Seed Concepts**: ERP Integration, Accounts Receivable, SOC 1, SOC 2, REST API
 
 **Top Extracted Entities:**
-- `[Accounting Standard]` ASC 606 (conf: 0.9515)
-- `[Software Platform]` AI-powered retention engine (conf: 0.5852)
-- `[Pricing Model]` tiered (conf: 0.4479)
-- `[Software Platform]` accounting system (conf: 0.4278)
+- `[Software Platform]` AI-powered retention engine (conf: 0.5484)
 
 ### https://www.maxio.com
 - **Page Title**: Billing and Financial Reporting for B2B SaaS & AI | Maxio
-- **Overall Readiness Score**: 37.75 / 100.0
+- **Structured Data Readiness Score**: 40.75 / 100.0
 - **Mandatory Schemas Detected**: Organization (1/3)
 - **Missing Schemas**: SoftwareApplication, Offer
 - **Total Entities Extracted**: 7
-- **Detected Seed Concepts**: Revenue Recognition, Subscription Management
-- **Missing Seed Concepts**: ASC 606, Billing Automation, ERP Integration, Accounts Receivable, Payment Gateway, SOC 1, SOC 2, REST API
+- **Detected Seed Concepts**: Revenue Recognition, Subscription Management, Payment Gateway
+- **Missing Seed Concepts**: ASC 606, Billing Automation, ERP Integration, Accounts Receivable, SOC 1, SOC 2, REST API
 
 **Top Extracted Entities:**
 - `[Software Platform]` Maxio (conf: 0.9589)
@@ -46,12 +43,12 @@
 
 ### https://stripe.com/billing
 - **Page Title**: Stripe Billing | Recurring Payments & Subscription Solutions
-- **Overall Readiness Score**: 31.42 / 100.0
+- **Structured Data Readiness Score**: 40.42 / 100.0
 - **Mandatory Schemas Detected**: None (0/3)
 - **Missing Schemas**: SoftwareApplication, Organization, Offer
 - **Total Entities Extracted**: 8
-- **Detected Seed Concepts**: Revenue Recognition, ASC 606, Accounts Receivable, SOC 2
-- **Missing Seed Concepts**: Subscription Management, Billing Automation, ERP Integration, Payment Gateway, SOC 1, REST API
+- **Detected Seed Concepts**: Revenue Recognition, ASC 606, Billing Automation, Accounts Receivable, SOC 1, SOC 2, REST API
+- **Missing Seed Concepts**: Subscription Management, ERP Integration, Payment Gateway
 
 **Top Extracted Entities:**
 - `[Software Platform]` Stripe (conf: 0.8058)

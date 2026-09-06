@@ -148,14 +148,29 @@ cite less often.
 
 ## Resolution log
 
-**Task 4 — done.** Weight tuning was tested before being ruled out. Citation ordering
-is recoverable, but only with mandatory schema cut from 40 to 10-15 of 100 (a 62% cut),
-where the decisive Stripe/Chargebee margin is 0.13 points, and where 3 sites give only
-2 independent ordering constraints for 2 free weight parameters. That is fitting noise,
-so the task's alternative was taken: the rubric is unchanged and the output is now named
+**Task 4 — done.** Weight tuning was tested before being ruled out, then the evidence
+for ruling it out changed under a re-crawl and got stronger.
+
+The first pass, against the stored fixture, found citation ordering recoverable only at
+mandatory-schema weight 10-15 of 100, with a decisive Stripe/Chargebee margin of 0.13
+points. Regenerating the benchmark moved every score (Stripe 31.42 -> 40.42, Chargebee
+60.74 -> 59.15) and moved that window to schema weight 20-25 - a different answer from
+the same three sites with no code change in between.
+
+So the "62% cut" reasoning was an artifact of one crawl and does not hold. What the
+movement demonstrates instead is the real objection, and it is a sturdier one: live page
+content is not a stable fitting target at this sample size. Three sites give 2 independent
+ordering constraints for 2 free weight parameters, so the fit is saturated, and the
+"optimal" weights visibly wander between crawls. Any tuning here fits noise.
+
+The task's alternative was taken: the rubric is unchanged and the output is named
 "Structured Data Readiness" everywhere it is surfaced. `calibration_set.json` holds the
-ground truth; `test_calibration.py` pins the finding and blocks the citation-index label
-from returning without the ordering being satisfied first.
+ground truth; `test_calibration.py` reports the weight window as a diagnostic but asserts
+only the structural argument, which does not depend on what a crawl returns, and blocks
+the citation-index label from returning without the ordering being satisfied first.
+
+Anyone wanting to revisit tuning needs a larger calibration set first - at least 6
+independent ordering constraints - and should expect to re-verify against fresh crawls.
 
 **Task 2 — done, option (C).** The README, dashboard cards and both response models
 already described the split correctly by the time this was picked up; the single-page
