@@ -174,9 +174,20 @@ def fetch_docs_content(url: str, timeout: float = 15.0) -> Tuple[str, str]:
     Fetches documentation HTML or JSON and returns (raw_content, clean_text).
     """
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Sec-Ch-Ua": '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"Windows"',
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
     }
-    resp = requests.get(url, headers=headers, timeout=timeout, verify=True)
+    s = requests.Session()
+    resp = s.get(url, headers=headers, timeout=timeout, verify=True)
     resp.raise_for_status()
     raw = resp.text
 
@@ -425,6 +436,11 @@ def execute_product_truth_audit(
                 technical_triples.extend(t_from_text)
         except Exception as e:
             logger.warning("Failed to ingest tech_docs_url %s: %s", req.tech_docs_url, e)
+            doc_warning = f"Documentation Fetch Notice: Could not access tech docs at '{req.tech_docs_url}' ({e}). If the portal is behind Cloudflare or authentication, please paste the OpenAPI specification or documentation text into the Technical Truth Surface."
+        else:
+            doc_warning = None
+    else:
+        doc_warning = None
 
     # Priority C: Raw markdown / documentation text provided
     if req.tech_docs_text:
@@ -443,10 +459,13 @@ def execute_product_truth_audit(
     technical_triples = dedup_tech
 
     # 3. Build Truth Matrix
-    return build_product_truth_matrix(
+    matrix = build_product_truth_matrix(
         marketing_triples=marketing_triples,
         technical_triples=technical_triples,
         brand_name=brand,
         marketing_url=req.marketing_url,
         tech_docs_url=req.tech_docs_url
     )
+    if doc_warning:
+        matrix.drift_alerts.insert(0, doc_warning)
+    return matrix

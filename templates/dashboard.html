@@ -2458,10 +2458,13 @@ SELECT ?capability ?evidence WHERE {
             const brand = document.getElementById('truth-brand-name');
             const mktUrl = document.getElementById('truth-marketing-url');
             const docsUrl = document.getElementById('truth-docs-url');
+            const specEl = document.getElementById('truth-spec-json');
             if (brand) brand.value = 'Ordway';
             if (mktUrl) mktUrl.value = 'https://www.ordwaylabs.com';
             if (docsUrl) docsUrl.value = 'https://support.ordwaylabs.com/hc/en-us';
-            loadSampleOpenApi();
+            if (specEl && typeof SAMPLE_ORDWAY_OPENAPI !== 'undefined') {
+                specEl.value = JSON.stringify(SAMPLE_ORDWAY_OPENAPI, null, 2);
+            }
         }
 
         async function handleProductTruthAudit(e) {
