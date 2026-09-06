@@ -1,0 +1,24 @@
+# Binary assets: never apply end-of-line conversion.
+# Without this, core.autocrlf=true treats generated PDFs as text and can
+# rewrite bytes on checkout, corrupting them. Text files keep the mixed
+# LF/CRLF endings already committed - no renormalization is declared here.
+
+*.pdf   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.zip   binary
+*.gz    binary
+*.xlsx  binary
+*.docx  binary
+*.pptx  binary
+*.safetensors binary
+*.onnx  binary
+*.bin   binary
