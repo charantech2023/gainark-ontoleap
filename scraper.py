@@ -251,6 +251,13 @@ class SmartScraper:
         session = requests.Session()
         resp = session.get(url, headers=self.browser_headers, timeout=timeout, verify=True)
         resp.raise_for_status()
+        # When a server omits charset (e.g. "Content-Type: text/html"), requests
+        # follows RFC 2616 and decodes as ISO-8859-1, turning UTF-8 punctuation into
+        # mojibake. Level 1 (curl_cffi) and the async httpx path both sniff correctly,
+        # so a page's extracted text — and every score derived from it — depended on
+        # which fallback tier served the fetch. Sniff instead when charset is absent.
+        if "charset" not in resp.headers.get("Content-Type", "").lower():
+            resp.encoding = resp.apparent_encoding or resp.encoding
         return resp.text
 
     async def fetch_html_async(self, url: str, timeout: int = 15) -> str:
