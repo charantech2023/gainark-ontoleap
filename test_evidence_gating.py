@@ -126,6 +126,46 @@ def test_no_claims_and_no_evidence_is_still_inconclusive():
     print("  PASS - empty audit does not report a score.")
 
 
+def test_executable_checks_fail_open_without_evidence():
+    """The same hazard one layer up.
+
+    run_executable_checks asserts claims against (openapi_spec + docs_text). Given
+    neither, that combined text is empty, nothing matches, and every claim comes
+    back CRITICAL_DRIFT. This test pins that behaviour so it stays visible - the
+    caller in execute_product_truth_audit must keep skipping these checks when the
+    matrix is inconclusive. A live audit of chargebee.com returned 10 such alerts
+    after the matrix gate alone was added.
+    """
+    print("\n[5] Executable checks with no evidence at all ...")
+    from truth_ledger.checks import run_executable_checks
+
+    claims = [
+        {"predicate": "compliesWith", "object": "SOC 2", "evidence": "We are SOC 2 compliant."},
+        {"predicate": "compliesWith", "object": "ASC 606", "evidence": "Full ASC 606 support."},
+        {"predicate": "integratesWith", "object": "NetSuite", "evidence": "Syncs with NetSuite."},
+    ]
+    results = run_executable_checks(marketing_claims=claims, openapi_spec=None, docs_text=None)
+    critical = [r for r in results if not r.passed and r.severity == "CRITICAL_DRIFT"]
+    print("  %d checks run, %d CRITICAL_DRIFT with zero evidence supplied"
+          % (len(results), len(critical)))
+
+    assert critical, (
+        "Executable checks no longer fail-open on empty evidence. If that is a real "
+        "improvement the gate in execute_product_truth_audit can be revisited; verify "
+        "before removing it."
+    )
+
+    # And the caller must gate on it.
+    import inspect
+    src = inspect.getsource(product_truth.execute_product_truth_audit)
+    assert 'evidence_status == "inconclusive"' in src, (
+        "execute_product_truth_audit no longer skips executable checks when the matrix "
+        "is inconclusive. Without that gate these checks re-introduce drift alerts "
+        "derived from documentation that could not be read."
+    )
+    print("  PASS - hazard confirmed, and the audit gates on it.")
+
+
 if __name__ == "__main__":
     print("=" * 78)
     print("PRODUCT TRUTH - EVIDENCE GATING")
@@ -134,6 +174,7 @@ if __name__ == "__main__":
     test_thin_evidence_is_marked_provisional()
     test_sufficient_evidence_is_unchanged()
     test_no_claims_and_no_evidence_is_still_inconclusive()
+    test_executable_checks_fail_open_without_evidence()
     print("\n" + "=" * 78)
     print("ALL EVIDENCE GATING TESTS PASSED")
     print("A failed docs crawl now reports that it failed, not that the")

@@ -569,26 +569,37 @@ def execute_product_truth_audit(
     if doc_warning:
         matrix.drift_alerts.insert(0, doc_warning)
 
-    # 4. Run Executable Assertion Checks (Karpathy + llm-iso27001 compounding checks)
-    try:
-        from truth_ledger.checks import run_executable_checks
-        claims_dicts = [
-            {"predicate": mt.predicate, "object": mt.object, "evidence": mt.evidence_sentence}
-            for mt in marketing_triples
-        ]
-        doc_context = req.tech_docs_text or (clean_docs if 'clean_docs' in locals() else None)
-        check_results = run_executable_checks(
-            marketing_claims=claims_dicts,
-            openapi_spec=req.openapi_spec,
-            docs_text=doc_context
+    # 4. Run Executable Assertion Checks (Karpathy + llm-iso27001 compounding checks).
+    # These assert marketing claims against (openapi_spec + docs_text). With neither
+    # available that combined text is empty, so every assertion fails and every claim
+    # becomes CRITICAL_DRIFT - the same "absence of evidence" failure the matrix now
+    # gates, one layer up. Skip them entirely when there is no technical baseline.
+    if matrix.evidence_status == "inconclusive":
+        logger.info(
+            "Skipping executable assertion checks for %s: no technical evidence to assert against.",
+            req.marketing_url,
         )
-        for cr in check_results:
-            if not cr.passed and cr.severity == "CRITICAL_DRIFT":
-                drift_msg = f"Executable Assertion [{cr.check_name}]: {cr.evidence_span} (Citation: {cr.source_citation})"
-                if drift_msg not in matrix.drift_alerts:
-                    matrix.drift_alerts.append(drift_msg)
-    except Exception as check_err:
-        logger.debug("Executable checks runner notice: %s", check_err)
+    else:
+        try:
+            from truth_ledger.checks import run_executable_checks
+            claims_dicts = [
+                {"predicate": mt.predicate, "object": mt.object, "evidence": mt.evidence_sentence}
+                for mt in marketing_triples
+            ]
+            doc_context = req.tech_docs_text or (clean_docs if 'clean_docs' in locals() else None)
+            check_results = run_executable_checks(
+                marketing_claims=claims_dicts,
+                openapi_spec=req.openapi_spec,
+                docs_text=doc_context
+            )
+            provisional = "Provisional - " if matrix.evidence_status == "low_confidence" else ""
+            for cr in check_results:
+                if not cr.passed and cr.severity == "CRITICAL_DRIFT":
+                    drift_msg = f"{provisional}Executable Assertion [{cr.check_name}]: {cr.evidence_span} (Citation: {cr.source_citation})"
+                    if drift_msg not in matrix.drift_alerts:
+                        matrix.drift_alerts.append(drift_msg)
+        except Exception as check_err:
+            logger.debug("Executable checks runner notice: %s", check_err)
 
     # 5. Append to Compounding Truth Ledger
     try:
