@@ -78,12 +78,14 @@ graph TD
 - Real-time pre-publish audit of marketing blogs, landing pages, and press releases.
 - Computes **Product-Aligned Score (PAS)**, detects unsubstantiated fluff, calculates penalty deductions, and outputs grounded rewrite recommendations.
 
-### 5. 🕸️ Site Graph, Silo Integrity & GEO Engine (`pipeline.py`, `linking.py`)
-- **API Endpoints**: `POST /api/audit`, `POST /api/batch-crawl`, `POST /api/internal-links`, `POST /api/simulate-search`
-- High-speed zero-shot entity extraction via **GLiNER Small v2.1** with PyTorch CPU optimization.
-- AI Citation Readiness Index (0–100%) evaluating Schema.org coverage, entity density, and topical silo integrity.
-- Rule-based relation inference from ontological priors.
-- Autonomous `/llms.txt` and `robots.txt` generator for AI search engine discovery (Perplexity, SearchGPT).
+### 5. 🕸️ Dual-Mode Citation Readiness & GEO Engine (`pipeline.py`, `linking.py`)
+- **API Endpoints**: `POST /api/audit`, `POST /api/batch-crawl`, `POST /api/internal-links`, `POST /api/simulate-search`, `POST /api/export-battlecards-pdf`
+- **Dual-Mode AI Citation Rubric**:
+  - **Single-Page Structured Data Readiness (`/api/audit`)**: Evaluates a specific URL across 3 technical pillars (**40%** Mandatory Schema.org types, **30%** Ontological Seed Concepts, **30%** GLiNER Named Entity richness).
+  - **Site-Wide AI Citation Authority Index (`/api/batch-crawl`)**: Evaluates the full domain knowledge graph across 4 enterprise pillars (**25%** Entity Grounding, **25%** Relational Density, **25%** Topic Silo Integrity via PageRank flow, and **25%** Schema Coverage).
+- **1-Click Executive PDF Exporter (`report_pdf.py`)**: Instant generation of C-level single-site audit reports and multi-competitor Tri-Ontology Sales Battlecard decks.
+- **Compounding Truth Ledger (`truth_ledger/`)**: Continuous append-only audit trail (`log.md`) with automated Python assertion checks (`check_compliance.py`, `check_integrations.py`, `check_pricing_models.py`).
+- Autonomous `/llms.txt` and `robots.txt` generator for AI search engines (Perplexity, SearchGPT, Google Gemini).
 - WordPress `the_content` auto-injector filter hook.
 
 ---

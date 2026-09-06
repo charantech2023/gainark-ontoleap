@@ -349,7 +349,7 @@ def api_info():
         "status": "online",
         "name": "GainARK OntoLeap Platform",
         "service": "GainARK OntoLeap Platform",
-        "version": "2.1.0",
+        "version": "2.2.0",
         "features": {
             "llms_txt_manifest": True,
             "google_rich_results_validation": True,
@@ -373,7 +373,8 @@ def api_info():
             "executive_pdf_export": True,
             "autonomous_industry_discovery": True,
             "product_truth_matrix": True,
-            "tri_ontology_alignment": True
+            "tri_ontology_alignment": True,
+            "battlecards_pdf_export": True
         },
         "endpoints": {
             "dashboard": "GET /dashboard",
@@ -392,6 +393,7 @@ def api_info():
             "check-draft": "POST /api/check-draft",
             "content-brief": "POST /api/content-brief",
             "export-pdf": "POST /api/export-pdf",
+            "export-battlecards-pdf": "POST /api/export-battlecards-pdf",
             "verticals": "GET /api/verticals",
             "google-kg": "POST /api/google-kg",
             "discover-industry": "POST /api/discover-industry",
@@ -979,6 +981,28 @@ def api_export_pdf(req: ExportPdfRequest):
     except Exception as e:
         logger.error("PDF export failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="PDF export failed. Check server logs.")
+
+
+@app.post("/api/export-battlecards-pdf", summary="Generate 1-Click Executive Battlecards PDF")
+def api_export_battlecards_pdf(req: Dict[str, Any]):
+    """
+    Generates a high-impact, executive sales battlecards deck in PDF from Tri-Ontology alignment data.
+    """
+    try:
+        pdf_bytes = report_pdf.generate_battlecards_pdf_report(req)
+        comp = req.get("company_name", "Brand").replace(" ", "_").replace("/", "_")
+        filename = f"GainARK_{comp}_Competitive_Battlecards.pdf"
+
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+    except Exception as e:
+        logger.error("Battlecards PDF export failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Battlecards PDF export failed. Check server logs.")
 
 
 @app.post("/api/google-kg", summary="Verify Entity Recognition in Google Knowledge Graph")

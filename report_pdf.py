@@ -311,3 +311,180 @@ def generate_executive_pdf_report(
     pdf_bytes = buffer.getvalue()
     buffer.close()
     return pdf_bytes
+
+
+def generate_battlecards_pdf_report(alignment_data: Dict[str, Any]) -> bytes:
+    """
+    Generate an executive-grade Tri-Ontology Battlecards PDF report in bytes.
+    """
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36
+    )
+
+    styles = getSampleStyleSheet()
+    PRIMARY = colors.HexColor("#0f172a")    # Slate 900
+    ACCENT = colors.HexColor("#4338ca")     # Indigo 700
+    SUCCESS = colors.HexColor("#059669")    # Emerald 600
+    WARNING = colors.HexColor("#d97706")    # Amber 600
+    DANGER = colors.HexColor("#dc2626")     # Red 600
+    LIGHT_BG = colors.HexColor("#f8fafc")   # Slate 50
+    BORDER_COL = colors.HexColor("#e2e8f0") # Slate 200
+    TEXT_MUTED = colors.HexColor("#64748b") # Slate 500
+
+    title_style = ParagraphStyle(
+        "DocTitle",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=20,
+        leading=24,
+        textColor=PRIMARY
+    )
+    subtitle_style = ParagraphStyle(
+        "DocSubtitle",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=10,
+        leading=14,
+        textColor=TEXT_MUTED
+    )
+    h1_style = ParagraphStyle(
+        "SectionH1",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        leading=17,
+        textColor=PRIMARY,
+        spaceBefore=12,
+        spaceAfter=6
+    )
+    body_style = ParagraphStyle(
+        "Body",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=8.5,
+        leading=12,
+        textColor=PRIMARY
+    )
+    bold_body = ParagraphStyle(
+        "BoldBody",
+        parent=body_style,
+        fontName="Helvetica-Bold"
+    )
+    caption_style = ParagraphStyle(
+        "Caption",
+        parent=body_style,
+        fontSize=7.5,
+        leading=10,
+        textColor=TEXT_MUTED
+    )
+    
+    story = []
+    
+    company = alignment_data.get("company_name", "Our Brand")
+    competitors = ", ".join(alignment_data.get("competitor_names", ["Competitor"]))
+    vertical = alignment_data.get("industry_category", "B2B SaaS")
+    gen_time = datetime.now(timezone.utc).strftime("%B %d, %Y - %H:%M UTC")
+
+    # Header
+    story.append(Paragraph("GainARK OntoLeap — Tri-Ontology Battlecards", title_style))
+    story.append(Paragraph(f"Executive Counter-Positioning & Sales Battlecards: <b>{company}</b> vs. <b>{competitors}</b>", subtitle_style))
+    story.append(Paragraph(f"Vertical: {vertical} | Generated: {gen_time} | Verified Ground Truth & OpenAPI Specs", caption_style))
+    story.append(Spacer(1, 10))
+
+    # KPI Grid
+    adv_count = len(alignment_data.get("company_advantages", []))
+    vuln_count = len(alignment_data.get("competitor_vulnerabilities", []))
+    table_stakes_count = len(alignment_data.get("industry_table_stakes", []))
+    briefs = alignment_data.get("counter_positioning_briefs", [])
+
+    kpi_data = [
+        [
+            Paragraph(f"<b><font size=16 color='{SUCCESS.hexval()}'>{adv_count}</font></b><br/><font size=7.5 color='#64748b'>Company Advantages</font>", body_style),
+            Paragraph(f"<b><font size=16 color='{DANGER.hexval()}'>{vuln_count}</font></b><br/><font size=7.5 color='#64748b'>Competitor Fluff Gaps</font>", body_style),
+            Paragraph(f"<b><font size=16 color='{ACCENT.hexval()}'>{table_stakes_count}</font></b><br/><font size=7.5 color='#64748b'>Shared Table Stakes</font>", body_style),
+            Paragraph(f"<b><font size=16 color='{PRIMARY.hexval()}'>{len(briefs)}</font></b><br/><font size=7.5 color='#64748b'>Total Battlecards</font>", body_style),
+        ]
+    ]
+    kpi_table = Table(kpi_data, colWidths=[135, 135, 135, 135])
+    kpi_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), LIGHT_BG),
+        ('BOX', (0, 0), (-1, -1), 1, BORDER_COL),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, BORDER_COL),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+    ]))
+    story.append(kpi_table)
+    story.append(Spacer(1, 10))
+
+    # Executive Summary Box
+    exec_summary = alignment_data.get("executive_summary", "")
+    if exec_summary:
+        story.append(Paragraph("Executive Positioning Summary", h1_style))
+        summary_table = Table([[Paragraph(exec_summary, body_style)]], colWidths=[540])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), LIGHT_BG),
+            ('BOX', (0, 0), (-1, -1), 1, BORDER_COL),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+        ]))
+        story.append(summary_table)
+        story.append(Spacer(1, 12))
+
+    # Battlecards Section
+    story.append(Paragraph("Strategic Sales Battlecards Deck", h1_style))
+    story.append(Paragraph("Ground-truth counter-positioning angles to equip enterprise sales reps and AEs during demos, evaluations, and RFP bake-offs.", caption_style))
+    story.append(Spacer(1, 8))
+
+    for idx, b in enumerate(briefs, 1):
+        cap = b.get("capability") or b.get("angle_title") or "Key Differentiator"
+        status = b.get("comparative_status", "company_advantage")
+        pred = b.get("predicate", "automates")
+        attack = b.get("attack_angle") or b.get("core_narrative", "")
+        disc = b.get("discovery_question") or "How does the vendor support this in production?"
+        fud = b.get("fud_counter_defense") or b.get("company_differentiator", "")
+        target = b.get("target_competitor", "Competitor")
+
+        is_adv = "advantage" in status.lower()
+        badge_color = SUCCESS if is_adv else DANGER
+        status_label = "VERIFIED ADVANTAGE" if is_adv else "COMPETITOR FLUFF / VULNERABILITY"
+
+        card_content = [
+            Paragraph(f"<b><font color='{badge_color.hexval()}'>[{status_label}]</font> {idx}. {cap}</b> &nbsp;&nbsp;<font color='#64748b'>({pred} vs. {target})</font>", bold_body),
+            Spacer(1, 4),
+            Paragraph(f"<b>🎯 Attack Angle & Messaging:</b> {attack}", body_style),
+            Spacer(1, 4),
+            Paragraph(f"<b>❓ Killer Discovery Question (RFP / Demo):</b> <i>\"{disc}\"</i>", body_style),
+            Spacer(1, 4),
+            Paragraph(f"<b>🛡️ FUD Counter-Defense:</b> {fud}", body_style),
+        ]
+
+        card_table = Table([[card_content]], colWidths=[540])
+        card_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), LIGHT_BG),
+            ('BOX', (0, 0), (-1, -1), 1, BORDER_COL),
+            ('TOPPADDING', (0, 0), (-1, -1), 7),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 7),
+            ('LEFTPADDING', (0, 0), (-1, -1), 10),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+        ]))
+        story.append(card_table)
+        story.append(Spacer(1, 8))
+
+    story.append(Spacer(1, 10))
+    story.append(HRFlowable(width="100%", thickness=1, color=BORDER_COL, spaceBefore=4, spaceAfter=6))
+    story.append(Paragraph("Confidential — Generated by GainARK OntoLeap Platform | Powered by Google Cloud & Vertex AI", caption_style))
+
+    doc.build(story)
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+    return pdf_bytes
+

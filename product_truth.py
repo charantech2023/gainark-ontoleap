@@ -525,4 +525,22 @@ def execute_product_truth_audit(
     except Exception as check_err:
         logger.debug("Executable checks runner notice: %s", check_err)
 
+    # 5. Append to Compounding Truth Ledger
+    try:
+        from truth_ledger.recorder import record_audit_to_ledger
+        verified_strs = [f"{vc.object} ({vc.predicate})" for vc in matrix.verified_triples]
+        gold_strs = [f"{hc.object} ({hc.predicate} prov: {hc.provenance})" for hc in matrix.hidden_capabilities]
+        record_audit_to_ledger(
+            brand=brand,
+            domain=req.marketing_url,
+            total_claims=matrix.total_marketing_claims,
+            total_tech=matrix.total_technical_capabilities,
+            mgi=matrix.marketing_grounding_index,
+            verified_claims=verified_strs,
+            drift_alerts=matrix.drift_alerts,
+            unmarketed_caps=gold_strs
+        )
+    except Exception as rec_err:
+        logger.debug("Truth ledger append error: %s", rec_err)
+
     return matrix

@@ -162,6 +162,21 @@ def align_tri_ontologies(
         f"{len(table_stakes_set)} shared table-stakes capabilities."
     )
 
+    # Append to Compounding Truth Ledger
+    try:
+        from truth_ledger.recorder import record_alignment_to_ledger
+        record_alignment_to_ledger(
+            company_name=company_name,
+            competitors=competitor_names,
+            vertical=industry_category,
+            advantages_count=len(company_advantages),
+            vulnerabilities_count=len(competitor_vulnerabilities),
+            table_stakes_count=len(table_stakes_set),
+            briefs_count=len(briefs)
+        )
+    except Exception as rec_err:
+        logger.debug("Truth ledger append error: %s", rec_err)
+
     return TriOntologyAlignmentResponse(
         company_name=company_name,
         competitor_names=competitor_names,
