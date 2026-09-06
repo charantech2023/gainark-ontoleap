@@ -265,65 +265,91 @@
                 
                 <!-- KPI Dashboard Row -->
                 <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    <!-- MGI Meter Card -->
-                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between col-span-1 md:col-span-2">
+                    <!-- Primary finding: shipped capabilities with no marketing behind them.
+                         This leads because a miss here costs nothing - every item is a real
+                         capability read out of the docs, so a short list is simply a short
+                         list. The grounding score is the opposite: it accuses, so an error
+                         there costs credibility. It now sits below as a diagnostic. -->
+                    <div class="bg-white rounded-2xl p-5 border border-sky-200 shadow-sm flex flex-col justify-between col-span-1 md:col-span-2">
                         <div>
                             <div class="flex items-center justify-between">
-                                <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Marketing Grounding Index (MGI)</span>
-                                <span id="truth-mgi-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
-                                    Verified
+                                <span class="text-xs font-bold uppercase tracking-wider text-sky-700">Shipped, but not marketed</span>
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                                    Highest confidence
                                 </span>
                             </div>
                             <div class="flex items-baseline gap-2 mt-3">
-                                <span id="truth-mgi-score" class="text-4xl font-extrabold text-slate-900">--%</span>
-                                <span class="text-xs text-slate-500">grounded claims</span>
-                            </div>
-                            <!-- Progress Bar -->
-                            <div class="w-full bg-slate-100 rounded-full h-3 mt-3 overflow-hidden">
-                                <div id="truth-mgi-bar" class="h-3 rounded-full bg-emerald-500 transition-all duration-500" style="width: 0%"></div>
+                                <span id="truth-hidden-count" class="text-4xl font-extrabold text-slate-900">0</span>
+                                <span class="text-xs text-slate-500">capabilities found in the docs and absent from your copy</span>
                             </div>
                         </div>
-                        <p id="truth-mgi-verdict" class="text-xs text-slate-600 mt-3 italic">
-                            Awaiting analysis...
+                        <p class="text-xs text-slate-600 mt-3">
+                            Each one is a real, documented capability with no marketing behind it &mdash;
+                            a content brief that writes itself. Listed in full below.
                         </p>
                     </div>
 
-                    <!-- Metric 1: Verified in Code -->
+                    <!-- Verified claims: also high confidence, a match needs evidence on both sides. -->
                     <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col justify-between">
                         <div class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">🟢 Verified Truth</div>
                         <div class="text-3xl font-extrabold text-slate-900 mt-2" id="truth-verified-count">0</div>
                         <div class="text-[11px] text-slate-500 mt-1">Backed by API / code</div>
                     </div>
 
-                    <!-- Metric 2: Unbacked Claims -->
+                    <!-- Unbacked claims: leads to accusations, so labelled as needing review. -->
                     <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col justify-between">
-                        <div class="text-[11px] font-bold text-rose-700 uppercase tracking-wider">🔴 Marketing Drift</div>
+                        <div class="text-[11px] font-bold text-amber-700 uppercase tracking-wider">🟠 Needs review</div>
                         <div class="text-3xl font-extrabold text-slate-900 mt-2" id="truth-unbacked-count">0</div>
-                        <div class="text-[11px] text-slate-500 mt-1">Unbacked marketing claims</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Claims not found in the source checked</div>
                     </div>
 
-                    <!-- Metric 3: Unmarketed Gold -->
-                    <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col justify-between">
-                        <div class="text-[11px] font-bold text-sky-700 uppercase tracking-wider">🔵 Engineering Gold</div>
-                        <div class="text-3xl font-extrabold text-slate-900 mt-2" id="truth-hidden-count">0</div>
-                        <div class="text-[11px] text-slate-500 mt-1">Unmarketed capabilities</div>
+                    <!-- Grounding score, demoted: useful as a trend, not as a headline. -->
+                    <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex flex-col justify-between">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Grounding index</span>
+                            <span id="truth-mgi-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700">&mdash;</span>
+                        </div>
+                        <div class="flex items-baseline gap-1.5 mt-2">
+                            <span id="truth-mgi-score" class="text-2xl font-bold text-slate-700">--%</span>
+                        </div>
+                        <div class="w-full bg-slate-200 rounded-full h-1.5 mt-2 overflow-hidden">
+                            <div id="truth-mgi-bar" class="h-1.5 rounded-full bg-slate-400 transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                        <div class="text-[10px] text-slate-500 mt-2 leading-snug">
+                            Depends heavily on which source was checked. Track it over time on one
+                            source; don't compare it across brands.
+                        </div>
                     </div>
                 </div>
 
-                <!-- Governance & Drift Alerts Card -->
-                <div id="truth-alerts-card" class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-3">
-                    <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
-                        <span>🚨 Executive Governance &amp; Drift Alerts</span>
-                    </h4>
-                    <div id="truth-alerts-list" class="space-y-2">
-                        <!-- Populated dynamically -->
-                    </div>
-                </div>
+                <p id="truth-mgi-verdict" class="text-xs text-slate-600 italic">
+                    Awaiting analysis...
+                </p>
 
                 <!-- 3-Column Differential Matrix -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     
-                    <!-- Column 1: Verified Capabilities -->
+                    <!-- Ordered by how much a wrong entry costs the reader. The first two require
+                         positive evidence, so an error just shortens the list. The third is
+                         inferred from absence, so an error there is an accusation. -->
+
+                    <!-- Column 1: Unmarketed capabilities (positive evidence) -->
+                    <div class="bg-white rounded-2xl p-5 border border-sky-200 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between border-b border-sky-100 pb-2.5">
+                            <h4 class="text-xs font-bold text-sky-900 uppercase tracking-wider flex items-center gap-1.5">
+                                <span>🔵 Shipped, but not marketed</span>
+                            </h4>
+                            <span id="col-hidden-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-800">0</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500">
+                            Documented, production capabilities your marketing copy never mentions. Read straight out of the docs, so every entry is real. Start here.
+                        </p>
+                        <div id="truth-col-hidden" class="space-y-2 text-xs max-h-96 overflow-y-auto pr-1">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Verified claims (positive evidence) -->
                     <div class="bg-white rounded-2xl p-5 border border-emerald-200 shadow-sm space-y-3">
                         <div class="flex items-center justify-between border-b border-emerald-100 pb-2.5">
                             <h4 class="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
@@ -332,45 +358,41 @@
                             <span id="col-verified-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800">0</span>
                         </div>
                         <p class="text-[11px] text-slate-500">
-                            Promoted on marketing website and verified in production OpenAPI / Swagger specs.
+                            Claimed on the website and confirmed in the documentation or API spec. Safe to say out loud, and safe to put in front of a buyer.
                         </p>
                         <div id="truth-col-verified" class="space-y-2 text-xs max-h-96 overflow-y-auto pr-1">
                             <!-- Populated dynamically -->
                         </div>
                     </div>
 
-                    <!-- Column 2: Unbacked Marketing Claims -->
-                    <div class="bg-white rounded-2xl p-5 border border-rose-200 shadow-sm space-y-3">
-                        <div class="flex items-center justify-between border-b border-rose-100 pb-2.5">
-                            <h4 class="text-xs font-bold text-rose-900 uppercase tracking-wider flex items-center gap-1.5">
-                                <span>🔴 Unbacked Claims (Drift Risk)</span>
+                    <!-- Column 3: Inferred from absence - asks for review, does not assert drift -->
+                    <div class="bg-white rounded-2xl p-5 border border-amber-200 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between border-b border-amber-100 pb-2.5">
+                            <h4 class="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                                <span>🟠 Needs review</span>
                             </h4>
-                            <span id="col-unbacked-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-800">0</span>
+                            <span id="col-unbacked-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800">0</span>
                         </div>
                         <p class="text-[11px] text-slate-500">
-                            Advertised to buyers on the website with zero matching API endpoints or docs backing.
+                            Claimed on the website but not found in the source we checked. That is a reason to look, not proof of a false claim &mdash; compliance and security statements in particular usually live outside API documentation.
                         </p>
                         <div id="truth-col-unbacked" class="space-y-2 text-xs max-h-96 overflow-y-auto pr-1">
                             <!-- Populated dynamically -->
                         </div>
                     </div>
 
-                    <!-- Column 3: Unmarketed Capabilities -->
-                    <div class="bg-white rounded-2xl p-5 border border-sky-200 shadow-sm space-y-3">
-                        <div class="flex items-center justify-between border-b border-sky-100 pb-2.5">
-                            <h4 class="text-xs font-bold text-sky-900 uppercase tracking-wider flex items-center gap-1.5">
-                                <span>🔵 Unmarketed Engineering Gold</span>
-                            </h4>
-                            <span id="col-hidden-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-800">0</span>
-                        </div>
-                        <p class="text-[11px] text-slate-500">
-                            Real endpoints live in production that marketing copy completely ignores.
-                        </p>
-                        <div id="truth-col-hidden" class="space-y-2 text-xs max-h-96 overflow-y-auto pr-1">
-                            <!-- Populated dynamically -->
-                        </div>
-                    </div>
+                </div>
 
+                <!-- Alerts sit below the findings above. They are inferred from absence and
+                     phrased as leads to check, so they should not be the first thing read. -->
+                <!-- Governance & Drift Alerts Card -->
+                <div id="truth-alerts-card" class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-3">
+                    <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <span>🚨 Executive Governance &amp; Drift Alerts</span>
+                    </h4>
+                    <div id="truth-alerts-list" class="space-y-2">
+                        <!-- Populated dynamically -->
+                    </div>
                 </div>
 
                 <!-- Action Bridge Bar -->
@@ -2581,7 +2603,7 @@ SELECT ?capability ?evidence WHERE {
                         `${totalMkt} marketing claims found, but no technical capabilities could be read from the documentation, so nothing could be verified either way. ${data.evidence_note || ''}`;
                 } else {
                     document.getElementById('truth-mgi-verdict').innerText =
-                        `${verifiedCount} of ${totalMkt} marketing claims verified in code. ${unbackedCount} unbacked drift claims flagged.`
+                        `${hiddenCount} shipped capabilities are missing from your marketing. ${verifiedCount} of ${totalMkt} claims are confirmed in the source checked; ${unbackedCount} were not found there and need review.`
                         + (evidenceStatus === 'low_confidence' ? ` * ${data.evidence_note || ''}` : '');
                 }
 
