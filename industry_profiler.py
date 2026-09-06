@@ -150,6 +150,9 @@ Return ONLY a valid, raw JSON object (without markdown fences, or with standard 
   "known_pricing": [
     "List of 3 to 5 common B2B pricing models for this vertical (e.g. 'Per-Developer Pricing', 'Usage-Based Ingestion', 'Tiered Enterprise')"
   ],
+  "concept_hierarchy": {{
+    "Object mapping each narrower concept to the broader one it sits under, for example mapping 'Prior Authorization' to 'Revenue Cycle Management'. Add an entry for every core_seed_concept and known_automation item that belongs under a broader umbrella; a parent may be a term not otherwise listed. Never create cycles. Omit concepts with no natural parent."
+  }},
   "known_automation": [
     "List of 8 to 12 core operational capabilities that products in this vertical automate, phrased as the buyer would name them (e.g. 'Vulnerability Scanning', 'Clinical Documentation', 'Payroll Runs', 'Revenue Recognition'). These are what marketing claims are checked against, so favour concrete workflows over abstract benefits."
   ],
@@ -249,7 +252,8 @@ def save_vertical_configuration(
     known_integrations: List[str],
     known_compliance: List[str],
     known_pricing: List[str],
-    known_automation: Optional[List[str]] = None
+    known_automation: Optional[List[str]] = None,
+    concept_hierarchy: Optional[Dict[str, str]] = None
 ) -> str:
     """
     Saves the discovered vertical configuration into verticals/<vertical_id>.json
@@ -273,7 +277,10 @@ def save_vertical_configuration(
         "known_compliance": known_compliance,
         "known_pricing": known_pricing,
         # Drives what triple extraction looks for on every site in this vertical.
-        "known_automation": known_automation or []
+        "known_automation": known_automation or [],
+        # Lets coverage roll up: marketing a narrower concept counts as covering the
+        # broader one it sits under.
+        "concept_hierarchy": concept_hierarchy or {}
     }
 
     with open(config_path, "w", encoding="utf-8") as f:
@@ -311,6 +318,10 @@ async def discover_industry_profile_async(
     known_integrations = discovered.get("known_integrations") or []
     known_pricing = discovered.get("known_pricing") or []
     known_automation = discovered.get("known_automation") or []
+    concept_hierarchy = discovered.get("concept_hierarchy") or {}
+    if not isinstance(concept_hierarchy, dict):
+        logger.warning("Discarding non-dict concept_hierarchy from discovery output.")
+        concept_hierarchy = {}
     suggested_competitors = discovered.get("suggested_competitors") or []
     discovery_summary = discovered.get("summary") or f"Discovered {display_name} ontology for {brand_name}."
 
@@ -328,7 +339,8 @@ async def discover_industry_profile_async(
             known_integrations=known_integrations,
             known_compliance=known_compliance,
             known_pricing=known_pricing,
-            known_automation=known_automation
+            known_automation=known_automation,
+            concept_hierarchy=concept_hierarchy
         )
 
     return IndustryDiscoveryResponse(

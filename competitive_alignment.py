@@ -38,7 +38,7 @@ from models import (
 from pipeline import OntologyPipeline
 from scraper import smart_fetch, validate_url_for_fetch
 from product_truth import execute_product_truth_audit, _concepts_match, _normalize_concept
-from constants import DEEP_CRAWL_PATHS, WIKIDATA_KB
+from constants import DEEP_CRAWL_PATHS, WIKIDATA_KB, covers_concept
 
 logger = logging.getLogger("gainark.competitive_alignment")
 
@@ -153,17 +153,22 @@ def align_tri_ontologies(
     # say "you are ahead" or "you are behind". This one is derived from the industry
     # layer, so it can surface positioning no rival has named yet - which is the whole
     # reason for having a third ontology rather than just company vs competitor.
-    marketed: Set[str] = set()
+    # Keep the original wording: ancestor lookup is by concept name, not normalised form.
+    marketed_raw: Set[str] = set()
     for matrix in [company_matrix] + competitor_matrices:
         for triple in (matrix.verified_triples + matrix.unbacked_claims
                        + matrix.hidden_capabilities):
-            marketed.add(_normalize_concept(triple.object))
+            if triple.object:
+                marketed_raw.add(triple.object)
+
+    # Roll coverage up the category taxonomy. Someone writing only about "Prior
+    # Authorization" does cover "Revenue Cycle Management"; without the hierarchy those
+    # are unrelated strings and whitespace would report owned territory as unclaimed -
+    # the one error here that actively sends a marketer to spend money in the wrong place.
+    hierarchy = getattr(vertical_config, "concept_hierarchy", {}) or {}
 
     def _is_covered(concept: str) -> bool:
-        norm = _normalize_concept(concept)
-        if not norm:
-            return True  # nothing to say about an empty concept
-        return any(norm == m or norm in m or m in norm for m in marketed)
+        return covers_concept(concept, marketed_raw, hierarchy, normalize=_normalize_concept)
 
     expectations = [(c, "seed_concept") for c in core_seeds]
     expectations += [(c, "automation") for c in getattr(vertical_config, "known_automation", []) or []]

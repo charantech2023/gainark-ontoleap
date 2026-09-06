@@ -150,6 +150,69 @@ def test_empty_vertical_yields_no_whitespace():
     print("  PASS")
 
 
+HIERARCHICAL = VerticalConfig(
+    vertical_id="healthtech_hier",
+    display_name="Healthcare & Clinical HealthTech",
+    gliner_labels=["Clinical Platform"],
+    mandatory_schema_types=["SoftwareApplication"],
+    core_seed_concepts=[
+        "Revenue Cycle Management",   # nobody names it directly...
+        "Interoperability",           # ...nor this
+        "Telehealth",                 # genuinely unclaimed
+    ],
+    concept_hierarchy={
+        "Prior Authorization": "Revenue Cycle Management",
+        "Claims Processing": "Revenue Cycle Management",
+        "HL7 FHIR": "Interoperability",
+    },
+)
+
+
+def test_coverage_rolls_up_the_hierarchy():
+    """The false positive the hierarchy field exists to prevent.
+
+    A rival writing only about "Prior Authorization" does cover Revenue Cycle
+    Management. Reported as whitespace, a marketer would spend a campaign claiming
+    territory the competitor already owns under a narrower name - the most costly
+    mistake this output can make.
+    """
+    print("\n[5] Coverage rolls up to broader concepts ...")
+    competitive_alignment.synthesize_counter_positioning_briefs = lambda **kw: []
+    result = competitive_alignment.align_tri_ontologies(
+        company_matrix=matrix("Acme", verified=["HL7 FHIR"]),
+        competitor_matrices=[matrix("Rival", verified=["Prior Authorization", "Claims Processing"])],
+        vertical_config=HIERARCHICAL,
+        vertical_id="healthtech_hier",
+    )
+    found = {w.concept for w in result.category_whitespace}
+    print("  nobody names 'Revenue Cycle Management' or 'Interoperability' literally")
+    print("  reported whitespace: %s" % sorted(found))
+
+    assert "Revenue Cycle Management" not in found, (
+        "Reported Revenue Cycle Management as unclaimed while the competitor markets "
+        "Prior Authorization and Claims Processing, both of which sit under it."
+    )
+    assert "Interoperability" not in found, (
+        "Reported Interoperability as unclaimed while the company markets HL7 FHIR, "
+        "which sits under it."
+    )
+    assert "Telehealth" in found, (
+        "Telehealth is genuinely unclaimed and must still be reported - the rollup "
+        "should suppress false positives, not real findings."
+    )
+    print("  PASS - rolled-up concepts suppressed, genuine whitespace kept.")
+
+
+def test_flat_vertical_behaves_as_before():
+    print("\n[6] A vertical with no hierarchy is unaffected ...")
+    result = align()
+    found = {w.concept for w in result.category_whitespace}
+    assert "Clinical Decision Support" in found and "DICOM" in found, (
+        "Adding hierarchy support changed behaviour for verticals that define none."
+    )
+    print("  PASS - flat verticals unchanged.")
+
+
 if __name__ == "__main__":
     print("=" * 78)
     print("CATEGORY WHITESPACE")
@@ -158,6 +221,8 @@ if __name__ == "__main__":
     test_marketed_concepts_are_not_whitespace()
     test_whitespace_carries_its_source_and_advice()
     test_empty_vertical_yields_no_whitespace()
+    test_coverage_rolls_up_the_hierarchy()
+    test_flat_vertical_behaves_as_before()
     print("\n" + "=" * 78)
     print("ALL CATEGORY WHITESPACE TESTS PASSED")
     print("The industry ontology can now surface positioning no rival has named.")

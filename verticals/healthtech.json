@@ -25,13 +25,38 @@
     "Interoperability"
   ],
   "known_integrations": [
-    "Epic Systems", "Cerner", "Athenahealth", "Allscripts",
-    "Salesforce Health Cloud", "Google Cloud Healthcare API", "AWS HealthLake"
+    "Epic Systems",
+    "Cerner",
+    "Athenahealth",
+    "Allscripts",
+    "Salesforce Health Cloud",
+    "Google Cloud Healthcare API",
+    "AWS HealthLake"
   ],
   "known_compliance": [
-    "HIPAA", "HITECH", "FDA 21 CFR Part 11", "SOC 2", "HITRUST CSF", "GDPR"
+    "HIPAA",
+    "HITECH",
+    "FDA 21 CFR Part 11",
+    "SOC 2",
+    "HITRUST CSF",
+    "GDPR"
   ],
   "known_pricing": [
-    "Per-Provider Pricing", "Per-Patient Pricing", "Enterprise License", "Tiered Annual"
-  ]
+    "Per-Provider Pricing",
+    "Per-Patient Pricing",
+    "Enterprise License",
+    "Tiered Annual"
+  ],
+  "concept_hierarchy": {
+    "Prior Authorization": "Revenue Cycle Management",
+    "Claims Processing": "Revenue Cycle Management",
+    "Medical Coding": "Revenue Cycle Management",
+    "Clinical Decision Support": "Clinical Workflow",
+    "Clinical Documentation": "Clinical Workflow",
+    "Telehealth": "Care Delivery",
+    "Patient Engagement": "Care Delivery",
+    "HL7 FHIR": "Interoperability",
+    "DICOM": "Interoperability",
+    "Electronic Health Record": "Clinical Systems"
+  }
 }

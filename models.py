@@ -47,6 +47,17 @@ class VerticalConfig(BaseModel):
         default_factory=list,
         description="Core capabilities this vertical automates (e.g. Clinical Documentation).",
     )
+    concept_hierarchy: Dict[str, str] = Field(
+        default_factory=dict,
+        description=(
+            "Maps a specific concept to the broader one it belongs under, e.g. "
+            '{"Prior Authorization": "Revenue Cycle Management"}. Without it every concept '
+            "is an unrelated string, so a competitor writing only about Prior Authorization "
+            "reads as not covering Revenue Cycle Management at all - and category whitespace "
+            "reports territory as unclaimed when a rival already owns it under a narrower "
+            "name. Empty means flat, which is the previous behaviour."
+        ),
+    )
 
 
 class EntityMatch(BaseModel):
