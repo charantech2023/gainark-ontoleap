@@ -169,6 +169,9 @@ python test_competitive_alignment.py
 
 # Verify what the single-page readiness score measures (offline; --live to re-crawl)
 python test_calibration.py
+
+# Verify documented pillar names and weights match what the code computes
+python test_rubric_consistency.py
 ```
 
 ---

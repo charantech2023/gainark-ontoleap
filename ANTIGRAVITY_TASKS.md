@@ -43,7 +43,7 @@ useful, explainable output; only the label was wrong.
 
 ---
 
-## Task 2 — Reconcile the AI Citation Readiness Index with its documentation ⚠️ decision needed
+## Task 2 — Reconcile the AI Citation Readiness Index with its documentation ✅ done (option C)
 
 **Problem.** All marketing (README, exec summary, dashboard copy) describes **four pillars
 weighted 25% each**: Entity Grounding, Relational Density, Topic Silo Integrity, Schema
@@ -110,7 +110,7 @@ completeness score.
 
 ---
 
-## Task 4 — Calibrate the readiness score against known-good sites
+## Task 4 — Calibrate the readiness score against known-good sites ✅ done (renamed, not tuned)
 
 **Problem.** `benchmark_report.md` reports **Stripe at 31.42/100** and Chargebee at 60.74/100.
 Stripe is among the most-cited entities in payments across every AI answer engine. Any prospect
@@ -143,3 +143,27 @@ cite less often.
   doing real work. Nothing in these tasks should change their behaviour.
 - Untracked files `constants.py` and `models_backup.py` are present in the working tree and
   are not part of any task above.
+
+---
+
+## Resolution log
+
+**Task 4 — done.** Weight tuning was tested before being ruled out. Citation ordering
+is recoverable, but only with mandatory schema cut from 40 to 10-15 of 100 (a 62% cut),
+where the decisive Stripe/Chargebee margin is 0.13 points, and where 3 sites give only
+2 independent ordering constraints for 2 free weight parameters. That is fitting noise,
+so the task's alternative was taken: the rubric is unchanged and the output is now named
+"Structured Data Readiness" everywhere it is surfaced. `calibration_set.json` holds the
+ground truth; `test_calibration.py` pins the finding and blocks the citation-index label
+from returning without the ordering being satisfied first.
+
+**Task 2 — done, option (C).** The README, dashboard cards and both response models
+already described the split correctly by the time this was picked up; the single-page
+cards read 40/30/30 and the site-wide card reads 4 pillars at 25%. The live mismatch was
+on a surface this brief did not list: the executive pitch one-pager claimed "4 dimensions"
+and then listed three, with the schema and entity weights swapped and a component name
+("Technical Density") that exists nowhere in the code. It also sold the single-page
+40/30/30 weights as the "AI Citation Index", the exact claim Task 4 removed. Both fixed in
+`generate_pitch_pdf.py`, and `test_rubric_consistency.py` now measures the real component
+ceilings by driving the scoring function to saturation and checks every documented weight
+claim counts and sums to 100.

@@ -189,7 +189,7 @@ def build_one_pager_pdf(output_target: Any = "OntoLeap_Executive_Pitch_OnePager.
         [
             Paragraph("Extracts marketing concepts via zero-shot GLiNER NER and connects them to industry schema taxonomies.", body_text),
             Paragraph("Executes automated assertion checks comparing marketing claims directly against real OpenAPI/Swagger specifications.", body_text),
-            Paragraph("Evaluates readiness across 4 dimensions: Entity Linking (40%), Schema Markup (30%), & Technical Density (30%).", body_text)
+            Paragraph("Scores site-wide citation authority across 4 pillars (25% each): Entity Grounding, Relational Density, Topic Silo Integrity, and Schema Coverage.", body_text)
         ],
         [
             Paragraph("<font color='#4338ca'><b>Output:</b> Unified Knowledge Graph</font>", body_text),
@@ -244,7 +244,7 @@ def build_one_pager_pdf(output_target: Any = "OntoLeap_Executive_Pitch_OnePager.
             Paragraph("<b>AI Citation Index (GEO)</b>", body_text),
             Paragraph("No LLM awareness", body_text),
             Paragraph("No LLM awareness", body_text),
-            Paragraph("<font color='#4338ca'><b>40/30/30 Schema Scoring</b></font>", body_bold)
+            Paragraph("<font color='#4338ca'><b>4-Pillar Site-Wide Index</b></font>", body_bold)
         ]
     ]
     comp_table = Table(comp_data, colWidths=[120, 140, 140, 140])
