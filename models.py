@@ -514,6 +514,14 @@ class ProductTruthMatrixResponse(BaseModel):
         default=None,
         description="Plain-language explanation when evidence is insufficient to judge claims.",
     )
+    tech_docs_discovered: bool = Field(
+        default=False,
+        description=(
+            "True when tech_docs_url was found automatically rather than supplied by the "
+            "caller. A discovered source may not be the brand's primary documentation, so "
+            "results carry more uncertainty than an explicitly provided spec."
+        ),
+    )
     total_marketing_claims: int
     total_technical_capabilities: int
     verified_claims_count: int

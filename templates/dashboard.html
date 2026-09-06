@@ -214,10 +214,15 @@
                         </div>
                         <div>
                             <label for="truth-docs-url" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                                Tech Docs URL <span class="text-slate-400 font-normal">(Optional)</span>
+                                Tech Docs URL <span class="text-brand-600 font-normal normal-case">(strongly recommended)</span>
                             </label>
                             <input type="url" id="truth-docs-url" placeholder="https://docs.brand.com"
                                 class="block w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-brand-500 focus:bg-white text-slate-900 transition">
+                            <p class="mt-1 text-[11px] leading-snug text-slate-500">
+                                This is what marketing claims get checked against. Left blank, we try to
+                                find it automatically &mdash; if we can't, the audit returns
+                                &ldquo;not assessed&rdquo; rather than a score.
+                            </p>
                         </div>
                     </div>
 

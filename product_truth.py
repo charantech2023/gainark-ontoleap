@@ -15,6 +15,8 @@ Cross-examines Marketing Claims against Technical Reality:
 import os
 import re
 import json
+import time
+import socket
 import logging
 from urllib.parse import urlparse
 from typing import Dict, Any, List, Optional, Set, Tuple
@@ -183,6 +185,142 @@ def parse_openapi_spec(
                 _add_triple("automates", t_name.title(), 0.90, f"API Tag: {t_name} - {t_desc}", f"{source_origin}#/tags/{t_name}")
 
     return triples
+
+
+# Conventional locations for developer documentation and API specs, tried in order of
+# how much technical signal they carry. A machine-readable spec beats a docs portal,
+# which beats a marketing-adjacent /docs path.
+_SPEC_PATHS = ("/openapi.json", "/swagger.json", "/api-docs.json", "/v1/openapi.json")
+_DOCS_SUBDOMAINS = ("docs", "developer", "developers", "apidocs", "api")
+_DOCS_PATHS = ("/docs", "/developers", "/developer", "/api-docs", "/documentation", "/api")
+
+# Link text or href fragments on a marketing page that usually point at real docs.
+_DOCS_LINK_HINTS = ("/docs", "docs.", "developer", "apidocs", "api-reference", "/api/")
+
+# Bounded so discovery cannot turn one audit into a crawl of the whole domain.
+# Discovery runs inside a request that already spends time on the marketing crawl and
+# GLiNER inference, against a 300s Cloud Run ceiling, so it gets a hard wall-clock
+# budget rather than just a candidate count. Measured unbounded: 82s for chargebee.com
+# and 96s for stripe.com, most of it DNS timeouts on subdomains that do not exist.
+_MAX_DISCOVERY_CANDIDATES = 8
+_DISCOVERY_TIMEOUT = 5
+_DISCOVERY_TIME_BUDGET = 30.0
+
+
+def _host_resolves(url: str) -> bool:
+    """Skip candidates whose host has no DNS record, before paying an HTTP timeout."""
+    try:
+        host = urlparse(url).netloc.split(":")[0]
+        if not host:
+            return False
+        socket.getaddrinfo(host, None)
+        return True
+    except Exception:
+        return False
+
+
+def _looks_like_technical_docs(text: str) -> bool:
+    """Cheap check that a fetched page is developer documentation, not a landing page."""
+    lowered = text[:20000].lower()
+    signals = ("endpoint", "api key", "authentication", "curl", "request body",
+               "response", "oauth", "http", "parameters", "sdk")
+    return sum(1 for s in signals if s in lowered) >= 3
+
+
+def discover_docs_url(marketing_url: str, timeout: int = _DISCOVERY_TIMEOUT) -> Optional[str]:
+    """
+    Find a documentation or OpenAPI URL for a brand when the caller supplied none.
+
+    Without this, an audit with only a marketing_url extracts zero technical
+    capabilities and is inconclusive by construction - the crawler never runs. The
+    dashboard's docs field was optional, so that was the common case rather than the
+    exceptional one.
+
+    Prefers a machine-readable spec, then links the marketing page itself offers, then
+    conventional subdomains and paths. Returns None when nothing validates, which is a
+    real answer: the caller then reports inconclusive rather than guessing.
+    """
+    # Budget starts here, so the marketing-page scan counts against it too and the whole
+    # function is bounded rather than just its candidate loop.
+    deadline = time.monotonic() + _DISCOVERY_TIME_BUDGET
+    try:
+        parsed = urlparse(marketing_url)
+        host = parsed.netloc
+        root = host[4:] if host.startswith("www.") else host
+        origin = f"{parsed.scheme}://{host}"
+    except Exception:
+        return None
+
+    # Links the marketing page itself points at are the strongest signal available, so
+    # they are tried first. Ordering matters more than it looks: with the conventional
+    # /openapi.json guesses in front, four almost-certain 404s consumed the time budget
+    # before the real docs link was ever reached, and chargebee.com and stripe.com both
+    # went from correctly discovered to not found.
+    link_candidates: List[str] = []
+    try:
+        html = smart_fetch(marketing_url, timeout=timeout)
+        soup = BeautifulSoup(html, "html.parser")
+        for a in soup.find_all("a", href=True):
+            href = a["href"].strip()
+            if not any(h in href.lower() for h in _DOCS_LINK_HINTS):
+                continue
+            if href.startswith("//"):
+                href = f"{parsed.scheme}:{href}"
+            elif href.startswith("/"):
+                href = f"{origin}{href}"
+            elif not href.startswith("http"):
+                continue
+            # Stay on the brand's own domains; an outbound link is not their docs.
+            if root not in urlparse(href).netloc:
+                continue
+            if href not in link_candidates:
+                link_candidates.append(href)
+    except Exception as e:
+        logger.debug("Docs discovery: could not scan marketing page links: %s", e)
+
+    candidates: List[str] = list(link_candidates)
+    candidates.extend(f"{origin}{p}" for p in _SPEC_PATHS)
+    candidates.extend(f"{parsed.scheme}://{sub}.{root}" for sub in _DOCS_SUBDOMAINS)
+    candidates.extend(f"{origin}{p}" for p in _DOCS_PATHS)
+
+    seen: Set[str] = set()
+    tried = 0
+    for candidate in candidates:
+        if candidate in seen or candidate.rstrip("/") == marketing_url.rstrip("/"):
+            continue
+        seen.add(candidate)
+        if tried >= _MAX_DISCOVERY_CANDIDATES or time.monotonic() >= deadline:
+            logger.info("Docs discovery: stopping after %d candidates (budget reached).", tried)
+            break
+        if not _host_resolves(candidate):
+            continue
+        tried += 1
+        try:
+            validate_url_for_fetch(candidate)
+            raw = smart_fetch(candidate, timeout=timeout)
+        except Exception:
+            continue
+        if not raw:
+            continue
+        # A real OpenAPI/Swagger document is the best possible outcome.
+        try:
+            data = json.loads(raw)
+            if isinstance(data, dict) and ("paths" in data or "swagger" in data or "openapi" in data):
+                logger.info("Docs discovery: found OpenAPI spec at %s", candidate)
+                return candidate
+        except (json.JSONDecodeError, ValueError):
+            pass
+        try:
+            text = BeautifulSoup(raw, "html.parser").get_text(separator=" ", strip=True)
+        except Exception:
+            text = raw
+        if _looks_like_technical_docs(text):
+            logger.info("Docs discovery: found technical documentation at %s", candidate)
+            return candidate
+
+    logger.info("Docs discovery: no documentation found for %s after %d candidates.",
+                marketing_url, tried)
+    return None
 
 
 def fetch_docs_content(url: str, timeout: float = 15.0) -> Tuple[str, str]:
@@ -358,10 +496,11 @@ def build_product_truth_matrix(
         evidence_note = (
             "No technical capabilities could be extracted from the documentation, so "
             "marketing claims could not be checked against anything. This is a reading "
-            "failure, not a finding about the claims. Common causes: the docs URL is "
-            "wrong or missing, the site blocked the crawler, or the documentation is "
-            "rendered client-side. Supply an OpenAPI/Swagger spec URL for the most "
-            "reliable result."
+            "failure, not a finding about the claims. Automatic discovery of the "
+            "documentation was attempted and did not find a usable source. Common causes: "
+            "the docs sit behind authentication, the site blocked the crawler, or the "
+            "documentation is rendered client-side. Supply the documentation URL or an "
+            "OpenAPI/Swagger spec directly for a reliable result."
         )
     elif total_technical < MIN_CONFIDENT_TECHNICAL_EVIDENCE:
         evidence_status = "low_confidence"
@@ -474,6 +613,19 @@ def execute_product_truth_audit(
     technical_triples: List[SemanticTriple] = []
     clean_docs: Optional[str] = None
 
+    # Priority 0: with no technical source supplied at all there is nothing to verify
+    # against, so try to locate the documentation before giving up. The dashboard marks
+    # the docs field optional, which made "no technical source" the common case and
+    # every such audit inconclusive by construction.
+    docs_url_discovered = False
+    if not req.openapi_spec and not req.tech_docs_url and not req.tech_docs_text:
+        logger.info("No technical source supplied for %s; attempting docs discovery...", brand)
+        found = discover_docs_url(req.marketing_url)
+        if found:
+            req.tech_docs_url = found
+            docs_url_discovered = True
+            logger.info("Docs discovery selected %s for %s", found, brand)
+
     # Priority A: Raw OpenAPI spec dict provided
     if req.openapi_spec:
         logger.info("Parsing provided OpenAPI specification for %s...", brand)
@@ -566,6 +718,14 @@ def execute_product_truth_audit(
         marketing_url=req.marketing_url,
         tech_docs_url=req.tech_docs_url
     )
+    matrix.tech_docs_discovered = docs_url_discovered
+    if docs_url_discovered:
+        note = (
+            f"Technical documentation was located automatically at {req.tech_docs_url}; "
+            "it may not be the brand's primary source. Supply the documentation or "
+            "OpenAPI spec URL directly for a more reliable result."
+        )
+        matrix.evidence_note = f"{matrix.evidence_note} {note}" if matrix.evidence_note else note
     if doc_warning:
         matrix.drift_alerts.insert(0, doc_warning)
 
