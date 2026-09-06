@@ -110,9 +110,10 @@ class SmartScraper:
             "Sec-Ch-Ua-Platform": '"Windows"',
             "Sec-Fetch-Dest": "document",
             "Sec-Fetch-Mode": "navigate",
-            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-Site": "cross-site",
             "Sec-Fetch-User": "?1",
             "Upgrade-Insecure-Requests": "1",
+            "Referer": "https://www.google.com/",
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) "

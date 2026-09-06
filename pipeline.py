@@ -170,11 +170,26 @@ class OntologyPipeline:
 
         return extracted_data
 
-    def extract_seed_concepts(self, text: str) -> List[SeedConceptMatch]:
+    def extract_seed_concepts(self, text: str, entities: Optional[List[EntityMatch]] = None) -> List[SeedConceptMatch]:
         matches = []
+        text_lower = text.lower()
+        entity_texts = [e.text.lower() for e in entities] if entities else []
+
         for concept in self.config.core_seed_concepts:
             pattern = re.compile(rf"\b{re.escape(concept)}\b", re.IGNORECASE)
             found = pattern.findall(text)
+
+            # If exact regex did not match, try flexible multi-word matching & entity alignment
+            if not found:
+                concept_words = [w.lower() for w in re.split(r"[\s\-_]+", concept) if len(w) > 2]
+                if concept_words:
+                    # Check if all concept words appear in proximity or in extracted entities
+                    matched_in_entity = [et for et in entity_texts if all(w in et for w in concept_words) or concept.lower() in et]
+                    if matched_in_entity:
+                        found = matched_in_entity
+                    elif all(w in text_lower for w in concept_words):
+                        found = [" ".join(concept_words)]
+
             if found:
                 matches.append(
                     SeedConceptMatch(
@@ -454,11 +469,11 @@ class OntologyPipeline:
             for m_type in self.config.mandatory_schema_types
         }
 
-        # 2. Seed concept occurrences
-        seed_matches = self.extract_seed_concepts(text)
-
-        # 3. GLiNER NER entities
+        # 2. GLiNER NER entities
         entities = self.extract_entities(text)
+
+        # 3. Seed concept occurrences (grounded by extracted entities)
+        seed_matches = self.extract_seed_concepts(text, entities=entities)
 
         # --- Deep Crawl: merge sub-page signals ---
         crawled_subpages: List[str] = []
@@ -483,8 +498,17 @@ class OntologyPipeline:
                         if not mandatory_status[m_type]:
                             mandatory_status[m_type] = m_type.lower() in found_types
 
-                    # Merge seed concepts
-                    sub_seeds = self.extract_seed_concepts(sub_text)
+                    # Merge entities (deduplicated)
+                    sub_entities = self.extract_entities(sub_text)
+                    existing_keys = {(e.text.lower(), e.label) for e in entities}
+                    for e in sub_entities:
+                        key = (e.text.lower(), e.label)
+                        if key not in existing_keys:
+                            entities.append(e)
+                            existing_keys.add(key)
+
+                    # Merge seed concepts (grounded by sub_entities)
+                    sub_seeds = self.extract_seed_concepts(sub_text, entities=sub_entities)
                     concept_map = {sc.concept: sc for sc in seed_matches}
                     for sc in sub_seeds:
                         if sc.concept in concept_map:
@@ -497,15 +521,6 @@ class OntologyPipeline:
                         else:
                             concept_map[sc.concept] = sc
                     seed_matches = list(concept_map.values())
-
-                    # Merge entities (deduplicated)
-                    sub_entities = self.extract_entities(sub_text)
-                    existing_keys = {(e.text.lower(), e.label) for e in entities}
-                    for e in sub_entities:
-                        key = (e.text.lower(), e.label)
-                        if key not in existing_keys:
-                            entities.append(e)
-                            existing_keys.add(key)
 
                     crawled_subpages.append(sub_url)
                 except Exception as ex:
