@@ -170,12 +170,28 @@ class OntologyPipeline:
         if not text.strip():
             return []
         
-        # Process in chunks if text is long
-        chunk_size = 1500
+        # Process in chunks if text is long.
+        # GLiNER truncates input at 384 tokens, so a chunk larger than that is
+        # silently cut and the remainder of the page is never analysed. At roughly
+        # 1.17 tokens per word for this corpus, 250 words (~293 tokens) leaves
+        # headroom for token-dense pages. The previous 1500 put most pages in a
+        # single oversized chunk: stripe.com/billing sent 1097 words as one chunk
+        # and had ~70% of it discarded.
+        chunk_size = 250
+        # Chunk boundaries can split an entity ("ASC 606" landed on one). Overlap
+        # so a term cut at a boundary still appears whole in the neighbouring chunk;
+        # the dedupe below collapses the repeats, keeping the highest score.
+        chunk_overlap = 25
         words = text.split()
         chunks = []
-        for i in range(0, len(words), chunk_size):
-            chunks.append(" ".join(words[i:i + chunk_size]))
+        step = chunk_size - chunk_overlap
+        for i in range(0, len(words), step):
+            chunk_words = words[i:i + chunk_size]
+            if not chunk_words:
+                break
+            chunks.append(" ".join(chunk_words))
+            if i + chunk_size >= len(words):
+                break
 
         all_matches = []
         for chunk in chunks:

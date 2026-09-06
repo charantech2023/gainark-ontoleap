@@ -2,7 +2,7 @@
   {
     "url": "https://www.chargebee.com",
     "title": "Chargebee: Billing & Monetization for SaaS and AI Companies",
-    "readiness_score": 59.15,
+    "readiness_score": 76.03,
     "compliance_str": "3/3",
     "passed_schemas": [
       "SoftwareApplication",
@@ -10,7 +10,7 @@
       "Offer"
     ],
     "missing_schemas": [],
-    "entity_count": 1,
+    "entity_count": 6,
     "detected_concepts": [
       "Revenue Recognition",
       "ASC 606",
@@ -28,14 +28,14 @@
     "readiness_breakdown": {
       "schema_score": 40.0,
       "concept_score": 15.0,
-      "entity_score": 4.15,
-      "total_score": 59.15,
+      "entity_score": 21.03,
+      "total_score": 76.03,
       "details": {
         "mandatory_schemas_detected": "3/3",
         "seed_concepts_detected": "5/10",
-        "gliner_labels_covered": "1/6",
-        "entities_extracted": 1,
-        "average_entity_confidence": 0.5484
+        "gliner_labels_covered": "4/6",
+        "entities_extracted": 6,
+        "average_entity_confidence": 0.7353
       }
     },
     "recommended_patch": {
@@ -62,7 +62,7 @@
               "Usage-Based Billing Automation Engine",
               "SaaS Recurring Revenue & AR Platform",
               "Enterprise Revenue Operations Suite",
-              "Chargebee Revenue Recognition"
+              "Chargebee ASC 606"
             ],
             "description": "Chargebee powers billing, pricing, and revenue operations for 6,500+ businesses. From recurring subscriptions to usage-based AI monetization - every model, one platform.",
             "applicationCategory": "BusinessApplication",
@@ -75,6 +75,16 @@
             "about": [
               {
                 "@type": "Thing",
+                "name": "Chargebee",
+                "sameAs": "https://www.wikidata.org/wiki/Q141009096"
+              },
+              {
+                "@type": "Thing",
+                "name": "IFRS 15",
+                "sameAs": "https://www.wikidata.org/wiki/Q18358064"
+              },
+              {
+                "@type": "Thing",
                 "name": "Revenue recognition",
                 "sameAs": "https://www.wikidata.org/wiki/Q2146785"
               },
@@ -82,16 +92,13 @@
                 "@type": "DefinedTerm",
                 "name": "ASC 606",
                 "termCode": "ASC 606"
-              },
-              {
-                "@type": "DefinedTerm",
-                "name": "IFRS 15",
-                "termCode": "IFRS 15"
               }
             ],
             "featureList": [
-              "Revenue Recognition",
               "ASC 606",
+              "IFRS 15",
+              "Invoicing",
+              "Revenue Recognition",
               "Subscription Management",
               "Billing Automation",
               "Payment Gateway",
@@ -107,9 +114,14 @@
               "https://www.google.com/search?kgmid=/g/11f01lb5qh"
             ],
             "softwareRequirements": [
+              "developer-friendly APIs Integration",
               "Payment Gateways Integration"
             ],
             "isRelatedTo": [
+              {
+                "@type": "SoftwareApplication",
+                "name": "developer-friendly APIs"
+              },
               {
                 "@type": "SoftwareApplication",
                 "name": "Payment Gateways"
@@ -134,15 +146,17 @@
           }
         ]
       },
-      "json_ld": "{\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"Organization\",\n      \"@id\": \"https://www.chargebee.com/#organization\",\n      \"name\": \"Chargebee\",\n      \"url\": \"https://www.chargebee.com\",\n      \"description\": \"Chargebee \\u2014 official corporate provider of Subscription Billing & Revenue Management Platform.\",\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/g/11f01lb5qh\"\n      ]\n    },\n    {\n      \"@type\": \"SoftwareApplication\",\n      \"@id\": \"https://www.chargebee.com/#software\",\n      \"name\": \"Chargebee\",\n      \"alternateName\": [\n        \"Chargebee Billing Platform\",\n        \"Subscription Management & Invoicing Software\",\n        \"Usage-Based Billing Automation Engine\",\n        \"SaaS Recurring Revenue & AR Platform\",\n        \"Enterprise Revenue Operations Suite\",\n        \"Chargebee Revenue Recognition\"\n      ],\n      \"description\": \"Chargebee powers billing, pricing, and revenue operations for 6,500+ businesses. From recurring subscriptions to usage-based AI monetization - every model, one platform.\",\n      \"applicationCategory\": \"BusinessApplication\",\n      \"applicationSubCategory\": \"Subscription Billing & Revenue Management Platform\",\n      \"operatingSystem\": \"Cloud-based / Web Browser / REST API\",\n      \"audience\": {\n        \"@type\": \"Audience\",\n        \"audienceType\": \"Finance leaders, CFOs, RevOps, and billing operations teams\"\n      },\n      \"about\": [\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"Revenue recognition\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q2146785\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"ASC 606\",\n          \"termCode\": \"ASC 606\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"IFRS 15\",\n          \"termCode\": \"IFRS 15\"\n        }\n      ],\n      \"featureList\": [\n        \"Revenue Recognition\",\n        \"ASC 606\",\n        \"Subscription Management\",\n        \"Billing Automation\",\n        \"Payment Gateway\",\n        \"Hate waiting?\"\n      ],\n      \"provider\": {\n        \"@id\": \"https://www.chargebee.com/#organization\"\n      },\n      \"offers\": {\n        \"@id\": \"https://www.chargebee.com/#offer\"\n      },\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/g/11f01lb5qh\"\n      ],\n      \"softwareRequirements\": [\n        \"Payment Gateways Integration\"\n      ],\n      \"isRelatedTo\": [\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Payment Gateways\"\n        }\n      ],\n      \"knowsAbout\": [\n        \"ASC 606\",\n        \"IFRS 15\"\n      ]\n    },\n    {\n      \"@type\": \"Offer\",\n      \"@id\": \"https://www.chargebee.com/#offer\",\n      \"name\": \"Chargebee Commercial Plans\",\n      \"price\": \"Custom\",\n      \"priceCurrency\": \"USD\",\n      \"category\": \"Subscription Billing & Financial Software\",\n      \"description\": \"Commercial subscription tiers and enterprise pricing options for Chargebee.\",\n      \"seller\": {\n        \"@id\": \"https://www.chargebee.com/#organization\"\n      }\n    }\n  ]\n}",
+      "json_ld": "{\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"Organization\",\n      \"@id\": \"https://www.chargebee.com/#organization\",\n      \"name\": \"Chargebee\",\n      \"url\": \"https://www.chargebee.com\",\n      \"description\": \"Chargebee \\u2014 official corporate provider of Subscription Billing & Revenue Management Platform.\",\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/g/11f01lb5qh\"\n      ]\n    },\n    {\n      \"@type\": \"SoftwareApplication\",\n      \"@id\": \"https://www.chargebee.com/#software\",\n      \"name\": \"Chargebee\",\n      \"alternateName\": [\n        \"Chargebee Billing Platform\",\n        \"Subscription Management & Invoicing Software\",\n        \"Usage-Based Billing Automation Engine\",\n        \"SaaS Recurring Revenue & AR Platform\",\n        \"Enterprise Revenue Operations Suite\",\n        \"Chargebee ASC 606\"\n      ],\n      \"description\": \"Chargebee powers billing, pricing, and revenue operations for 6,500+ businesses. From recurring subscriptions to usage-based AI monetization - every model, one platform.\",\n      \"applicationCategory\": \"BusinessApplication\",\n      \"applicationSubCategory\": \"Subscription Billing & Revenue Management Platform\",\n      \"operatingSystem\": \"Cloud-based / Web Browser / REST API\",\n      \"audience\": {\n        \"@type\": \"Audience\",\n        \"audienceType\": \"Finance leaders, CFOs, RevOps, and billing operations teams\"\n      },\n      \"about\": [\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"Chargebee\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q141009096\"\n        },\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"IFRS 15\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q18358064\"\n        },\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"Revenue recognition\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q2146785\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"ASC 606\",\n          \"termCode\": \"ASC 606\"\n        }\n      ],\n      \"featureList\": [\n        \"ASC 606\",\n        \"IFRS 15\",\n        \"Invoicing\",\n        \"Revenue Recognition\",\n        \"Subscription Management\",\n        \"Billing Automation\",\n        \"Payment Gateway\",\n        \"Hate waiting?\"\n      ],\n      \"provider\": {\n        \"@id\": \"https://www.chargebee.com/#organization\"\n      },\n      \"offers\": {\n        \"@id\": \"https://www.chargebee.com/#offer\"\n      },\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/g/11f01lb5qh\"\n      ],\n      \"softwareRequirements\": [\n        \"developer-friendly APIs Integration\",\n        \"Payment Gateways Integration\"\n      ],\n      \"isRelatedTo\": [\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"developer-friendly APIs\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Payment Gateways\"\n        }\n      ],\n      \"knowsAbout\": [\n        \"ASC 606\",\n        \"IFRS 15\"\n      ]\n    },\n    {\n      \"@type\": \"Offer\",\n      \"@id\": \"https://www.chargebee.com/#offer\",\n      \"name\": \"Chargebee Commercial Plans\",\n      \"price\": \"Custom\",\n      \"priceCurrency\": \"USD\",\n      \"category\": \"Subscription Billing & Financial Software\",\n      \"description\": \"Commercial subscription tiers and enterprise pricing options for Chargebee.\",\n      \"seller\": {\n        \"@id\": \"https://www.chargebee.com/#organization\"\n      }\n    }\n  ]\n}",
       "schemas_added": [
         "SoftwareApplication",
         "Organization",
         "Offer"
       ],
       "features_mapped": [
-        "Revenue Recognition",
         "ASC 606",
+        "IFRS 15",
+        "Invoicing",
+        "Revenue Recognition",
         "Subscription Management",
         "Billing Automation",
         "Payment Gateway",
@@ -161,6 +175,16 @@
       "about_entities": [
         {
           "@type": "Thing",
+          "name": "Chargebee",
+          "sameAs": "https://www.wikidata.org/wiki/Q141009096"
+        },
+        {
+          "@type": "Thing",
+          "name": "IFRS 15",
+          "sameAs": "https://www.wikidata.org/wiki/Q18358064"
+        },
+        {
+          "@type": "Thing",
           "name": "Revenue recognition",
           "sameAs": "https://www.wikidata.org/wiki/Q2146785"
         },
@@ -168,11 +192,6 @@
           "@type": "DefinedTerm",
           "name": "ASC 606",
           "termCode": "ASC 606"
-        },
-        {
-          "@type": "DefinedTerm",
-          "name": "IFRS 15",
-          "termCode": "IFRS 15"
         }
       ],
       "alternate_names": [
@@ -181,11 +200,12 @@
         "Usage-Based Billing Automation Engine",
         "SaaS Recurring Revenue & AR Platform",
         "Enterprise Revenue Operations Suite",
-        "Chargebee Revenue Recognition"
+        "Chargebee ASC 606"
       ],
       "audience": "Finance leaders, CFOs, RevOps, and billing operations teams",
       "sub_category": "Subscription Billing & Revenue Management Platform",
       "integrates_with": [
+        "developer-friendly APIs",
         "Payment Gateways"
       ],
       "complies_with": [
@@ -202,9 +222,44 @@
         {
           "text": "AI-powered retention engine",
           "label": "Software Platform",
-          "score": 0.5484,
+          "score": 0.6663,
           "start": 1542,
           "end": 1569
+        },
+        {
+          "text": "ASC 606",
+          "label": "Accounting Standard",
+          "score": 0.9755,
+          "start": 831,
+          "end": 838
+        },
+        {
+          "text": "Chargebee",
+          "label": "Software Platform",
+          "score": 0.6917,
+          "start": 874,
+          "end": 883
+        },
+        {
+          "text": "IFRS 15",
+          "label": "Accounting Standard",
+          "score": 0.9632,
+          "start": 907,
+          "end": 914
+        },
+        {
+          "text": "developer-friendly APIs",
+          "label": "Integration Partner",
+          "score": 0.5009,
+          "start": 1059,
+          "end": 1082
+        },
+        {
+          "text": "invoicing",
+          "label": "Billing Feature",
+          "score": 0.6144,
+          "start": 1225,
+          "end": 1234
         }
       ],
       "schema_org": [
@@ -2074,18 +2129,18 @@
         "Organization": true,
         "Offer": true
       },
-      "readiness_score": 59.15,
+      "readiness_score": 76.03,
       "readiness_breakdown": {
         "schema_score": 40.0,
         "concept_score": 15.0,
-        "entity_score": 4.15,
-        "total_score": 59.15,
+        "entity_score": 21.03,
+        "total_score": 76.03,
         "details": {
           "mandatory_schemas_detected": "3/3",
           "seed_concepts_detected": "5/10",
-          "gliner_labels_covered": "1/6",
-          "entities_extracted": 1,
-          "average_entity_confidence": 0.5484
+          "gliner_labels_covered": "4/6",
+          "entities_extracted": 6,
+          "average_entity_confidence": 0.7353
         }
       },
       "recommended_patch": {
@@ -2112,7 +2167,7 @@
                 "Usage-Based Billing Automation Engine",
                 "SaaS Recurring Revenue & AR Platform",
                 "Enterprise Revenue Operations Suite",
-                "Chargebee Revenue Recognition"
+                "Chargebee ASC 606"
               ],
               "description": "Chargebee powers billing, pricing, and revenue operations for 6,500+ businesses. From recurring subscriptions to usage-based AI monetization - every model, one platform.",
               "applicationCategory": "BusinessApplication",
@@ -2125,6 +2180,16 @@
               "about": [
                 {
                   "@type": "Thing",
+                  "name": "Chargebee",
+                  "sameAs": "https://www.wikidata.org/wiki/Q141009096"
+                },
+                {
+                  "@type": "Thing",
+                  "name": "IFRS 15",
+                  "sameAs": "https://www.wikidata.org/wiki/Q18358064"
+                },
+                {
+                  "@type": "Thing",
                   "name": "Revenue recognition",
                   "sameAs": "https://www.wikidata.org/wiki/Q2146785"
                 },
@@ -2132,16 +2197,13 @@
                   "@type": "DefinedTerm",
                   "name": "ASC 606",
                   "termCode": "ASC 606"
-                },
-                {
-                  "@type": "DefinedTerm",
-                  "name": "IFRS 15",
-                  "termCode": "IFRS 15"
                 }
               ],
               "featureList": [
-                "Revenue Recognition",
                 "ASC 606",
+                "IFRS 15",
+                "Invoicing",
+                "Revenue Recognition",
                 "Subscription Management",
                 "Billing Automation",
                 "Payment Gateway",
@@ -2157,9 +2219,14 @@
                 "https://www.google.com/search?kgmid=/g/11f01lb5qh"
               ],
               "softwareRequirements": [
+                "developer-friendly APIs Integration",
                 "Payment Gateways Integration"
               ],
               "isRelatedTo": [
+                {
+                  "@type": "SoftwareApplication",
+                  "name": "developer-friendly APIs"
+                },
                 {
                   "@type": "SoftwareApplication",
                   "name": "Payment Gateways"
@@ -2184,15 +2251,17 @@
             }
           ]
         },
-        "json_ld": "{\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"Organization\",\n      \"@id\": \"https://www.chargebee.com/#organization\",\n      \"name\": \"Chargebee\",\n      \"url\": \"https://www.chargebee.com\",\n      \"description\": \"Chargebee \\u2014 official corporate provider of Subscription Billing & Revenue Management Platform.\",\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/g/11f01lb5qh\"\n      ]\n    },\n    {\n      \"@type\": \"SoftwareApplication\",\n      \"@id\": \"https://www.chargebee.com/#software\",\n      \"name\": \"Chargebee\",\n      \"alternateName\": [\n        \"Chargebee Billing Platform\",\n        \"Subscription Management & Invoicing Software\",\n        \"Usage-Based Billing Automation Engine\",\n        \"SaaS Recurring Revenue & AR Platform\",\n        \"Enterprise Revenue Operations Suite\",\n        \"Chargebee Revenue Recognition\"\n      ],\n      \"description\": \"Chargebee powers billing, pricing, and revenue operations for 6,500+ businesses. From recurring subscriptions to usage-based AI monetization - every model, one platform.\",\n      \"applicationCategory\": \"BusinessApplication\",\n      \"applicationSubCategory\": \"Subscription Billing & Revenue Management Platform\",\n      \"operatingSystem\": \"Cloud-based / Web Browser / REST API\",\n      \"audience\": {\n        \"@type\": \"Audience\",\n        \"audienceType\": \"Finance leaders, CFOs, RevOps, and billing operations teams\"\n      },\n      \"about\": [\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"Revenue recognition\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q2146785\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"ASC 606\",\n          \"termCode\": \"ASC 606\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"IFRS 15\",\n          \"termCode\": \"IFRS 15\"\n        }\n      ],\n      \"featureList\": [\n        \"Revenue Recognition\",\n        \"ASC 606\",\n        \"Subscription Management\",\n        \"Billing Automation\",\n        \"Payment Gateway\",\n        \"Hate waiting?\"\n      ],\n      \"provider\": {\n        \"@id\": \"https://www.chargebee.com/#organization\"\n      },\n      \"offers\": {\n        \"@id\": \"https://www.chargebee.com/#offer\"\n      },\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/g/11f01lb5qh\"\n      ],\n      \"softwareRequirements\": [\n        \"Payment Gateways Integration\"\n      ],\n      \"isRelatedTo\": [\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Payment Gateways\"\n        }\n      ],\n      \"knowsAbout\": [\n        \"ASC 606\",\n        \"IFRS 15\"\n      ]\n    },\n    {\n      \"@type\": \"Offer\",\n      \"@id\": \"https://www.chargebee.com/#offer\",\n      \"name\": \"Chargebee Commercial Plans\",\n      \"price\": \"Custom\",\n      \"priceCurrency\": \"USD\",\n      \"category\": \"Subscription Billing & Financial Software\",\n      \"description\": \"Commercial subscription tiers and enterprise pricing options for Chargebee.\",\n      \"seller\": {\n        \"@id\": \"https://www.chargebee.com/#organization\"\n      }\n    }\n  ]\n}",
+        "json_ld": "{\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"Organization\",\n      \"@id\": \"https://www.chargebee.com/#organization\",\n      \"name\": \"Chargebee\",\n      \"url\": \"https://www.chargebee.com\",\n      \"description\": \"Chargebee \\u2014 official corporate provider of Subscription Billing & Revenue Management Platform.\",\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/g/11f01lb5qh\"\n      ]\n    },\n    {\n      \"@type\": \"SoftwareApplication\",\n      \"@id\": \"https://www.chargebee.com/#software\",\n      \"name\": \"Chargebee\",\n      \"alternateName\": [\n        \"Chargebee Billing Platform\",\n        \"Subscription Management & Invoicing Software\",\n        \"Usage-Based Billing Automation Engine\",\n        \"SaaS Recurring Revenue & AR Platform\",\n        \"Enterprise Revenue Operations Suite\",\n        \"Chargebee ASC 606\"\n      ],\n      \"description\": \"Chargebee powers billing, pricing, and revenue operations for 6,500+ businesses. From recurring subscriptions to usage-based AI monetization - every model, one platform.\",\n      \"applicationCategory\": \"BusinessApplication\",\n      \"applicationSubCategory\": \"Subscription Billing & Revenue Management Platform\",\n      \"operatingSystem\": \"Cloud-based / Web Browser / REST API\",\n      \"audience\": {\n        \"@type\": \"Audience\",\n        \"audienceType\": \"Finance leaders, CFOs, RevOps, and billing operations teams\"\n      },\n      \"about\": [\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"Chargebee\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q141009096\"\n        },\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"IFRS 15\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q18358064\"\n        },\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"Revenue recognition\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q2146785\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"ASC 606\",\n          \"termCode\": \"ASC 606\"\n        }\n      ],\n      \"featureList\": [\n        \"ASC 606\",\n        \"IFRS 15\",\n        \"Invoicing\",\n        \"Revenue Recognition\",\n        \"Subscription Management\",\n        \"Billing Automation\",\n        \"Payment Gateway\",\n        \"Hate waiting?\"\n      ],\n      \"provider\": {\n        \"@id\": \"https://www.chargebee.com/#organization\"\n      },\n      \"offers\": {\n        \"@id\": \"https://www.chargebee.com/#offer\"\n      },\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/g/11f01lb5qh\"\n      ],\n      \"softwareRequirements\": [\n        \"developer-friendly APIs Integration\",\n        \"Payment Gateways Integration\"\n      ],\n      \"isRelatedTo\": [\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"developer-friendly APIs\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Payment Gateways\"\n        }\n      ],\n      \"knowsAbout\": [\n        \"ASC 606\",\n        \"IFRS 15\"\n      ]\n    },\n    {\n      \"@type\": \"Offer\",\n      \"@id\": \"https://www.chargebee.com/#offer\",\n      \"name\": \"Chargebee Commercial Plans\",\n      \"price\": \"Custom\",\n      \"priceCurrency\": \"USD\",\n      \"category\": \"Subscription Billing & Financial Software\",\n      \"description\": \"Commercial subscription tiers and enterprise pricing options for Chargebee.\",\n      \"seller\": {\n        \"@id\": \"https://www.chargebee.com/#organization\"\n      }\n    }\n  ]\n}",
         "schemas_added": [
           "SoftwareApplication",
           "Organization",
           "Offer"
         ],
         "features_mapped": [
-          "Revenue Recognition",
           "ASC 606",
+          "IFRS 15",
+          "Invoicing",
+          "Revenue Recognition",
           "Subscription Management",
           "Billing Automation",
           "Payment Gateway",
@@ -2211,6 +2280,16 @@
         "about_entities": [
           {
             "@type": "Thing",
+            "name": "Chargebee",
+            "sameAs": "https://www.wikidata.org/wiki/Q141009096"
+          },
+          {
+            "@type": "Thing",
+            "name": "IFRS 15",
+            "sameAs": "https://www.wikidata.org/wiki/Q18358064"
+          },
+          {
+            "@type": "Thing",
             "name": "Revenue recognition",
             "sameAs": "https://www.wikidata.org/wiki/Q2146785"
           },
@@ -2218,11 +2297,6 @@
             "@type": "DefinedTerm",
             "name": "ASC 606",
             "termCode": "ASC 606"
-          },
-          {
-            "@type": "DefinedTerm",
-            "name": "IFRS 15",
-            "termCode": "IFRS 15"
           }
         ],
         "alternate_names": [
@@ -2231,11 +2305,12 @@
           "Usage-Based Billing Automation Engine",
           "SaaS Recurring Revenue & AR Platform",
           "Enterprise Revenue Operations Suite",
-          "Chargebee Revenue Recognition"
+          "Chargebee ASC 606"
         ],
         "audience": "Finance leaders, CFOs, RevOps, and billing operations teams",
         "sub_category": "Subscription Billing & Revenue Management Platform",
         "integrates_with": [
+          "developer-friendly APIs",
           "Payment Gateways"
         ],
         "complies_with": [
@@ -2310,6 +2385,15 @@
         },
         {
           "subject": "Chargebee",
+          "predicate": "integratesWith",
+          "object": "developer-friendly APIs",
+          "confidence": 0.88,
+          "evidence_sentence": null,
+          "source_type": "marketing_claim",
+          "provenance": null
+        },
+        {
+          "subject": "Chargebee",
           "predicate": "automates",
           "object": "Revenue Recognition",
           "confidence": 0.88,
@@ -2370,7 +2454,7 @@
   {
     "url": "https://www.maxio.com",
     "title": "Billing and Financial Reporting for B2B SaaS & AI | Maxio",
-    "readiness_score": 40.75,
+    "readiness_score": 42.09,
     "compliance_str": "1/3",
     "passed_schemas": [
       "Organization"
@@ -2379,7 +2463,7 @@
       "SoftwareApplication",
       "Offer"
     ],
-    "entity_count": 7,
+    "entity_count": 11,
     "detected_concepts": [
       "Revenue Recognition",
       "Subscription Management",
@@ -2397,14 +2481,14 @@
     "readiness_breakdown": {
       "schema_score": 13.33,
       "concept_score": 9.0,
-      "entity_score": 18.42,
-      "total_score": 40.75,
+      "entity_score": 19.76,
+      "total_score": 42.09,
       "details": {
         "mandatory_schemas_detected": "1/3",
         "seed_concepts_detected": "3/10",
-        "gliner_labels_covered": "3/6",
-        "entities_extracted": 7,
-        "average_entity_confidence": 0.7282
+        "gliner_labels_covered": "4/6",
+        "entities_extracted": 11,
+        "average_entity_confidence": 0.6508
       }
     },
     "recommended_patch": {
@@ -2432,7 +2516,7 @@
               "Usage-Based Billing Automation Engine",
               "SaaS Recurring Revenue & AR Platform",
               "Enterprise Revenue Operations Suite",
-              "Maxio GAAP"
+              "Maxio Automated invoicing"
             ],
             "description": "Maxio is the all-in-one billing and financial reporting platform trusted by over 2,000 SaaS, AI, and subscription businesses. Drive revenue growth with simplified billing, revenue recognition and reporting.",
             "applicationCategory": "BusinessApplication",
@@ -2447,6 +2531,11 @@
                 "@type": "Thing",
                 "name": "accounting standard",
                 "sameAs": "https://www.wikidata.org/wiki/Q1779838"
+              },
+              {
+                "@type": "Thing",
+                "name": "Zapier",
+                "sameAs": "https://www.wikidata.org/wiki/Q27150165"
               },
               {
                 "@type": "Thing",
@@ -2465,9 +2554,12 @@
               }
             ],
             "featureList": [
+              "Automated invoicing",
               "GAAP",
               "IFRS",
               "Usage-based billing",
+              "Personalized Pricing",
+              "Usage-Based Options",
               "Revenue Recognition",
               "Subscription Management",
               "Payment Gateway",
@@ -2485,12 +2577,17 @@
             ],
             "softwareRequirements": [
               "Stripe Integration",
+              "Zapier Integration",
               "Payment Gateways Integration"
             ],
             "isRelatedTo": [
               {
                 "@type": "SoftwareApplication",
                 "name": "Stripe"
+              },
+              {
+                "@type": "SoftwareApplication",
+                "name": "Zapier"
               },
               {
                 "@type": "SoftwareApplication",
@@ -2516,16 +2613,19 @@
           }
         ]
       },
-      "json_ld": "{\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"Organization\",\n      \"@id\": \"https://www.maxio.com/#organization\",\n      \"name\": \"Maxio\",\n      \"url\": \"https://www.maxio.com\",\n      \"description\": \"Maxio \\u2014 official corporate provider of Subscription Billing & Revenue Management Platform.\",\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/m/0ddtt0\",\n        \"https://en.wikipedia.org/wiki/Iochpe-Maxion\"\n      ]\n    },\n    {\n      \"@type\": \"SoftwareApplication\",\n      \"@id\": \"https://www.maxio.com/#software\",\n      \"name\": \"Maxio\",\n      \"alternateName\": [\n        \"Maxio Billing Platform\",\n        \"Subscription Management & Invoicing Software\",\n        \"Usage-Based Billing Automation Engine\",\n        \"SaaS Recurring Revenue & AR Platform\",\n        \"Enterprise Revenue Operations Suite\",\n        \"Maxio GAAP\"\n      ],\n      \"description\": \"Maxio is the all-in-one billing and financial reporting platform trusted by over 2,000 SaaS, AI, and subscription businesses. Drive revenue growth with simplified billing, revenue recognition and reporting.\",\n      \"applicationCategory\": \"BusinessApplication\",\n      \"applicationSubCategory\": \"Subscription Billing & Revenue Management Platform\",\n      \"operatingSystem\": \"Cloud-based / Web Browser / REST API\",\n      \"audience\": {\n        \"@type\": \"Audience\",\n        \"audienceType\": \"Finance leaders, CFOs, RevOps, and billing operations teams\"\n      },\n      \"about\": [\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"accounting standard\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q1779838\"\n        },\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"Revenue recognition\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q2146785\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"GAAP\",\n          \"termCode\": \"GAAP\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"IFRS\",\n          \"termCode\": \"IFRS\"\n        }\n      ],\n      \"featureList\": [\n        \"GAAP\",\n        \"IFRS\",\n        \"Usage-based billing\",\n        \"Revenue Recognition\",\n        \"Subscription Management\",\n        \"Payment Gateway\",\n        \"Billing and financial reporting software\"\n      ],\n      \"provider\": {\n        \"@id\": \"https://www.maxio.com/#organization\"\n      },\n      \"offers\": {\n        \"@id\": \"https://www.maxio.com/#offer\"\n      },\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/m/0ddtt0\",\n        \"https://en.wikipedia.org/wiki/Iochpe-Maxion\"\n      ],\n      \"softwareRequirements\": [\n        \"Stripe Integration\",\n        \"Payment Gateways Integration\"\n      ],\n      \"isRelatedTo\": [\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Stripe\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Payment Gateways\"\n        }\n      ],\n      \"knowsAbout\": [\n        \"GAAP\",\n        \"IFRS\"\n      ]\n    },\n    {\n      \"@type\": \"Offer\",\n      \"@id\": \"https://www.maxio.com/#offer\",\n      \"name\": \"Maxio Commercial Plans\",\n      \"price\": \"Custom\",\n      \"priceCurrency\": \"USD\",\n      \"category\": \"Subscription Billing & Financial Software\",\n      \"description\": \"Commercial subscription tiers and enterprise pricing options for Maxio.\",\n      \"seller\": {\n        \"@id\": \"https://www.maxio.com/#organization\"\n      }\n    }\n  ]\n}",
+      "json_ld": "{\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"Organization\",\n      \"@id\": \"https://www.maxio.com/#organization\",\n      \"name\": \"Maxio\",\n      \"url\": \"https://www.maxio.com\",\n      \"description\": \"Maxio \\u2014 official corporate provider of Subscription Billing & Revenue Management Platform.\",\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/m/0ddtt0\",\n        \"https://en.wikipedia.org/wiki/Iochpe-Maxion\"\n      ]\n    },\n    {\n      \"@type\": \"SoftwareApplication\",\n      \"@id\": \"https://www.maxio.com/#software\",\n      \"name\": \"Maxio\",\n      \"alternateName\": [\n        \"Maxio Billing Platform\",\n        \"Subscription Management & Invoicing Software\",\n        \"Usage-Based Billing Automation Engine\",\n        \"SaaS Recurring Revenue & AR Platform\",\n        \"Enterprise Revenue Operations Suite\",\n        \"Maxio Automated invoicing\"\n      ],\n      \"description\": \"Maxio is the all-in-one billing and financial reporting platform trusted by over 2,000 SaaS, AI, and subscription businesses. Drive revenue growth with simplified billing, revenue recognition and reporting.\",\n      \"applicationCategory\": \"BusinessApplication\",\n      \"applicationSubCategory\": \"Subscription Billing & Revenue Management Platform\",\n      \"operatingSystem\": \"Cloud-based / Web Browser / REST API\",\n      \"audience\": {\n        \"@type\": \"Audience\",\n        \"audienceType\": \"Finance leaders, CFOs, RevOps, and billing operations teams\"\n      },\n      \"about\": [\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"accounting standard\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q1779838\"\n        },\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"Zapier\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q27150165\"\n        },\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"Revenue recognition\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q2146785\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"GAAP\",\n          \"termCode\": \"GAAP\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"IFRS\",\n          \"termCode\": \"IFRS\"\n        }\n      ],\n      \"featureList\": [\n        \"Automated invoicing\",\n        \"GAAP\",\n        \"IFRS\",\n        \"Usage-based billing\",\n        \"Personalized Pricing\",\n        \"Usage-Based Options\",\n        \"Revenue Recognition\",\n        \"Subscription Management\",\n        \"Payment Gateway\",\n        \"Billing and financial reporting software\"\n      ],\n      \"provider\": {\n        \"@id\": \"https://www.maxio.com/#organization\"\n      },\n      \"offers\": {\n        \"@id\": \"https://www.maxio.com/#offer\"\n      },\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/m/0ddtt0\",\n        \"https://en.wikipedia.org/wiki/Iochpe-Maxion\"\n      ],\n      \"softwareRequirements\": [\n        \"Stripe Integration\",\n        \"Zapier Integration\",\n        \"Payment Gateways Integration\"\n      ],\n      \"isRelatedTo\": [\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Stripe\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Zapier\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Payment Gateways\"\n        }\n      ],\n      \"knowsAbout\": [\n        \"GAAP\",\n        \"IFRS\"\n      ]\n    },\n    {\n      \"@type\": \"Offer\",\n      \"@id\": \"https://www.maxio.com/#offer\",\n      \"name\": \"Maxio Commercial Plans\",\n      \"price\": \"Custom\",\n      \"priceCurrency\": \"USD\",\n      \"category\": \"Subscription Billing & Financial Software\",\n      \"description\": \"Commercial subscription tiers and enterprise pricing options for Maxio.\",\n      \"seller\": {\n        \"@id\": \"https://www.maxio.com/#organization\"\n      }\n    }\n  ]\n}",
       "schemas_added": [
         "SoftwareApplication",
         "Organization",
         "Offer"
       ],
       "features_mapped": [
+        "Automated invoicing",
         "GAAP",
         "IFRS",
         "Usage-based billing",
+        "Personalized Pricing",
+        "Usage-Based Options",
         "Revenue Recognition",
         "Subscription Management",
         "Payment Gateway",
@@ -2550,6 +2650,11 @@
         },
         {
           "@type": "Thing",
+          "name": "Zapier",
+          "sameAs": "https://www.wikidata.org/wiki/Q27150165"
+        },
+        {
+          "@type": "Thing",
           "name": "Revenue recognition",
           "sameAs": "https://www.wikidata.org/wiki/Q2146785"
         },
@@ -2570,12 +2675,13 @@
         "Usage-Based Billing Automation Engine",
         "SaaS Recurring Revenue & AR Platform",
         "Enterprise Revenue Operations Suite",
-        "Maxio GAAP"
+        "Maxio Automated invoicing"
       ],
       "audience": "Finance leaders, CFOs, RevOps, and billing operations teams",
       "sub_category": "Subscription Billing & Revenue Management Platform",
       "integrates_with": [
         "Stripe",
+        "Zapier",
         "Payment Gateways"
       ],
       "complies_with": [
@@ -2590,53 +2696,81 @@
       "extracted_text_snippet": "Billing and financial reporting software\nBig ideas need better billing\nPower your AI business with the billing, rev rec, and reporting engine that\u2019s as smart and scalable as your next breakthrough.\nSubscription and contract billing. Automated invoicing. GAAP & IFRS compliance.\nAll-in-one subscription management\nUsage-based billing\nUsage-based billing, automated. Sync product data directly to invoicing. No spreadsheets, no reconciliation. Charge by license, overage, or meter.\nSubscription managem...",
       "entities": [
         {
+          "text": "Automated invoicing",
+          "label": "Billing Feature",
+          "score": 0.4302,
+          "start": 233,
+          "end": 252
+        },
+        {
           "text": "GAAP",
           "label": "Accounting Standard",
-          "score": 0.6859,
+          "score": 0.7109,
           "start": 254,
           "end": 258
         },
         {
           "text": "IFRS",
           "label": "Accounting Standard",
-          "score": 0.7523,
+          "score": 0.7821,
           "start": 261,
           "end": 265
         },
         {
           "text": "Usage-based billing",
           "label": "Billing Feature",
-          "score": 0.4557,
+          "score": 0.4737,
           "start": 313,
           "end": 332
         },
         {
           "text": "Stripe",
           "label": "Software Platform",
-          "score": 0.7614,
+          "score": 0.7686,
           "start": 708,
           "end": 714
         },
         {
           "text": "Braintree",
           "label": "Software Platform",
-          "score": 0.7942,
+          "score": 0.7905,
           "start": 716,
           "end": 725
         },
         {
           "text": "Authorize.net",
           "label": "Software Platform",
-          "score": 0.6887,
+          "score": 0.6657,
           "start": 727,
           "end": 740
         },
         {
           "text": "Maxio",
           "label": "Software Platform",
-          "score": 0.9589,
-          "start": 777,
-          "end": 782
+          "score": 0.9657,
+          "start": 1591,
+          "end": 1596
+        },
+        {
+          "text": "personalized pricing",
+          "label": "Billing Feature",
+          "score": 0.512,
+          "start": 172,
+          "end": 192
+        },
+        {
+          "text": "usage-based options",
+          "label": "Billing Feature",
+          "score": 0.4054,
+          "start": 207,
+          "end": 226
+        },
+        {
+          "text": "Zapier",
+          "label": "Integration Partner",
+          "score": 0.6536,
+          "start": 673,
+          "end": 679
         }
       ],
       "schema_org": [
@@ -2782,8 +2916,8 @@
           "concept": "Subscription Management",
           "count": 2,
           "matched_phrases": [
-            "subscription management",
-            "Subscription management"
+            "Subscription management",
+            "subscription management"
           ]
         },
         {
@@ -2799,18 +2933,18 @@
         "Organization": true,
         "Offer": false
       },
-      "readiness_score": 40.75,
+      "readiness_score": 42.09,
       "readiness_breakdown": {
         "schema_score": 13.33,
         "concept_score": 9.0,
-        "entity_score": 18.42,
-        "total_score": 40.75,
+        "entity_score": 19.76,
+        "total_score": 42.09,
         "details": {
           "mandatory_schemas_detected": "1/3",
           "seed_concepts_detected": "3/10",
-          "gliner_labels_covered": "3/6",
-          "entities_extracted": 7,
-          "average_entity_confidence": 0.7282
+          "gliner_labels_covered": "4/6",
+          "entities_extracted": 11,
+          "average_entity_confidence": 0.6508
         }
       },
       "recommended_patch": {
@@ -2838,7 +2972,7 @@
                 "Usage-Based Billing Automation Engine",
                 "SaaS Recurring Revenue & AR Platform",
                 "Enterprise Revenue Operations Suite",
-                "Maxio GAAP"
+                "Maxio Automated invoicing"
               ],
               "description": "Maxio is the all-in-one billing and financial reporting platform trusted by over 2,000 SaaS, AI, and subscription businesses. Drive revenue growth with simplified billing, revenue recognition and reporting.",
               "applicationCategory": "BusinessApplication",
@@ -2853,6 +2987,11 @@
                   "@type": "Thing",
                   "name": "accounting standard",
                   "sameAs": "https://www.wikidata.org/wiki/Q1779838"
+                },
+                {
+                  "@type": "Thing",
+                  "name": "Zapier",
+                  "sameAs": "https://www.wikidata.org/wiki/Q27150165"
                 },
                 {
                   "@type": "Thing",
@@ -2871,9 +3010,12 @@
                 }
               ],
               "featureList": [
+                "Automated invoicing",
                 "GAAP",
                 "IFRS",
                 "Usage-based billing",
+                "Personalized Pricing",
+                "Usage-Based Options",
                 "Revenue Recognition",
                 "Subscription Management",
                 "Payment Gateway",
@@ -2891,12 +3033,17 @@
               ],
               "softwareRequirements": [
                 "Stripe Integration",
+                "Zapier Integration",
                 "Payment Gateways Integration"
               ],
               "isRelatedTo": [
                 {
                   "@type": "SoftwareApplication",
                   "name": "Stripe"
+                },
+                {
+                  "@type": "SoftwareApplication",
+                  "name": "Zapier"
                 },
                 {
                   "@type": "SoftwareApplication",
@@ -2922,16 +3069,19 @@
             }
           ]
         },
-        "json_ld": "{\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"Organization\",\n      \"@id\": \"https://www.maxio.com/#organization\",\n      \"name\": \"Maxio\",\n      \"url\": \"https://www.maxio.com\",\n      \"description\": \"Maxio \\u2014 official corporate provider of Subscription Billing & Revenue Management Platform.\",\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/m/0ddtt0\",\n        \"https://en.wikipedia.org/wiki/Iochpe-Maxion\"\n      ]\n    },\n    {\n      \"@type\": \"SoftwareApplication\",\n      \"@id\": \"https://www.maxio.com/#software\",\n      \"name\": \"Maxio\",\n      \"alternateName\": [\n        \"Maxio Billing Platform\",\n        \"Subscription Management & Invoicing Software\",\n        \"Usage-Based Billing Automation Engine\",\n        \"SaaS Recurring Revenue & AR Platform\",\n        \"Enterprise Revenue Operations Suite\",\n        \"Maxio GAAP\"\n      ],\n      \"description\": \"Maxio is the all-in-one billing and financial reporting platform trusted by over 2,000 SaaS, AI, and subscription businesses. Drive revenue growth with simplified billing, revenue recognition and reporting.\",\n      \"applicationCategory\": \"BusinessApplication\",\n      \"applicationSubCategory\": \"Subscription Billing & Revenue Management Platform\",\n      \"operatingSystem\": \"Cloud-based / Web Browser / REST API\",\n      \"audience\": {\n        \"@type\": \"Audience\",\n        \"audienceType\": \"Finance leaders, CFOs, RevOps, and billing operations teams\"\n      },\n      \"about\": [\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"accounting standard\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q1779838\"\n        },\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"Revenue recognition\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q2146785\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"GAAP\",\n          \"termCode\": \"GAAP\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"IFRS\",\n          \"termCode\": \"IFRS\"\n        }\n      ],\n      \"featureList\": [\n        \"GAAP\",\n        \"IFRS\",\n        \"Usage-based billing\",\n        \"Revenue Recognition\",\n        \"Subscription Management\",\n        \"Payment Gateway\",\n        \"Billing and financial reporting software\"\n      ],\n      \"provider\": {\n        \"@id\": \"https://www.maxio.com/#organization\"\n      },\n      \"offers\": {\n        \"@id\": \"https://www.maxio.com/#offer\"\n      },\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/m/0ddtt0\",\n        \"https://en.wikipedia.org/wiki/Iochpe-Maxion\"\n      ],\n      \"softwareRequirements\": [\n        \"Stripe Integration\",\n        \"Payment Gateways Integration\"\n      ],\n      \"isRelatedTo\": [\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Stripe\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Payment Gateways\"\n        }\n      ],\n      \"knowsAbout\": [\n        \"GAAP\",\n        \"IFRS\"\n      ]\n    },\n    {\n      \"@type\": \"Offer\",\n      \"@id\": \"https://www.maxio.com/#offer\",\n      \"name\": \"Maxio Commercial Plans\",\n      \"price\": \"Custom\",\n      \"priceCurrency\": \"USD\",\n      \"category\": \"Subscription Billing & Financial Software\",\n      \"description\": \"Commercial subscription tiers and enterprise pricing options for Maxio.\",\n      \"seller\": {\n        \"@id\": \"https://www.maxio.com/#organization\"\n      }\n    }\n  ]\n}",
+        "json_ld": "{\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"Organization\",\n      \"@id\": \"https://www.maxio.com/#organization\",\n      \"name\": \"Maxio\",\n      \"url\": \"https://www.maxio.com\",\n      \"description\": \"Maxio \\u2014 official corporate provider of Subscription Billing & Revenue Management Platform.\",\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/m/0ddtt0\",\n        \"https://en.wikipedia.org/wiki/Iochpe-Maxion\"\n      ]\n    },\n    {\n      \"@type\": \"SoftwareApplication\",\n      \"@id\": \"https://www.maxio.com/#software\",\n      \"name\": \"Maxio\",\n      \"alternateName\": [\n        \"Maxio Billing Platform\",\n        \"Subscription Management & Invoicing Software\",\n        \"Usage-Based Billing Automation Engine\",\n        \"SaaS Recurring Revenue & AR Platform\",\n        \"Enterprise Revenue Operations Suite\",\n        \"Maxio Automated invoicing\"\n      ],\n      \"description\": \"Maxio is the all-in-one billing and financial reporting platform trusted by over 2,000 SaaS, AI, and subscription businesses. Drive revenue growth with simplified billing, revenue recognition and reporting.\",\n      \"applicationCategory\": \"BusinessApplication\",\n      \"applicationSubCategory\": \"Subscription Billing & Revenue Management Platform\",\n      \"operatingSystem\": \"Cloud-based / Web Browser / REST API\",\n      \"audience\": {\n        \"@type\": \"Audience\",\n        \"audienceType\": \"Finance leaders, CFOs, RevOps, and billing operations teams\"\n      },\n      \"about\": [\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"accounting standard\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q1779838\"\n        },\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"Zapier\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q27150165\"\n        },\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"Revenue recognition\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q2146785\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"GAAP\",\n          \"termCode\": \"GAAP\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"IFRS\",\n          \"termCode\": \"IFRS\"\n        }\n      ],\n      \"featureList\": [\n        \"Automated invoicing\",\n        \"GAAP\",\n        \"IFRS\",\n        \"Usage-based billing\",\n        \"Personalized Pricing\",\n        \"Usage-Based Options\",\n        \"Revenue Recognition\",\n        \"Subscription Management\",\n        \"Payment Gateway\",\n        \"Billing and financial reporting software\"\n      ],\n      \"provider\": {\n        \"@id\": \"https://www.maxio.com/#organization\"\n      },\n      \"offers\": {\n        \"@id\": \"https://www.maxio.com/#offer\"\n      },\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/m/0ddtt0\",\n        \"https://en.wikipedia.org/wiki/Iochpe-Maxion\"\n      ],\n      \"softwareRequirements\": [\n        \"Stripe Integration\",\n        \"Zapier Integration\",\n        \"Payment Gateways Integration\"\n      ],\n      \"isRelatedTo\": [\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Stripe\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Zapier\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Payment Gateways\"\n        }\n      ],\n      \"knowsAbout\": [\n        \"GAAP\",\n        \"IFRS\"\n      ]\n    },\n    {\n      \"@type\": \"Offer\",\n      \"@id\": \"https://www.maxio.com/#offer\",\n      \"name\": \"Maxio Commercial Plans\",\n      \"price\": \"Custom\",\n      \"priceCurrency\": \"USD\",\n      \"category\": \"Subscription Billing & Financial Software\",\n      \"description\": \"Commercial subscription tiers and enterprise pricing options for Maxio.\",\n      \"seller\": {\n        \"@id\": \"https://www.maxio.com/#organization\"\n      }\n    }\n  ]\n}",
         "schemas_added": [
           "SoftwareApplication",
           "Organization",
           "Offer"
         ],
         "features_mapped": [
+          "Automated invoicing",
           "GAAP",
           "IFRS",
           "Usage-based billing",
+          "Personalized Pricing",
+          "Usage-Based Options",
           "Revenue Recognition",
           "Subscription Management",
           "Payment Gateway",
@@ -2956,6 +3106,11 @@
           },
           {
             "@type": "Thing",
+            "name": "Zapier",
+            "sameAs": "https://www.wikidata.org/wiki/Q27150165"
+          },
+          {
+            "@type": "Thing",
             "name": "Revenue recognition",
             "sameAs": "https://www.wikidata.org/wiki/Q2146785"
           },
@@ -2976,12 +3131,13 @@
           "Usage-Based Billing Automation Engine",
           "SaaS Recurring Revenue & AR Platform",
           "Enterprise Revenue Operations Suite",
-          "Maxio GAAP"
+          "Maxio Automated invoicing"
         ],
         "audience": "Finance leaders, CFOs, RevOps, and billing operations teams",
         "sub_category": "Subscription Billing & Revenue Management Platform",
         "integrates_with": [
           "Stripe",
+          "Zapier",
           "Payment Gateways"
         ],
         "complies_with": [
@@ -3038,9 +3194,27 @@
         },
         {
           "subject": "Maxio",
+          "predicate": "automates",
+          "object": "Automated invoicing",
+          "confidence": 0.88,
+          "evidence_sentence": null,
+          "source_type": "marketing_claim",
+          "provenance": null
+        },
+        {
+          "subject": "Maxio",
           "predicate": "compliesWith",
           "object": "IFRS",
           "confidence": 0.92,
+          "evidence_sentence": null,
+          "source_type": "marketing_claim",
+          "provenance": null
+        },
+        {
+          "subject": "Maxio",
+          "predicate": "integratesWith",
+          "object": "Zapier",
+          "confidence": 0.88,
           "evidence_sentence": null,
           "source_type": "marketing_claim",
           "provenance": null
@@ -3085,9 +3259,9 @@
         "google_kg_url": "https://www.google.com/search?kgmid=/m/0ddtt0",
         "score": 25.7,
         "types": [
-          "Organization",
+          "Corporation",
           "Thing",
-          "Corporation"
+          "Organization"
         ],
         "description": "Iochpe-Maxion S.A. is an automobile components manufacturer based in S\u00e3o Paulo, Brazil.",
         "wikipedia_url": "https://en.wikipedia.org/wiki/Iochpe-Maxion",
@@ -3099,7 +3273,7 @@
   {
     "url": "https://stripe.com/billing",
     "title": "Stripe Billing | Recurring Payments & Subscription Solutions",
-    "readiness_score": 40.42,
+    "readiness_score": 45.92,
     "compliance_str": "0/3",
     "passed_schemas": [],
     "missing_schemas": [
@@ -3107,7 +3281,7 @@
       "Organization",
       "Offer"
     ],
-    "entity_count": 8,
+    "entity_count": 26,
     "detected_concepts": [
       "Revenue Recognition",
       "ASC 606",
@@ -3125,14 +3299,14 @@
     "readiness_breakdown": {
       "schema_score": 0.0,
       "concept_score": 21.0,
-      "entity_score": 19.42,
-      "total_score": 40.42,
+      "entity_score": 24.92,
+      "total_score": 45.92,
       "details": {
         "mandatory_schemas_detected": "0/3",
         "seed_concepts_detected": "7/10",
-        "gliner_labels_covered": "4/6",
-        "entities_extracted": 8,
-        "average_entity_confidence": 0.628
+        "gliner_labels_covered": "6/6",
+        "entities_extracted": 26,
+        "average_entity_confidence": 0.6615
       }
     },
     "recommended_patch": {
@@ -3173,18 +3347,13 @@
             "about": [
               {
                 "@type": "Thing",
-                "name": "Revenue recognition",
-                "sameAs": "https://www.wikidata.org/wiki/Q2146785"
+                "name": "IFRS 15",
+                "sameAs": "https://www.wikidata.org/wiki/Q18358064"
               },
               {
                 "@type": "DefinedTerm",
                 "name": "ASC 606",
                 "termCode": "ASC 606"
-              },
-              {
-                "@type": "DefinedTerm",
-                "name": "IFRS 15",
-                "termCode": "IFRS 15"
               },
               {
                 "@type": "DefinedTerm",
@@ -3208,6 +3377,11 @@
               },
               {
                 "@type": "DefinedTerm",
+                "name": "PCI DSS",
+                "termCode": "PCI DSS"
+              },
+              {
+                "@type": "DefinedTerm",
                 "name": "SOC 1",
                 "termCode": "SOC 1"
               }
@@ -3215,14 +3389,23 @@
             "featureList": [
               "Consumption-based billing",
               "Hybrid Models",
+              "Flexible Tiers",
               "Usage-based billing",
               "Usage-Based Pricing Models",
               "Accounts Receivable",
-              "Revenue Recognition",
+              "Adaptive Pricing",
+              "Adaptive Acceptance",
+              "Subscription pricing models",
               "ASC 606",
+              "IFRS 15",
+              "PCI DSS",
+              "ISO 27001",
+              "SOC 2",
+              "GDPR",
+              "Stripe Billing",
+              "Revenue Recognition",
               "Billing Automation",
               "SOC 1",
-              "SOC 2",
               "REST API",
               "Stripe Billing scales with you."
             ],
@@ -3239,7 +3422,11 @@
             "softwareRequirements": [
               "Stripe Integration",
               "NetSuite Integration",
-              "Metronome Integration"
+              "Metronome Integration",
+              "APIs Integration",
+              "Eviden Integration",
+              "CRM and CPQ integrations Integration",
+              "NetSuite connector Integration"
             ],
             "isRelatedTo": [
               {
@@ -3253,6 +3440,22 @@
               {
                 "@type": "SoftwareApplication",
                 "name": "Metronome"
+              },
+              {
+                "@type": "SoftwareApplication",
+                "name": "APIs"
+              },
+              {
+                "@type": "SoftwareApplication",
+                "name": "Eviden"
+              },
+              {
+                "@type": "SoftwareApplication",
+                "name": "CRM and CPQ integrations"
+              },
+              {
+                "@type": "SoftwareApplication",
+                "name": "NetSuite connector"
               }
             ],
             "knowsAbout": [
@@ -3262,6 +3465,7 @@
               "GDPR",
               "ISO 27001",
               "accounts receivable",
+              "PCI DSS",
               "SOC 1"
             ]
           },
@@ -3279,7 +3483,7 @@
           }
         ]
       },
-      "json_ld": "{\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"Organization\",\n      \"@id\": \"https://stripe.com/#organization\",\n      \"name\": \"Stripe\",\n      \"url\": \"https://stripe.com\",\n      \"description\": \"Stripe \\u2014 official corporate provider of Subscription Billing & Revenue Management Platform.\",\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/m/0h3qnb8\",\n        \"https://en.wikipedia.org/wiki/Stripe,_Inc.\"\n      ]\n    },\n    {\n      \"@type\": \"SoftwareApplication\",\n      \"@id\": \"https://stripe.com/#software\",\n      \"name\": \"Stripe\",\n      \"alternateName\": [\n        \"Stripe Billing Platform\",\n        \"Subscription Management & Invoicing Software\",\n        \"Usage-Based Billing Automation Engine\",\n        \"SaaS Recurring Revenue & AR Platform\",\n        \"Enterprise Revenue Operations Suite\",\n        \"Stripe Consumption-based billing\"\n      ],\n      \"description\": \"Power your subscriptions with Stripe Billing. Set up recurring and usage-based pricing with APIs or within the Dashboard. Reduce churn with AI-powered tools.\",\n      \"applicationCategory\": \"BusinessApplication\",\n      \"applicationSubCategory\": \"Subscription Billing & Revenue Management Platform\",\n      \"operatingSystem\": \"Cloud-based / Web Browser / REST API\",\n      \"audience\": {\n        \"@type\": \"Audience\",\n        \"audienceType\": \"Finance leaders, CFOs, RevOps, and billing operations teams\"\n      },\n      \"about\": [\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"Revenue recognition\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q2146785\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"ASC 606\",\n          \"termCode\": \"ASC 606\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"IFRS 15\",\n          \"termCode\": \"IFRS 15\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"SOC 2\",\n          \"termCode\": \"SOC 2\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"GDPR\",\n          \"termCode\": \"GDPR\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"ISO 27001\",\n          \"termCode\": \"ISO 27001\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"accounts receivable\",\n          \"termCode\": \"accounts receivable\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"SOC 1\",\n          \"termCode\": \"SOC 1\"\n        }\n      ],\n      \"featureList\": [\n        \"Consumption-based billing\",\n        \"Hybrid Models\",\n        \"Usage-based billing\",\n        \"Usage-Based Pricing Models\",\n        \"Accounts Receivable\",\n        \"Revenue Recognition\",\n        \"ASC 606\",\n        \"Billing Automation\",\n        \"SOC 1\",\n        \"SOC 2\",\n        \"REST API\",\n        \"Stripe Billing scales with you.\"\n      ],\n      \"provider\": {\n        \"@id\": \"https://stripe.com/#organization\"\n      },\n      \"offers\": {\n        \"@id\": \"https://stripe.com/#offer\"\n      },\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/m/0h3qnb8\",\n        \"https://en.wikipedia.org/wiki/Stripe,_Inc.\"\n      ],\n      \"softwareRequirements\": [\n        \"Stripe Integration\",\n        \"NetSuite Integration\",\n        \"Metronome Integration\"\n      ],\n      \"isRelatedTo\": [\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Stripe\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"NetSuite\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Metronome\"\n        }\n      ],\n      \"knowsAbout\": [\n        \"ASC 606\",\n        \"IFRS 15\",\n        \"SOC 2\",\n        \"GDPR\",\n        \"ISO 27001\",\n        \"accounts receivable\",\n        \"SOC 1\"\n      ]\n    },\n    {\n      \"@type\": \"Offer\",\n      \"@id\": \"https://stripe.com/#offer\",\n      \"name\": \"Stripe Commercial Plans\",\n      \"price\": \"Custom\",\n      \"priceCurrency\": \"USD\",\n      \"category\": \"Subscription Billing & Financial Software\",\n      \"description\": \"Commercial subscription tiers and enterprise pricing options for Stripe.\",\n      \"seller\": {\n        \"@id\": \"https://stripe.com/#organization\"\n      }\n    }\n  ]\n}",
+      "json_ld": "{\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"Organization\",\n      \"@id\": \"https://stripe.com/#organization\",\n      \"name\": \"Stripe\",\n      \"url\": \"https://stripe.com\",\n      \"description\": \"Stripe \\u2014 official corporate provider of Subscription Billing & Revenue Management Platform.\",\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/m/0h3qnb8\",\n        \"https://en.wikipedia.org/wiki/Stripe,_Inc.\"\n      ]\n    },\n    {\n      \"@type\": \"SoftwareApplication\",\n      \"@id\": \"https://stripe.com/#software\",\n      \"name\": \"Stripe\",\n      \"alternateName\": [\n        \"Stripe Billing Platform\",\n        \"Subscription Management & Invoicing Software\",\n        \"Usage-Based Billing Automation Engine\",\n        \"SaaS Recurring Revenue & AR Platform\",\n        \"Enterprise Revenue Operations Suite\",\n        \"Stripe Consumption-based billing\"\n      ],\n      \"description\": \"Power your subscriptions with Stripe Billing. Set up recurring and usage-based pricing with APIs or within the Dashboard. Reduce churn with AI-powered tools.\",\n      \"applicationCategory\": \"BusinessApplication\",\n      \"applicationSubCategory\": \"Subscription Billing & Revenue Management Platform\",\n      \"operatingSystem\": \"Cloud-based / Web Browser / REST API\",\n      \"audience\": {\n        \"@type\": \"Audience\",\n        \"audienceType\": \"Finance leaders, CFOs, RevOps, and billing operations teams\"\n      },\n      \"about\": [\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"IFRS 15\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q18358064\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"ASC 606\",\n          \"termCode\": \"ASC 606\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"SOC 2\",\n          \"termCode\": \"SOC 2\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"GDPR\",\n          \"termCode\": \"GDPR\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"ISO 27001\",\n          \"termCode\": \"ISO 27001\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"accounts receivable\",\n          \"termCode\": \"accounts receivable\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"PCI DSS\",\n          \"termCode\": \"PCI DSS\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"SOC 1\",\n          \"termCode\": \"SOC 1\"\n        }\n      ],\n      \"featureList\": [\n        \"Consumption-based billing\",\n        \"Hybrid Models\",\n        \"Flexible Tiers\",\n        \"Usage-based billing\",\n        \"Usage-Based Pricing Models\",\n        \"Accounts Receivable\",\n        \"Adaptive Pricing\",\n        \"Adaptive Acceptance\",\n        \"Subscription pricing models\",\n        \"ASC 606\",\n        \"IFRS 15\",\n        \"PCI DSS\",\n        \"ISO 27001\",\n        \"SOC 2\",\n        \"GDPR\",\n        \"Stripe Billing\",\n        \"Revenue Recognition\",\n        \"Billing Automation\",\n        \"SOC 1\",\n        \"REST API\",\n        \"Stripe Billing scales with you.\"\n      ],\n      \"provider\": {\n        \"@id\": \"https://stripe.com/#organization\"\n      },\n      \"offers\": {\n        \"@id\": \"https://stripe.com/#offer\"\n      },\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/m/0h3qnb8\",\n        \"https://en.wikipedia.org/wiki/Stripe,_Inc.\"\n      ],\n      \"softwareRequirements\": [\n        \"Stripe Integration\",\n        \"NetSuite Integration\",\n        \"Metronome Integration\",\n        \"APIs Integration\",\n        \"Eviden Integration\",\n        \"CRM and CPQ integrations Integration\",\n        \"NetSuite connector Integration\"\n      ],\n      \"isRelatedTo\": [\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Stripe\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"NetSuite\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Metronome\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"APIs\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Eviden\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"CRM and CPQ integrations\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"NetSuite connector\"\n        }\n      ],\n      \"knowsAbout\": [\n        \"ASC 606\",\n        \"IFRS 15\",\n        \"SOC 2\",\n        \"GDPR\",\n        \"ISO 27001\",\n        \"accounts receivable\",\n        \"PCI DSS\",\n        \"SOC 1\"\n      ]\n    },\n    {\n      \"@type\": \"Offer\",\n      \"@id\": \"https://stripe.com/#offer\",\n      \"name\": \"Stripe Commercial Plans\",\n      \"price\": \"Custom\",\n      \"priceCurrency\": \"USD\",\n      \"category\": \"Subscription Billing & Financial Software\",\n      \"description\": \"Commercial subscription tiers and enterprise pricing options for Stripe.\",\n      \"seller\": {\n        \"@id\": \"https://stripe.com/#organization\"\n      }\n    }\n  ]\n}",
       "schemas_added": [
         "SoftwareApplication",
         "Organization",
@@ -3288,14 +3492,23 @@
       "features_mapped": [
         "Consumption-based billing",
         "Hybrid Models",
+        "Flexible Tiers",
         "Usage-based billing",
         "Usage-Based Pricing Models",
         "Accounts Receivable",
-        "Revenue Recognition",
+        "Adaptive Pricing",
+        "Adaptive Acceptance",
+        "Subscription pricing models",
         "ASC 606",
+        "IFRS 15",
+        "PCI DSS",
+        "ISO 27001",
+        "SOC 2",
+        "GDPR",
+        "Stripe Billing",
+        "Revenue Recognition",
         "Billing Automation",
         "SOC 1",
-        "SOC 2",
         "REST API",
         "Stripe Billing scales with you."
       ],
@@ -3313,18 +3526,13 @@
       "about_entities": [
         {
           "@type": "Thing",
-          "name": "Revenue recognition",
-          "sameAs": "https://www.wikidata.org/wiki/Q2146785"
+          "name": "IFRS 15",
+          "sameAs": "https://www.wikidata.org/wiki/Q18358064"
         },
         {
           "@type": "DefinedTerm",
           "name": "ASC 606",
           "termCode": "ASC 606"
-        },
-        {
-          "@type": "DefinedTerm",
-          "name": "IFRS 15",
-          "termCode": "IFRS 15"
         },
         {
           "@type": "DefinedTerm",
@@ -3348,6 +3556,11 @@
         },
         {
           "@type": "DefinedTerm",
+          "name": "PCI DSS",
+          "termCode": "PCI DSS"
+        },
+        {
+          "@type": "DefinedTerm",
           "name": "SOC 1",
           "termCode": "SOC 1"
         }
@@ -3365,7 +3578,11 @@
       "integrates_with": [
         "Stripe",
         "NetSuite",
-        "Metronome"
+        "Metronome",
+        "APIs",
+        "Eviden",
+        "CRM and CPQ integrations",
+        "NetSuite connector"
       ],
       "complies_with": [
         "ASC 606",
@@ -3374,6 +3591,7 @@
         "GDPR",
         "ISO 27001",
         "accounts receivable",
+        "PCI DSS",
         "SOC 1"
       ]
     },
@@ -3386,58 +3604,184 @@
         {
           "text": "Stripe",
           "label": "Software Platform",
-          "score": 0.8058,
-          "start": 362,
-          "end": 368
+          "score": 0.9656,
+          "start": 1577,
+          "end": 1583
         },
         {
           "text": "Consumption-based billing",
           "label": "Pricing Model",
-          "score": 0.7152,
+          "score": 0.754,
           "start": 117,
           "end": 142
         },
         {
           "text": "hybrid models",
           "label": "Pricing Model",
-          "score": 0.6396,
+          "score": 0.6805,
           "start": 144,
           "end": 157
         },
         {
+          "text": "flexible tiers",
+          "label": "Pricing Model",
+          "score": 0.4008,
+          "start": 159,
+          "end": 173
+        },
+        {
           "text": "Usage-based billing",
           "label": "Pricing Model",
-          "score": 0.7898,
+          "score": 0.8128,
           "start": 886,
           "end": 905
         },
         {
           "text": "usage-based pricing models",
           "label": "Pricing Model",
-          "score": 0.4241,
+          "score": 0.5002,
           "start": 913,
           "end": 939
         },
         {
           "text": "Metronome",
           "label": "Integration Partner",
-          "score": 0.779,
+          "score": 0.8033,
           "start": 1134,
           "end": 1143
         },
         {
           "text": "accounts receivable",
           "label": "Accounting Standard",
-          "score": 0.4497,
+          "score": 0.4461,
           "start": 1203,
           "end": 1222
         },
         {
           "text": "Airwallet",
           "label": "Software Platform",
-          "score": 0.4209,
-          "start": 1899,
-          "end": 1908
+          "score": 0.4864,
+          "start": 330,
+          "end": 339
+        },
+        {
+          "text": "Stripe-hosted",
+          "label": "Software Platform",
+          "score": 0.5292,
+          "start": 1313,
+          "end": 1326
+        },
+        {
+          "text": "ClickFunnels",
+          "label": "Software Platform",
+          "score": 0.593,
+          "start": 1372,
+          "end": 1384
+        },
+        {
+          "text": "APIs",
+          "label": "Integration Partner",
+          "score": 0.4897,
+          "start": 306,
+          "end": 310
+        },
+        {
+          "text": "Eviden",
+          "label": "Integration Partner",
+          "score": 0.7991,
+          "start": 428,
+          "end": 434
+        },
+        {
+          "text": "Adaptive Pricing",
+          "label": "Billing Feature",
+          "score": 0.5143,
+          "start": 566,
+          "end": 582
+        },
+        {
+          "text": "Adaptive Acceptance",
+          "label": "Billing Feature",
+          "score": 0.4758,
+          "start": 836,
+          "end": 855
+        },
+        {
+          "text": "CRM and CPQ integrations",
+          "label": "Integration Partner",
+          "score": 0.5197,
+          "start": 874,
+          "end": 898
+        },
+        {
+          "text": "Subscription pricing models",
+          "label": "Pricing Model",
+          "score": 0.5573,
+          "start": 1062,
+          "end": 1089
+        },
+        {
+          "text": "Usage-based pricing models",
+          "label": "Billing Feature",
+          "score": 0.5489,
+          "start": 1169,
+          "end": 1195
+        },
+        {
+          "text": "ASC 606",
+          "label": "Accounting Standard",
+          "score": 0.9303,
+          "start": 194,
+          "end": 201
+        },
+        {
+          "text": "IFRS 15",
+          "label": "Accounting Standard",
+          "score": 0.9229,
+          "start": 206,
+          "end": 213
+        },
+        {
+          "text": "NetSuite connector",
+          "label": "Integration Partner",
+          "score": 0.641,
+          "start": 303,
+          "end": 321
+        },
+        {
+          "text": "PCI DSS",
+          "label": "Accounting Standard",
+          "score": 0.9125,
+          "start": 324,
+          "end": 331
+        },
+        {
+          "text": "ISO 27001",
+          "label": "Security Standard",
+          "score": 0.9196,
+          "start": 333,
+          "end": 342
+        },
+        {
+          "text": "SOC 2",
+          "label": "Accounting Standard",
+          "score": 0.8509,
+          "start": 344,
+          "end": 349
+        },
+        {
+          "text": "GDPR",
+          "label": "Accounting Standard",
+          "score": 0.6196,
+          "start": 351,
+          "end": 355
+        },
+        {
+          "text": "Stripe Billing",
+          "label": "Billing Feature",
+          "score": 0.5263,
+          "start": 35,
+          "end": 49
         }
       ],
       "schema_org": [
@@ -3564,8 +3908,8 @@
           "concept": "Revenue Recognition",
           "count": 3,
           "matched_phrases": [
-            "revenue recognition",
-            "Revenue Recognition"
+            "Revenue Recognition",
+            "revenue recognition"
           ]
         },
         {
@@ -3586,15 +3930,15 @@
           "concept": "Accounts Receivable",
           "count": 2,
           "matched_phrases": [
-            "Accounts receivable",
-            "accounts receivable"
+            "accounts receivable",
+            "Accounts receivable"
           ]
         },
         {
           "concept": "SOC 1",
           "count": 1,
           "matched_phrases": [
-            "soc"
+            "soc 2"
           ]
         },
         {
@@ -3617,18 +3961,18 @@
         "Organization": false,
         "Offer": false
       },
-      "readiness_score": 40.42,
+      "readiness_score": 45.92,
       "readiness_breakdown": {
         "schema_score": 0.0,
         "concept_score": 21.0,
-        "entity_score": 19.42,
-        "total_score": 40.42,
+        "entity_score": 24.92,
+        "total_score": 45.92,
         "details": {
           "mandatory_schemas_detected": "0/3",
           "seed_concepts_detected": "7/10",
-          "gliner_labels_covered": "4/6",
-          "entities_extracted": 8,
-          "average_entity_confidence": 0.628
+          "gliner_labels_covered": "6/6",
+          "entities_extracted": 26,
+          "average_entity_confidence": 0.6615
         }
       },
       "recommended_patch": {
@@ -3669,18 +4013,13 @@
               "about": [
                 {
                   "@type": "Thing",
-                  "name": "Revenue recognition",
-                  "sameAs": "https://www.wikidata.org/wiki/Q2146785"
+                  "name": "IFRS 15",
+                  "sameAs": "https://www.wikidata.org/wiki/Q18358064"
                 },
                 {
                   "@type": "DefinedTerm",
                   "name": "ASC 606",
                   "termCode": "ASC 606"
-                },
-                {
-                  "@type": "DefinedTerm",
-                  "name": "IFRS 15",
-                  "termCode": "IFRS 15"
                 },
                 {
                   "@type": "DefinedTerm",
@@ -3704,6 +4043,11 @@
                 },
                 {
                   "@type": "DefinedTerm",
+                  "name": "PCI DSS",
+                  "termCode": "PCI DSS"
+                },
+                {
+                  "@type": "DefinedTerm",
                   "name": "SOC 1",
                   "termCode": "SOC 1"
                 }
@@ -3711,14 +4055,23 @@
               "featureList": [
                 "Consumption-based billing",
                 "Hybrid Models",
+                "Flexible Tiers",
                 "Usage-based billing",
                 "Usage-Based Pricing Models",
                 "Accounts Receivable",
-                "Revenue Recognition",
+                "Adaptive Pricing",
+                "Adaptive Acceptance",
+                "Subscription pricing models",
                 "ASC 606",
+                "IFRS 15",
+                "PCI DSS",
+                "ISO 27001",
+                "SOC 2",
+                "GDPR",
+                "Stripe Billing",
+                "Revenue Recognition",
                 "Billing Automation",
                 "SOC 1",
-                "SOC 2",
                 "REST API",
                 "Stripe Billing scales with you."
               ],
@@ -3735,7 +4088,11 @@
               "softwareRequirements": [
                 "Stripe Integration",
                 "NetSuite Integration",
-                "Metronome Integration"
+                "Metronome Integration",
+                "APIs Integration",
+                "Eviden Integration",
+                "CRM and CPQ integrations Integration",
+                "NetSuite connector Integration"
               ],
               "isRelatedTo": [
                 {
@@ -3749,6 +4106,22 @@
                 {
                   "@type": "SoftwareApplication",
                   "name": "Metronome"
+                },
+                {
+                  "@type": "SoftwareApplication",
+                  "name": "APIs"
+                },
+                {
+                  "@type": "SoftwareApplication",
+                  "name": "Eviden"
+                },
+                {
+                  "@type": "SoftwareApplication",
+                  "name": "CRM and CPQ integrations"
+                },
+                {
+                  "@type": "SoftwareApplication",
+                  "name": "NetSuite connector"
                 }
               ],
               "knowsAbout": [
@@ -3758,6 +4131,7 @@
                 "GDPR",
                 "ISO 27001",
                 "accounts receivable",
+                "PCI DSS",
                 "SOC 1"
               ]
             },
@@ -3775,7 +4149,7 @@
             }
           ]
         },
-        "json_ld": "{\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"Organization\",\n      \"@id\": \"https://stripe.com/#organization\",\n      \"name\": \"Stripe\",\n      \"url\": \"https://stripe.com\",\n      \"description\": \"Stripe \\u2014 official corporate provider of Subscription Billing & Revenue Management Platform.\",\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/m/0h3qnb8\",\n        \"https://en.wikipedia.org/wiki/Stripe,_Inc.\"\n      ]\n    },\n    {\n      \"@type\": \"SoftwareApplication\",\n      \"@id\": \"https://stripe.com/#software\",\n      \"name\": \"Stripe\",\n      \"alternateName\": [\n        \"Stripe Billing Platform\",\n        \"Subscription Management & Invoicing Software\",\n        \"Usage-Based Billing Automation Engine\",\n        \"SaaS Recurring Revenue & AR Platform\",\n        \"Enterprise Revenue Operations Suite\",\n        \"Stripe Consumption-based billing\"\n      ],\n      \"description\": \"Power your subscriptions with Stripe Billing. Set up recurring and usage-based pricing with APIs or within the Dashboard. Reduce churn with AI-powered tools.\",\n      \"applicationCategory\": \"BusinessApplication\",\n      \"applicationSubCategory\": \"Subscription Billing & Revenue Management Platform\",\n      \"operatingSystem\": \"Cloud-based / Web Browser / REST API\",\n      \"audience\": {\n        \"@type\": \"Audience\",\n        \"audienceType\": \"Finance leaders, CFOs, RevOps, and billing operations teams\"\n      },\n      \"about\": [\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"Revenue recognition\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q2146785\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"ASC 606\",\n          \"termCode\": \"ASC 606\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"IFRS 15\",\n          \"termCode\": \"IFRS 15\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"SOC 2\",\n          \"termCode\": \"SOC 2\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"GDPR\",\n          \"termCode\": \"GDPR\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"ISO 27001\",\n          \"termCode\": \"ISO 27001\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"accounts receivable\",\n          \"termCode\": \"accounts receivable\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"SOC 1\",\n          \"termCode\": \"SOC 1\"\n        }\n      ],\n      \"featureList\": [\n        \"Consumption-based billing\",\n        \"Hybrid Models\",\n        \"Usage-based billing\",\n        \"Usage-Based Pricing Models\",\n        \"Accounts Receivable\",\n        \"Revenue Recognition\",\n        \"ASC 606\",\n        \"Billing Automation\",\n        \"SOC 1\",\n        \"SOC 2\",\n        \"REST API\",\n        \"Stripe Billing scales with you.\"\n      ],\n      \"provider\": {\n        \"@id\": \"https://stripe.com/#organization\"\n      },\n      \"offers\": {\n        \"@id\": \"https://stripe.com/#offer\"\n      },\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/m/0h3qnb8\",\n        \"https://en.wikipedia.org/wiki/Stripe,_Inc.\"\n      ],\n      \"softwareRequirements\": [\n        \"Stripe Integration\",\n        \"NetSuite Integration\",\n        \"Metronome Integration\"\n      ],\n      \"isRelatedTo\": [\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Stripe\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"NetSuite\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Metronome\"\n        }\n      ],\n      \"knowsAbout\": [\n        \"ASC 606\",\n        \"IFRS 15\",\n        \"SOC 2\",\n        \"GDPR\",\n        \"ISO 27001\",\n        \"accounts receivable\",\n        \"SOC 1\"\n      ]\n    },\n    {\n      \"@type\": \"Offer\",\n      \"@id\": \"https://stripe.com/#offer\",\n      \"name\": \"Stripe Commercial Plans\",\n      \"price\": \"Custom\",\n      \"priceCurrency\": \"USD\",\n      \"category\": \"Subscription Billing & Financial Software\",\n      \"description\": \"Commercial subscription tiers and enterprise pricing options for Stripe.\",\n      \"seller\": {\n        \"@id\": \"https://stripe.com/#organization\"\n      }\n    }\n  ]\n}",
+        "json_ld": "{\n  \"@context\": \"https://schema.org\",\n  \"@graph\": [\n    {\n      \"@type\": \"Organization\",\n      \"@id\": \"https://stripe.com/#organization\",\n      \"name\": \"Stripe\",\n      \"url\": \"https://stripe.com\",\n      \"description\": \"Stripe \\u2014 official corporate provider of Subscription Billing & Revenue Management Platform.\",\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/m/0h3qnb8\",\n        \"https://en.wikipedia.org/wiki/Stripe,_Inc.\"\n      ]\n    },\n    {\n      \"@type\": \"SoftwareApplication\",\n      \"@id\": \"https://stripe.com/#software\",\n      \"name\": \"Stripe\",\n      \"alternateName\": [\n        \"Stripe Billing Platform\",\n        \"Subscription Management & Invoicing Software\",\n        \"Usage-Based Billing Automation Engine\",\n        \"SaaS Recurring Revenue & AR Platform\",\n        \"Enterprise Revenue Operations Suite\",\n        \"Stripe Consumption-based billing\"\n      ],\n      \"description\": \"Power your subscriptions with Stripe Billing. Set up recurring and usage-based pricing with APIs or within the Dashboard. Reduce churn with AI-powered tools.\",\n      \"applicationCategory\": \"BusinessApplication\",\n      \"applicationSubCategory\": \"Subscription Billing & Revenue Management Platform\",\n      \"operatingSystem\": \"Cloud-based / Web Browser / REST API\",\n      \"audience\": {\n        \"@type\": \"Audience\",\n        \"audienceType\": \"Finance leaders, CFOs, RevOps, and billing operations teams\"\n      },\n      \"about\": [\n        {\n          \"@type\": \"Thing\",\n          \"name\": \"IFRS 15\",\n          \"sameAs\": \"https://www.wikidata.org/wiki/Q18358064\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"ASC 606\",\n          \"termCode\": \"ASC 606\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"SOC 2\",\n          \"termCode\": \"SOC 2\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"GDPR\",\n          \"termCode\": \"GDPR\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"ISO 27001\",\n          \"termCode\": \"ISO 27001\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"accounts receivable\",\n          \"termCode\": \"accounts receivable\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"PCI DSS\",\n          \"termCode\": \"PCI DSS\"\n        },\n        {\n          \"@type\": \"DefinedTerm\",\n          \"name\": \"SOC 1\",\n          \"termCode\": \"SOC 1\"\n        }\n      ],\n      \"featureList\": [\n        \"Consumption-based billing\",\n        \"Hybrid Models\",\n        \"Flexible Tiers\",\n        \"Usage-based billing\",\n        \"Usage-Based Pricing Models\",\n        \"Accounts Receivable\",\n        \"Adaptive Pricing\",\n        \"Adaptive Acceptance\",\n        \"Subscription pricing models\",\n        \"ASC 606\",\n        \"IFRS 15\",\n        \"PCI DSS\",\n        \"ISO 27001\",\n        \"SOC 2\",\n        \"GDPR\",\n        \"Stripe Billing\",\n        \"Revenue Recognition\",\n        \"Billing Automation\",\n        \"SOC 1\",\n        \"REST API\",\n        \"Stripe Billing scales with you.\"\n      ],\n      \"provider\": {\n        \"@id\": \"https://stripe.com/#organization\"\n      },\n      \"offers\": {\n        \"@id\": \"https://stripe.com/#offer\"\n      },\n      \"sameAs\": [\n        \"https://www.google.com/search?kgmid=/m/0h3qnb8\",\n        \"https://en.wikipedia.org/wiki/Stripe,_Inc.\"\n      ],\n      \"softwareRequirements\": [\n        \"Stripe Integration\",\n        \"NetSuite Integration\",\n        \"Metronome Integration\",\n        \"APIs Integration\",\n        \"Eviden Integration\",\n        \"CRM and CPQ integrations Integration\",\n        \"NetSuite connector Integration\"\n      ],\n      \"isRelatedTo\": [\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Stripe\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"NetSuite\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Metronome\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"APIs\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"Eviden\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"CRM and CPQ integrations\"\n        },\n        {\n          \"@type\": \"SoftwareApplication\",\n          \"name\": \"NetSuite connector\"\n        }\n      ],\n      \"knowsAbout\": [\n        \"ASC 606\",\n        \"IFRS 15\",\n        \"SOC 2\",\n        \"GDPR\",\n        \"ISO 27001\",\n        \"accounts receivable\",\n        \"PCI DSS\",\n        \"SOC 1\"\n      ]\n    },\n    {\n      \"@type\": \"Offer\",\n      \"@id\": \"https://stripe.com/#offer\",\n      \"name\": \"Stripe Commercial Plans\",\n      \"price\": \"Custom\",\n      \"priceCurrency\": \"USD\",\n      \"category\": \"Subscription Billing & Financial Software\",\n      \"description\": \"Commercial subscription tiers and enterprise pricing options for Stripe.\",\n      \"seller\": {\n        \"@id\": \"https://stripe.com/#organization\"\n      }\n    }\n  ]\n}",
         "schemas_added": [
           "SoftwareApplication",
           "Organization",
@@ -3784,14 +4158,23 @@
         "features_mapped": [
           "Consumption-based billing",
           "Hybrid Models",
+          "Flexible Tiers",
           "Usage-based billing",
           "Usage-Based Pricing Models",
           "Accounts Receivable",
-          "Revenue Recognition",
+          "Adaptive Pricing",
+          "Adaptive Acceptance",
+          "Subscription pricing models",
           "ASC 606",
+          "IFRS 15",
+          "PCI DSS",
+          "ISO 27001",
+          "SOC 2",
+          "GDPR",
+          "Stripe Billing",
+          "Revenue Recognition",
           "Billing Automation",
           "SOC 1",
-          "SOC 2",
           "REST API",
           "Stripe Billing scales with you."
         ],
@@ -3809,18 +4192,13 @@
         "about_entities": [
           {
             "@type": "Thing",
-            "name": "Revenue recognition",
-            "sameAs": "https://www.wikidata.org/wiki/Q2146785"
+            "name": "IFRS 15",
+            "sameAs": "https://www.wikidata.org/wiki/Q18358064"
           },
           {
             "@type": "DefinedTerm",
             "name": "ASC 606",
             "termCode": "ASC 606"
-          },
-          {
-            "@type": "DefinedTerm",
-            "name": "IFRS 15",
-            "termCode": "IFRS 15"
           },
           {
             "@type": "DefinedTerm",
@@ -3844,6 +4222,11 @@
           },
           {
             "@type": "DefinedTerm",
+            "name": "PCI DSS",
+            "termCode": "PCI DSS"
+          },
+          {
+            "@type": "DefinedTerm",
             "name": "SOC 1",
             "termCode": "SOC 1"
           }
@@ -3861,7 +4244,11 @@
         "integrates_with": [
           "Stripe",
           "NetSuite",
-          "Metronome"
+          "Metronome",
+          "APIs",
+          "Eviden",
+          "CRM and CPQ integrations",
+          "NetSuite connector"
         ],
         "complies_with": [
           "ASC 606",
@@ -3870,6 +4257,7 @@
           "GDPR",
           "ISO 27001",
           "accounts receivable",
+          "PCI DSS",
           "SOC 1"
         ]
       },
@@ -4040,6 +4428,15 @@
         {
           "subject": "Stripe",
           "predicate": "supportsPricingModel",
+          "object": "flexible tiers",
+          "confidence": 0.88,
+          "evidence_sentence": null,
+          "source_type": "marketing_claim",
+          "provenance": null
+        },
+        {
+          "subject": "Stripe",
+          "predicate": "supportsPricingModel",
           "object": "Usage-based billing",
           "confidence": 0.88,
           "evidence_sentence": null,
@@ -4068,6 +4465,60 @@
           "subject": "Stripe",
           "predicate": "compliesWith",
           "object": "accounts receivable",
+          "confidence": 0.92,
+          "evidence_sentence": null,
+          "source_type": "marketing_claim",
+          "provenance": null
+        },
+        {
+          "subject": "Stripe",
+          "predicate": "integratesWith",
+          "object": "APIs",
+          "confidence": 0.88,
+          "evidence_sentence": null,
+          "source_type": "marketing_claim",
+          "provenance": null
+        },
+        {
+          "subject": "Stripe",
+          "predicate": "integratesWith",
+          "object": "Eviden",
+          "confidence": 0.88,
+          "evidence_sentence": null,
+          "source_type": "marketing_claim",
+          "provenance": null
+        },
+        {
+          "subject": "Stripe",
+          "predicate": "integratesWith",
+          "object": "CRM and CPQ integrations",
+          "confidence": 0.88,
+          "evidence_sentence": null,
+          "source_type": "marketing_claim",
+          "provenance": null
+        },
+        {
+          "subject": "Stripe",
+          "predicate": "supportsPricingModel",
+          "object": "Subscription pricing models",
+          "confidence": 0.88,
+          "evidence_sentence": null,
+          "source_type": "marketing_claim",
+          "provenance": null
+        },
+        {
+          "subject": "Stripe",
+          "predicate": "integratesWith",
+          "object": "NetSuite connector",
+          "confidence": 0.88,
+          "evidence_sentence": null,
+          "source_type": "marketing_claim",
+          "provenance": null
+        },
+        {
+          "subject": "Stripe",
+          "predicate": "compliesWith",
+          "object": "PCI DSS",
           "confidence": 0.92,
           "evidence_sentence": null,
           "source_type": "marketing_claim",
@@ -4112,9 +4563,9 @@
         "google_kg_url": "https://www.google.com/search?kgmid=/m/0h3qnb8",
         "score": 4179.16,
         "types": [
-          "Organization",
+          "Corporation",
           "Thing",
-          "Corporation"
+          "Organization"
         ],
         "description": "Stripe, LLC is an American multinational financial services and software as a service company dual-headquartered in South San Francisco, California, United States, and Dublin, Ireland. ",
         "wikipedia_url": "https://en.wikipedia.org/wiki/Stripe,_Inc.",

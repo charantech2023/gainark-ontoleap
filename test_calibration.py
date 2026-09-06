@@ -191,19 +191,52 @@ def test_no_weighting_recovers_citation_order(observations):
 
 
 def test_score_tracks_structured_data(observations):
-    """What the score does measure, stated positively: mandatory schema coverage."""
-    print("\n[3] Ranking by score vs. mandatory schema coverage ...")
-    by_schema = sorted(observations, key=lambda o: o["ratios"]["schema"], reverse=True)
-    print(f"  {'brand':<12} {'score':>8} {'schema ratio':>14}")
-    for o in observations:
-        print(f"  {o['brand']:<12} {o['score']:>8.2f} {o['ratios']['schema']:>14.2f}")
+    """What the score does measure, stated positively: schema implementation is
+    its dominant driver.
 
-    assert [o["brand"] for o in observations] == [o["brand"] for o in by_schema], (
-        "Score ordering diverged from mandatory-schema ordering. The score's headline "
-        "claim is that it measures structured data implementation - if that no longer "
-        "holds, the label needs revisiting again."
+    Exact rank agreement with the schema ratio is deliberately NOT asserted.
+    Schema is 40 of 100; concepts and entities are the other 60, so a page with
+    materially richer entity content can and should outrank one carrying slightly
+    more JSON-LD. An earlier version of this test did require exact agreement and
+    passed only because oversized GLiNER chunks were suppressing the entity
+    component - it was pinning a bug, not a property.
+    """
+    print("\n[3] Score vs. mandatory schema coverage ...")
+    print(f"  {'brand':<12} {'score':>8} {'schema ratio':>14} {'entities':>10}")
+    for o in observations:
+        print(f"  {o['brand']:<12} {o['score']:>8.2f} {o['ratios']['schema']:>14.2f} "
+              f"{o['ratios']['strength']:>10.2f}")
+
+    # The site with complete mandatory schema must come first: where schema is
+    # decisive, the component carrying 40 points has to win.
+    best_schema = max(observations, key=lambda o: o["ratios"]["schema"])
+    if best_schema["ratios"]["schema"] >= 1.0:
+        top = observations[0]
+        assert top["brand"] == best_schema["brand"], (
+            f"{best_schema['brand']} has complete mandatory schema but {top['brand']} "
+            f"outscores it ({top['score']:.2f} vs {best_schema['score']:.2f}). The "
+            "40-point component is no longer dominant and the name overstates what "
+            "the score measures."
+        )
+        print(f"  {best_schema['brand']} has full mandatory schema and ranks first.")
+
+    # And the association must be positive overall, not merely non-negative.
+    pairs = [
+        (a, b) for i, a in enumerate(observations) for b in observations[i + 1:]
+        if a["ratios"]["schema"] != b["ratios"]["schema"]
+    ]
+    concordant = sum(
+        1 for a, b in pairs
+        if (a["ratios"]["schema"] - b["ratios"]["schema"]) * (a["score"] - b["score"]) > 0
     )
-    print("  PASS - score ordering matches structured data implementation.")
+    tau = (2.0 * concordant - len(pairs)) / len(pairs) if pairs else 0.0
+    print(f"  Rank correlation with schema ratio: tau = {tau:+.2f} "
+          f"({concordant}/{len(pairs)} concordant pairs).")
+    assert tau > 0, (
+        f"Score is not positively associated with schema implementation (tau = {tau:+.2f}). "
+        "The structured-data naming no longer describes the ordering it produces."
+    )
+    print("  PASS - schema implementation is the dominant driver.")
 
 
 def test_no_citation_claims_on_single_page_surfaces():
