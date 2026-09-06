@@ -1,0 +1,141 @@
+"""
+Evidence gating for the Product Truth audit.
+
+The grounding score divides verified claims by total claims. When the docs crawl
+returns nothing, that is 0/N = 0%, and every claim also becomes an "unbacked"
+drift alert. The audit then reports maximum severity precisely when it knows the
+least. Observed live against chargebee.com: 24 marketing claims, 0 technical
+capabilities, 0.0% grounding, 21 "critical drift alerts" - every one an artifact
+of a failed read rather than a finding about the claims.
+
+Absence of evidence is not evidence of absence. These tests hold that line:
+
+  no evidence      -> no score, no alerts, an explanation instead
+  thin evidence    -> score marked provisional, alerts marked provisional
+  enough evidence  -> unchanged behaviour
+
+Offline; builds triples directly, no network and no GLiNER.
+"""
+
+import product_truth
+from product_truth import build_product_truth_matrix, MIN_CONFIDENT_TECHNICAL_EVIDENCE
+from models import SemanticTriple
+
+
+def marketing(n):
+    return [
+        SemanticTriple(
+            subject="Acme", predicate="compliesWith", object="Standard %d" % i,
+            confidence=0.9, source_type="marketing_claim",
+        )
+        for i in range(n)
+    ]
+
+
+def technical(n):
+    return [
+        SemanticTriple(
+            subject="Acme", predicate="automates", object="Capability %d" % i,
+            confidence=0.9, source_type="technical_truth",
+        )
+        for i in range(n)
+    ]
+
+
+def build(n_marketing, n_technical):
+    return build_product_truth_matrix(
+        brand_name="Acme",
+        marketing_url="https://acme.example",
+        tech_docs_url="https://docs.acme.example",
+        marketing_triples=marketing(n_marketing),
+        technical_triples=technical(n_technical),
+    )
+
+
+def test_no_evidence_yields_no_verdict():
+    """The Chargebee case: many claims, nothing readable to check them against."""
+    print("\n[1] 24 marketing claims, 0 technical capabilities ...")
+    r = build(24, 0)
+    print("  grounding index : %r" % (r.marketing_grounding_index,))
+    print("  evidence status : %s" % r.evidence_status)
+    print("  drift alerts    : %d" % len(r.drift_alerts))
+
+    assert r.marketing_grounding_index is None, (
+        "Reported a %r%% grounding score with zero technical evidence. A number here "
+        "reads as 'this share of your claims are true' when nothing was checked."
+        % r.marketing_grounding_index
+    )
+    assert r.evidence_status == "inconclusive", r.evidence_status
+    assert r.drift_alerts == [], (
+        "Raised %d drift alerts with no technical baseline. Each one accuses the "
+        "customer of an unsupported claim on the strength of a crawl that read "
+        "nothing." % len(r.drift_alerts)
+    )
+    assert r.evidence_note and "could not" in r.evidence_note.lower()
+    summary = r.executive_summary.lower()
+    assert "not assessed" in summary, r.executive_summary
+    for forbidden in ("severe marketing drift", "hallucination risk"):
+        assert forbidden not in summary, (
+            "Executive summary still alleges %r without evidence: %s"
+            % (forbidden, r.executive_summary)
+        )
+    print("  PASS - no score, no alerts, explanation given instead.")
+
+
+def test_thin_evidence_is_marked_provisional():
+    print("\n[2] Below the confidence floor of %d ..." % MIN_CONFIDENT_TECHNICAL_EVIDENCE)
+    r = build(10, MIN_CONFIDENT_TECHNICAL_EVIDENCE - 1)
+    print("  grounding index : %s" % r.marketing_grounding_index)
+    print("  evidence status : %s" % r.evidence_status)
+    print("  alerts prefixed : %s" % (r.drift_alerts[0][:40] if r.drift_alerts else "(none)"))
+
+    assert r.evidence_status == "low_confidence", r.evidence_status
+    assert r.marketing_grounding_index is not None, "Thin evidence should still score."
+    assert r.evidence_note, "low_confidence must explain itself."
+    assert all(a.startswith("Provisional - ") for a in r.drift_alerts), (
+        "Alerts from thin evidence are not marked provisional: %r" % (r.drift_alerts[:1],)
+    )
+    assert "provisional" in r.executive_summary.lower()
+    print("  PASS - score and alerts both flagged provisional.")
+
+
+def test_sufficient_evidence_is_unchanged():
+    print("\n[3] At or above the floor ...")
+    r = build(10, MIN_CONFIDENT_TECHNICAL_EVIDENCE)
+    print("  grounding index : %s" % r.marketing_grounding_index)
+    print("  evidence status : %s" % r.evidence_status)
+    print("  drift alerts    : %d" % len(r.drift_alerts))
+
+    assert r.evidence_status == "conclusive", r.evidence_status
+    assert r.evidence_note is None
+    assert isinstance(r.marketing_grounding_index, float)
+    assert r.drift_alerts, "Genuine unbacked claims must still be reported."
+    assert not any(a.startswith("Provisional") for a in r.drift_alerts)
+    print("  PASS - full-confidence behaviour preserved.")
+
+
+def test_no_claims_and_no_evidence_is_still_inconclusive():
+    """Empty on both sides must not read as a clean bill of health."""
+    print("\n[4] 0 claims, 0 capabilities ...")
+    r = build(0, 0)
+    print("  grounding index : %r | status: %s" % (r.marketing_grounding_index, r.evidence_status))
+    assert r.marketing_grounding_index is None, (
+        "Scored %r with nothing on either side." % (r.marketing_grounding_index,)
+    )
+    assert r.evidence_status == "inconclusive"
+    print("  PASS - empty audit does not report a score.")
+
+
+if __name__ == "__main__":
+    print("=" * 78)
+    print("PRODUCT TRUTH - EVIDENCE GATING")
+    print("=" * 78)
+    test_no_evidence_yields_no_verdict()
+    test_thin_evidence_is_marked_provisional()
+    test_sufficient_evidence_is_unchanged()
+    test_no_claims_and_no_evidence_is_still_inconclusive()
+    print("\n" + "=" * 78)
+    print("ALL EVIDENCE GATING TESTS PASSED")
+    print("A failed docs crawl now reports that it failed, not that the")
+    print("customer's marketing is 0% grounded.")
+    print("=" * 78)

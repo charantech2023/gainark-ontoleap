@@ -493,7 +493,27 @@ class ProductTruthMatrixResponse(BaseModel):
     brand_name: str
     marketing_url: str
     tech_docs_url: Optional[str] = None
-    marketing_grounding_index: float = Field(..., description="Percentage of marketing claims backed by verified technical truth (0-100)")
+    marketing_grounding_index: Optional[float] = Field(
+        default=None,
+        description=(
+            "Percentage of marketing claims backed by verified technical truth (0-100). "
+            "None when the technical documentation could not be read: with no evidence to "
+            "compare against, an unverified claim is unknown, not disproven. Check "
+            "evidence_status before presenting this number."
+        ),
+    )
+    evidence_status: str = Field(
+        default="conclusive",
+        description=(
+            "'conclusive' - enough technical evidence to judge claims. "
+            "'low_confidence' - some evidence, too little to rely on; score is provisional. "
+            "'inconclusive' - no technical capabilities extracted; no score, no drift alerts."
+        ),
+    )
+    evidence_note: Optional[str] = Field(
+        default=None,
+        description="Plain-language explanation when evidence is insufficient to judge claims.",
+    )
     total_marketing_claims: int
     total_technical_capabilities: int
     verified_claims_count: int

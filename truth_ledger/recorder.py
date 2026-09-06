@@ -19,7 +19,7 @@ def record_audit_to_ledger(
     domain: str,
     total_claims: int,
     total_tech: int,
-    mgi: float,
+    mgi: Optional[float],
     verified_claims: List[str],
     drift_alerts: List[str],
     unmarketed_caps: List[str]
@@ -39,10 +39,19 @@ def record_audit_to_ledger(
         drift_preview = f"{len(drift_alerts)} critical drift alerts" if drift_alerts else "0 critical regulatory drifts"
         gold_preview = f"{len(unmarketed_caps)} capabilities" if unmarketed_caps else "0 unmarketed capabilities"
 
+        # mgi is None when the technical documentation could not be read. The ledger is
+        # an audit trail, so it must record that the check did not happen rather than
+        # log a 0% that later reads as a finding against the brand.
+        if mgi is None:
+            mgi_text = "not assessed (technical documentation unreadable)"
+            drift_preview = "not assessed - no technical baseline to compare against"
+        else:
+            mgi_text = f"**{mgi:.1f}%**"
+
         entry_lines = [
             f"\n### {date_str} {time_str} — [PRODUCT TRUTH AUDIT]",
             f"- **Target**: `{brand}` ({domain})",
-            f"- **Grounding Index**: **{mgi:.1f}%** | Marketing Claims: {total_claims} | Technical Capabilities: {total_tech}",
+            f"- **Grounding Index**: {mgi_text} | Marketing Claims: {total_claims} | Technical Capabilities: {total_tech}",
             f"- **Verified Truth**: {verified_preview}",
             f"- **Drift Findings**: {drift_preview}",
             f"- **Unmarketed Engineering Gold**: {gold_preview}\n"

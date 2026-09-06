@@ -32,6 +32,14 @@ from constants import KNOWN_AUTOMATION, KNOWN_COMPLIANCE, KNOWN_PRICING, KNOWN_I
 
 logger = logging.getLogger("gainark.product_truth")
 
+# Minimum technical capabilities required before the grounding score is presented as
+# reliable rather than provisional. Calibrated against observed crawl variance: the
+# same site (ordwaylabs.com) yielded 15, 10 and 5 capabilities across runs, and its
+# reported grounding swung from 80.0% to 5.9% purely on that. Below this floor the
+# comparison is dominated by how much of the documentation happened to be readable,
+# not by how well the marketing is grounded. Raise it as crawl reliability improves.
+MIN_CONFIDENT_TECHNICAL_EVIDENCE = 5
+
 
 def _normalize_concept(text: str) -> str:
     """Normalize concept string for semantic alignment."""
@@ -339,44 +347,93 @@ def build_product_truth_matrix(
     total_technical = len(technical_triples)
     verified_count = len(verified)
 
-    if total_marketing > 0:
+    # Absence of evidence is not evidence of absence. When the docs crawl returns
+    # nothing, every marketing claim looks "unbacked" and the audit reports 0%
+    # grounding plus one drift alert per claim - an accusation built from having
+    # read nothing. Observed live: Chargebee scored 0.0% on 24 claims against 0
+    # extracted capabilities, producing 21 "critical" alerts that were all
+    # artifacts of a failed crawl. Gate the verdict on having evidence to judge with.
+    if total_technical == 0:
+        evidence_status = "inconclusive"
+        evidence_note = (
+            "No technical capabilities could be extracted from the documentation, so "
+            "marketing claims could not be checked against anything. This is a reading "
+            "failure, not a finding about the claims. Common causes: the docs URL is "
+            "wrong or missing, the site blocked the crawler, or the documentation is "
+            "rendered client-side. Supply an OpenAPI/Swagger spec URL for the most "
+            "reliable result."
+        )
+    elif total_technical < MIN_CONFIDENT_TECHNICAL_EVIDENCE:
+        evidence_status = "low_confidence"
+        evidence_note = (
+            f"Only {total_technical} technical capabilities were extracted, below the "
+            f"{MIN_CONFIDENT_TECHNICAL_EVIDENCE} needed for a reliable comparison. The "
+            "score is provisional and unbacked claims may simply be undocumented rather "
+            "than unsupported. Treat alerts below as leads to check, not findings."
+        )
+    else:
+        evidence_status = "conclusive"
+        evidence_note = None
+
+    if evidence_status == "inconclusive":
+        # No score: a percentage here would be read as "0% of your claims are true".
+        mgi = None
+    elif total_marketing > 0:
         mgi = round((verified_count / total_marketing) * 100.0, 1)
     else:
-        mgi = 100.0 if total_technical > 0 else 0.0
+        mgi = 100.0
 
-    # Step 4: Generate Actionable Governance Alerts
+    # Step 4: Generate Actionable Governance Alerts.
+    # Suppressed entirely when inconclusive - with no technical baseline these would
+    # accuse the customer of drift on the strength of a crawl that returned nothing.
     drift_alerts: List[str] = []
-    for u in unbacked:
-        if u.predicate == "compliesWith":
-            drift_alerts.append(f"Regulatory Drift: Marketing claims compliance with '{u.object}', but no corresponding compliance standard or security scheme was verified in technical documentation.")
-        elif u.predicate == "integratesWith":
-            drift_alerts.append(f"Integration Drift: Marketing claims integration with '{u.object}', but no connector, endpoint, or SDK parameter was detected in the technical documentation.")
-        elif u.predicate == "automates":
-            drift_alerts.append(f"Capability Drift: Marketing advertises automated '{u.object}', which is absent from verified API methods and documentation.")
+    if evidence_status != "inconclusive":
+        provisional = "Provisional - " if evidence_status == "low_confidence" else ""
+        for u in unbacked:
+            if u.predicate == "compliesWith":
+                drift_alerts.append(f"{provisional}Regulatory Drift: Marketing claims compliance with '{u.object}', but no corresponding compliance standard or security scheme was verified in technical documentation.")
+            elif u.predicate == "integratesWith":
+                drift_alerts.append(f"{provisional}Integration Drift: Marketing claims integration with '{u.object}', but no connector, endpoint, or SDK parameter was detected in the technical documentation.")
+            elif u.predicate == "automates":
+                drift_alerts.append(f"{provisional}Capability Drift: Marketing advertises automated '{u.object}', which is absent from verified API methods and documentation.")
 
     growth_recs: List[str] = []
     for h in hidden[:5]:
         growth_recs.append(f"Unmarketed Feature: Technical surface proves production support for {h.predicate} '{h.object}' ({h.provenance or 'API'}). Create dedicated marketing landing page copy to capture buyer search intent.")
 
     # Executive Verdict Summary
-    if mgi >= 80.0:
-        status_text = "High Grounding (Marketing tightly aligned with technical reality)"
-    elif mgi >= 50.0:
-        status_text = "Moderate Product Drift (Noticeable gap between marketing promises and technical documentation)"
+    if mgi is None:
+        summary = (
+            f"{brand_name} Marketing Grounding Index: not assessed. "
+            f"{total_marketing} marketing claims were extracted, but no technical capabilities "
+            f"could be read from the documentation, so the claims could not be verified either "
+            f"way. No drift is being alleged. {evidence_note}"
+        )
     else:
-        status_text = "Severe Marketing Drift (High hallucination risk; critical claims lack technical verification)"
+        if mgi >= 80.0:
+            status_text = "High Grounding (Marketing tightly aligned with technical reality)"
+        elif mgi >= 50.0:
+            status_text = "Moderate Product Drift (Noticeable gap between marketing promises and technical documentation)"
+        else:
+            status_text = "Severe Marketing Drift (High hallucination risk; critical claims lack technical verification)"
+        if evidence_status == "low_confidence":
+            status_text = f"Provisional - {status_text}"
 
-    summary = (
-        f"{brand_name} Marketing Grounding Index: {mgi:.1f}/100 ({status_text}). "
-        f"Verified {verified_count}/{total_marketing} marketing claims against {total_technical} technical capabilities. "
-        f"Flagged {len(unbacked)} unbacked marketing claims and identified {len(hidden)} unmarketed engineering capabilities."
-    )
+        summary = (
+            f"{brand_name} Marketing Grounding Index: {mgi:.1f}/100 ({status_text}). "
+            f"Verified {verified_count}/{total_marketing} marketing claims against {total_technical} technical capabilities. "
+            f"Flagged {len(unbacked)} unbacked marketing claims and identified {len(hidden)} unmarketed engineering capabilities."
+        )
+        if evidence_note:
+            summary += f" {evidence_note}"
 
     return ProductTruthMatrixResponse(
         brand_name=brand_name,
         marketing_url=marketing_url,
         tech_docs_url=tech_docs_url,
         marketing_grounding_index=mgi,
+        evidence_status=evidence_status,
+        evidence_note=evidence_note,
         total_marketing_claims=total_marketing,
         total_technical_capabilities=total_technical,
         verified_claims_count=verified_count,
