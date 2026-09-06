@@ -420,6 +420,32 @@ def api_info():
     }
 
 
+@app.get("/api/competitor-changes", summary="What a brand has started or stopped claiming")
+def competitor_changes(brand: Optional[str] = None):
+    """
+    Reports how a brand's claims have moved between audits, from the append-only
+    history the platform already writes on every Product Truth run.
+
+    Without `brand`, lists the brands that have history and how much. With `brand`,
+    returns every consecutive change: claims added, claims dropped, claims that gained
+    or lost technical backing, and grounding movement.
+
+    Changes carry `low_confidence` when the comparison should not be read as news -
+    audits taken minutes apart, a crawl that could not read the documentation, or a
+    capability count that swung far enough to be measurement noise. This crawler has
+    produced 15, 10 and 5 capabilities for one site in a single morning, so an
+    unqualified "they dropped a claim" would be wrong more often than right.
+    """
+    try:
+        from truth_ledger.history import brand_timeline, tracked_brands
+        if not brand:
+            return {"brands": tracked_brands()}
+        return brand_timeline(brand)
+    except Exception as exc:
+        logger.error("Competitor change tracking failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not read audit history.")
+
+
 @app.get("/api/health")
 def health():
     return {

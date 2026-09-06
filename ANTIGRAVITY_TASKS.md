@@ -182,3 +182,36 @@ and then listed three, with the schema and entity weights swapped and a componen
 `generate_pitch_pdf.py`, and `test_rubric_consistency.py` now measures the real component
 ceilings by driving the scoring function to saturation and checks every documented weight
 claim counts and sums to 100.
+
+---
+
+## Task 5 — Competitor change tracking from the ledger
+
+**Why.** Competitive intelligence is mostly about noticing change. "Chargebee started
+claiming SOC 2 three weeks ago" is worth more to a product marketer than any single
+snapshot, and the platform already audits competitors on a recurring basis.
+
+**What exists.** `truth_ledger/log.md` records every Product Truth audit and every
+Tri-Ontology alignment with a UTC timestamp, brand, domain, grounding index and
+counts. `recorder.py` has two writers, both `open(LOG_FILE, "a")`. Nothing anywhere
+reads the file back — the history is written and never used.
+
+**The catch.** The markdown is lossy by design: `verified_preview` truncates to the
+first five claims and appends "(+N more)". Grounding index, claim counts and drift
+counts are recoverable; the full claim set is not. Claim-level change detection
+therefore needs a complete record written alongside the human-readable log, not a
+cleverer parser.
+
+**Change.**
+- append a machine-readable snapshot per audit (`truth_ledger/history.jsonl`) holding
+  the full verified / unbacked / hidden claim sets, not a preview
+- a change detector that diffs consecutive snapshots for the same brand and reports
+  claims added, claims dropped, and grounding movement
+- backfill what the existing markdown can support, so the feature has history on day
+  one rather than starting empty
+- expose it, and distinguish a real change from a crawl artifact: this codebase has
+  already shown the same site yielding 15, 10 and 5 capabilities across runs, so a
+  claim "disappearing" is at least as likely to mean the crawler had a bad day
+
+**Acceptance.** Auditing a brand twice with different claims reports exactly what
+changed; auditing it twice with identical claims reports nothing.

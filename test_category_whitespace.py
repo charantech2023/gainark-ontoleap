@@ -62,10 +62,24 @@ def matrix(brand: str, verified: List[str], unbacked: List[str] = (), hidden: Li
     )
 
 
+def _silence_ledger():
+    """Keep fixture audits out of the real append-only ledger."""
+    try:
+        import truth_ledger.recorder as recorder
+        recorder.record_alignment_to_ledger = lambda **kw: True
+        recorder.record_audit_to_ledger = lambda **kw: True
+    except Exception:
+        pass
+
+
 def align(monkeypatched_briefs=True):
     # The brief synthesiser calls Gemini; stub it so this suite stays offline.
+    # Also stub the ledger writer: align_tri_ontologies appends to the real
+    # truth_ledger/log.md, and fixture brands ("Acme vs Rival") landing there become
+    # phantom competitors in the change-tracking history that reads that file.
     if monkeypatched_briefs:
         competitive_alignment.synthesize_counter_positioning_briefs = lambda **kw: []
+    _silence_ledger()
     return competitive_alignment.align_tri_ontologies(
         company_matrix=matrix("Acme", verified=["Electronic Health Record", "Clinical Documentation"]),
         competitor_matrices=[matrix("Rival", verified=["Telehealth"], unbacked=["HIPAA"])],

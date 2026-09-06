@@ -5,3 +5,5 @@ __pycache__/
 .pytest_cache/
 .env
 *.log
+# Derived audit history: regenerated from truth_ledger/log.md on first read.
+truth_ledger/history.jsonl

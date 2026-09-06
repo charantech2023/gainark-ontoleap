@@ -860,7 +860,15 @@ def execute_product_truth_audit(
         except Exception as check_err:
             logger.debug("Executable checks runner notice: %s", check_err)
 
-    # 5. Append to Compounding Truth Ledger
+    # 5. Append to Compounding Truth Ledger.
+    # The markdown log is human-readable and lossy (verified claims truncate at five),
+    # so a complete snapshot goes to history.jsonl alongside it for change tracking.
+    try:
+        from truth_ledger.history import record_snapshot
+        record_snapshot(matrix)
+    except Exception as hist_err:
+        logger.debug("History snapshot notice: %s", hist_err)
+
     try:
         from truth_ledger.recorder import record_audit_to_ledger
         verified_strs = [f"{vc.object} ({vc.predicate})" for vc in matrix.verified_triples]
