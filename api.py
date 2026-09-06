@@ -559,6 +559,24 @@ def api_execute_sparql(req: SparqlQueryRequest):
     """
     Executes a W3C SPARQL 1.1 query against an in-memory RDF knowledge graph
     using RDFLib's native SPARQL engine and returns structured column and row bindings.
+
+    Supported standard prefixes:
+    - prov:  <http://www.w3.org/ns/prov#>   (W3C PROV-O Provenance)
+    - skos:  <http://www.w3.org/2004/02/skos/core#> (W3C SKOS Taxonomies)
+    - schema: <https://schema.org/>
+    - onto:  <https://{domain}/ontology/>
+
+    Example PROV-O Provenance Query:
+      SELECT ?entity ?source ?quote WHERE {
+        ?entity a prov:Entity ;
+                prov:hadPrimarySource ?source ;
+                prov:wasQuotedFrom ?quote .
+      }
+
+    Example SKOS Hierarchy Rollup Query:
+      SELECT ?child ?parent WHERE {
+        ?child skos:broader ?parent .
+      }
     """
     if not req.rdf_turtle or not req.rdf_turtle.strip():
         raise HTTPException(status_code=400, detail="Must provide 'rdf_turtle' to query against. Please run an internal links audit first.")
@@ -640,6 +658,64 @@ def api_export_owl(req: OwlExportRequest):
     except Exception as e:
         logger.error("Failed to generate OWL ontology: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to generate OWL ontology.")
+
+
+@app.post("/api/export-product-truth-prov", summary="Export Product Truth Matrix as W3C PROV-O & SKOS RDF Turtle")
+def api_export_product_truth_prov(matrix: ProductTruthMatrixResponse):
+    """
+    Exports a Product Truth Matrix as an auditable W3C PROV-O and SKOS RDF Turtle graph (.ttl).
+    Asserts formal prov:wasDerivedFrom links, primary sources, and SKOS concept hierarchies.
+    """
+    try:
+        from product_truth import export_product_truth_to_prov_ttl
+        pipeline = get_default_pipeline()
+        ttl_content = export_product_truth_to_prov_ttl(matrix, getattr(pipeline, "config", None))
+        return PlainTextResponse(content=ttl_content, media_type="text/turtle")
+    except Exception as e:
+        logger.error("Failed to export Product Truth PROV Turtle: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to export Product Truth PROV Turtle.")
+
+
+class ShaclValidationRequest(BaseModel):
+    rdf_turtle: str = Field(..., max_length=1_000_000, description="RDF Turtle serialization to validate against SHACL governance shapes")
+    shapes_turtle: Optional[str] = Field(default=None, max_length=500_000, description="Optional custom SHACL shapes Turtle. Defaults to built-in OntoLeap governance shapes.")
+
+
+class ShaclValidationResponse(BaseModel):
+    conforms: bool
+    violations_count: int
+    violations: List[Dict[str, Any]]
+    report_text: str
+    evaluated_triples_count: int
+    status: str = "success"
+
+
+@app.post("/api/validate-kg-shacl", response_model=ShaclValidationResponse, summary="Validate RDF Knowledge Graph with W3C SHACL")
+def api_validate_kg_shacl(req: ShaclValidationRequest):
+    """
+    Validates an RDF Turtle knowledge graph against W3C SHACL governance shapes.
+    Enforces that:
+    - Every claim entity has an evidence quote (prov:wasQuotedFrom).
+    - Every claim has a primary source (prov:hadPrimarySource) or derivation (prov:wasDerivedFrom).
+    - Claims marked as VERIFIED_TRUTH derive from at least 2 sources (marketing + technical).
+    - SKOS Concepts have a prefLabel and are in a ConceptScheme.
+    """
+    if not req.rdf_turtle or not req.rdf_turtle.strip():
+        raise HTTPException(status_code=400, detail="Must provide 'rdf_turtle' string to validate.")
+    try:
+        from shacl_validator import validate_rdf_graph_shacl
+        rep = validate_rdf_graph_shacl(req.rdf_turtle, shapes_graph_or_ttl=req.shapes_turtle)
+        return ShaclValidationResponse(
+            conforms=rep.conforms,
+            violations_count=rep.violations_count,
+            violations=[v.model_dump() for v in rep.violations],
+            report_text=rep.report_text,
+            evaluated_triples_count=rep.evaluated_triples_count,
+            status="success"
+        )
+    except Exception as e:
+        logger.error("SHACL validation failure: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"SHACL validation error: {str(e)}")
 
 
 class SemanticClustersRequest(BaseModel):

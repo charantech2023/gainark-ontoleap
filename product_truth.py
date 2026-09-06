@@ -19,14 +19,17 @@ import time
 import socket
 import logging
 from urllib.parse import urlparse
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Set, Tuple
 import requests
 from bs4 import BeautifulSoup
+from rdflib import Graph, Literal, RDF, RDFS, URIRef, Namespace, XSD
 
 from models import (
     SemanticTriple,
     ProductTruthRequest,
-    ProductTruthMatrixResponse
+    ProductTruthMatrixResponse,
+    VerticalConfig
 )
 from pipeline import OntologyPipeline, validate_url_for_fetch
 from scraper import smart_fetch
@@ -886,4 +889,192 @@ def execute_product_truth_audit(
     except Exception as rec_err:
         logger.debug("Truth ledger append error: %s", rec_err)
 
+    # 6. Generate W3C PROV-O & SKOS Knowledge Graph Serialization
+    try:
+        matrix.rdf_turtle = export_product_truth_to_prov_ttl(matrix, getattr(pipeline, "config", None))
+    except Exception as prov_err:
+        logger.warning("Failed to serialize Product Truth to PROV-O Turtle: %s", prov_err)
+
     return matrix
+
+
+def export_product_truth_to_prov_ttl(
+    matrix: ProductTruthMatrixResponse,
+    vertical_config: Optional[VerticalConfig] = None
+) -> str:
+    """
+    Serializes the complete Product Truth Matrix into a W3C PROV-O & SKOS compliant
+    RDF Turtle (.ttl) knowledge graph.
+
+    Formal Provenance Architecture:
+    - prov:SoftwareAgent: GainARK OntoLeap Dual Ingestion & Cross-Examination Engine
+    - prov:Activity: ProductTruthCrossExamination
+    - Marketing Document: prov:Entity with prov:hadPrimarySource
+    - Technical Specification / Docs: prov:Entity with prov:hadPrimarySource
+    - Verified Capabilities: prov:Entity with prov:wasDerivedFrom BOTH marketing & technical sources
+    - Unbacked Fluff Claims: prov:Entity with prov:wasDerivedFrom ONLY marketing source
+    - Hidden Capabilities: prov:Entity with prov:wasDerivedFrom ONLY technical documentation source
+    - Category Taxonomy: skos:ConceptScheme & skos:Concept with skos:broader / skos:narrower hierarchies
+    """
+    domain = urlparse(matrix.marketing_url).netloc.replace("www.", "") if matrix.marketing_url else "example.com"
+    brand = matrix.brand_name or (domain.split(".")[0].capitalize() if domain else "Platform")
+    brand_clean = re.sub(r'[^a-zA-Z0-9]+', '', brand) or "Platform"
+
+    g = Graph()
+    SCHEMA = Namespace("https://schema.org/")
+    LOCAL = Namespace(f"https://{domain}/ontology/")
+    PROV = Namespace("http://www.w3.org/ns/prov#")
+    SKOS = Namespace("http://www.w3.org/2004/02/skos/core#")
+    DCTERMS = Namespace("http://purl.org/dc/terms/")
+    DCAT = Namespace("http://www.w3.org/ns/dcat#")
+
+    g.bind("schema", SCHEMA)
+    g.bind("onto", LOCAL)
+    g.bind("rdfs", RDFS)
+    g.bind("rdf", RDF)
+    g.bind("prov", PROV)
+    g.bind("skos", SKOS)
+    g.bind("dcterms", DCTERMS)
+    g.bind("dcat", DCAT)
+
+    root_uri = URIRef(f"https://{domain}/#{brand_clean}")
+    g.add((root_uri, RDF.type, SCHEMA.SoftwareApplication))
+    g.add((root_uri, RDF.type, SCHEMA.Organization))
+    g.add((root_uri, SCHEMA.name, Literal(brand)))
+    if matrix.marketing_url:
+        g.add((root_uri, SCHEMA.url, URIRef(matrix.marketing_url)))
+
+    # MGI score as metadata on root
+    if matrix.marketing_grounding_index is not None:
+        g.add((root_uri, LOCAL.marketingGroundingIndex, Literal(float(matrix.marketing_grounding_index), datatype=XSD.float)))
+
+    now_utc = datetime.now(timezone.utc)
+    now_iso = now_utc.isoformat()
+    now_tag = now_utc.strftime("%Y%m%d%H%M%S")
+
+    # Agent
+    agent_uri = URIRef(f"https://{domain}/#ontoleap-agent")
+    g.add((agent_uri, RDF.type, PROV.SoftwareAgent))
+    g.add((agent_uri, RDFS.label, Literal("GainARK OntoLeap Product Truth Engine")))
+
+    # Activity
+    activity_uri = URIRef(f"https://{domain}/activity/product-truth-{now_tag}")
+    g.add((activity_uri, RDF.type, PROV.Activity))
+    g.add((activity_uri, RDFS.label, Literal(f"Product Truth Cross-Examination for {brand}")))
+    g.add((activity_uri, PROV.wasAssociatedWith, agent_uri))
+    g.add((activity_uri, PROV.startedAtTime, Literal(now_iso, datatype=XSD.dateTime)))
+    g.add((activity_uri, PROV.endedAtTime, Literal(now_iso, datatype=XSD.dateTime)))
+
+    # W3C DCAT & Dublin Core Dataset Cataloging & Governance Metadata
+    dataset_uri = URIRef(f"https://{domain}/dataset/product-truth")
+    g.add((dataset_uri, RDF.type, DCAT.Dataset))
+    g.add((dataset_uri, DCTERMS.title, Literal(f"{brand} Product Truth Governance Matrix")))
+    g.add((dataset_uri, DCTERMS.description, Literal(f"Dual-ingestion product truth audit dataset cross-examining marketing claims against technical specs for {brand}.")))
+    g.add((dataset_uri, DCTERMS.creator, agent_uri))
+    g.add((dataset_uri, DCTERMS.created, Literal(now_iso, datatype=XSD.dateTime)))
+    g.add((dataset_uri, DCTERMS.modified, Literal(now_iso, datatype=XSD.dateTime)))
+    g.add((dataset_uri, DCTERMS.license, URIRef("https://creativecommons.org/licenses/by/4.0/")))
+    g.add((dataset_uri, PROV.wasGeneratedBy, activity_uri))
+
+    # Source entities
+    mktg_doc_uri = URIRef(matrix.marketing_url) if matrix.marketing_url and matrix.marketing_url.startswith("http") else URIRef(f"https://{domain}/source/marketing")
+    g.add((mktg_doc_uri, RDF.type, PROV.Entity))
+    g.add((mktg_doc_uri, RDFS.label, Literal(f"{brand} Marketing Web Surface")))
+    if matrix.marketing_url and matrix.marketing_url.startswith("http"):
+        g.add((mktg_doc_uri, PROV.hadPrimarySource, URIRef(matrix.marketing_url)))
+
+    tech_doc_uri = None
+    if matrix.tech_docs_url:
+        tech_doc_uri = URIRef(matrix.tech_docs_url) if matrix.tech_docs_url.startswith("http") else URIRef(f"https://{domain}/source/techdocs")
+        g.add((tech_doc_uri, RDF.type, PROV.Entity))
+        g.add((tech_doc_uri, RDFS.label, Literal(f"{brand} Technical Documentation / OpenAPI Spec")))
+        if matrix.tech_docs_url.startswith("http"):
+            g.add((tech_doc_uri, PROV.hadPrimarySource, URIRef(matrix.tech_docs_url)))
+
+    # Taxonomy via SKOS if vertical_config provided
+    skos_concepts = set()
+    v_id = getattr(vertical_config, "vertical_id", "b2b_saas_fintech")
+    scheme_uri = URIRef(f"https://{domain}/taxonomy/{v_id}")
+    g.add((scheme_uri, RDF.type, SKOS.ConceptScheme))
+    g.add((scheme_uri, SKOS.prefLabel, Literal(getattr(vertical_config, "display_name", f"{v_id} Taxonomy"))))
+
+    hierarchy = getattr(vertical_config, "concept_hierarchy", {}) or {}
+    for child_c, parent_c in hierarchy.items():
+        child_clean = re.sub(r'[^a-zA-Z0-9]+', '', child_c)
+        parent_clean = re.sub(r'[^a-zA-Z0-9]+', '', parent_c)
+        c_uri = URIRef(f"https://{domain}/concept/{child_clean}")
+        p_uri = URIRef(f"https://{domain}/concept/{parent_clean}")
+
+        if child_c not in skos_concepts:
+            g.add((c_uri, RDF.type, SKOS.Concept))
+            g.add((c_uri, SKOS.inScheme, scheme_uri))
+            g.add((c_uri, SKOS.prefLabel, Literal(child_c)))
+            skos_concepts.add(child_c)
+
+        if parent_c not in skos_concepts:
+            g.add((p_uri, RDF.type, SKOS.Concept))
+            g.add((p_uri, SKOS.inScheme, scheme_uri))
+            g.add((p_uri, SKOS.prefLabel, Literal(parent_c)))
+            skos_concepts.add(parent_c)
+
+        g.add((c_uri, SKOS.broader, p_uri))
+        g.add((p_uri, SKOS.narrower, c_uri))
+
+    pred_map = {
+        "automates": SCHEMA.potentialAction,
+        "integratesWith": SCHEMA.isRelatedTo,
+        "compliesWith": SCHEMA.legislationApplies,
+        "supportsPricingModel": SCHEMA.priceSpecification
+    }
+
+    def _add_capability_node(t: SemanticTriple, status: str, derives_from_marketing: bool, derives_from_tech: bool):
+        obj_clean = re.sub(r'[^a-zA-Z0-9]+', '', t.object)
+        if not obj_clean:
+            return
+        cap_uri = URIRef(f"https://{domain}/entity/{obj_clean}")
+        rel = pred_map.get(t.predicate, SCHEMA.knowsAbout)
+        g.add((root_uri, rel, cap_uri))
+        g.add((cap_uri, RDFS.label, Literal(t.object)))
+        if t.predicate in pred_map:
+            g.add((cap_uri, RDF.type, LOCAL[t.predicate.capitalize()]))
+
+        # PROV-O
+        g.add((cap_uri, RDF.type, PROV.Entity))
+        g.add((cap_uri, PROV.wasGeneratedBy, activity_uri))
+        g.add((cap_uri, PROV.wasAttributedTo, agent_uri))
+        g.add((cap_uri, PROV.generatedAtTime, Literal(now_iso, datatype=XSD.dateTime)))
+        g.add((cap_uri, LOCAL.groundingStatus, Literal(status)))
+
+        if t.evidence_sentence:
+            g.add((cap_uri, SCHEMA.description, Literal(t.evidence_sentence)))
+            g.add((cap_uri, PROV.wasQuotedFrom, Literal(t.evidence_sentence)))
+
+        if derives_from_marketing:
+            g.add((cap_uri, PROV.wasDerivedFrom, mktg_doc_uri))
+
+        if derives_from_tech and tech_doc_uri:
+            g.add((cap_uri, PROV.wasDerivedFrom, tech_doc_uri))
+        elif derives_from_tech and t.provenance:
+            endpoint_clean = re.sub(r'[^a-zA-Z0-9]+', '', t.provenance)
+            ep_uri = URIRef(f"https://{domain}/source/endpoint_{endpoint_clean}")
+            g.add((ep_uri, RDF.type, PROV.Entity))
+            g.add((ep_uri, RDFS.label, Literal(f"API Endpoint: {t.provenance}")))
+            g.add((cap_uri, PROV.wasDerivedFrom, ep_uri))
+
+        for sc in skos_concepts:
+            if sc.lower() == t.object.lower():
+                c_clean = re.sub(r'[^a-zA-Z0-9]+', '', sc)
+                g.add((cap_uri, SKOS.related, URIRef(f"https://{domain}/concept/{c_clean}")))
+                break
+
+    for vt in matrix.verified_triples:
+        _add_capability_node(vt, "VERIFIED_TRUTH", derives_from_marketing=True, derives_from_tech=True)
+
+    for uc in matrix.unbacked_claims:
+        _add_capability_node(uc, "MARKETING_DRIFT_FLUFF", derives_from_marketing=True, derives_from_tech=False)
+
+    for hc in matrix.hidden_capabilities:
+        _add_capability_node(hc, "UNMARKETED_CAPABILITY", derives_from_marketing=False, derives_from_tech=True)
+
+    return g.serialize(format="turtle")
+

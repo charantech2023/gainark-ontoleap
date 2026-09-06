@@ -35,7 +35,6 @@ import httpx
 from bs4 import BeautifulSoup
 import extruct
 import trafilatura
-from gliner import GLiNER
 
 from models import (
     VerticalConfig, ExtractionResult, EntityMatch, SchemaOrgData,
@@ -76,12 +75,13 @@ class OntologyPipeline:
                 self.config = VerticalConfig(**data)
 
         self.gliner_model_name = gliner_model_name
-        self._model: Optional[GLiNER] = None
+        self._model: Optional[Any] = None
 
     @property
-    def model(self) -> GLiNER:
+    def model(self) -> Any:
         if self._model is None:
-            logger.info("Loading GLiNER model: %s", self.gliner_model_name)
+            logger.info("Loading GLiNER model on-demand: %s", self.gliner_model_name)
+            from gliner import GLiNER
             self._model = GLiNER.from_pretrained(self.gliner_model_name)
         return self._model
 

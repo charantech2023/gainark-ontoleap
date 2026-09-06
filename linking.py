@@ -22,10 +22,13 @@ This module provides enterprise-grade semantic SEO and knowledge graph capabilit
    against the in-memory RDF triple store.
 """
 
+import os
 import re
+import json
 import asyncio
 import logging
 import html as html_module
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Set, Tuple
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
@@ -1066,20 +1069,31 @@ def build_rdf_graph(
     domain: str,
     triples: List[SemanticTriple],
     hubs: Dict[str, str],
-    entities: List[str]
+    entities: List[str],
+    concept_hierarchy: Optional[Dict[str, str]] = None,
+    vertical_id: Optional[str] = None
 ) -> Graph:
     """
-    Constructs an in-memory RDFLib Graph with standard W3C and Schema.org namespaces,
-    connecting the organization root, capabilities, integrations, and canonical topic hubs.
+    Constructs an in-memory RDFLib Graph with standard W3C (Schema.org, PROV-O, SKOS) namespaces,
+    connecting the organization root, capabilities, integrations, canonical topic hubs,
+    hierarchical category taxonomies (SKOS), and evidentiary provenance chains (PROV-O).
     """
     g = Graph()
     SCHEMA = Namespace("https://schema.org/")
     LOCAL = Namespace(f"https://{domain}/ontology/")
+    PROV = Namespace("http://www.w3.org/ns/prov#")
+    SKOS = Namespace("http://www.w3.org/2004/02/skos/core#")
+    DCTERMS = Namespace("http://purl.org/dc/terms/")
+    DCAT = Namespace("http://www.w3.org/ns/dcat#")
 
     g.bind("schema", SCHEMA)
     g.bind("onto", LOCAL)
     g.bind("rdfs", RDFS)
     g.bind("rdf", RDF)
+    g.bind("prov", PROV)
+    g.bind("skos", SKOS)
+    g.bind("dcterms", DCTERMS)
+    g.bind("dcat", DCAT)
 
     brand = triples[0].subject if triples else domain.split(".")[0].capitalize()
     brand_clean = re.sub(r'[^a-zA-Z0-9]+', '', brand) or "Platform"
@@ -1094,6 +1108,86 @@ def build_rdf_graph(
     # Check if brand matches Wikidata
     if brand.lower() in WIKIDATA_KNOWLEDGE_BASE:
         g.add((root_uri, SCHEMA.sameAs, URIRef(WIKIDATA_KNOWLEDGE_BASE[brand.lower()])))
+
+    # W3C PROV-O: SoftwareAgent & Activity Definitions
+    now_utc = datetime.now(timezone.utc)
+    now_iso = now_utc.isoformat()
+    now_tag = now_utc.strftime("%Y%m%d%H%M%S")
+
+    agent_uri = URIRef(f"https://{domain}/#ontoleap-agent")
+    g.add((agent_uri, RDF.type, PROV.SoftwareAgent))
+    g.add((agent_uri, RDFS.label, Literal("GainARK OntoLeap Engine")))
+    g.add((agent_uri, SCHEMA.name, Literal("OntoLeap Knowledge Graph & Governance Engine")))
+
+    activity_uri = URIRef(f"https://{domain}/activity/audit-{now_tag}")
+    g.add((activity_uri, RDF.type, PROV.Activity))
+    g.add((activity_uri, RDFS.label, Literal(f"Ontology Extraction and Audit for {domain}")))
+    g.add((activity_uri, PROV.wasAssociatedWith, agent_uri))
+    g.add((activity_uri, PROV.startedAtTime, Literal(now_iso, datatype=XSD.dateTime)))
+    g.add((activity_uri, PROV.endedAtTime, Literal(now_iso, datatype=XSD.dateTime)))
+
+    # W3C DCAT & Dublin Core Dataset Cataloging & Governance Metadata
+    dataset_uri = URIRef(f"https://{domain}/dataset/knowledge-graph")
+    g.add((dataset_uri, RDF.type, DCAT.Dataset))
+    g.add((dataset_uri, DCTERMS.title, Literal(f"{brand} Enterprise Knowledge Graph")))
+    g.add((dataset_uri, DCTERMS.description, Literal(f"Formal semantic knowledge graph and competitive intelligence for {brand}.")))
+    g.add((dataset_uri, DCTERMS.creator, agent_uri))
+    g.add((dataset_uri, DCTERMS.created, Literal(now_iso, datatype=XSD.dateTime)))
+    g.add((dataset_uri, DCTERMS.modified, Literal(now_iso, datatype=XSD.dateTime)))
+    g.add((dataset_uri, DCTERMS.license, URIRef("https://creativecommons.org/licenses/by/4.0/")))
+    g.add((dataset_uri, PROV.wasGeneratedBy, activity_uri))
+
+    # W3C SKOS: Category Taxonomy Concept Scheme & Hierarchy
+    v_id = vertical_id or "b2b_saas_fintech"
+    scheme_uri = URIRef(f"https://{domain}/taxonomy/{v_id}")
+    g.add((scheme_uri, RDF.type, SKOS.ConceptScheme))
+    g.add((scheme_uri, SKOS.prefLabel, Literal(f"{domain} Category Taxonomy ({v_id})")))
+    g.add((scheme_uri, PROV.wasGeneratedBy, activity_uri))
+    g.add((scheme_uri, PROV.wasAttributedTo, agent_uri))
+
+    # Load concept_hierarchy if not passed explicitly
+    if not concept_hierarchy:
+        try:
+            curr_dir = os.path.dirname(os.path.abspath(__file__))
+            v_specific = os.path.join(curr_dir, "verticals", f"{v_id}.json")
+            if os.path.exists(v_specific):
+                with open(v_specific, "r", encoding="utf-8") as vf:
+                    cdata = json.load(vf)
+                    concept_hierarchy = cdata.get("concept_hierarchy", {})
+            if not concept_hierarchy:
+                v_file = os.path.join(curr_dir, "vertical_config.json")
+                if os.path.exists(v_file):
+                    with open(v_file, "r", encoding="utf-8") as vf:
+                        cdata = json.load(vf)
+                        concept_hierarchy = cdata.get("concept_hierarchy", {})
+        except Exception:
+            concept_hierarchy = {}
+
+    concept_hierarchy = concept_hierarchy or {}
+    skos_concepts_created: Set[str] = set()
+
+    def _make_concept_uri(c_name: str) -> URIRef:
+        c_clean = re.sub(r'[^a-zA-Z0-9]+', '', c_name) or "Concept"
+        return URIRef(f"https://{domain}/concept/{c_clean}")
+
+    for child_c, parent_c in concept_hierarchy.items():
+        child_uri = _make_concept_uri(child_c)
+        parent_uri = _make_concept_uri(parent_c)
+
+        if child_c not in skos_concepts_created:
+            g.add((child_uri, RDF.type, SKOS.Concept))
+            g.add((child_uri, SKOS.inScheme, scheme_uri))
+            g.add((child_uri, SKOS.prefLabel, Literal(child_c)))
+            skos_concepts_created.add(child_c)
+
+        if parent_c not in skos_concepts_created:
+            g.add((parent_uri, RDF.type, SKOS.Concept))
+            g.add((parent_uri, SKOS.inScheme, scheme_uri))
+            g.add((parent_uri, SKOS.prefLabel, Literal(parent_c)))
+            skos_concepts_created.add(parent_c)
+
+        g.add((child_uri, SKOS.broader, parent_uri))
+        g.add((parent_uri, SKOS.narrower, child_uri))
 
     pred_map = {
         "automates": SCHEMA.potentialAction,
@@ -1122,6 +1216,53 @@ def build_rdf_graph(
             if t.evidence_sentence:
                 g.add((obj_uri, SCHEMA.description, Literal(t.evidence_sentence)))
 
+            # W3C PROV-O Lineage & Evidentiary Grounding
+            g.add((obj_uri, RDF.type, PROV.Entity))
+            g.add((obj_uri, PROV.wasGeneratedBy, activity_uri))
+            g.add((obj_uri, PROV.wasAttributedTo, agent_uri))
+            g.add((obj_uri, PROV.generatedAtTime, Literal(now_iso, datatype=XSD.dateTime)))
+
+            if t.evidence_sentence:
+                g.add((obj_uri, PROV.wasQuotedFrom, Literal(t.evidence_sentence)))
+
+            if t.provenance:
+                if " ⟷ " in t.provenance:
+                    m_src, t_src = t.provenance.split(" ⟷ ", 1)
+                    m_src = m_src.strip()
+                    t_src = t_src.strip()
+                    if m_src:
+                        m_clean = re.sub(r'[^a-zA-Z0-9]+', '', m_src) or "mktg"
+                        m_uri = URIRef(m_src) if m_src.startswith("http") else URIRef(f"https://{domain}/source/{m_clean}")
+                        g.add((obj_uri, PROV.wasDerivedFrom, m_uri))
+                        g.add((m_uri, RDF.type, PROV.Entity))
+                        g.add((m_uri, RDFS.label, Literal(f"Marketing Source: {m_src}")))
+                    if t_src:
+                        t_clean = re.sub(r'[^a-zA-Z0-9]+', '', t_src) or "tech"
+                        t_uri = URIRef(t_src) if t_src.startswith("http") else URIRef(f"https://{domain}/source/{t_clean}")
+                        g.add((obj_uri, PROV.wasDerivedFrom, t_uri))
+                        g.add((t_uri, RDF.type, PROV.Entity))
+                        g.add((t_uri, RDFS.label, Literal(f"Technical Spec: {t_src}")))
+                else:
+                    src = t.provenance.strip()
+                    src_clean = re.sub(r'[^a-zA-Z0-9]+', '', src) or "source"
+                    src_uri = URIRef(src) if src.startswith("http") else URIRef(f"https://{domain}/source/{src_clean}")
+                    g.add((obj_uri, PROV.hadPrimarySource, src_uri))
+                    g.add((src_uri, RDF.type, PROV.Entity))
+                    g.add((src_uri, RDFS.label, Literal(f"Primary Source: {src}")))
+
+            # Link capability to SKOS concept if applicable
+            matched_skos = None
+            if t.object in skos_concepts_created:
+                matched_skos = t.object
+            else:
+                for sc in skos_concepts_created:
+                    if sc.lower() == t.object.lower():
+                        matched_skos = sc
+                        break
+            if matched_skos:
+                c_uri = _make_concept_uri(matched_skos)
+                g.add((obj_uri, SKOS.related, c_uri))
+
             # Canonical Wikidata Entity Grounding
             obj_lower = t.object.lower().strip()
             if obj_lower in WIKIDATA_KNOWLEDGE_BASE:
@@ -1138,6 +1279,17 @@ def build_rdf_graph(
             g.add((hub_uri, SCHEMA.about, Literal(concept)))
             g.add((hub_uri, SCHEMA.name, Literal(f"{concept} Canonical Authority Hub")))
             g.add((hub_uri, SCHEMA.url, hub_uri))
+
+            # PROV-O & SKOS for topic hub
+            g.add((hub_uri, RDF.type, PROV.Entity))
+            g.add((hub_uri, PROV.hadPrimarySource, hub_uri))
+            c_uri = _make_concept_uri(concept)
+            if concept not in skos_concepts_created:
+                g.add((c_uri, RDF.type, SKOS.Concept))
+                g.add((c_uri, SKOS.inScheme, scheme_uri))
+                g.add((c_uri, SKOS.prefLabel, Literal(concept)))
+                skos_concepts_created.add(concept)
+            g.add((hub_uri, SKOS.related, c_uri))
 
             concept_lower = concept.lower().strip()
             if concept_lower in WIKIDATA_KNOWLEDGE_BASE:
@@ -1156,13 +1308,16 @@ def export_to_rdf_turtle(
     domain: str,
     triples: List[SemanticTriple],
     hubs: Dict[str, str],
-    entities: List[str]
+    entities: List[str],
+    concept_hierarchy: Optional[Dict[str, str]] = None,
+    vertical_id: Optional[str] = None
 ) -> str:
     """
-    Serializes the unified site knowledge graph, semantic triples, and canonical topic hubs
-    into W3C standard RDF Turtle (.ttl) format with canonical Wikidata entity grounding.
+    Serializes the unified site knowledge graph, semantic triples, canonical topic hubs,
+    and W3C PROV-O / SKOS structures into W3C standard RDF Turtle (.ttl) format with
+    canonical Wikidata entity grounding.
     """
-    g = build_rdf_graph(domain, triples, hubs, entities)
+    g = build_rdf_graph(domain, triples, hubs, entities, concept_hierarchy=concept_hierarchy, vertical_id=vertical_id)
     return g.serialize(format="turtle")
 
 
@@ -1170,14 +1325,18 @@ def export_to_rdf_ntriples(
     domain: str,
     triples: List[SemanticTriple],
     hubs: Dict[str, str],
-    entities: List[str]
+    entities: List[str],
+    concept_hierarchy: Optional[Dict[str, str]] = None,
+    vertical_id: Optional[str] = None
 ) -> str:
     """
-    Serializes the unified site knowledge graph into W3C standard N-Triples (.nt) format.
+    Serializes the unified site knowledge graph into W3C standard N-Triples (.nt) format
+    with full PROV-O provenance and SKOS taxonomy triples.
     Ideal for high-throughput streaming triple stores and bulk database ingestion.
     """
-    g = build_rdf_graph(domain, triples, hubs, entities)
+    g = build_rdf_graph(domain, triples, hubs, entities, concept_hierarchy=concept_hierarchy, vertical_id=vertical_id)
     return g.serialize(format="nt")
+
 
 
 def execute_sparql_query_on_ttl(turtle_data: str, sparql_query: str) -> Dict[str, Any]:
@@ -1248,6 +1407,7 @@ def build_owl_ontology(
     g = Graph()
     ONTO = Namespace(f"https://{domain}/ontology#")
     SCHEMA = Namespace("https://schema.org/")
+    DCTERMS = Namespace("http://purl.org/dc/terms/")
 
     g.bind("owl", OWL)
     g.bind("onto", ONTO)
@@ -1255,11 +1415,21 @@ def build_owl_ontology(
     g.bind("rdfs", RDFS)
     g.bind("rdf", RDF)
     g.bind("xsd", XSD)
+    g.bind("dcterms", DCTERMS)
 
-    # 1. Ontology Declaration
+    now_utc = datetime.now(timezone.utc)
+    now_iso = now_utc.isoformat()
+
+    # 1. Ontology Declaration with Dublin Core & OWL Versioning
     onto_uri = URIRef(f"https://{domain}/ontology")
     g.add((onto_uri, RDF.type, OWL.Ontology))
     g.add((onto_uri, RDFS.label, Literal(f"{domain} Enterprise Domain Ontology")))
+    g.add((onto_uri, DCTERMS.title, Literal(f"{domain} Enterprise Domain Ontology")))
+    g.add((onto_uri, DCTERMS.description, Literal(f"Formal W3C OWL 2 DL enterprise domain ontology for {domain} with reasoning axioms and semantic constraints.")))
+    g.add((onto_uri, DCTERMS.creator, Literal("GainARK OntoLeap Engine")))
+    g.add((onto_uri, DCTERMS.created, Literal(now_iso, datatype=XSD.dateTime)))
+    g.add((onto_uri, DCTERMS.modified, Literal(now_iso, datatype=XSD.dateTime)))
+    g.add((onto_uri, DCTERMS.license, URIRef("https://creativecommons.org/licenses/by/4.0/")))
     g.add((onto_uri, OWL.versionInfo, Literal("2.2.0")))
 
     # 2. OWL Classes
@@ -1277,20 +1447,54 @@ def build_owl_ontology(
         g.add((c_uri, RDFS.label, Literal(c_name)))
         g.add((c_uri, RDFS.comment, Literal(c_desc)))
 
-    # 3. OWL Object Properties with Domain & Range
-    obj_props = [
-        ("automatesWorkflow", ONTO.EnterprisePlatform, ONTO.PlatformCapability, "Relates platform to automated workflows"),
-        ("integratesWithSystem", ONTO.EnterprisePlatform, ONTO.SoftwareIntegration, "Relates platform to integrated systems"),
-        ("compliesWithStandard", ONTO.EnterprisePlatform, ONTO.ComplianceStandard, "Relates platform to compliance frameworks"),
-        ("supportsPricingArchitecture", ONTO.EnterprisePlatform, ONTO.PricingModel, "Relates platform to monetization models"),
-        ("anchorsTopicHub", ONTO.EnterprisePlatform, ONTO.TopicAuthorityHub, "Relates platform to its canonical topic hubs")
+    # Disjoint Class Axioms (Prevent semantic confusion between core entity types)
+    disjoint_pairs = [
+        (ONTO.EnterprisePlatform, ONTO.PlatformCapability),
+        (ONTO.EnterprisePlatform, ONTO.ComplianceStandard),
+        (ONTO.EnterprisePlatform, ONTO.PricingModel),
+        (ONTO.EnterprisePlatform, ONTO.TopicAuthorityHub),
+        (ONTO.PlatformCapability, ONTO.ComplianceStandard),
+        (ONTO.PlatformCapability, ONTO.PricingModel),
+        (ONTO.PlatformCapability, ONTO.TopicAuthorityHub),
+        (ONTO.ComplianceStandard, ONTO.PricingModel)
     ]
-    for prop_name, domain_uri, range_uri, comment in obj_props:
-        p_uri = ONTO[prop_name]
+    for c1, c2 in disjoint_pairs:
+        g.add((c1, OWL.disjointWith, c2))
+
+    # 3. OWL Object Properties with Domain, Range & owl:inverseOf Axioms
+    obj_props = [
+        ("automatesWorkflow", "isAutomatedBy", ONTO.EnterprisePlatform, ONTO.PlatformCapability, "Relates platform to automated workflows", "Relates workflow/capability back to platform"),
+        ("integratesWithSystem", "isIntegratedInto", ONTO.EnterprisePlatform, ONTO.SoftwareIntegration, "Relates platform to integrated systems", "Relates integration back to host platform"),
+        ("compliesWithStandard", "isCompliedWithBy", ONTO.EnterprisePlatform, ONTO.ComplianceStandard, "Relates platform to compliance frameworks", "Relates compliance standard back to certified platform"),
+        ("supportsPricingArchitecture", "isPricingModelOf", ONTO.EnterprisePlatform, ONTO.PricingModel, "Relates platform to monetization models", "Relates monetization model back to platform"),
+        ("anchorsTopicHub", "isTopicHubOf", ONTO.EnterprisePlatform, ONTO.TopicAuthorityHub, "Relates platform to its canonical topic hubs", "Relates topic hub back to anchoring platform")
+    ]
+    for forward_name, inv_name, domain_uri, range_uri, f_comment, inv_comment in obj_props:
+        p_uri = ONTO[forward_name]
+        inv_uri = ONTO[inv_name]
+
+        # Forward property
         g.add((p_uri, RDF.type, OWL.ObjectProperty))
         g.add((p_uri, RDFS.domain, domain_uri))
         g.add((p_uri, RDFS.range, range_uri))
-        g.add((p_uri, RDFS.comment, Literal(comment)))
+        g.add((p_uri, RDFS.comment, Literal(f_comment)))
+
+        # Inverse property
+        g.add((inv_uri, RDF.type, OWL.ObjectProperty))
+        g.add((inv_uri, RDFS.domain, range_uri))
+        g.add((inv_uri, RDFS.range, domain_uri))
+        g.add((inv_uri, RDFS.comment, Literal(inv_comment)))
+
+        # Symmetrical inverseOf assertions
+        g.add((p_uri, OWL.inverseOf, inv_uri))
+        g.add((inv_uri, OWL.inverseOf, p_uri))
+
+    # Transitive Taxonomical Property (owl:TransitiveProperty for multi-hop category inference)
+    sub_cat_uri = ONTO.subCategoryOf
+    g.add((sub_cat_uri, RDF.type, OWL.ObjectProperty))
+    g.add((sub_cat_uri, RDF.type, OWL.TransitiveProperty))
+    g.add((sub_cat_uri, RDFS.label, Literal("subCategoryOf")))
+    g.add((sub_cat_uri, RDFS.comment, Literal("Transitive category hierarchy relationship for taxonomy rollups.")))
 
     # 4. OWL Datatype Properties
     data_props = [

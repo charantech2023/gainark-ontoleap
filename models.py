@@ -568,6 +568,7 @@ class ProductTruthMatrixResponse(BaseModel):
     drift_alerts: List[str] = Field(default_factory=list, description="Actionable governance risk alerts")
     growth_recommendations: List[str] = Field(default_factory=list, description="Recommendations to market hidden technical gems")
     executive_summary: str
+    rdf_turtle: Optional[str] = Field(default=None, description="W3C PROV-O and SKOS compliant RDF Turtle serialization of the Product Truth Graph")
 
 
 class ComparativeCapability(BaseModel):
