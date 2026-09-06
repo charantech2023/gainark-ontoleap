@@ -50,9 +50,9 @@ def main():
     for c in result.seed_concepts:
         print(f"  - {c.concept:<25}: matched {c.count} time(s)")
 
-    # 4. Ontology Readiness Score
+    # 4. Structured Data Readiness Score
     print("\n" + "="*60)
-    print(f"ONTOLOGY READINESS SCORE: {result.readiness_score:.2f} / 100.00")
+    print(f"STRUCTURED DATA READINESS SCORE: {result.readiness_score:.2f} / 100.00")
     print("="*60)
     if result.readiness_breakdown:
         b = result.readiness_breakdown

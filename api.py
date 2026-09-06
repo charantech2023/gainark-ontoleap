@@ -703,7 +703,7 @@ def audit_endpoint(request: AuditRequest):
     - Verifies Schema.org mandatory types
     - Runs GLiNER zero-shot entity recognition
     - Matches core seed concepts
-    - Calculates the ontology readiness score
+    - Calculates the single-page structured data readiness score
     - Dynamically generates the Schema.org remediation patch
     - Optionally deep-crawls up to 3 high-value sub-pages (pricing, features, integrations)
     """

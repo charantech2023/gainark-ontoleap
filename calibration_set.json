@@ -1,0 +1,29 @@
+{
+  "_comment": "Calibration set for the single-page Structured Data Readiness score (ANTIGRAVITY_TASKS.md Task 4). citation_tier records how heavily AI answer engines cite the domain for its category, ranked independently of anything this pipeline computes. It is the external ground truth the score was tested against — see test_calibration.py.",
+  "vertical_id": "b2b_saas_fintech",
+  "citation_tier_scale": {
+    "3": "Dominant - routinely cited by name in ChatGPT / Perplexity / AI Overviews answers for this category",
+    "2": "Present - cited regularly but not as the canonical reference",
+    "1": "Marginal - rarely surfaced unless the prompt names the vendor"
+  },
+  "sites": [
+    {
+      "url": "https://stripe.com/billing",
+      "brand": "Stripe",
+      "citation_tier": 3,
+      "rationale": "Canonical reference for payments and billing across every major AI answer engine."
+    },
+    {
+      "url": "https://www.chargebee.com",
+      "brand": "Chargebee",
+      "citation_tier": 2,
+      "rationale": "Frequently listed among subscription billing vendors, rarely the primary citation."
+    },
+    {
+      "url": "https://www.maxio.com",
+      "brand": "Maxio",
+      "citation_tier": 1,
+      "rationale": "Surfaces mainly in vendor-comparison contexts or when named in the prompt."
+    }
+  ]
+}

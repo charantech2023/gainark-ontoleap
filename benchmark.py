@@ -106,13 +106,13 @@ def run_benchmark(urls: List[str] = None):
     with open("benchmark_report.md", "w", encoding="utf-8") as f:
         f.write("# Ontology Pipeline Benchmark: Competitive Structured Data Readiness Analysis\n\n")
         f.write("> **Executive Note on Brand Authority vs. Single-Page Schema Readiness:**\n")
-        f.write("> This audit measures **Single-Page Structured Data & Schema Implementation** (Mandatory Schema 40%, Seed Concept Coverage 30%, Entity Richness 30%) on specific landing pages. High brand citation authority across AI answer engines (such as Stripe) can coexist with low single-page structured data scores when individual product landing pages omit static `SoftwareApplication`, `Organization`, or `Offer` JSON-LD nodes. For comprehensive domain-level generative search authority, evaluate using the **Site-Wide AI Citation Readiness Index**.\n\n")
+        f.write("> This audit measures **Single-Page Structured Data & Schema Implementation** (Mandatory Schema 40%, Seed Concept Coverage 30%, Entity Richness 30%) on specific landing pages. High brand citation authority across AI answer engines (such as Stripe) can coexist with low single-page structured data scores when individual product landing pages omit static `SoftwareApplication`, `Organization`, or `Offer` JSON-LD nodes. For comprehensive domain-level generative search authority, evaluate using the **Site-Wide AI Citation Readiness Index**. This single-page score is deliberately not calibrated against AI citation frequency; `test_calibration.py` records the evidence behind that decision.\n\n")
         f.write(md_table + "\n\n")
         f.write("## Detailed Competitor Profiles\n\n")
         for r in results:
             f.write(f"### {r['url']}\n")
             f.write(f"- **Page Title**: {r['title']}\n")
-            f.write(f"- **Overall Readiness Score**: {r['readiness_score']:.2f} / 100.0\n")
+            f.write(f"- **Structured Data Readiness Score**: {r['readiness_score']:.2f} / 100.0\n")
             f.write(f"- **Mandatory Schemas Detected**: {', '.join(r['passed_schemas']) if r['passed_schemas'] else 'None'} ({r['compliance_str']})\n")
             f.write(f"- **Missing Schemas**: {', '.join(r['missing_schemas']) if r['missing_schemas'] else 'None'}\n")
             f.write(f"- **Total Entities Extracted**: {r['entity_count']}\n")

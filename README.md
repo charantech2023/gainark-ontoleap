@@ -81,7 +81,7 @@ graph TD
 ### 5. 🕸️ Dual-Mode Citation Readiness & GEO Engine (`pipeline.py`, `linking.py`)
 - **API Endpoints**: `POST /api/audit`, `POST /api/batch-crawl`, `POST /api/internal-links`, `POST /api/simulate-search`, `POST /api/export-battlecards-pdf`
 - **Dual-Mode AI Citation Rubric**:
-  - **Single-Page Structured Data Readiness (`/api/audit`)**: Evaluates a specific URL across 3 technical pillars (**40%** Mandatory Schema.org types, **30%** Ontological Seed Concepts, **30%** GLiNER Named Entity richness).
+  - **Single-Page Structured Data Readiness (`/api/audit`)**: Evaluates a specific URL across 3 technical pillars (**40%** Mandatory Schema.org types, **30%** Ontological Seed Concepts, **30%** GLiNER Named Entity richness). This measures structured data implementation on one page and is **not** a predictor of how often AI answer engines cite the brand — a heavily-cited domain can score low when its landing page omits JSON-LD. See `calibration_set.json` and `test_calibration.py`.
   - **Site-Wide AI Citation Authority Index (`/api/batch-crawl`)**: Evaluates the full domain knowledge graph across 4 enterprise pillars (**25%** Entity Grounding, **25%** Relational Density, **25%** Topic Silo Integrity via PageRank flow, and **25%** Schema Coverage).
 - **1-Click Executive PDF Exporter (`report_pdf.py`)**: Instant generation of C-level single-site audit reports and multi-competitor Tri-Ontology Sales Battlecard decks.
 - **Compounding Truth Ledger (`truth_ledger/`)**: Continuous append-only audit trail (`log.md`) with automated Python assertion checks (`check_compliance.py`, `check_integrations.py`, `check_pricing_models.py`).
@@ -166,6 +166,9 @@ python test_product_truth.py
 
 # Test Tri-Ontology Competitive Alignment & Battlecards
 python test_competitive_alignment.py
+
+# Verify what the single-page readiness score measures (offline; --live to re-crawl)
+python test_calibration.py
 ```
 
 ---

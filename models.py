@@ -54,7 +54,7 @@ class ReadinessBreakdown(BaseModel):
     schema_score: float = Field(..., description="Score based on mandatory schema types presence (max 40 pts)")
     concept_score: float = Field(..., description="Score based on core seed concepts coverage (max 30 pts)")
     entity_score: float = Field(..., description="Score based on GLiNER entity diversity and confidence (max 30 pts)")
-    total_score: float = Field(..., description="Overall ontology readiness score out of 100")
+    total_score: float = Field(..., description="Single-page structured data readiness score out of 100. Measures schema.org implementation, seed concept coverage and entity richness on one page. Not a predictor of AI citation frequency - see test_calibration.py.")
     details: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -80,7 +80,7 @@ class ExtractionResult(BaseModel):
         default_factory=dict,
         description="Whether each mandatory schema type was detected on the page"
     )
-    readiness_score: float = Field(default=0.0, description="Ontology readiness score (0-100)")
+    readiness_score: float = Field(default=0.0, description="Single-page structured data readiness score (0-100)")
     readiness_breakdown: Optional[ReadinessBreakdown] = Field(
         default=None,
         description="Detailed scoring breakdown across schemas, concepts, and entities"
