@@ -18,6 +18,7 @@ from typing import Optional, Dict, Any, Tuple
 from urllib.parse import urlparse
 import requests
 import httpx
+from cache import get_content_cache
 
 try:
     from curl_cffi import requests as curl_requests
@@ -210,13 +211,29 @@ class SmartScraper:
 
         return None
 
-    def fetch_html(self, url: str, timeout: int = 15) -> str:
+    def fetch_html(
+        self,
+        url: str,
+        timeout: int = 15,
+        force_refresh: bool = False,
+        max_age: Optional[int] = None
+    ) -> str:
         """
         Synchronously fetches a URL's HTML content.
+        Checks in-memory/disk cache first before making network calls.
         Uses Chrome TLS impersonation, checks for anti-bot blocks,
         and falls back to Firecrawl or standard requests as needed.
         """
         validate_url_for_fetch(url)
+
+        # Check Cache
+        content_cache = get_content_cache()
+        cached = content_cache.get(url, max_age=max_age, force_refresh=force_refresh)
+        if cached is not None:
+            logger.debug("Cache hit for %s; skipping network fetch.", url)
+            return cached
+
+        html_result = None
 
         # Level 1: curl_cffi with Chrome 124 TLS impersonation
         if CURL_CFFI_AVAILABLE:
@@ -231,41 +248,60 @@ class SmartScraper:
                 
                 # If valid page and not a challenge
                 if resp.status_code == 200 and not is_challenge_page(resp.status_code, resp.text):
-                    return resp.text
+                    html_result = resp.text
 
-                logger.warning(
-                    "Level 1 curl_cffi got status %d or challenge for %s. Checking Level 2 fallback...",
-                    resp.status_code, url
-                )
+                if not html_result:
+                    logger.warning(
+                        "Level 1 curl_cffi got status %d or challenge for %s. Checking Level 2 fallback...",
+                        resp.status_code, url
+                    )
             except Exception as e:
                 logger.warning("Level 1 curl_cffi failed for %s: %s", url, e)
 
-        # Level 2: Firecrawl fallback (if key is set)
-        if self.firecrawl_api_key:
+        # Level 2: Firecrawl fallback (if key is set and level 1 failed)
+        if not html_result and self.firecrawl_api_key:
             fc_html = self._fetch_firecrawl(url, timeout=timeout + 10)
             if fc_html:
-                return fc_html
+                html_result = fc_html
 
         # Level 3: Resilient standard requests with browser headers
-        logger.info("Attempting Level 3 standard requests for %s...", url)
-        session = requests.Session()
-        resp = session.get(url, headers=self.browser_headers, timeout=timeout, verify=True)
-        resp.raise_for_status()
-        # When a server omits charset (e.g. "Content-Type: text/html"), requests
-        # follows RFC 2616 and decodes as ISO-8859-1, turning UTF-8 punctuation into
-        # mojibake. Level 1 (curl_cffi) and the async httpx path both sniff correctly,
-        # so a page's extracted text — and every score derived from it — depended on
-        # which fallback tier served the fetch. Sniff instead when charset is absent.
-        if "charset" not in resp.headers.get("Content-Type", "").lower():
-            resp.encoding = resp.apparent_encoding or resp.encoding
-        return resp.text
+        if not html_result:
+            logger.info("Attempting Level 3 standard requests for %s...", url)
+            session = requests.Session()
+            resp = session.get(url, headers=self.browser_headers, timeout=timeout, verify=True)
+            resp.raise_for_status()
+            if "charset" not in resp.headers.get("Content-Type", "").lower():
+                resp.encoding = resp.apparent_encoding or resp.encoding
+            html_result = resp.text
 
-    async def fetch_html_async(self, url: str, timeout: int = 15) -> str:
+        # Cache successful fetch
+        if html_result:
+            content_cache.set(url, html_result)
+
+        return html_result
+
+    async def fetch_html_async(
+        self,
+        url: str,
+        timeout: int = 15,
+        force_refresh: bool = False,
+        max_age: Optional[int] = None
+    ) -> str:
         """
         Asynchronously fetches a URL's HTML content.
+        Checks in-memory/disk cache first before making network calls.
         Ideal for multi-page concurrent crawlers and sitemap ingestion.
         """
         validate_url_for_fetch(url)
+
+        # Check Cache
+        content_cache = get_content_cache()
+        cached = content_cache.get(url, max_age=max_age, force_refresh=force_refresh)
+        if cached is not None:
+            logger.debug("Async cache hit for %s; skipping network fetch.", url)
+            return cached
+
+        html_result = None
 
         # Level 1: curl_cffi AsyncSession with Chrome 124 TLS impersonation
         if CURL_CFFI_AVAILABLE:
@@ -278,26 +314,33 @@ class SmartScraper:
                         verify=True
                     )
                     if resp.status_code == 200 and not is_challenge_page(resp.status_code, resp.text):
-                        return resp.text
-
-                    logger.warning(
-                        "Async Level 1 got status %d or challenge for %s", resp.status_code, url
-                    )
+                        html_result = resp.text
+                    else:
+                        logger.warning(
+                            "Async Level 1 got status %d or challenge for %s", resp.status_code, url
+                        )
             except Exception as e:
                 logger.warning("Async Level 1 curl_cffi failed for %s: %s", url, e)
 
         # Level 2: Firecrawl async fallback
-        if self.firecrawl_api_key:
+        if not html_result and self.firecrawl_api_key:
             fc_html = await self._fetch_firecrawl_async(url, timeout=timeout + 10)
             if fc_html:
-                return fc_html
+                html_result = fc_html
 
         # Level 3: httpx async fallback
-        logger.info("Attempting Level 3 async httpx for %s...", url)
-        async with httpx.AsyncClient(timeout=float(timeout), follow_redirects=True, headers=self.browser_headers) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            return resp.text
+        if not html_result:
+            logger.info("Attempting Level 3 async httpx for %s...", url)
+            async with httpx.AsyncClient(timeout=float(timeout), follow_redirects=True, headers=self.browser_headers) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                html_result = resp.text
+
+        # Cache successful fetch
+        if html_result:
+            content_cache.set(url, html_result)
+
+        return html_result
 
 
 # Global default scraper instance
@@ -310,10 +353,21 @@ def get_smart_scraper() -> SmartScraper:
         _default_scraper = SmartScraper()
     return _default_scraper
 
-def smart_fetch(url: str, timeout: int = 15) -> str:
-    """Synchronous helper function to fetch a URL using the smart scraper."""
-    return get_smart_scraper().fetch_html(url, timeout=timeout)
+def smart_fetch(
+    url: str,
+    timeout: int = 15,
+    force_refresh: bool = False,
+    max_age: Optional[int] = None
+) -> str:
+    """Synchronous helper function to fetch a URL using the smart scraper and cache."""
+    return get_smart_scraper().fetch_html(url, timeout=timeout, force_refresh=force_refresh, max_age=max_age)
 
-async def smart_fetch_async(url: str, timeout: int = 15) -> str:
-    """Asynchronous helper function to fetch a URL using the smart scraper."""
-    return await get_smart_scraper().fetch_html_async(url, timeout=timeout)
+async def smart_fetch_async(
+    url: str,
+    timeout: int = 15,
+    force_refresh: bool = False,
+    max_age: Optional[int] = None
+) -> str:
+    """Asynchronous helper function to fetch a URL using the smart scraper and cache."""
+    return await get_smart_scraper().fetch_html_async(url, timeout=timeout, force_refresh=force_refresh, max_age=max_age)
+

@@ -1,4 +1,4 @@
-﻿.gcloudignore
+.gcloudignore
 .git
 .gitignore
 venv/
@@ -14,3 +14,5 @@ verify_*.py
 # Never upload local secrets to the Cloud Build staging bucket.
 .env
 .env.*
+.ontoleap_cache/
+.test_cache/

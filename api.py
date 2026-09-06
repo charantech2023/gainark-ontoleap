@@ -1,42 +1,93 @@
 """
 GainARK OntoLeap — FastAPI Enterprise REST API & Semantic Service Gateway
 
-Provides REST API endpoints for ontology extraction, competitor benchmarking,
-sitemap crawling, internal link discovery, generative search simulation,
-W3C RDF Turtle and N-Triples exports, and interactive SPARQL 1.1 querying.
+Modular gateway mounting decoupled domain routers:
+- System & Info (health, cache, discovery, verticals, dashboard)
+- Product Truth & Governance (audits, alignment, SHACL, competitor tracking)
+- Knowledge Graph Operations (SPARQL 1.1, N-Triples, OWL 2 DL, link prediction)
+- Semantic SEO & Linking (internal links, SearchGPT simulation, draft alignment)
+- Site Audit & Benchmarking (sitemap crawl, audits, benchmark matrix, PDF reports)
 """
 
 import os
-import json
 import time
 import logging
 import threading
 from collections import defaultdict
-from typing import List, Dict, Any, Optional
-from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, PlainTextResponse, JSONResponse, Response
+from typing import Optional
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from pydantic import BaseModel, Field
-from rdflib import Graph
 
-import vertex_ai_client
-import report_pdf
-import alignment
-import google_kg_client
-import industry_profiler
-import product_truth
-import competitive_alignment
-
-from pipeline import OntologyPipeline, crawl_and_build_unified_graph, validate_url_for_fetch
-from linking import (
-    audit_internal_links,
-    simulate_search_response,
-    execute_sparql_query_on_ttl,
-    export_to_owl_xml
+from routers.deps import (
+    get_pipeline,
+    get_default_pipeline,
+    pipeline_cache,
+    SUPPORTED_VERTICALS
 )
-from link_prediction import predict_kg_links
-from graph_export import generate_standalone_graph_html
+from routers.system_routes import (
+    router as system_router,
+    api_info,
+    health,
+    api_list_verticals,
+    api_cache_stats,
+    api_cache_clear,
+    api_google_kg_search_post,
+    api_google_kg_search_get,
+    api_discover_industry
+)
+from routers.governance_routes import (
+    router as governance_router,
+    ShaclValidationRequest,
+    ShaclValidationResponse,
+    competitor_changes,
+    api_export_product_truth_prov,
+    api_validate_kg_shacl,
+    api_product_truth_audit,
+    api_tri_ontology_align,
+    api_competitor_ontology
+)
+from routers.kg_routes import (
+    router as kg_router,
+    NTriplesExportRequest,
+    OwlExportRequest,
+    SemanticClustersRequest,
+    api_execute_sparql,
+    api_export_ntriples,
+    api_export_owl,
+    api_predict_links,
+    api_semantic_clusters,
+    api_export_graph_html
+)
+from routers.seo_routes import (
+    router as seo_router,
+    InternalLinkAuditRequest,
+    api_internal_links,
+    api_simulate_search,
+    api_check_draft,
+    api_content_brief
+)
+from routers.audit_routes import (
+    router as audit_router,
+    BatchCrawlRequest,
+    AuditRequest,
+    AuditResponse,
+    BenchmarkRequest,
+    BenchmarkItem,
+    BenchmarkResponse,
+    BenchmarkCsvExportRequest,
+    api_batch_crawl,
+    audit_endpoint,
+    benchmark_endpoint,
+    api_export_benchmark_csv,
+    api_export_pdf,
+    api_export_battlecards_pdf,
+    api_download_pitch_pdf
+)
+
+# Re-export models for 100% backward compatibility
 from models import (
     ReadinessBreakdown,
     EntityMatch,
@@ -75,7 +126,7 @@ from models import (
 )
 
 # ---------------------------------------------------------------------------
-# FIX #21: Structured Logging
+# Structured Logging
 # ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
@@ -90,7 +141,7 @@ app = FastAPI(
 )
 
 # ---------------------------------------------------------------------------
-# FIX #14: CORS Configuration with Environment Variable & Safe Production Defaults
+# CORS Configuration with Environment Variable & Safe Production Defaults
 # ---------------------------------------------------------------------------
 allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "").strip()
 if allowed_origins_env:
@@ -115,7 +166,7 @@ app.add_middleware(
 
 
 # ---------------------------------------------------------------------------
-# FIX #2: In-Memory Sliding Window Rate Limiting Middleware with Auto-Pruning
+# In-Memory Sliding Window Rate Limiting Middleware with Auto-Pruning
 # ---------------------------------------------------------------------------
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """
@@ -144,7 +195,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
-        # Apply rate limiting to all /api/ routes except static metadata and health
         if path.startswith("/api/") and path not in ("/api/health", "/api/info"):
             client_ip = request.client.host if request.client else "127.0.0.1"
             forwarded = request.headers.get("x-forwarded-for")
@@ -157,7 +207,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
             with self.lock:
                 self.request_count += 1
-                # Auto-prune stale keys every 100 requests or when dict exceeds 2,000 entries
                 if self.request_count % 100 == 0 or len(self.history) > 2000:
                     stale_keys = [k for k, timestamps in self.history.items() if not timestamps or timestamps[-1] <= window_start]
                     for k in stale_keys:
@@ -180,1106 +229,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(RateLimitMiddleware)
 
-
-# Pipeline instances cache to reuse loaded GLiNER models
-pipeline_cache: Dict[str, OntologyPipeline] = {}
-SUPPORTED_VERTICALS = {
-    "b2b_saas_fintech",
-    "cybersecurity",
-    "healthtech",
-    "developer_tools"
-}
-
-
-# FIX #23: Validate vertical_id and return 400 if unsupported
-def get_pipeline(vertical_id: Optional[str] = None) -> OntologyPipeline:
-    target_id = vertical_id or "b2b_saas_fintech"
-    if target_id not in SUPPORTED_VERTICALS:
-        # Check if dynamically discovered profile exists
-        if os.path.exists(f"verticals/{target_id}.json"):
-            SUPPORTED_VERTICALS.add(target_id)
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unsupported vertical_id '{vertical_id}'. Supported verticals: {sorted(list(SUPPORTED_VERTICALS))}"
-            )
-    if target_id not in pipeline_cache:
-        config_file = f"verticals/{target_id}.json"
-        if not os.path.exists(config_file):
-            config_file = f"configs/{target_id}.json"
-        if not os.path.exists(config_file):
-            config_file = "vertical_config.json"
-
-        logger.info("Instantiating OntologyPipeline for vertical '%s' using %s...", target_id, config_file)
-        pipeline_cache[target_id] = OntologyPipeline(config_path=config_file)
-    return pipeline_cache[target_id]
-
-
-@app.get("/api/verticals", summary="List Available Industry Verticals")
-def api_list_verticals():
-    """
-    Returns all registered domain ontology profiles with their display metadata.
-    Automatically discovers and includes any newly discovered profiles from verticals/.
-    """
-    if os.path.exists("verticals"):
-        for fname in os.listdir("verticals"):
-            if fname.endswith(".json"):
-                SUPPORTED_VERTICALS.add(fname[:-5])
-
-    profiles = []
-    for vid in sorted(list(SUPPORTED_VERTICALS)):
-        cfg_file = f"verticals/{vid}.json"
-        if os.path.exists(cfg_file):
-            try:
-                with open(cfg_file, "r", encoding="utf-8") as f:
-                    cdata = json.load(f)
-                    profiles.append({
-                        "vertical_id": vid,
-                        "display_name": cdata.get("display_name", vid),
-                        "entity_types_count": len(cdata.get("gliner_labels", [])),
-                        "seed_concepts_count": len(cdata.get("core_seed_concepts", []))
-                    })
-            except Exception:
-                profiles.append({"vertical_id": vid, "display_name": vid})
-        else:
-            profiles.append({"vertical_id": vid, "display_name": vid})
-    return {"verticals": profiles}
-
-
-
 # ---------------------------------------------------------------------------
-# Request and Response Models
+# Mount Decoupled Routers
 # ---------------------------------------------------------------------------
-
-class BatchCrawlRequest(BaseModel):
-    sitemap_url: str = Field(..., description="Target XML sitemap or sitemap index URL", example="https://www.ordwaylabs.com/sitemap.xml")
-    max_pages: int = Field(default=10, description="Maximum number of pages to crawl and synthesize")
-
-
-class InternalLinkAuditRequest(BaseModel):
-    sitemap_url: Optional[str] = Field(
-        default=None,
-        description="Target XML sitemap or sitemap index URL",
-        example="https://www.ordwaylabs.com/sitemap.xml"
-    )
-    urls: Optional[List[str]] = Field(
-        default=None,
-        description="Optional explicit list of target URLs to audit and link across"
-    )
-    max_pages: int = Field(default=10, description="Maximum number of pages to crawl and analyze")
-
-
-class AuditRequest(BaseModel):
-    url: str = Field(..., description="Target webpage URL to analyze", example="https://www.ordwaylabs.com")
-    vertical_id: Optional[str] = Field(default=None, description="Vertical ontology domain ID", example="b2b_saas_fintech")
-    deep_crawl: bool = Field(default=False, description="When true, fetch up to 3 high-value sub-pages (pricing, features, integrations) and merge their signals")
-
-
-class AuditResponse(BaseModel):
-    url: str
-    title: Optional[str] = None
-    vertical_id: str
-    readiness_score: float
-    readiness_breakdown: Optional[ReadinessBreakdown] = None
-    mandatory_schema_status: Dict[str, bool]
-    entity_breakdown: Dict[str, List[Dict[str, Any]]]
-    entities: List[EntityMatch]
-    seed_concepts: List[SeedConceptMatch]
-    schema_org: List[SchemaOrgData] = Field(
-        default_factory=list,
-        description="Parsed Schema.org nodes detected on the page"
-    )
-    recommended_patch: Optional[Dict[str, Any]] = None
-    crawled_subpages: List[str] = Field(default_factory=list, description="Sub-pages fetched during deep crawl")
-    triples: List[SemanticTriple] = Field(
-        default_factory=list,
-        description="Extracted relational semantic triples (Subject, Predicate, Object)"
-    )
-    meta_description: Optional[str] = Field(default=None, description="Page meta or OpenGraph description")
-    site_name: Optional[str] = Field(default=None, description="OpenGraph site name or brand")
-
-
-class BenchmarkRequest(BaseModel):
-    primary_url: Optional[str] = Field(
-        default=None,
-        description="Target domain/URL to audit against competitors",
-        example="https://www.ordwaylabs.com"
-    )
-    competitor_urls: Optional[List[str]] = Field(
-        default=None,
-        description="List of competitor URLs to compare against",
-        example=[
-            "https://www.chargebee.com",
-            "https://www.maxio.com",
-            "https://stripe.com/billing"
-        ]
-    )
-    urls: Optional[List[str]] = Field(
-        default=None,
-        description="Fallback list of URLs to benchmark (if primary_url is omitted)"
-    )
-    vertical_id: Optional[str] = Field(default=None, description="Vertical ontology domain ID", example="b2b_saas_fintech")
-
-
-class BenchmarkItem(BaseModel):
-    url: str
-    title: Optional[str] = None
-    readiness_score: float
-    compliance_str: str
-    passed_schemas: List[str]
-    missing_schemas: List[str]
-    entity_count: int
-    detected_concepts: List[str]
-    missing_concepts: List[str]
-    top_missing_concepts: str
-    top_entities: List[Dict[str, Any]]
-    recommended_patch: Optional[Dict[str, Any]] = None
-    is_primary: bool = False
-
-
-class BenchmarkResponse(BaseModel):
-    vertical_id: str
-    total_analyzed: int
-    primary_url: Optional[str] = None
-    comparative_table: List[BenchmarkItem]
-    gap_analysis: Optional[CompetitiveGapAnalysis] = None
-
-
-# ---------------------------------------------------------------------------
-# Endpoints
-# ---------------------------------------------------------------------------
-
-@app.get("/dashboard", response_class=HTMLResponse)
-@app.get("/", response_class=HTMLResponse)
-def get_dashboard():
-    html_path = os.path.join(os.path.dirname(__file__), "templates", "dashboard.html")
-    if os.path.exists(html_path):
-        with open(html_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
-    return HTMLResponse(content="<h1>Dashboard template not found</h1>", status_code=404)
-
-
-@app.get("/api/info")
-def api_info():
-    return {
-        "status": "online",
-        "name": "GainARK OntoLeap Platform",
-        "service": "GainARK OntoLeap Platform",
-        "version": "2.2.0",
-        "features": {
-            "llms_txt_manifest": True,
-            "google_rich_results_validation": True,
-            "perplexity_searchgpt_simulator": True,
-            "topic_silo_canvas": True,
-            "visual_diff_modal": True,
-            "wordpress_cms_hook": True,
-            "sparql_query_engine": True,
-            "w3c_rdf_turtle_export": True,
-            "w3c_ntriples_export": True,
-            "wikidata_entity_grounding": True,
-            "owl_2_dl_export": True,
-            "semantic_clustering": True,
-            "benchmark_csv_export": True,
-            "kg_link_prediction": True,
-            "pyvis_graph_html_export": True,
-            "google_gemini_2_5_flash_hybrid": True,
-            "google_knowledge_graph_search_api": True,
-            "multi_vertical_expansion": True,
-            "product_truth_draft_alignment_pas": True,
-            "executive_pdf_export": True,
-            "autonomous_industry_discovery": True,
-            "product_truth_matrix": True,
-            "tri_ontology_alignment": True,
-            "battlecards_pdf_export": True
-        },
-        "endpoints": {
-            "dashboard": "GET /dashboard",
-            "audit": "POST /api/audit",
-            "benchmark": "POST /api/benchmark",
-            "batch-crawl": "POST /api/batch-crawl",
-            "internal-links": "POST /api/internal-links",
-            "simulate-search": "POST /api/simulate-search",
-            "sparql": "POST /api/sparql",
-            "export-ntriples": "POST /api/export-ntriples",
-            "export-owl": "POST /api/export-owl",
-            "semantic-clusters": "POST /api/semantic-clusters",
-            "benchmark-export-csv": "POST /api/benchmark/export-csv",
-            "predict-links": "POST /api/predict-links",
-            "export-graph-html": "POST /api/export-graph-html",
-            "check-draft": "POST /api/check-draft",
-            "content-brief": "POST /api/content-brief",
-            "export-pdf": "POST /api/export-pdf",
-            "export-battlecards-pdf": "POST /api/export-battlecards-pdf",
-            "verticals": "GET /api/verticals",
-            "google-kg": "POST /api/google-kg",
-            "discover-industry": "POST /api/discover-industry",
-            "product-truth": "POST /api/product-truth",
-            "tri-ontology-align": "POST /api/tri-ontology-align",
-            "health": "GET /api/health"
-        }
-    }
-
-
-@app.get("/api/competitor-changes", summary="What a brand has started or stopped claiming")
-def competitor_changes(brand: Optional[str] = None):
-    """
-    Reports how a brand's claims have moved between audits, from the append-only
-    history the platform already writes on every Product Truth run.
-
-    Without `brand`, lists the brands that have history and how much. With `brand`,
-    returns every consecutive change: claims added, claims dropped, claims that gained
-    or lost technical backing, and grounding movement.
-
-    Changes carry `low_confidence` when the comparison should not be read as news -
-    audits taken minutes apart, a crawl that could not read the documentation, or a
-    capability count that swung far enough to be measurement noise. This crawler has
-    produced 15, 10 and 5 capabilities for one site in a single morning, so an
-    unqualified "they dropped a claim" would be wrong more often than right.
-    """
-    try:
-        from truth_ledger.history import brand_timeline, tracked_brands
-        if not brand:
-            return {"brands": tracked_brands()}
-        return brand_timeline(brand)
-    except Exception as exc:
-        logger.error("Competitor change tracking failed: %s", exc, exc_info=True)
-        raise HTTPException(status_code=500, detail="Could not read audit history.")
-
-
-@app.get("/api/health")
-def health():
-    return {
-        "status": "healthy",
-        "cached_pipelines": list(pipeline_cache.keys())
-    }
-
-
-@app.post("/api/batch-crawl", response_model=UnifiedSiteGraph)
-async def api_batch_crawl(req: BatchCrawlRequest):
-    """
-    Crawls pages discovered in the target XML sitemap and synthesizes a site-wide knowledge graph
-    with deduplicated relational triples and Schema.org @graph JSON-LD.
-    """
-    # FIX #1: SSRF protection
-    try:
-        validate_url_for_fetch(req.sitemap_url)
-    except ValueError as val_err:
-        raise HTTPException(status_code=400, detail=str(val_err))
-
-    try:
-        return await crawl_and_build_unified_graph(req.sitemap_url, max_pages=req.max_pages)
-    except Exception as e:
-        # FIX #20: Sanitize exception leak
-        logger.error("Batch crawl failed for %s: %s", req.sitemap_url, e, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Batch crawl failed for '{req.sitemap_url}'. Check server logs for details.")
-
-
-@app.post("/api/internal-links", response_model=SiteAuditAndLinkResult)
-async def api_internal_links(req: InternalLinkAuditRequest):
-    """
-    Crawls multiple pages across a site, identifies canonical topic authority hubs,
-    and generates high-intent internal link recommendations for unlinked entity & triple mentions.
-    """
-    # FIX #1: SSRF protection
-    try:
-        if req.sitemap_url:
-            validate_url_for_fetch(req.sitemap_url)
-        if req.urls:
-            for u in req.urls:
-                validate_url_for_fetch(u)
-    except ValueError as val_err:
-        raise HTTPException(status_code=400, detail=str(val_err))
-
-    try:
-        return await audit_internal_links(
-            sitemap_url=req.sitemap_url,
-            urls=req.urls,
-            max_pages=req.max_pages
-        )
-    except Exception as e:
-        # FIX #20: Sanitize exception leak
-        logger.error("Internal link audit failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal link audit failed. Check server logs for details.")
-
-
-@app.post("/api/simulate-search", response_model=SearchSimulationResponse)
-def api_simulate_search(req: SearchSimulationRequest):
-    """
-    Simulates a Perplexity / SearchGPT generative query response, synthesizing answers
-    directly from verified domain relational triples with grounded citations to canonical topic hubs.
-    Leverages Google Gemini 2.5 Flash when available, with deterministic fallback.
-    """
-    try:
-        if vertex_ai_client.is_available() and req.triples:
-            triples_dicts = [t.model_dump() if hasattr(t, "model_dump") else t.dict() for t in req.triples]
-            clean_dom = req.root_domain.replace("https://", "").replace("http://", "").split("/")[0]
-            brand = clean_dom.split(".")[0].capitalize()
-            gem_res = vertex_ai_client.generate_search_answer(
-                query=req.query,
-                triples=triples_dicts,
-                brand_name=brand,
-                site_url=f"https://{clean_dom}"
-            )
-            if gem_res.get("status") == "live_ai_generated":
-                citations = []
-                for idx, c in enumerate(gem_res.get("citations", []), 1):
-                    citations.append(CitationSource(
-                        index=idx,
-                        entity=c.get("fact", brand),
-                        target_url=c.get("url", f"https://{clean_dom}"),
-                        evidence=c.get("fact", "")
-                    ))
-                grounding_conf = round(min(0.99, max(0.65, 0.75 + (len(citations) * 0.04))), 2)
-                return SearchSimulationResponse(
-                    query=req.query,
-                    synthesized_answer=gem_res.get("answer", ""),
-                    citations=citations,
-                    grounding_confidence=grounding_conf,
-                    hallucination_risk=f"Low Hallucination Risk ({int(grounding_conf * 100)}% Triple Grounded by Google Gemini 2.5 Flash)",
-                    attributed_capabilities=[t.get("object", "") for t in triples_dicts[:6]]
-                )
-    except Exception as e:
-        logger.warning("Gemini live search synthesis fallback: %s", e)
-
-    try:
-        return simulate_search_response(
-            query=req.query,
-            root_domain=req.root_domain,
-            triples=req.triples,
-            topic_hubs=req.topic_hubs,
-            entities=req.entities
-        )
-    except Exception as e:
-        logger.error("Search simulation failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Search simulation failed. Check server logs.")
-
-
-@app.post("/api/sparql", response_model=SparqlQueryResponse, summary="Execute SPARQL 1.1 Query on Knowledge Graph")
-def api_execute_sparql(req: SparqlQueryRequest):
-    """
-    Executes a W3C SPARQL 1.1 query against an in-memory RDF knowledge graph
-    using RDFLib's native SPARQL engine and returns structured column and row bindings.
-
-    Supported standard prefixes:
-    - prov:  <http://www.w3.org/ns/prov#>   (W3C PROV-O Provenance)
-    - skos:  <http://www.w3.org/2004/02/skos/core#> (W3C SKOS Taxonomies)
-    - schema: <https://schema.org/>
-    - onto:  <https://{domain}/ontology/>
-
-    Example PROV-O Provenance Query:
-      SELECT ?entity ?source ?quote WHERE {
-        ?entity a prov:Entity ;
-                prov:hadPrimarySource ?source ;
-                prov:wasQuotedFrom ?quote .
-      }
-
-    Example SKOS Hierarchy Rollup Query:
-      SELECT ?child ?parent WHERE {
-        ?child skos:broader ?parent .
-      }
-    """
-    if not req.rdf_turtle or not req.rdf_turtle.strip():
-        raise HTTPException(status_code=400, detail="Must provide 'rdf_turtle' to query against. Please run an internal links audit first.")
-    try:
-        res = execute_sparql_query_on_ttl(req.rdf_turtle, req.query)
-        return SparqlQueryResponse(
-            query=req.query,
-            columns=res["columns"],
-            rows=res["rows"],
-            row_count=res["row_count"],
-            execution_status="success"
-        )
-    except ValueError as val_err:
-        return SparqlQueryResponse(
-            query=req.query,
-            columns=[],
-            rows=[],
-            row_count=0,
-            execution_status="failed",
-            error=str(val_err)
-        )
-    except Exception as e:
-        logger.error("SPARQL execution error: %s", e, exc_info=True)
-        return SparqlQueryResponse(
-            query=req.query,
-            columns=[],
-            rows=[],
-            row_count=0,
-            execution_status="failed",
-            error="SPARQL query failed during evaluation. Please verify syntax and prefixes."
-        )
-
-
-class NTriplesExportRequest(BaseModel):
-    rdf_turtle: str = Field(..., max_length=500_000, description="RDF Turtle serialization to convert into N-Triples")
-
-
-@app.post("/api/export-ntriples", summary="Convert RDF Turtle to W3C N-Triples")
-def api_export_ntriples(req: NTriplesExportRequest):
-    """
-    Parses an RDF Turtle knowledge graph and converts it to W3C N-Triples (.nt) format.
-    Ideal for triple-store ingestion, SPARQL endpoints, and streaming graph analytics.
-    """
-    if not req.rdf_turtle or not req.rdf_turtle.strip():
-        raise HTTPException(status_code=400, detail="Must provide 'rdf_turtle' string.")
-    try:
-        g = Graph()
-        g.parse(data=req.rdf_turtle, format="turtle")
-        nt_data = g.serialize(format="nt")
-        return PlainTextResponse(content=nt_data, media_type="application/n-triples")
-    except Exception as e:
-        logger.error("Failed to serialize N-Triples: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to serialize N-Triples.")
-
-
-class OwlExportRequest(BaseModel):
-    root_domain: str = Field(default="example.com", description="Root domain of the platform")
-    triples: List[SemanticTriple] = Field(default_factory=list, description="Extracted relational triples")
-    topic_hubs: Dict[str, str] = Field(default_factory=dict, description="Canonical topic hubs map")
-    entities: List[str] = Field(default_factory=list, description="Extracted entities")
-    rdf_turtle: Optional[str] = Field(default=None, max_length=500_000, description="Optional Turtle to convert directly")
-
-
-@app.post("/api/export-owl", summary="Generate and Export W3C OWL 2 DL Ontology")
-def api_export_owl(req: OwlExportRequest):
-    """
-    Generates a formal W3C OWL 2 DL RDF/XML (.owl) ontology defining classes,
-    object properties, data properties, and named individuals with Wikidata grounding.
-    """
-    try:
-        if req.rdf_turtle and req.rdf_turtle.strip():
-            g = Graph()
-            g.parse(data=req.rdf_turtle, format="turtle")
-            owl_xml = g.serialize(format="xml")
-            return PlainTextResponse(content=owl_xml, media_type="application/rdf+xml")
-
-        owl_xml = export_to_owl_xml(req.root_domain, req.triples, req.topic_hubs, req.entities)
-        return PlainTextResponse(content=owl_xml, media_type="application/rdf+xml")
-    except Exception as e:
-        logger.error("Failed to generate OWL ontology: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to generate OWL ontology.")
-
-
-@app.post("/api/export-product-truth-prov", summary="Export Product Truth Matrix as W3C PROV-O & SKOS RDF Turtle")
-def api_export_product_truth_prov(matrix: ProductTruthMatrixResponse):
-    """
-    Exports a Product Truth Matrix as an auditable W3C PROV-O and SKOS RDF Turtle graph (.ttl).
-    Asserts formal prov:wasDerivedFrom links, primary sources, and SKOS concept hierarchies.
-    """
-    try:
-        from product_truth import export_product_truth_to_prov_ttl
-        pipeline = get_default_pipeline()
-        ttl_content = export_product_truth_to_prov_ttl(matrix, getattr(pipeline, "config", None))
-        return PlainTextResponse(content=ttl_content, media_type="text/turtle")
-    except Exception as e:
-        logger.error("Failed to export Product Truth PROV Turtle: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to export Product Truth PROV Turtle.")
-
-
-class ShaclValidationRequest(BaseModel):
-    rdf_turtle: str = Field(..., max_length=1_000_000, description="RDF Turtle serialization to validate against SHACL governance shapes")
-    shapes_turtle: Optional[str] = Field(default=None, max_length=500_000, description="Optional custom SHACL shapes Turtle. Defaults to built-in OntoLeap governance shapes.")
-
-
-class ShaclValidationResponse(BaseModel):
-    conforms: bool
-    violations_count: int
-    violations: List[Dict[str, Any]]
-    report_text: str
-    evaluated_triples_count: int
-    status: str = "success"
-
-
-@app.post("/api/validate-kg-shacl", response_model=ShaclValidationResponse, summary="Validate RDF Knowledge Graph with W3C SHACL")
-def api_validate_kg_shacl(req: ShaclValidationRequest):
-    """
-    Validates an RDF Turtle knowledge graph against W3C SHACL governance shapes.
-    Enforces that:
-    - Every claim entity has an evidence quote (prov:wasQuotedFrom).
-    - Every claim has a primary source (prov:hadPrimarySource) or derivation (prov:wasDerivedFrom).
-    - Claims marked as VERIFIED_TRUTH derive from at least 2 sources (marketing + technical).
-    - SKOS Concepts have a prefLabel and are in a ConceptScheme.
-    """
-    if not req.rdf_turtle or not req.rdf_turtle.strip():
-        raise HTTPException(status_code=400, detail="Must provide 'rdf_turtle' string to validate.")
-    try:
-        from shacl_validator import validate_rdf_graph_shacl
-        rep = validate_rdf_graph_shacl(req.rdf_turtle, shapes_graph_or_ttl=req.shapes_turtle)
-        return ShaclValidationResponse(
-            conforms=rep.conforms,
-            violations_count=rep.violations_count,
-            violations=[v.model_dump() for v in rep.violations],
-            report_text=rep.report_text,
-            evaluated_triples_count=rep.evaluated_triples_count,
-            status="success"
-        )
-    except Exception as e:
-        logger.error("SHACL validation failure: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"SHACL validation error: {str(e)}")
-
-
-class SemanticClustersRequest(BaseModel):
-    urls: List[str] = Field(default_factory=list)
-    sitemap_url: Optional[str] = None
-    max_pages: int = 10
-
-
-@app.post("/api/semantic-clusters", summary="Compute TF-IDF Cosine Similarity & Topic Clusters")
-async def api_semantic_clusters(req: SemanticClustersRequest):
-    """
-    Analyzes content across site pages, computing TF-IDF vectors, pairwise cosine
-    similarity matrix, cannibalization overlaps (>=0.70), and thematic topic silos.
-    """
-    try:
-        audit_res = await audit_internal_links(sitemap_url=req.sitemap_url, urls=req.urls, max_pages=req.max_pages)
-        return audit_res.semantic_clustering or {}
-    except Exception as e:
-        logger.error("Semantic cluster analysis failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Semantic cluster analysis failed.")
-
-
-class BenchmarkCsvExportRequest(BaseModel):
-    comparative_table: List[Dict[str, Any]]
-
-
-@app.post("/api/benchmark/export-csv", summary="Export Competitor Benchmark Matrix as CSV")
-def api_export_benchmark_csv(req: BenchmarkCsvExportRequest):
-    """
-    Converts competitive benchmark data table into standardized CSV format for pandas/spreadsheet ingestion.
-    """
-    import csv
-    import io
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["Rank", "Domain", "Readiness Score", "Schema Valid", "Entities Found", "Triples Extracted", "Key Gaps"])
-    for item in req.comparative_table:
-        writer.writerow([
-            item.get("rank", ""),
-            item.get("url", ""),
-            item.get("readiness_score", 0),
-            "Yes" if item.get("schema_valid") else "No",
-            item.get("entity_count", 0),
-            item.get("triple_count", 0),
-            "; ".join(item.get("gaps", [])) if isinstance(item.get("gaps"), list) else str(item.get("gaps", ""))
-        ])
-    return PlainTextResponse(content=output.getvalue(), media_type="text/csv")
-
-
-@app.post("/api/predict-links", response_model=LinkPredictionResponse, summary="Predict Missing Knowledge Graph Relations (Ontological Priors)")
-def api_predict_links(req: LinkPredictionRequest):
-    """
-    Infers missing high-probability relational links across the knowledge graph,
-    computes graph completeness, and grounds predicted entities to Wikidata Q-IDs.
-    """
-    try:
-        return predict_kg_links(req.domain, req.triples, req.entities, req.topic_hubs)
-    except Exception as e:
-        logger.error("Link prediction failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Link prediction failed.")
-
-
-@app.post("/api/export-graph-html", summary="Export Standalone Interactive PyVis/Vis.js Graph HTML")
-def api_export_graph_html(req: ExportGraphHtmlRequest):
-    """
-    Generates a standalone, fully-interactive Vis.js HTML document with physics
-    simulation, node search, filtering, and entity metadata drawer.
-    """
-    try:
-        html = generate_standalone_graph_html(
-            domain=req.domain,
-            topology=req.cluster_topology,
-            triples=req.triples,
-            topic_hubs=req.topic_hubs,
-            predicted_links=req.predicted_links
-        )
-        return HTMLResponse(content=html, media_type="text/html")
-    except Exception as e:
-        logger.error("Failed to generate graph HTML: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to generate interactive graph HTML. Check server logs.")
-
-
-@app.post("/api/audit", response_model=AuditResponse)
-def audit_endpoint(request: AuditRequest):
-    """
-    Runs the ontology pipeline against a target URL:
-    - Verifies Schema.org mandatory types
-    - Runs GLiNER zero-shot entity recognition
-    - Matches core seed concepts
-    - Calculates the single-page structured data readiness score
-    - Dynamically generates the Schema.org remediation patch
-    - Optionally deep-crawls up to 3 high-value sub-pages (pricing, features, integrations)
-    """
-    # FIX #1: SSRF protection — block private IPs and non-HTTP schemes
-    try:
-        validate_url_for_fetch(request.url)
-    except ValueError as val_err:
-        raise HTTPException(status_code=400, detail=str(val_err))
-
-    try:
-        pipeline = get_pipeline(request.vertical_id)
-        result = pipeline.process(url=request.url, deep_crawl=request.deep_crawl)
-
-        # Build entity breakdown grouped by entity label
-        breakdown: Dict[str, List[Dict[str, Any]]] = {}
-        for ent in result.entities:
-            breakdown.setdefault(ent.label, []).append({
-                "text": ent.text,
-                "score": ent.score,
-                "start": ent.start,
-                "end": ent.end
-            })
-
-        return AuditResponse(
-            url=result.url or request.url,
-            title=result.title,
-            vertical_id=result.vertical_id,
-            readiness_score=result.readiness_score,
-            readiness_breakdown=result.readiness_breakdown,
-            mandatory_schema_status=result.mandatory_schema_status,
-            entity_breakdown=breakdown,
-            entities=result.entities,
-            seed_concepts=result.seed_concepts,
-            schema_org=result.schema_org,
-            recommended_patch=result.recommended_patch,
-            crawled_subpages=result.crawled_subpages,
-            triples=result.triples,
-            meta_description=result.meta_description,
-            site_name=result.site_name
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        # FIX #20: Sanitize exception leak
-        logger.error("Failed to audit URL '%s': %s", request.url, e, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to audit URL '{request.url}'. Check server logs.")
-
-
-@app.post("/api/benchmark", response_model=BenchmarkResponse)
-def benchmark_endpoint(request: BenchmarkRequest):
-    """
-    Runs comparative analysis across multiple URLs and returns structured benchmark data
-    along with an intelligent Competitive Gap Analysis and Leapfrog Action Plan.
-    """
-    primary_url = request.primary_url
-    competitor_urls = list(request.competitor_urls or [])
-
-    if not primary_url and request.urls:
-        primary_url = request.urls[0]
-        competitor_urls = request.urls[1:]
-
-    all_urls = []
-    if primary_url:
-        all_urls.append((primary_url, True))
-    for c_url in competitor_urls:
-        if c_url and c_url not in [u[0] for u in all_urls]:
-            all_urls.append((c_url, False))
-
-    if not all_urls:
-        raise HTTPException(status_code=400, detail="Must provide 'primary_url' and 'competitor_urls' (or 'urls').")
-
-    # FIX #1: SSRF protection — validate every target URL
-    for target_url, _ in all_urls:
-        try:
-            validate_url_for_fetch(target_url)
-        except ValueError as val_err:
-            raise HTTPException(status_code=400, detail=f"Invalid benchmark target URL '{target_url}': {val_err}")
-
-    try:
-        pipeline = get_pipeline(request.vertical_id)
-        all_seed_concepts = pipeline.config.core_seed_concepts
-        items: List[BenchmarkItem] = []
-        raw_results = {}
-
-        for target_url, is_prim in all_urls:
-            try:
-                res = pipeline.process(url=target_url)
-                raw_results[target_url] = res
-                
-                mand = res.mandatory_schema_status
-                passed = [k for k, v in mand.items() if v]
-                missing_schemas = [k for k, v in mand.items() if not v]
-                compliance_str = f"{len(passed)}/{len(mand)}"
-
-                detected_concepts = [c.concept for c in res.seed_concepts if c.count > 0]
-                detected_set = set(detected_concepts)
-                missing_concepts = [c for c in all_seed_concepts if c not in detected_set]
-
-                # Top missing string preview
-                top_missing = ", ".join(missing_concepts[:3])
-                if len(missing_concepts) > 3:
-                    top_missing += f" (+{len(missing_concepts) - 3} more)"
-                elif not missing_concepts:
-                    top_missing = "None (100% Coverage)"
-
-                # Top entities sorted by score
-                top_entities = [
-                    {"label": e.label, "text": e.text, "score": e.score}
-                    for e in sorted(res.entities, key=lambda x: -x.score)[:8]
-                ]
-
-                items.append(BenchmarkItem(
-                    url=target_url,
-                    title=res.title,
-                    readiness_score=res.readiness_score,
-                    compliance_str=compliance_str,
-                    passed_schemas=passed,
-                    missing_schemas=missing_schemas,
-                    entity_count=len(res.entities),
-                    detected_concepts=detected_concepts,
-                    missing_concepts=missing_concepts,
-                    top_missing_concepts=top_missing,
-                    top_entities=top_entities,
-                    recommended_patch=res.recommended_patch,
-                    is_primary=is_prim
-                ))
-            except Exception as e:
-                items.append(BenchmarkItem(
-                    url=target_url,
-                    title="Error processing URL",
-                    readiness_score=0.0,
-                    compliance_str="0/3",
-                    passed_schemas=[],
-                    missing_schemas=list(pipeline.config.mandatory_schema_types),
-                    entity_count=0,
-                    detected_concepts=[],
-                    missing_concepts=list(all_seed_concepts),
-                    top_missing_concepts="All Concepts Missing",
-                    top_entities=[],
-                    recommended_patch=None,
-                    is_primary=is_prim
-                ))
-
-        gap_analysis = None
-        if primary_url and primary_url in raw_results:
-            prim_res = raw_results[primary_url]
-            comp_res_list = [raw_results[u] for u, is_p in all_urls if not is_p and u in raw_results]
-            gap_analysis = pipeline.run_competitive_gap_analysis(prim_res, comp_res_list)
-
-        return BenchmarkResponse(
-            vertical_id=pipeline.config.vertical_id,
-            total_analyzed=len(items),
-            primary_url=primary_url,
-            comparative_table=items,
-            gap_analysis=gap_analysis
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        # FIX #20: Sanitize exception leak
-        logger.error("Benchmark execution failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Benchmark execution failed. Check server logs for details.")
-
-
-@app.post("/api/check-draft", response_model=DraftAlignmentResponse, summary="Evaluate Draft Against Knowledge Graph (PAS & Fluff)")
-def api_check_draft(req: DraftAlignmentRequest):
-    """
-    Evaluates draft content against the canonical Product Knowledge Graph.
-    Computes the Product Alignment Score (PAS: 0-100), detects generic buzzword fluff,
-    and runs Gemini LLM-as-judge claim verification when available.
-    """
-    try:
-        triples_dicts = [t.model_dump() if hasattr(t, "model_dump") else t.dict() for t in req.triples]
-        pipeline = get_pipeline(req.vertical_id)
-        
-        # Calculate algorithmic PAS & fluff penalty
-        pas_result = alignment.calculate_product_alignment_score(
-            text=req.draft_text,
-            canonical_triples=triples_dicts,
-            canonical_entities=req.entities or list(pipeline.config.core_seed_concepts),
-            brand_name=req.brand_name
-        )
-
-        # Enhance with Gemini LLM-as-judge if available
-        llm_judge = None
-        if vertex_ai_client.is_available():
-            try:
-                llm_judge = vertex_ai_client.check_draft_alignment(
-                    draft_text=req.draft_text,
-                    brand_name=req.brand_name,
-                    triples=triples_dicts,
-                    entities=req.entities
-                )
-            except Exception as j_err:
-                logger.warning("Gemini draft alignment judge fallback: %s", j_err)
-
-        contradictions = pas_result["contradictions"]
-        if llm_judge and llm_judge.get("contradictions"):
-            contradictions = list(set(contradictions + llm_judge.get("contradictions", [])))
-
-        recs = pas_result["recommendations"]
-        if llm_judge and llm_judge.get("rewrite_recommendations"):
-            recs = list(set(recs + llm_judge.get("rewrite_recommendations", [])[:2]))
-
-        return DraftAlignmentResponse(
-            product_alignment_score=pas_result["product_alignment_score"],
-            verdict=pas_result["verdict"],
-            breakdown=pas_result["breakdown"],
-            fluff_analysis=pas_result["fluff_analysis"],
-            grounded_triples_count=pas_result["grounded_triples_count"],
-            grounded_triples=pas_result["grounded_triples"],
-            missing_triples_count=pas_result["missing_triples_count"],
-            missing_triples=pas_result["missing_triples"],
-            contradictions=contradictions,
-            recommendations=recs,
-            llm_judge=llm_judge
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Draft alignment check failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Draft alignment check failed. Check server logs.")
-
-
-@app.post("/api/content-brief", response_model=ProductBriefResponse, summary="Generate Product Truth Content Brief")
-def api_content_brief(req: ProductBriefRequest):
-    """
-    Generates a structured Product Truth Content Brief for writers and AI content pipelines,
-    ensuring newly created content adheres 100% to verified Knowledge Graph triples.
-    """
-    try:
-        pipeline = get_pipeline(req.vertical_id)
-        triples_dicts = [t.model_dump() if hasattr(t, "model_dump") else t.dict() for t in req.triples]
-        
-        brief = vertex_ai_client.generate_product_brief(
-            topic=req.topic,
-            brand_name=req.brand_name,
-            triples=triples_dicts,
-            gaps=req.gaps,
-            vertical_name=pipeline.config.display_name
-        )
-
-        return ProductBriefResponse(
-            topic=req.topic,
-            target_alignment_score=brief.get("target_alignment_score", 90),
-            must_include_entities=brief.get("must_include_entities", []),
-            required_relational_triples=brief.get("required_relational_triples", []),
-            prohibited_claims=brief.get("prohibited_claims", []),
-            suggested_outline=brief.get("suggested_outline", []),
-            differentiation_angles=brief.get("differentiation_angles", [])
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error("Content brief generation failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Content brief generation failed. Check server logs.")
-
-
-@app.post("/api/export-pdf", summary="Generate 1-Click Executive PDF Report")
-def api_export_pdf(req: ExportPdfRequest):
-    """
-    Generates a white-label, executive-grade PDF audit report containing
-    Structured Data Readiness, Schema.org compliance, verified triples, and strategic action plan.
-    """
-    try:
-        audit_data = {
-            "url": req.url,
-            "readiness_score": req.readiness_score or 0.0,
-            "mandatory_schema_status": req.mandatory_schema_status or {},
-            "triples": req.triples or [],
-            "google_kg_presence": req.google_kg_presence
-        }
-        benchmark_data = None
-        if req.benchmark_table:
-            benchmark_data = {"comparative_table": req.benchmark_table}
-
-        pdf_bytes = report_pdf.generate_executive_pdf_report(
-            audit_data=audit_data,
-            benchmark_data=benchmark_data
-        )
-
-        clean_name = req.url.replace("https://", "").replace("http://", "").split("/")[0].replace(".", "_")
-        filename = f"GainARK_OntoLeap_{clean_name}.pdf"
-
-        return Response(
-            content=pdf_bytes,
-            media_type="application/pdf",
-            headers={
-                "Content-Disposition": f'attachment; filename="{filename}"'
-            }
-        )
-    except Exception as e:
-        logger.error("PDF export failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="PDF export failed. Check server logs.")
-
-
-@app.post("/api/export-battlecards-pdf", summary="Generate 1-Click Executive Battlecards PDF")
-def api_export_battlecards_pdf(req: Dict[str, Any]):
-    """
-    Generates a high-impact, executive sales battlecards deck in PDF from Tri-Ontology alignment data.
-    """
-    try:
-        pdf_bytes = report_pdf.generate_battlecards_pdf_report(req)
-        comp = req.get("company_name", "Brand").replace(" ", "_").replace("/", "_")
-        filename = f"GainARK_{comp}_Competitive_Battlecards.pdf"
-
-        return Response(
-            content=pdf_bytes,
-            media_type="application/pdf",
-            headers={
-                "Content-Disposition": f'attachment; filename="{filename}"'
-            }
-        )
-    except Exception as e:
-        logger.error("Battlecards PDF export failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Battlecards PDF export failed. Check server logs.")
-
-
-@app.get("/api/download-pitch-pdf", summary="Download 1-Page Executive Pitch One-Pager PDF")
-def api_download_pitch_pdf():
-    """
-    Generates and returns the official 1-Page Executive Pitch PDF for OntoLeap.
-    Built in-memory for zero disk I/O and stateless concurrency safety.
-    """
-    try:
-        from generate_pitch_pdf import build_one_pager_pdf_bytes
-        pdf_bytes = build_one_pager_pdf_bytes()
-
-        return Response(
-            content=pdf_bytes,
-            media_type="application/pdf",
-            headers={
-                "Content-Disposition": 'inline; filename="OntoLeap_Executive_Pitch_OnePager.pdf"'
-            }
-        )
-    except Exception as e:
-        logger.error("Pitch PDF generation failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Pitch PDF generation failed. Check server logs.")
-
-
-@app.post("/api/google-kg", summary="Verify Entity Recognition in Google Knowledge Graph")
-def api_google_kg_search_post(req: GoogleKgRequest):
-    """
-    Directly queries Google's Knowledge Graph Search API (kgsearch.googleapis.com)
-    and returns Google Machine Identifier (MID), entity salience score, types, and AI overview risk.
-    """
-    res = google_kg_client.search_entity(req.query)
-    if not res:
-        raise HTTPException(status_code=500, detail="Google Knowledge Graph search failed or unconfigured.")
-    return res
-
-
-@app.get("/api/google-kg", summary="Verify Entity Recognition in Google Knowledge Graph (Query)")
-def api_google_kg_search_get(query: str = Query(..., description="Brand or company query")):
-    res = google_kg_client.search_entity(query)
-    if not res:
-        raise HTTPException(status_code=500, detail="Google Knowledge Graph search failed or unconfigured.")
-    return res
-
-
-@app.post(
-    "/api/discover-industry",
-    response_model=IndustryDiscoveryResponse,
-    summary="Zero-Shot Autonomous Industry & Vertical Discovery",
-    tags=["Industry Ontology"]
-)
-async def api_discover_industry(req: IndustryDiscoveryRequest):
-    """
-    Autonomously bootstraps an Industry Ontology profile for any B2B SaaS domain.
-    1. Crawls homepage title, headings, and metadata
-    2. Synthesizes vertical taxonomy, seed concepts, compliance standards, integrations, and competitors
-    3. Grounds concepts against canonical Wikidata Q-IDs
-    4. Automatically saves and registers the vertical profile into the live pipeline
-    """
-    validate_url_for_fetch(req.url)
-    try:
-        res = await industry_profiler.discover_industry_profile_async(
-            url=req.url,
-            brand_hint=req.brand_hint,
-            save_config=True
-        )
-        # Register new vertical in live memory
-        SUPPORTED_VERTICALS.add(res.vertical_id)
-        return res
-    except Exception as e:
-        logger.exception("Failed to discover industry for %s: %s", req.url, e)
-        raise HTTPException(status_code=500, detail="Industry discovery failed. Check server logs.")
-
-
-
-@app.post(
-    "/api/product-truth",
-    response_model=ProductTruthMatrixResponse,
-    summary="Company Product Truth Matrix: Marketing Claims vs. Technical Reality",
-    tags=["Product Truth & Governance"]
-)
-def api_product_truth_audit(req: ProductTruthRequest):
-    """
-    Cross-examines a brand's marketing website against its technical documentation or OpenAPI spec.
-    1. Extracts marketing claims from marketing_url
-    2. Parses technical capabilities from tech_docs_url, openapi_spec, or documentation text
-    3. Computes the Product Truth Matrix:
-       - Verified Capabilities (backed by code/API)
-       - Unbacked Marketing Claims (marketing drift, hallucination risk)
-       - Hidden Capabilities (unmarketed engineering capabilities)
-    4. Calculates the Marketing Grounding Index (MGI) and emits actionable governance alerts.
-    """
-    validate_url_for_fetch(req.marketing_url)
-    if req.tech_docs_url:
-        validate_url_for_fetch(req.tech_docs_url)
-
-    pipeline = get_pipeline(req.vertical_id)
-
-    try:
-        matrix_result = product_truth.execute_product_truth_audit(req, pipeline)
-        return matrix_result
-    except Exception as e:
-        logger.exception("Product Truth audit failed for %s: %s", req.marketing_url, e)
-        raise HTTPException(status_code=500, detail="Product Truth audit failed. Check server logs.")
-
-
-@app.post(
-    "/api/tri-ontology-align",
-    response_model=TriOntologyAlignmentResponse,
-    summary="Tri-Ontology Competitive Alignment: Company vs. Competitors vs. Industry Standards",
-    tags=["Product Truth & Governance"]
-)
-def api_tri_ontology_align(req: TriOntologyAlignmentRequest):
-    """
-    Performs full Tri-Ontology comparative alignment across:
-    1. Industry Ontology (Domain standards and expected capabilities)
-    2. Company Product Truth (Verified capabilities vs. marketing claims)
-    3. Competitor Product Truth (Competitor verified reality vs. competitor marketing claims)
-    Generates Company Superiority vectors, Competitor Fluff vulnerabilities, and
-    actionable Sales & Marketing Counter-Positioning battlecards.
-    """
-    validate_url_for_fetch(req.company.marketing_url)
-    for comp in req.competitors:
-        validate_url_for_fetch(comp.marketing_url)
-
-    pipeline = get_pipeline(req.vertical_id)
-
-    try:
-        alignment_report = competitive_alignment.execute_tri_ontology_alignment(req, pipeline)
-        return alignment_report
-    except Exception as e:
-        logger.exception("Tri-Ontology alignment failed: %s", e)
-        raise HTTPException(status_code=500, detail="Tri-Ontology alignment failed. Check server logs.")
-
-
-@app.post(
-    "/api/competitor-ontology",
-    response_model=CompetitorOntologyResponse,
-    summary="Crawl and extract the public ontology and capabilities of a competitor",
-    tags=["Product Truth & Governance"]
-)
-def api_competitor_ontology(req: CompetitorOntologyRequest):
-    """
-    Crawls a competitor's domain and high-signal subpages (/pricing, /features, /integrations)
-    using the SmartScraper (Chrome TLS impersonation).
-    Extracts relational triples, Schema.org nodes, and entity grounding.
-    """
-    validate_url_for_fetch(req.url)
-    pipeline = get_pipeline()
-    try:
-        return competitive_alignment.extract_competitor_ontology(req, pipeline)
-    except Exception as e:
-        logger.exception("Competitor ontology extraction failed: %s", e)
-        raise HTTPException(status_code=500, detail="Competitor ontology extraction failed. Check server logs.")
+app.include_router(system_router)
+app.include_router(governance_router)
+app.include_router(kg_router)
+app.include_router(seo_router)
+app.include_router(audit_router)
 
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
-
-
-

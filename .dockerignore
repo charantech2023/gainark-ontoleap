@@ -14,3 +14,5 @@ models_backup.py
 ANTIGRAVITY_TASKS.md
 *.md
 verify_*.py
+.ontoleap_cache/
+.test_cache/

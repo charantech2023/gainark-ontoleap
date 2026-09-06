@@ -1,0 +1,89 @@
+{
+  "vertical_id": "hr_payroll_benefits_management",
+  "display_name": "HR, Payroll & Benefits Management",
+  "gliner_labels": [
+    "Payroll Service",
+    "Employee Benefit",
+    "HR Compliance",
+    "Time Tracking Feature",
+    "Tax Filing",
+    "Business Type"
+  ],
+  "mandatory_schema_types": [
+    "SoftwareApplication",
+    "Organization",
+    "Offer"
+  ],
+  "core_seed_concepts": [
+    "Payroll Processing",
+    "Employee Benefits Administration",
+    "HR Management",
+    "Time & Attendance Tracking",
+    "Tax Filing & Compliance",
+    "New Hire Onboarding",
+    "Contractor Payments",
+    "PTO Management",
+    "S Corp Compliance",
+    "Workers' Compensation",
+    "HR Reporting",
+    "Employee Self-Service"
+  ],
+  "known_integrations": [
+    "Accounting Software",
+    "Time Tracking Software",
+    "HRIS (Human Resources Information System)",
+    "Benefits Providers",
+    "Expense Management Software",
+    "Performance Management Software",
+    "Recruiting Software",
+    "Learning Management Systems (LMS)",
+    "Business Banking"
+  ],
+  "known_compliance": [
+    "IRS Regulations",
+    "FLSA (Fair Labor Standards Act)",
+    "ACA (Affordable Care Act)",
+    "State Labor Laws",
+    "HIPAA (Health Insurance Portability and Accountability Act)",
+    "ERISA (Employee Retirement Income Security Act)",
+    "COBRA (Consolidated Omnibus Budget Reconciliation Act)"
+  ],
+  "known_pricing": [
+    "Per-Employee Per-Month",
+    "Tiered Plans",
+    "Custom Enterprise Pricing",
+    "Add-on Services"
+  ],
+  "known_automation": [
+    "Payroll Runs",
+    "Tax Filing",
+    "Benefits Enrollment",
+    "Time Tracking & Calculation",
+    "PTO Accrual & Management",
+    "New Hire Reporting",
+    "Compliance Alerts",
+    "Direct Deposit Processing",
+    "W-2 and 1099 Generation",
+    "HR Document Management"
+  ],
+  "concept_hierarchy": {
+    "Payroll Processing": "HR Management",
+    "Employee Benefits Administration": "HR Management",
+    "Time & Attendance Tracking": "HR Management",
+    "Tax Filing & Compliance": "Payroll Processing",
+    "New Hire Onboarding": "HR Management",
+    "Contractor Payments": "Payroll Processing",
+    "PTO Management": "Time & Attendance Tracking",
+    "S Corp Compliance": "Tax Filing & Compliance",
+    "Workers' Compensation": "Employee Benefits Administration",
+    "HR Reporting": "HR Management",
+    "Employee Self-Service": "HR Management",
+    "Run payroll": "Payroll Processing",
+    "Track team time": "Time & Attendance Tracking",
+    "File taxes": "Tax Filing & Compliance",
+    "Identify tax credits": "Tax Filing & Compliance",
+    "Calculate and sync team's hours": "Time & Attendance Tracking",
+    "Manage PTO and holidays": "Time & Attendance Tracking",
+    "Pay yourself a reasonable salary (S Corp)": "S Corp Compliance"
+  }
+}

@@ -7,3 +7,5 @@ __pycache__/
 *.log
 # Derived audit history: regenerated from truth_ledger/log.md on first read.
 truth_ledger/history.jsonl
+.ontoleap_cache/
+.test_cache/

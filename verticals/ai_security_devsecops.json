@@ -3,11 +3,11 @@
   "display_name": "AI Security & DevSecOps Platform",
   "gliner_labels": [
     "AI Security Platform",
-    "AI-Generated Code",
-    "Agentic Development",
-    "AI Application Security",
     "Vulnerability Management",
-    "Security Posture"
+    "AI Agent Governance",
+    "Application Security",
+    "Code Security",
+    "Threat Intelligence"
   ],
   "mandatory_schema_types": [
     "SoftwareApplication",
@@ -15,46 +15,77 @@
     "Offer"
   ],
   "core_seed_concepts": [
-    "AI security platform",
-    "AI-generated code analysis",
-    "Agentic development governance",
+    "AI-generated code security",
+    "AI agent security",
     "AI-native application security",
-    "Automated AI attack detection",
-    "Vulnerability scanning",
-    "Runtime security for AI",
-    "Model inventory and governance",
-    "Supply chain security for AI",
-    "DevSecOps integration",
+    "Vulnerability detection",
+    "Automated AI attacks",
+    "Untrusted agentic development",
+    "Ungoverned AI applications",
+    "Software supply chain security",
     "Continuous security validation",
-    "Risk posture improvement"
+    "Security policy enforcement",
+    "Risk posture improvement",
+    "Developer security workflows"
   ],
   "known_integrations": [
     "GitHub",
     "GitLab",
     "Jira",
-    "Jenkins",
     "Azure DevOps",
     "AWS",
-    "Google Cloud",
-    "Docker",
+    "Google Cloud Platform",
+    "Microsoft Azure",
     "Kubernetes",
+    "Jenkins",
+    "CircleCI",
     "Slack",
-    "OpenAI",
-    "Hugging Face"
+    "VS Code"
   ],
   "known_compliance": [
-    "NIST AI Risk Management Framework",
-    "ISO 27001",
     "SOC 2",
+    "ISO 27001",
+    "NIST CSF",
     "GDPR",
-    "OWASP Top 10 for LLMs",
-    "PCI-DSS",
-    "HIPAA"
+    "OWASP Top 10",
+    "CISA AI Security Guidelines",
+    "FedRAMP"
   ],
   "known_pricing": [
     "Per-Developer Pricing",
     "Tiered Enterprise",
     "Usage-Based Scanning",
-    "Module-Based Licensing"
-  ]
+    "Free Tier / Freemium"
+  ],
+  "known_automation": [
+    "Vulnerability Scanning",
+    "Code Analysis",
+    "Agent Monitoring",
+    "Application Inventory",
+    "Policy Enforcement",
+    "Automated Remediation",
+    "Security Posture Reporting",
+    "Threat Detection & Alerting",
+    "Dependency Scanning",
+    "Container Security Scanning"
+  ],
+  "concept_hierarchy": {
+    "AI-generated code security": "Software supply chain security",
+    "AI agent security": "Software supply chain security",
+    "AI-native application security": "Application Security",
+    "Vulnerability detection": "Vulnerability Management",
+    "Automated AI attacks": "Threat Intelligence",
+    "Untrusted agentic development": "AI Agent Governance",
+    "Ungoverned AI applications": "Application Security",
+    "Continuous security validation": "Developer security workflows",
+    "Security policy enforcement": "AI Security Platform",
+    "Risk posture improvement": "AI Security Platform",
+    "Developer security workflows": "AI Security Platform",
+    "Vulnerability Scanning": "Vulnerability detection",
+    "Code Analysis": "AI-generated code security",
+    "Agent Monitoring": "AI agent security",
+    "Application Inventory": "AI-native application security",
+    "Policy Enforcement": "Security policy enforcement",
+    "Automated Remediation": "Developer security workflows"
+  }
 }
