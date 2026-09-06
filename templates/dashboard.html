@@ -524,7 +524,7 @@
                 </div>
 
                 <!-- Differential Stats Strip -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div class="bg-white rounded-2xl p-4 border border-emerald-200 shadow-sm">
                         <div class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">🏆 Company Advantages</div>
                         <div class="text-3xl font-extrabold text-slate-900 mt-2" id="battle-adv-count">0</div>
@@ -539,6 +539,12 @@
                         <div class="text-[11px] font-bold text-slate-600 uppercase tracking-wider">⚖️ Industry Table Stakes</div>
                         <div class="text-3xl font-extrabold text-slate-900 mt-2" id="battle-stakes-count">0</div>
                         <div class="text-[11px] text-slate-500 mt-1">Shared baseline requirements</div>
+                    </div>
+                    <!-- The only tile not derived from a competitor. -->
+                    <div class="bg-white rounded-2xl p-4 border border-violet-200 shadow-sm">
+                        <div class="text-[11px] font-bold text-violet-700 uppercase tracking-wider">🗺️ Unclaimed in Category</div>
+                        <div class="text-3xl font-extrabold text-slate-900 mt-2" id="battle-whitespace-count">0</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Nobody here markets these</div>
                     </div>
                     <div class="bg-white rounded-2xl p-4 border border-amber-200 shadow-sm flex flex-col justify-between">
                         <div class="text-[11px] font-bold text-amber-800 uppercase tracking-wider">📋 Battlecard Briefs</div>
@@ -567,6 +573,27 @@
                             class="px-3 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">Competitor Fluff</button>
                         <button type="button" onclick="filterBattlecards('tablestakes')" id="btn-filter-stakes"
                             class="px-3 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">Table Stakes</button>
+                    </div>
+                </div>
+
+                <!-- Category whitespace. Kept out of the battlecard grid on purpose:
+                     every card there compares you to a rival, while this names territory
+                     nobody in the set has claimed. Hidden when there is nothing to say. -->
+                <div id="battle-whitespace-card" class="hidden bg-white rounded-2xl p-5 border border-violet-200 shadow-sm space-y-3">
+                    <div class="flex items-center justify-between border-b border-violet-100 pb-2.5">
+                        <h4 class="text-xs font-bold text-violet-900 uppercase tracking-wider flex items-center gap-1.5">
+                            <span>🗺️ Unclaimed in this category</span>
+                        </h4>
+                        <span id="battle-whitespace-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-violet-50 text-violet-800">0</span>
+                    </div>
+                    <p class="text-[11px] text-slate-500">
+                        Concepts the industry ontology expects of this category that neither you nor
+                        any competitor analysed here markets. Unlike everything else on this page,
+                        these come from the category rather than from a rival &mdash; so they are
+                        positioning nobody has named yet.
+                    </p>
+                    <div id="battle-whitespace-list" class="space-y-2 text-xs">
+                        <!-- Populated dynamically -->
                     </div>
                 </div>
 
@@ -2833,6 +2860,7 @@ SELECT ?capability ?evidence WHERE {
                 document.getElementById('battle-stakes-count').innerText = (data.table_stakes || []).length;
                 document.getElementById('battle-briefs-count').innerText = (data.counter_positioning_briefs || []).length;
 
+                renderCategoryWhitespace(data.category_whitespace || []);
                 renderBattlecards('all');
                 resultsBox.scrollIntoView({ behavior: 'smooth' });
 
@@ -2864,6 +2892,49 @@ SELECT ?capability ?evidence WHERE {
                 }
             });
             renderBattlecards(type);
+        }
+
+        // Category whitespace is rendered separately from the battlecard deck because it
+        // is not a comparison: there is no rival on the other side of it. An empty list is
+        // a real answer (every category concept is claimed by someone), so the panel hides
+        // rather than showing an empty state that reads like a failure.
+        function renderCategoryWhitespace(items) {
+            const card = document.getElementById('battle-whitespace-card');
+            const list = document.getElementById('battle-whitespace-list');
+            const count = document.getElementById('battle-whitespace-count');
+            const badge = document.getElementById('battle-whitespace-badge');
+
+            count.innerText = items.length;
+            badge.innerText = items.length;
+            list.innerHTML = '';
+
+            if (!items.length) {
+                card.classList.add('hidden');
+                return;
+            }
+            card.classList.remove('hidden');
+
+            items.forEach(item => {
+                const sourceLabel = item.source === 'automation' ? 'expected capability' : 'category concept';
+                const row = document.createElement('div');
+                row.className = 'p-3 rounded-xl bg-violet-50/60 border border-violet-100';
+                const concept = document.createElement('div');
+                concept.className = 'flex items-center gap-2 flex-wrap';
+                const name = document.createElement('span');
+                name.className = 'font-bold text-slate-900';
+                name.innerText = item.concept;
+                const tag = document.createElement('span');
+                tag.className = 'px-1.5 py-0.5 rounded text-[10px] font-semibold bg-violet-100 text-violet-800';
+                tag.innerText = sourceLabel;
+                concept.appendChild(name);
+                concept.appendChild(tag);
+                const insight = document.createElement('p');
+                insight.className = 'text-[11px] text-slate-600 mt-1 leading-snug';
+                insight.innerText = item.insight || '';
+                row.appendChild(concept);
+                row.appendChild(insight);
+                list.appendChild(row);
+            });
         }
 
         function renderBattlecards(filter) {
