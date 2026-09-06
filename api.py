@@ -1005,6 +1005,32 @@ def api_export_battlecards_pdf(req: Dict[str, Any]):
         raise HTTPException(status_code=500, detail="Battlecards PDF export failed. Check server logs.")
 
 
+@app.get("/api/download-pitch-pdf", summary="Download 1-Page Executive Pitch One-Pager PDF")
+def api_download_pitch_pdf():
+    """
+    Generates and returns the official 1-Page Executive Pitch PDF for OntoLeap.
+    """
+    try:
+        import io
+        from generate_pitch_pdf import build_one_pager_pdf
+        pdf_filename = "OntoLeap_Executive_Pitch_OnePager.pdf"
+        # Always build or read fresh
+        build_one_pager_pdf(pdf_filename)
+        with open(pdf_filename, "rb") as f:
+            pdf_bytes = f.read()
+
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": 'inline; filename="OntoLeap_Executive_Pitch_OnePager.pdf"'
+            }
+        )
+    except Exception as e:
+        logger.error("Pitch PDF generation failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Pitch PDF generation failed: {str(e)}")
+
+
 @app.post("/api/google-kg", summary="Verify Entity Recognition in Google Knowledge Graph")
 def api_google_kg_search_post(req: GoogleKgRequest):
     """
