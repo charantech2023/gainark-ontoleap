@@ -22,10 +22,21 @@ from product_truth import build_product_truth_matrix, MIN_CONFIDENT_TECHNICAL_EV
 from models import SemanticTriple
 
 
+# Distinct, non-overlapping names. Numbered labels are unsuitable on two counts:
+# deduplication collapses by containment, so "Vendor 1" would swallow "Vendor 12", and
+# alert precision only raises compliance alerts for real standards, so "Standard 0"
+# produces no alert at all and the assertions here would pass vacuously.
+_NAMES = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel",
+          "India", "Juliett", "Kilo", "Lima", "Mike", "November", "Oscar", "Papa",
+          "Quebec", "Romeo", "Sierra", "Tango", "Uniform", "Victor", "Whiskey", "Xray",
+          "Yankee", "Zulu"]
+
+
 def marketing(n):
+    assert n <= len(_NAMES), "fixture supports at most %d distinct claims" % len(_NAMES)
     return [
         SemanticTriple(
-            subject="Acme", predicate="compliesWith", object="Standard %d" % i,
+            subject="Acme", predicate="integratesWith", object="Vendor" + _NAMES[i],
             confidence=0.9, source_type="marketing_claim",
         )
         for i in range(n)
@@ -33,9 +44,10 @@ def marketing(n):
 
 
 def technical(n):
+    assert n <= len(_NAMES), "fixture supports at most %d distinct capabilities" % len(_NAMES)
     return [
         SemanticTriple(
-            subject="Acme", predicate="automates", object="Capability %d" % i,
+            subject="Acme", predicate="automates", object="Capability" + _NAMES[i],
             confidence=0.9, source_type="technical_truth",
         )
         for i in range(n)

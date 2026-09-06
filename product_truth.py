@@ -43,6 +43,70 @@ logger = logging.getLogger("gainark.product_truth")
 MIN_CONFIDENT_TECHNICAL_EVIDENCE = 5
 
 
+# A compliance claim is only a compliance claim if its object is an actual standard.
+# The extractor files anything it sees near compliance language under compliesWith, so
+# live output included "Regulatory Drift: Marketing claims compliance with 'SQL'" - and
+# with 'CPQ', 'MRR', 'Net D', 'global taxes' and 'enterprise-grade safeguards'. Those
+# are a query language, a sales process, a metric, payment terms and marketing prose.
+# Alerting on them is self-evidently wrong to any reader and discredits the real findings
+# sitting next to them.
+_STANDARD_PATTERNS = (
+    r"^iso[\s/-]?\d{4,5}",          # ISO 27001
+    r"^soc[\s-]?[123]\b",           # SOC 1 / SOC 2 (Type I/II)
+    r"^pci\b",                      # PCI, PCI-DSS, PCI-compliant
+    r"^asc[\s-]?\d{3}\b",           # ASC 606
+    r"^ifrs[\s-]?\d+\b",            # IFRS 15
+    r"^(us\s+)?gaap\b",
+    r"^(gdpr|hipaa|ccpa|fedramp|hitrust|nist)\b",
+    r"^(saml|scim|oauth|openid)\b",  # identity and authorisation standards
+    r"^(sepa|peppol)\b",             # payment and e-invoicing schemes
+    r"\b(vat|gst)\b",                # tax regimes, e.g. "EU VAT", "Australian GST"
+)
+
+
+def _is_recognized_standard(obj: str) -> bool:
+    """True when a compliesWith object names a real standard, scheme or regulation."""
+    normalized = " ".join((obj or "").lower().split())
+    if not normalized:
+        return False
+    if any(normalized == k.lower() or normalized.startswith(k.lower())
+           for k in KNOWN_COMPLIANCE):
+        return True
+    return any(re.search(p, normalized) for p in _STANDARD_PATTERNS)
+
+
+def _dedupe_triples(triples: List[SemanticTriple]) -> List[SemanticTriple]:
+    """Collapse claims that differ only in wording.
+
+    Live output flagged both 'PCI' and 'PCI-compliant', and carried both 'OpenAPI'
+    and 'OpenAPI Specification' as separate evidence, inflating every count the
+    executive summary reports.
+
+    Deliberately stricter than _concepts_match, which treats a single shared
+    non-generic token as a match - that would merge "Subscription Management" into
+    "Subscription Billing". Only exact normalized equality or full containment counts.
+    """
+    seen: List[Tuple[str, str]] = []
+    unique: List[SemanticTriple] = []
+    for t in triples:
+        pred = t.predicate.lower()
+        obj = _normalize_concept(t.object)
+        if not obj:
+            continue
+        duplicate = False
+        for seen_pred, seen_obj in seen:
+            if seen_pred != pred:
+                continue
+            if obj == seen_obj or obj in seen_obj or seen_obj in obj:
+                duplicate = True
+                break
+        if duplicate:
+            continue
+        seen.append((pred, obj))
+        unique.append(t)
+    return unique
+
+
 def _normalize_concept(text: str) -> str:
     """Normalize concept string for semantic alignment."""
     clean = re.sub(r'[^a-zA-Z0-9\s]', '', text.lower())
@@ -437,6 +501,12 @@ def build_product_truth_matrix(
     2. Unbacked Marketing Claims (marketing fluff, hallucination risk, product drift)
     3. Hidden Capabilities (real capabilities in docs/API omitted from marketing copy)
     """
+    # Collapse wording duplicates before anything is counted. Left in, "PCI" and
+    # "PCI-compliant" both land in the denominator and both produce an alert, so every
+    # figure in the executive summary is inflated by however repetitive the copy was.
+    marketing_triples = _dedupe_triples(marketing_triples)
+    technical_triples = _dedupe_triples(technical_triples)
+
     verified: List[SemanticTriple] = []
     unbacked: List[SemanticTriple] = []
     hidden: List[SemanticTriple] = []
@@ -528,13 +598,29 @@ def build_product_truth_matrix(
     drift_alerts: List[str] = []
     if evidence_status != "inconclusive":
         provisional = "Provisional - " if evidence_status == "low_confidence" else ""
-        for u in unbacked:
+        source_desc = tech_docs_url or "the technical documentation reviewed"
+        for u in _dedupe_triples(unbacked):
             if u.predicate == "compliesWith":
-                drift_alerts.append(f"{provisional}Regulatory Drift: Marketing claims compliance with '{u.object}', but no corresponding compliance standard or security scheme was verified in technical documentation.")
+                # Only real standards get a regulatory alert. Anything else under this
+                # predicate is an extraction artifact, not a compliance claim.
+                if not _is_recognized_standard(u.object):
+                    continue
+                drift_alerts.append(
+                    f"{provisional}Regulatory Drift: Marketing claims compliance with '{u.object}', "
+                    f"which was not found in {source_desc}. Compliance attestations often live on "
+                    f"a trust or security page rather than in API documentation - confirm the source "
+                    f"covers compliance before treating this as a gap."
+                )
             elif u.predicate == "integratesWith":
-                drift_alerts.append(f"{provisional}Integration Drift: Marketing claims integration with '{u.object}', but no connector, endpoint, or SDK parameter was detected in the technical documentation.")
+                drift_alerts.append(
+                    f"{provisional}Integration Drift: Marketing claims integration with '{u.object}', "
+                    f"but no connector, endpoint or SDK parameter for it was found in {source_desc}."
+                )
             elif u.predicate == "automates":
-                drift_alerts.append(f"{provisional}Capability Drift: Marketing advertises automated '{u.object}', which is absent from verified API methods and documentation.")
+                drift_alerts.append(
+                    f"{provisional}Capability Drift: Marketing advertises automated '{u.object}', "
+                    f"which is absent from the API methods and documentation in {source_desc}."
+                )
 
     growth_recs: List[str] = []
     for h in hidden[:5]:
