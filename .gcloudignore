@@ -11,3 +11,6 @@ scratch/
 test_*.py
 verify_*.py
 *.bak
+# Never upload local secrets to the Cloud Build staging bucket.
+.env
+.env.*
