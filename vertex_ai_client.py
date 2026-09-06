@@ -46,9 +46,10 @@ def _call_gemini(
     system_instruction: Optional[str] = None,
     temperature: float = 0.2,
     max_output_tokens: int = 4096,
-    thinking_budget: int = 256
+    thinking_budget: int = 256,
+    timeout: int = 30
 ) -> Optional[str]:
-    """Call Gemini 2.5 Flash via REST API with timeout and error handling."""
+    """Call Gemini 2.5 Flash via REST API with configurable timeout and error handling."""
     if not GEMINI_API_KEY:
         logger.warning("Gemini API key is not configured.")
         return None
@@ -76,7 +77,7 @@ def _call_gemini(
     try:
         data_bytes = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(url, data=data_bytes, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             res_json = json.loads(resp.read().decode("utf-8"))
             candidates = res_json.get("candidates", [])
             if candidates:

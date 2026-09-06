@@ -4,10 +4,10 @@
   "gliner_labels": [
     "Payroll Software",
     "Benefits Administration",
-    "HR Management System",
-    "Compliance Standard",
-    "Employee Self-Service",
-    "Tax Filing Service"
+    "Time Tracking Solution",
+    "HR Compliance",
+    "Tax Filing Service",
+    "Employee Management Platform"
   ],
   "mandatory_schema_types": [
     "SoftwareApplication",
@@ -16,46 +16,42 @@
   ],
   "core_seed_concepts": [
     "Payroll processing",
-    "Direct deposit",
-    "Tax filing (federal, state, local)",
-    "Health insurance benefits",
-    "Retirement plans (401k)",
-    "Time tracking",
-    "PTO management",
-    "Onboarding workflows",
-    "HR reporting",
-    "Worker's compensation",
+    "Benefits administration",
+    "Time and attendance tracking",
+    "HR compliance management",
+    "Tax filing and remittance",
+    "New hire onboarding",
     "Employee self-service portal",
-    "Compliance management"
+    "Contractor payments",
+    "PTO management",
+    "Workers' compensation",
+    "S Corp compliance",
+    "HR reporting and analytics"
   ],
   "known_integrations": [
-    "QuickBooks",
-    "Xero",
-    "FreshBooks",
-    "Zoom",
-    "Slack",
-    "Google Workspace",
-    "Microsoft 365",
-    "Time Tracking Software",
+    "Accounting Software (e.g., QuickBooks, Xero)",
+    "Time Tracking Software (e.g., When I Work, Homebase)",
+    "HRIS Systems",
+    "Benefits Brokers",
+    "401(k) Providers",
+    "Expense Management Software",
     "Applicant Tracking Systems (ATS)",
     "Learning Management Systems (LMS)",
-    "Expense Management Software",
-    "Performance Management Software"
+    "Performance Management Software",
+    "Business Banking Platforms"
   ],
   "known_compliance": [
     "IRS Regulations",
-    "FLSA",
-    "ACA",
-    "ERISA",
-    "HIPAA",
+    "FLSA (Fair Labor Standards Act)",
+    "ACA (Affordable Care Act)",
     "State Labor Laws",
-    "GDPR (for international employees)",
-    "SOC 2"
+    "HIPAA (Health Insurance Portability and Accountability Act)",
+    "ERISA (Employee Retirement Income Security Act)"
   ],
   "known_pricing": [
     "Per-Employee Per-Month",
-    "Tiered Plans (Basic, Plus, Premium)",
+    "Tiered Plans (e.g., Simple, Plus, Premium)",
     "Add-on Services Pricing",
-    "Annual Subscription Discount"
+    "Custom Enterprise Pricing"
   ]
 }

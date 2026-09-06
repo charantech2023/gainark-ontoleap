@@ -3480,8 +3480,8 @@ SELECT ?capability ?evidence WHERE {
 
                 if (passed) {
                     pill.innerHTML = `
-                        <span class="font-semibold text-slate-800">${stype}</span>
-                        <button type="button" onclick="openSchemaModal('${stype}')" class="inline-flex items-center gap-1 font-bold text-[11px] px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300 transition-all shadow-sm cursor-pointer" title="Click to inspect verified ${stype} payload">
+                        <span class="font-semibold text-slate-800">${escapeHtml(stype)}</span>
+                        <button type="button" onclick="openSchemaModal('${escapeHtml(stype)}')" class="inline-flex items-center gap-1 font-bold text-[11px] px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 border border-emerald-300 transition-all shadow-sm cursor-pointer" title="Click to inspect verified ${escapeHtml(stype)} payload">
                             <span>✓ PASSED</span>
                             <svg class="w-3.5 h-3.5 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -3491,7 +3491,7 @@ SELECT ?capability ?evidence WHERE {
                     `;
                 } else {
                     pill.innerHTML = `
-                        <span class="text-slate-600">${stype}</span>
+                        <span class="text-slate-600">${escapeHtml(stype)}</span>
                         <span class="font-bold text-[11px] px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200">✗ MISSING</span>
                     `;
                 }
@@ -3513,14 +3513,14 @@ SELECT ?capability ?evidence WHERE {
                     
                     let itemsHtml = items.map(item => `
                         <div class="flex items-center justify-between bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs">
-                            <span class="font-medium text-slate-800 truncate pr-2" title="${item.text}">${item.text}</span>
+                            <span class="font-medium text-slate-800 truncate pr-2" title="${escapeHtml(item.text)}">${escapeHtml(item.text)}</span>
                             <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">${item.score.toFixed(2)}</span>
                         </div>
                     `).join('');
 
                     card.innerHTML = `
                         <div class="flex items-center justify-between border-b border-slate-200 pb-2">
-                            <span class="text-xs font-bold text-slate-700">${label}</span>
+                            <span class="text-xs font-bold text-slate-700">${escapeHtml(label)}</span>
                             <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">${items.length}</span>
                         </div>
                         <div class="space-y-1.5 max-h-48 overflow-y-auto pr-1">

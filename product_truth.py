@@ -40,7 +40,7 @@ def _normalize_concept(text: str) -> str:
 
 
 def _concepts_match(c1: str, c2: str) -> bool:
-    """Check if two concepts match either exactly or via significant substring/stem."""
+    """Check if two concepts match either exactly, via substring, or via significant non-generic token overlap."""
     n1 = _normalize_concept(c1)
     n2 = _normalize_concept(c2)
     if not n1 or not n2:
@@ -52,7 +52,14 @@ def _concepts_match(c1: str, c2: str) -> bool:
     tokens1 = set(n1.split())
     tokens2 = set(n2.split())
     common = tokens1.intersection(tokens2)
-    return len(common) >= 1 and any(len(t) > 3 for t in common)
+    if len(common) >= 2:
+        return True
+    if len(common) == 1:
+        tok = next(iter(common))
+        generic_terms = {"management", "platform", "system", "service", "support", "engine", "software", "solution", "analytics", "operations", "automation"}
+        if tok not in generic_terms and len(tok) > 3:
+            return True
+    return False
 
 
 def parse_openapi_spec(
@@ -408,6 +415,7 @@ def execute_product_truth_audit(
 
     # 2. Technical Reality Ingestion
     technical_triples: List[SemanticTriple] = []
+    clean_docs: Optional[str] = None
 
     # Priority A: Raw OpenAPI spec dict provided
     if req.openapi_spec:

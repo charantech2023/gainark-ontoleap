@@ -17,7 +17,7 @@ Produces:
 import os
 import json
 import logging
-from typing import Dict, Any, List, Optional, Set
+from typing import Dict, Any, List, Optional, Set, Tuple
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
 
@@ -429,7 +429,7 @@ def extract_competitor_ontology(
     google_kg_grounded = False
     try:
         kg_res = google_kg_client.search_entity(brand_name)
-        if kg_res and kg_res.get("found"):
+        if kg_res and kg_res.get("is_recognized"):
             google_kg_grounded = True
     except Exception:
         pass

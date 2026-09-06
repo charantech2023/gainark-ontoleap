@@ -4,6 +4,8 @@ Strictly calibrated to fit on exactly 1 Letter-size page.
 """
 
 import os
+import io
+from typing import Any
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -36,11 +38,11 @@ class NumberedCanvas(canvas.Canvas):
         super().save()
 
 
-def build_one_pager_pdf(output_path: str = "OntoLeap_Executive_Pitch_OnePager.pdf"):
+def build_one_pager_pdf(output_target: Any = "OntoLeap_Executive_Pitch_OnePager.pdf"):
     # Letter is 612 x 792 pt. Margins: 32 pt left/right, 24 pt top/bottom.
     # Printable width: 548 pt, printable height: 744 pt.
     doc = SimpleDocTemplate(
-        output_path,
+        output_target,
         pagesize=letter,
         leftMargin=32,
         rightMargin=32,
@@ -312,7 +314,15 @@ def build_one_pager_pdf(output_path: str = "OntoLeap_Executive_Pitch_OnePager.pd
 
     # Build Document
     doc.build(story, canvasmaker=NumberedCanvas)
-    print(f"Successfully generated 1-Page PDF at: {output_path}")
+    if isinstance(output_target, str):
+        print(f"Successfully generated 1-Page PDF at: {output_target}")
+
+
+def build_one_pager_pdf_bytes() -> bytes:
+    """Builds the 1-Page Executive Pitch PDF strictly in memory and returns raw bytes."""
+    buf = io.BytesIO()
+    build_one_pager_pdf(output_target=buf)
+    return buf.getvalue()
 
 
 if __name__ == "__main__":

@@ -46,6 +46,8 @@ CHALLENGE_SIGNATURES = [
 ]
 
 
+import ipaddress
+
 def validate_url_for_fetch(url: str) -> None:
     """
     Validates that a URL is safe to fetch.
@@ -68,13 +70,32 @@ def validate_url_for_fetch(url: str) -> None:
     if hostname in BLOCKED_HOSTNAMES:
         raise ValueError(f"Blocked hostname: {hostname!r}")
 
-    # Resolve to IP and check against blocked private ranges
+    # Check if hostname itself is directly an IP literal
     try:
-        resolved_ip = socket.gethostbyname(hostname)
-        if any(resolved_ip.startswith(prefix) for prefix in BLOCKED_IP_PREFIXES):
-            raise ValueError(f"URL resolves to a private/reserved IP address: {resolved_ip}")
+        ip = ipaddress.ip_address(hostname)
+        if ip.is_private or ip.is_loopback or ip.is_reserved or ip.is_link_local or ip.is_multicast:
+            raise ValueError(f"URL points to a private/reserved IP address: {hostname}")
+    except ValueError as val_e:
+        if "private/reserved" in str(val_e):
+            raise
+        # Not a raw IP literal, proceed to DNS resolution
+
+    # Resolve to IP and check against blocked private ranges using socket.getaddrinfo (IPv4 + IPv6)
+    try:
+        addr_info = socket.getaddrinfo(hostname, None)
+        for _, _, _, _, sockaddr in addr_info:
+            resolved_ip_str = sockaddr[0]
+            try:
+                ip = ipaddress.ip_address(resolved_ip_str)
+                if ip.is_private or ip.is_loopback or ip.is_reserved or ip.is_link_local or ip.is_multicast:
+                    raise ValueError(f"URL resolves to a private/reserved IP address: {resolved_ip_str}")
+            except ValueError as ip_err:
+                if "private/reserved" in str(ip_err):
+                    raise
+            if any(resolved_ip_str.startswith(prefix) for prefix in BLOCKED_IP_PREFIXES):
+                raise ValueError(f"URL resolves to a private/reserved IP address: {resolved_ip_str}")
     except socket.gaierror:
-        # If DNS cannot resolve, still allow (could be internal Docker/container network resolution)
+        # If DNS cannot resolve, still allow (could be internal container or mock network)
         pass
 
 

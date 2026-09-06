@@ -86,7 +86,7 @@ logger = logging.getLogger("ontoleap.api")
 app = FastAPI(
     title="GainARK OntoLeap — Autonomous Ontology Intelligence & Semantic Graph Engine",
     description="Enterprise ontology intelligence, zero-shot entity grounding, relational triples extraction, and semantic internal linking for B2B SaaS.",
-    version="2.0.0"
+    version="2.2.0"
 )
 
 # ---------------------------------------------------------------------------
@@ -115,28 +115,37 @@ app.add_middleware(
 
 
 # ---------------------------------------------------------------------------
-# FIX #2: In-Memory Sliding Window Rate Limiting Middleware
+# FIX #2: In-Memory Sliding Window Rate Limiting Middleware with Auto-Pruning
 # ---------------------------------------------------------------------------
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """
     In-memory rolling-window rate limiter per client IP.
-    Protects heavy model inference and multi-page crawl endpoints from DoS.
+    Protects heavy model inference, crawling, and PDF generation from DoS.
+    Includes active key pruning to eliminate memory leaks over long lifecycles.
     """
     def __init__(self, app):
         super().__init__(app)
         self.history = defaultdict(list)
         self.lock = threading.Lock()
+        self.request_count = 0
         self.limits = {
-            "/api/audit": 10,           # Max 10 audits/min per IP
-            "/api/benchmark": 3,       # Max 3 multi-domain benchmarks/min
-            "/api/batch-crawl": 3,     # Max 3 sitemap crawls/min
-            "/api/internal-links": 5,  # Max 5 internal linking crawls/min
+            "/api/audit": 10,                 # Max 10 audits/min per IP
+            "/api/benchmark": 3,             # Max 3 multi-domain benchmarks/min
+            "/api/batch-crawl": 3,           # Max 3 sitemap crawls/min
+            "/api/internal-links": 5,        # Max 5 internal linking crawls/min
+            "/api/discover-industry": 5,     # Max 5 zero-shot discoveries/min
+            "/api/product-truth": 5,         # Max 5 truth audits/min
+            "/api/tri-ontology-align": 5,    # Max 5 alignment runs/min
+            "/api/download-pitch-pdf": 10,   # Max 10 pitch downloads/min
+            "/api/export-pdf": 10,           # Max 10 audit PDF exports/min
+            "/api/export-battlecards-pdf": 10# Max 10 battlecard PDF exports/min
         }
-        self.default_limit = 60        # Default 60 requests/min
+        self.default_limit = 60              # Default 60 requests/min
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
-        if request.method == "POST" and path.startswith("/api/"):
+        # Apply rate limiting to all /api/ routes except static metadata and health
+        if path.startswith("/api/") and path not in ("/api/health", "/api/info"):
             client_ip = request.client.host if request.client else "127.0.0.1"
             forwarded = request.headers.get("x-forwarded-for")
             if forwarded:
@@ -147,6 +156,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             window_start = now - 60.0
 
             with self.lock:
+                self.request_count += 1
+                # Auto-prune stale keys every 100 requests or when dict exceeds 2,000 entries
+                if self.request_count % 100 == 0 or len(self.history) > 2000:
+                    stale_keys = [k for k, timestamps in self.history.items() if not timestamps or timestamps[-1] <= window_start]
+                    for k in stale_keys:
+                        del self.history[k]
+
                 key = f"{client_ip}:{path}"
                 recent = [t for t in self.history[key] if t > window_start]
                 if len(recent) >= max_requests:
@@ -487,12 +503,13 @@ def api_simulate_search(req: SearchSimulationRequest):
                         target_url=c.get("url", f"https://{clean_dom}"),
                         evidence=c.get("fact", "")
                     ))
+                grounding_conf = round(min(0.99, max(0.65, 0.75 + (len(citations) * 0.04))), 2)
                 return SearchSimulationResponse(
                     query=req.query,
                     synthesized_answer=gem_res.get("answer", ""),
                     citations=citations,
-                    grounding_confidence=0.98,
-                    hallucination_risk="Zero Hallucination Risk (100% Schema & Triple Grounded by Google Gemini 2.5 Flash)",
+                    grounding_confidence=grounding_conf,
+                    hallucination_risk=f"Low Hallucination Risk ({int(grounding_conf * 100)}% Triple Grounded by Google Gemini 2.5 Flash)",
                     attributed_capabilities=[t.get("object", "") for t in triples_dicts[:6]]
                 )
     except Exception as e:
@@ -1009,15 +1026,11 @@ def api_export_battlecards_pdf(req: Dict[str, Any]):
 def api_download_pitch_pdf():
     """
     Generates and returns the official 1-Page Executive Pitch PDF for OntoLeap.
+    Built in-memory for zero disk I/O and stateless concurrency safety.
     """
     try:
-        import io
-        from generate_pitch_pdf import build_one_pager_pdf
-        pdf_filename = "OntoLeap_Executive_Pitch_OnePager.pdf"
-        # Always build or read fresh
-        build_one_pager_pdf(pdf_filename)
-        with open(pdf_filename, "rb") as f:
-            pdf_bytes = f.read()
+        from generate_pitch_pdf import build_one_pager_pdf_bytes
+        pdf_bytes = build_one_pager_pdf_bytes()
 
         return Response(
             content=pdf_bytes,
@@ -1028,7 +1041,7 @@ def api_download_pitch_pdf():
         )
     except Exception as e:
         logger.error("Pitch PDF generation failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Pitch PDF generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Pitch PDF generation failed. Check server logs.")
 
 
 @app.post("/api/google-kg", summary="Verify Entity Recognition in Google Knowledge Graph")
@@ -1077,7 +1090,7 @@ async def api_discover_industry(req: IndustryDiscoveryRequest):
         return res
     except Exception as e:
         logger.exception("Failed to discover industry for %s: %s", req.url, e)
-        raise HTTPException(status_code=500, detail=f"Industry discovery failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Industry discovery failed. Check server logs.")
 
 
 
@@ -1109,7 +1122,7 @@ def api_product_truth_audit(req: ProductTruthRequest):
         return matrix_result
     except Exception as e:
         logger.exception("Product Truth audit failed for %s: %s", req.marketing_url, e)
-        raise HTTPException(status_code=500, detail=f"Product Truth audit failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Product Truth audit failed. Check server logs.")
 
 
 @app.post(
@@ -1138,7 +1151,7 @@ def api_tri_ontology_align(req: TriOntologyAlignmentRequest):
         return alignment_report
     except Exception as e:
         logger.exception("Tri-Ontology alignment failed: %s", e)
-        raise HTTPException(status_code=500, detail=f"Tri-Ontology alignment failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Tri-Ontology alignment failed. Check server logs.")
 
 
 @app.post(
@@ -1159,7 +1172,7 @@ def api_competitor_ontology(req: CompetitorOntologyRequest):
         return competitive_alignment.extract_competitor_ontology(req, pipeline)
     except Exception as e:
         logger.exception("Competitor ontology extraction failed: %s", e)
-        raise HTTPException(status_code=500, detail=f"Competitor ontology extraction failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Competitor ontology extraction failed. Check server logs.")
 
 
 if __name__ == "__main__":

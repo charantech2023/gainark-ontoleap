@@ -55,41 +55,7 @@ from constants import (
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# FIX #1: SSRF Protection — URL Validation
-# ---------------------------------------------------------------------------
-
-def validate_url_for_fetch(url: str) -> None:
-    """
-    Validates that a URL is safe to fetch. Raises ValueError if the URL
-    points to a private IP, localhost, cloud metadata service, or uses
-    a non-HTTP scheme. This prevents Server-Side Request Forgery (SSRF) attacks.
-    """
-    try:
-        parsed = urlparse(url)
-    except Exception:
-        raise ValueError(f"Malformed URL: {url!r}")
-
-    if parsed.scheme not in ("http", "https"):
-        raise ValueError(f"Unsafe URL scheme '{parsed.scheme}'. Only http and https are allowed.")
-
-    hostname = (parsed.hostname or "").lower().strip(".")
-
-    if not hostname:
-        raise ValueError("URL must contain a valid hostname.")
-
-    # Block reserved/private hostnames
-    if hostname in BLOCKED_HOSTNAMES:
-        raise ValueError(f"Blocked hostname: {hostname!r}")
-
-    # Resolve to IP and check against blocked private ranges
-    try:
-        resolved_ip = socket.gethostbyname(hostname)
-        if any(resolved_ip.startswith(prefix) for prefix in BLOCKED_IP_PREFIXES):
-            raise ValueError(f"URL resolves to a private/reserved IP address: {resolved_ip}")
-    except socket.gaierror:
-        # Cannot resolve — still allow it (some valid domains may not resolve from container)
-        pass
+# validate_url_for_fetch is imported from scraper.py (single source of truth for SSRF protection)
 
 
 from remediation import generate_schema_patch
