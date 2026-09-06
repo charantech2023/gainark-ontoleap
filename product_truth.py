@@ -30,7 +30,10 @@ from models import (
 )
 from pipeline import OntologyPipeline, validate_url_for_fetch
 from scraper import smart_fetch
-from constants import KNOWN_AUTOMATION, KNOWN_COMPLIANCE, KNOWN_PRICING, KNOWN_INTEGRATIONS
+from constants import (
+    KNOWN_AUTOMATION, KNOWN_COMPLIANCE, KNOWN_PRICING, KNOWN_INTEGRATIONS,
+    resolve_vocabulary,
+)
 
 logger = logging.getLogger("gainark.product_truth")
 
@@ -64,14 +67,18 @@ _STANDARD_PATTERNS = (
 )
 
 
-def _is_recognized_standard(obj: str) -> bool:
-    """True when a compliesWith object names a real standard, scheme or regulation."""
+def _is_recognized_standard(obj: str, vocab: Optional[List[str]] = None) -> bool:
+    """True when a compliesWith object names a real standard, scheme or regulation.
+
+    `vocab` is the active vertical's compliance list, so HITECH counts in healthcare
+    even though it is absent from the generic billing-era defaults.
+    """
     normalized = " ".join((obj or "").lower().split())
     if not normalized:
         return False
-    if any(normalized == k.lower() or normalized.startswith(k.lower())
-           for k in KNOWN_COMPLIANCE):
-        return True
+    for k in (vocab or KNOWN_COMPLIANCE):
+        if normalized == k.lower() or normalized.startswith(k.lower()):
+            return True
     return any(re.search(p, normalized) for p in _STANDARD_PATTERNS)
 
 
@@ -139,7 +146,8 @@ def _concepts_match(c1: str, c2: str) -> bool:
 def parse_openapi_spec(
     spec: Dict[str, Any],
     brand_name: str = "The Platform",
-    source_origin: str = "openapi.json"
+    source_origin: str = "openapi.json",
+    config: Optional[Any] = None
 ) -> List[SemanticTriple]:
     """
     Parses an OpenAPI 3.x or Swagger 2.0 JSON specification into technical ground-truth triples.
@@ -150,6 +158,11 @@ def parse_openapi_spec(
     """
     triples: List[SemanticTriple] = []
     seen: Set[Tuple[str, str, str]] = set()
+
+    # Read the spec through the active vertical's vocabulary when it has one.
+    _vocab_automation = resolve_vocabulary(config, 'known_automation', KNOWN_AUTOMATION)
+    _vocab_compliance = resolve_vocabulary(config, 'known_compliance', KNOWN_COMPLIANCE)
+    _vocab_pricing = resolve_vocabulary(config, 'known_pricing', KNOWN_PRICING)
 
     def _add_triple(pred: str, obj: str, confidence: float, evidence: str, prov: str):
         key = (brand_name.lower(), pred.lower(), obj.lower())
@@ -229,13 +242,13 @@ def parse_openapi_spec(
             # Scan operation summary & description for capabilities, compliance, and pricing models
             text_to_scan = f"{summary} {desc}".strip()
             if text_to_scan:
-                for item in KNOWN_AUTOMATION:
+                for item in _vocab_automation:
                     if item.lower() in text_to_scan.lower():
                         _add_triple("automates", item, 0.92, f"Endpoint {method.upper()} {path_str}: {summary or item}", f"{source_origin}#{method.upper()}{path_str}")
-                for std in KNOWN_COMPLIANCE:
+                for std in _vocab_compliance:
                     if re.search(rf'\b{re.escape(std.lower())}\b', text_to_scan.lower()):
                         _add_triple("compliesWith", std, 0.96, f"Endpoint {method.upper()} {path_str}: {summary or std}", f"{source_origin}#{method.upper()}{path_str}")
-                for pm in KNOWN_PRICING:
+                for pm in _vocab_pricing:
                     pm_simple = pm.lower().replace(" pricing", "").replace(" billing", "")
                     if pm.lower() in text_to_scan.lower() or pm_simple in text_to_scan.lower():
                         _add_triple("supportsPricingModel", pm, 0.90, f"Endpoint {method.upper()} {path_str}: {summary or pm}", f"{source_origin}#{method.upper()}{path_str}")
@@ -715,7 +728,7 @@ def execute_product_truth_audit(
     # Priority A: Raw OpenAPI spec dict provided
     if req.openapi_spec:
         logger.info("Parsing provided OpenAPI specification for %s...", brand)
-        parsed_spec_triples = parse_openapi_spec(req.openapi_spec, brand_name=brand, source_origin="uploaded_spec.json")
+        parsed_spec_triples = parse_openapi_spec(req.openapi_spec, brand_name=brand, source_origin="uploaded_spec.json", config=pipeline.config)
         technical_triples.extend(parsed_spec_triples)
 
     # Priority B: Tech Docs URL provided
@@ -728,7 +741,7 @@ def execute_product_truth_audit(
                 json_data = json.loads(raw_docs)
                 if isinstance(json_data, dict) and ("paths" in json_data or "swagger" in json_data):
                     logger.info("Detected OpenAPI/Swagger JSON at %s", req.tech_docs_url)
-                    parsed_spec_triples = parse_openapi_spec(json_data, brand_name=brand, source_origin=req.tech_docs_url)
+                    parsed_spec_triples = parse_openapi_spec(json_data, brand_name=brand, source_origin=req.tech_docs_url, config=pipeline.config)
                     technical_triples.extend(parsed_spec_triples)
                 else:
                     t_from_text = extract_technical_triples_from_text(clean_docs, pipeline, brand, req.tech_docs_url)

@@ -24,6 +24,30 @@ class VerticalConfig(BaseModel):
     mandatory_schema_types: List[str] = Field(..., description="Schema.org types required for this domain")
     core_seed_concepts: List[str] = Field(..., description="Key domain concepts and terminology")
 
+    # Per-vertical extraction vocabulary. The industry profiler already generates these
+    # and the vertical JSON files already store them - healthtech.json carries Epic,
+    # Cerner, HIPAA and HITECH - but until these fields existed Pydantic discarded them
+    # on load, and triple extraction fell back to the billing-flavoured globals in
+    # constants.py. So a healthcare site was being read for "Dunning Automation".
+    # Empty means "no vertical-specific vocabulary": callers fall back to the generic
+    # B2B defaults via resolve_vocabulary() in constants.py.
+    known_compliance: List[str] = Field(
+        default_factory=list,
+        description="Regulations and standards this vertical is judged against (e.g. HIPAA, HITECH).",
+    )
+    known_integrations: List[str] = Field(
+        default_factory=list,
+        description="Ecosystem platforms buyers in this vertical expect (e.g. Epic Systems, Cerner).",
+    )
+    known_pricing: List[str] = Field(
+        default_factory=list,
+        description="Monetisation models common to this vertical (e.g. Per-Provider Pricing).",
+    )
+    known_automation: List[str] = Field(
+        default_factory=list,
+        description="Core capabilities this vertical automates (e.g. Clinical Documentation).",
+    )
+
 
 class EntityMatch(BaseModel):
     text: str

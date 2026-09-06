@@ -146,3 +146,26 @@ BLOCKED_IP_PREFIXES: tuple = (
 BLOCKED_HOSTNAMES: tuple = (
     "localhost", "metadata.google.internal", "metadata", "169.254.169.254",
 )
+
+
+# ---------------------------------------------------------------------------
+# Vocabulary resolution
+# ---------------------------------------------------------------------------
+# The lists above are the generic B2B baseline, and they lean towards billing and
+# revenue because that is the vertical this platform started in. A vertical config
+# that carries its own vocabulary must win, or every site is read through a billing
+# lens - a healthcare product being scanned for "Dunning Automation" finds nothing
+# and is reported as having no capabilities.
+
+def resolve_vocabulary(config, field: str, default: list) -> list:
+    """Return the vertical's vocabulary for `field`, falling back to the global default.
+
+    `config` is a VerticalConfig (or None). Verticals authored before these fields
+    existed simply have empty lists and transparently keep the previous behaviour.
+    """
+    if config is None:
+        return default
+    values = getattr(config, field, None)
+    if values:
+        return list(values)
+    return default

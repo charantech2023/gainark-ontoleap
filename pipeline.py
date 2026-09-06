@@ -46,7 +46,7 @@ from scraper import smart_fetch, smart_fetch_async, validate_url_for_fetch
 from constants import (
     WIKIDATA_KB, KNOWN_INTEGRATIONS, KNOWN_COMPLIANCE,
     KNOWN_PRICING, KNOWN_AUTOMATION, DEEP_CRAWL_PATHS, DEEP_CRAWL_MAX,
-    BLOCKED_IP_PREFIXES, BLOCKED_HOSTNAMES,
+    BLOCKED_IP_PREFIXES, BLOCKED_HOSTNAMES, resolve_vocabulary,
 )
 
 # ---------------------------------------------------------------------------
@@ -325,12 +325,21 @@ class OntologyPipeline:
 
         sentences = [s.strip() for s in re.split(r'(?<=[.!?\n])\s+', text) if len(s.strip()) > 12]
 
+        # Vocabulary comes from the active vertical when it defines one, so a
+        # healthcare site is read for HIPAA and Epic rather than for ASC 606 and
+        # NetSuite. Verticals without their own lists fall back to the generic
+        # B2B defaults, preserving previous behaviour exactly.
+        vocab_automation = resolve_vocabulary(self.config, 'known_automation', KNOWN_AUTOMATION)
+        vocab_integrations = resolve_vocabulary(self.config, 'known_integrations', KNOWN_INTEGRATIONS)
+        vocab_compliance = resolve_vocabulary(self.config, 'known_compliance', KNOWN_COMPLIANCE)
+        vocab_pricing = resolve_vocabulary(self.config, 'known_pricing', KNOWN_PRICING)
+
         # 1. automates
         auto_cues = ["automate", "automates", "automating", "automated", "streamline", "streamlines", "effortless", "liberate", "replaces spreadsheet"]
         for sent in sentences:
             s_lower = sent.lower()
             if any(cue in s_lower for cue in auto_cues):
-                for item in KNOWN_AUTOMATION:
+                for item in vocab_automation:
                     if item.lower() in s_lower:
                         add_triple("automates", item, conf=0.90, ev=sent)
 
@@ -339,18 +348,18 @@ class OntologyPipeline:
         for sent in sentences:
             s_lower = sent.lower()
             if any(cue in s_lower for cue in int_cues):
-                for partner in KNOWN_INTEGRATIONS:
+                for partner in vocab_integrations:
                     if re.search(rf'\b{re.escape(partner.lower())}\b', s_lower):
                         add_triple("integratesWith", partner, conf=0.90, ev=sent)
             else:
-                for partner in ["Salesforce", "NetSuite", "QuickBooks", "Stripe", "Workday"]:
+                for partner in vocab_integrations[:5]:
                     if re.search(rf'\b{re.escape(partner.lower())}\b', s_lower) and any(w in s_lower for w in ["partner", "connect", "sync", "api", "ecosystem"]):
                         add_triple("integratesWith", partner, conf=0.85, ev=sent)
 
         # 3. compliesWith
         for sent in sentences:
             s_lower = sent.lower()
-            for std in KNOWN_COMPLIANCE:
+            for std in vocab_compliance:
                 if re.search(rf'\b{re.escape(std.lower())}\b', s_lower):
                     add_triple("compliesWith", std, conf=0.95, ev=sent)
 
@@ -358,7 +367,7 @@ class OntologyPipeline:
         pricing_cues = ["pricing", "bill", "billing", "model", "monetiz", "monetize", "plans"]
         for sent in sentences:
             s_lower = sent.lower()
-            for pm in KNOWN_PRICING:
+            for pm in vocab_pricing:
                 pm_simple = pm.lower().replace(" pricing", "").replace(" billing", "")
                 if pm.lower() in s_lower or (pm_simple in s_lower and any(cue in s_lower for cue in pricing_cues)):
                     add_triple("supportsPricingModel", pm, conf=0.90, ev=sent)
