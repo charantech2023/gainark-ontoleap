@@ -30,6 +30,11 @@ from models import (
 logger = logging.getLogger("gainark.industry_profiler")
 
 
+# Ceiling on auto-discovered vertical profiles held on disk. Discovery is an
+# unauthenticated write path in the default configuration.
+MAX_VERTICAL_PROFILES = int(os.environ.get("MAX_VERTICAL_PROFILES", "200") or 200)
+
+
 def _sanitize_slug(text: str) -> str:
     """Generate safe identifier string for file paths and vertical IDs."""
     clean = re.sub(r'[^a-zA-Z0-9_]+', '_', text.strip().lower())
@@ -150,6 +155,21 @@ Return ONLY a valid, raw JSON object (without markdown fences, or with standard 
   "known_pricing": [
     "List of 3 to 5 common B2B pricing models for this vertical (e.g. 'Per-Developer Pricing', 'Usage-Based Ingestion', 'Tiered Enterprise')"
   ],
+  "known_features": [
+    "List of 6 to 10 discrete functional features standard in this vertical (e.g. 'Role-Based Access Control', 'Single Sign-On', 'Audit Logging', 'Automated Reporting')"
+  ],
+  "known_segments": [
+    "List of 4 to 6 customer segments targeted in this vertical (e.g. 'Enterprise', 'Mid-Market', 'SMB', 'High-Growth Startups')"
+  ],
+  "known_deployment": [
+    "List of 3 to 5 hosting/deployment architectures common in this space (e.g. 'Cloud-Native', 'Multi-Tenant SaaS', 'Private Cloud', 'On-Premise')"
+  ],
+  "known_sla": [
+    "List of 2 to 4 standard reliability or uptime SLA guarantees (e.g. '99.9% Uptime', '99.99% Uptime', '24/7 Support')"
+  ],
+  "known_replaces": [
+    "List of 3 to 6 legacy or manual workflows eliminated by software in this vertical (e.g. 'Manual Spreadsheets', 'Excel-Based Reporting', 'Manual Approvals')"
+  ],
   "concept_hierarchy": {{
     "Object mapping each narrower concept to the broader one it sits under, for example mapping 'Prior Authorization' to 'Revenue Cycle Management'. Add an entry for every core_seed_concept and known_automation item that belongs under a broader umbrella; a parent may be a term not otherwise listed. Never create cycles. Omit concepts with no natural parent."
   }},
@@ -183,6 +203,11 @@ Return ONLY a valid, raw JSON object (without markdown fences, or with standard 
             "known_compliance": ["SOC 2 Type II", "ISO 27001", "GDPR", "CCPA"],
             "known_integrations": ["Salesforce", "Slack", "AWS", "Google Cloud", "Microsoft Azure"],
             "known_pricing": ["Subscription Pricing", "Usage-Based Pricing", "Tiered Enterprise"],
+            "known_features": ["Role-Based Access Control", "Single Sign-On", "Audit Trail", "Custom Reporting", "API Access"],
+            "known_segments": ["Enterprise", "Mid-Market", "SMB"],
+            "known_deployment": ["Cloud-Native", "Multi-Tenant SaaS"],
+            "known_sla": ["99.9% Uptime", "24/7 Support"],
+            "known_replaces": ["Manual Spreadsheets", "Legacy Manual Workflows"],
             "known_automation": ["Workflow Automation", "Reporting", "User Provisioning", "Data Sync", "Alerting"],
             "suggested_competitors": [],
             "summary": f"Autonomous ontology profile generated for {brand} based on domain structure."
@@ -253,7 +278,12 @@ def save_vertical_configuration(
     known_compliance: List[str],
     known_pricing: List[str],
     known_automation: Optional[List[str]] = None,
-    concept_hierarchy: Optional[Dict[str, str]] = None
+    concept_hierarchy: Optional[Dict[str, str]] = None,
+    known_features: Optional[List[str]] = None,
+    known_segments: Optional[List[str]] = None,
+    known_deployment: Optional[List[str]] = None,
+    known_sla: Optional[List[str]] = None,
+    known_replaces: Optional[List[str]] = None
 ) -> str:
     """
     Saves the discovered vertical configuration into verticals/<vertical_id>.json
@@ -262,6 +292,17 @@ def save_vertical_configuration(
     os.makedirs("verticals", exist_ok=True)
     clean_id = _sanitize_slug(vertical_id)
     config_path = os.path.join("verticals", f"{clean_id}.json")
+
+    # /api/discover-industry writes one profile per call and is reachable by anyone who
+    # can reach the API, so without a ceiling repeated calls fill the disk. Overwriting
+    # an existing profile is always allowed; only creating a brand new one is capped.
+    if not os.path.exists(config_path):
+        existing = [f for f in os.listdir("verticals") if f.endswith(".json")]
+        if len(existing) >= MAX_VERTICAL_PROFILES:
+            raise RuntimeError(
+                f"Vertical profile limit reached ({MAX_VERTICAL_PROFILES}). "
+                f"Remove unused profiles from verticals/ before discovering new ones."
+            )
 
     config_data = {
         "vertical_id": clean_id,
@@ -276,6 +317,11 @@ def save_vertical_configuration(
         "known_integrations": known_integrations,
         "known_compliance": known_compliance,
         "known_pricing": known_pricing,
+        "known_features": known_features or [],
+        "known_segments": known_segments or [],
+        "known_deployment": known_deployment or [],
+        "known_sla": known_sla or [],
+        "known_replaces": known_replaces or [],
         # Drives what triple extraction looks for on every site in this vertical.
         "known_automation": known_automation or [],
         # Lets coverage roll up: marketing a narrower concept counts as covering the
@@ -317,6 +363,11 @@ async def discover_industry_profile_async(
     known_compliance = discovered.get("known_compliance") or []
     known_integrations = discovered.get("known_integrations") or []
     known_pricing = discovered.get("known_pricing") or []
+    known_features = discovered.get("known_features") or []
+    known_segments = discovered.get("known_segments") or []
+    known_deployment = discovered.get("known_deployment") or []
+    known_sla = discovered.get("known_sla") or []
+    known_replaces = discovered.get("known_replaces") or []
     known_automation = discovered.get("known_automation") or []
     concept_hierarchy = discovered.get("concept_hierarchy") or {}
     if not isinstance(concept_hierarchy, dict):
@@ -340,7 +391,12 @@ async def discover_industry_profile_async(
             known_compliance=known_compliance,
             known_pricing=known_pricing,
             known_automation=known_automation,
-            concept_hierarchy=concept_hierarchy
+            concept_hierarchy=concept_hierarchy,
+            known_features=known_features,
+            known_segments=known_segments,
+            known_deployment=known_deployment,
+            known_sla=known_sla,
+            known_replaces=known_replaces
         )
 
     return IndustryDiscoveryResponse(
@@ -356,6 +412,11 @@ async def discover_industry_profile_async(
         known_integrations=known_integrations,
         ecosystem_integrations=known_integrations,
         known_pricing=known_pricing,
+        known_features=known_features,
+        known_segments=known_segments,
+        known_deployment=known_deployment,
+        known_sla=known_sla,
+        known_replaces=known_replaces,
         gliner_labels=gliner_labels,
         suggested_competitors=suggested_competitors,
         direct_competitors=suggested_competitors,

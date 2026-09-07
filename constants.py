@@ -121,6 +121,123 @@ KNOWN_AUTOMATION: List[str] = [
 ]
 
 
+
+# ---------------------------------------------------------------------------
+# Product Features & Capabilities (hasFeature predicate)
+# ---------------------------------------------------------------------------
+
+KNOWN_FEATURES: List[str] = [
+    "Automated Invoicing", "Revenue Recognition Automation", "Dunning Management",
+    "Subscription Management", "Contract Management", "Quote-to-Cash",
+    "Real-Time Analytics", "Revenue Forecasting", "Multi-Currency Support",
+    "Audit Trail", "Role-Based Access Control", "Single Sign-On",
+    "Custom Reporting", "API Access", "Webhook Support",
+    "Self-Serve Portal", "Bulk Operations", "Data Export",
+]
+
+
+# ---------------------------------------------------------------------------
+# Target Customer Segments (targetsSegment predicate)
+# ---------------------------------------------------------------------------
+
+KNOWN_SEGMENTS: List[str] = [
+    "Enterprise", "Mid-Market", "SMB", "Startups", "Scale-ups",
+    "Public Companies", "Private Companies", "PE-Backed Companies",
+    "High-Growth SaaS", "B2B SaaS", "B2C Companies",
+    "Finance Teams", "Revenue Operations Teams", "Accounting Teams",
+]
+
+
+# ---------------------------------------------------------------------------
+# Industries Served (servesIndustry predicate)
+# ---------------------------------------------------------------------------
+
+KNOWN_INDUSTRIES: List[str] = [
+    "SaaS", "FinTech", "HealthTech", "EdTech", "MarTech",
+    "Insurance", "Financial Services", "Healthcare", "Media",
+    "Telecommunications", "E-Commerce", "Professional Services",
+    "Manufacturing", "Real Estate", "Energy",
+]
+
+
+# ---------------------------------------------------------------------------
+# Deployment Models (deployedAs predicate)
+# ---------------------------------------------------------------------------
+
+KNOWN_DEPLOYMENT: List[str] = [
+    "Cloud-Native", "SaaS", "On-Premise", "Hybrid Cloud",
+    "Multi-Tenant", "Single-Tenant", "Private Cloud",
+    "Serverless", "Containerized", "Docker", "Kubernetes",
+]
+
+
+# ---------------------------------------------------------------------------
+# Security & Trust Certifications (certifiedBy predicate)
+# ---------------------------------------------------------------------------
+
+KNOWN_CERTIFICATIONS: List[str] = [
+    "SOC 2 Type II", "SOC 1 Type II", "ISO 27001", "PCI-DSS",
+    "HIPAA", "GDPR", "CCPA", "FedRAMP", "CSA STAR",
+    "NIST", "SSAE 18", "ISAE 3402",
+]
+
+
+# ---------------------------------------------------------------------------
+# API & Integration Standards (hasAPI predicate)
+# ---------------------------------------------------------------------------
+
+KNOWN_API_TYPES: List[str] = [
+    "REST API", "GraphQL API", "SOAP API", "Webhooks",
+    "OpenAPI", "Swagger", "OAuth 2.0", "SAML", "SCIM",
+    "EDI", "CSV Import", "SDK",
+]
+
+
+# ---------------------------------------------------------------------------
+# Geographic & Language Support (supportsLocale predicate)
+# ---------------------------------------------------------------------------
+
+KNOWN_LOCALES: List[str] = [
+    "United States", "United Kingdom", "European Union", "Canada",
+    "Australia", "India", "Singapore", "Japan", "Germany",
+    "France", "Global", "Multi-Language", "Multi-Currency",
+]
+
+
+# ---------------------------------------------------------------------------
+# SLA & Reliability Guarantees (guarantees predicate)
+# ---------------------------------------------------------------------------
+
+KNOWN_SLA: List[str] = [
+    "99.9% Uptime", "99.99% Uptime", "24/7 Support", "99.5% Uptime",
+    "SLA-Backed Uptime", "Zero Downtime Deployments",
+    "Disaster Recovery", "Data Redundancy", "Real-Time Backup",
+]
+
+
+# ---------------------------------------------------------------------------
+# Manual Workflows Replaced (replacesWorkflow predicate)
+# ---------------------------------------------------------------------------
+
+KNOWN_REPLACES: List[str] = [
+    "Manual Spreadsheets", "Excel-Based Reporting", "Manual Journal Entries",
+    "Manual Revenue Calculations", "Manual Invoice Generation",
+    "Email-Based Approvals", "Manual Reconciliation",
+    "Legacy ERP Workarounds", "Manual Dunning", "Manual Contract Amendments",
+]
+
+
+# ---------------------------------------------------------------------------
+# Named Competitors (competesAgainst predicate)
+# ---------------------------------------------------------------------------
+
+KNOWN_COMPETITORS: List[str] = [
+    "Zuora", "Chargebee", "Recurly", "Maxio", "Stripe Billing",
+    "Salesforce Revenue Cloud", "NetSuite Billing", "Sage Intacct",
+    "Paddle", "FastSpring", "Chargify", "Aria Systems",
+    "SAP Billing", "Oracle Subscription Management",
+]
+
 # ---------------------------------------------------------------------------
 # Sub-paths that are high-value for product ontology signals (deep crawl)
 # ---------------------------------------------------------------------------

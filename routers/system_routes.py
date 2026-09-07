@@ -17,7 +17,8 @@ from models import (
     IndustryDiscoveryRequest,
     IndustryDiscoveryResponse
 )
-from routers.deps import SUPPORTED_VERTICALS, pipeline_cache
+from routers.deps import SUPPORTED_VERTICALS, pipeline_cache, VERTICALS_DIR
+from security import is_valid_vertical_id
 
 logger = logging.getLogger("ontoleap.api.system")
 
@@ -113,15 +114,17 @@ def api_list_verticals():
     Returns all registered domain ontology profiles with their display metadata.
     Automatically discovers and includes any newly discovered profiles from verticals/.
     """
-    if os.path.exists("verticals"):
-        for fname in os.listdir("verticals"):
-            if fname.endswith(".json"):
+    if os.path.isdir(VERTICALS_DIR):
+        for fname in os.listdir(VERTICALS_DIR):
+            if fname.endswith(".json") and is_valid_vertical_id(fname[:-5]):
                 SUPPORTED_VERTICALS.add(fname[:-5])
 
     profiles = []
-    for vid in sorted(list(SUPPORTED_VERTICALS)):
-        cfg_file = f"verticals/{vid}.json"
-        if os.path.exists(cfg_file):
+    for vid in sorted(SUPPORTED_VERTICALS):
+        if not is_valid_vertical_id(vid):
+            continue
+        cfg_file = os.path.join(VERTICALS_DIR, f"{vid}.json")
+        if os.path.isfile(cfg_file):
             try:
                 with open(cfg_file, "r", encoding="utf-8") as f:
                     cdata = json.load(f)
@@ -172,15 +175,21 @@ async def api_discover_industry(req: IndustryDiscoveryRequest):
     3. Grounds concepts against canonical Wikidata Q-IDs
     4. Automatically saves and registers the vertical profile into the live pipeline
     """
-    validate_url_for_fetch(req.url)
+    try:
+        validate_url_for_fetch(req.url)
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
+
     try:
         res = await industry_profiler.discover_industry_profile_async(
             url=req.url,
             brand_hint=req.brand_hint,
             save_config=True
         )
-        # Register new vertical in live memory
-        SUPPORTED_VERTICALS.add(res.vertical_id)
+        # Register new vertical in live memory. The profiler slugifies the ID, but this
+        # set is used to build filesystem paths, so re-check rather than trust.
+        if is_valid_vertical_id(res.vertical_id):
+            SUPPORTED_VERTICALS.add(res.vertical_id)
         return res
     except Exception as e:
         logger.exception("Failed to discover industry for %s: %s", req.url, e)

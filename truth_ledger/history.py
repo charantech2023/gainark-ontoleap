@@ -14,6 +14,7 @@ import io
 import json
 import logging
 import os
+import threading
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -21,6 +22,40 @@ logger = logging.getLogger("gainark.truth_ledger.history")
 
 LEDGER_DIR = os.path.dirname(os.path.abspath(__file__))
 HISTORY_FILE = os.path.join(LEDGER_DIR, "history.jsonl")
+
+# Concurrent audits append to one file. A single write() of a long line is not
+# guaranteed atomic, so two simultaneous audits could interleave and corrupt a record.
+_WRITE_LOCK = threading.Lock()
+
+# The ledger is append-only and every audit adds a snapshot, so it grows without bound
+# and is re-read in full on every /api/competitor-changes call. Rotate past this size so
+# neither disk nor request latency grows indefinitely.
+MAX_HISTORY_BYTES = int(os.environ.get("MAX_HISTORY_BYTES", str(32 * 1024 * 1024)) or 32 * 1024 * 1024)
+
+# Ceiling on snapshots held in memory while answering one read.
+MAX_SNAPSHOTS_LOADED = int(os.environ.get("MAX_SNAPSHOTS_LOADED", "20000") or 20000)
+
+
+def _rotate_if_oversized() -> None:
+    """Move the ledger aside once it passes MAX_HISTORY_BYTES. Never raises."""
+    try:
+        if os.path.exists(HISTORY_FILE) and os.path.getsize(HISTORY_FILE) > MAX_HISTORY_BYTES:
+            archive = HISTORY_FILE + ".1"
+            if os.path.exists(archive):
+                os.remove(archive)
+            os.replace(HISTORY_FILE, archive)
+            logger.info("[TruthLedger] Rotated history to %s", archive)
+    except OSError as exc:
+        logger.warning("[TruthLedger] Could not rotate history file: %s", exc)
+
+
+def _append_line(payload: Dict[str, Any]) -> None:
+    """Serialise and append one snapshot under the write lock."""
+    line = json.dumps(payload, ensure_ascii=False) + "\n"
+    with _WRITE_LOCK:
+        _rotate_if_oversized()
+        with io.open(HISTORY_FILE, "a", encoding="utf-8") as f:
+            f.write(line)
 
 # Below this gap, two audits are measuring the same reality twice rather than observing
 # a change. Marketing sites do not turn over hourly; the existing ledger has the same
@@ -83,8 +118,7 @@ def record_snapshot(matrix, source: str = "product_truth") -> bool:
             "unbacked": _claim_set(matrix.unbacked_claims),
             "hidden": _claim_set(matrix.hidden_capabilities),
         }
-        with io.open(HISTORY_FILE, "a", encoding="utf-8") as f:
-            f.write(json.dumps(snapshot, ensure_ascii=False) + "\n")
+        _append_line(snapshot)
         return True
     except Exception as exc:
         logger.warning("[TruthLedger] Could not append history snapshot: %s", exc)
@@ -120,6 +154,7 @@ def load_snapshots(brand: Optional[str] = None) -> List[Dict[str, Any]]:
     if not os.path.exists(HISTORY_FILE):
         return []
     snapshots = []
+    truncated = False
     with io.open(HISTORY_FILE, encoding="utf-8") as f:
         for lineno, line in enumerate(f, 1):
             line = line.strip()
@@ -133,6 +168,17 @@ def load_snapshots(brand: Optional[str] = None) -> List[Dict[str, Any]]:
             if brand and str(snap.get("brand", "")).lower() != brand.lower():
                 continue
             snapshots.append(snap)
+            if len(snapshots) > MAX_SNAPSHOTS_LOADED:
+                # Keep the newest window rather than the oldest: a timeline is read
+                # forwards from recent history, and an unbounded list would let the
+                # ledger size dictate this endpoint response time and memory use.
+                snapshots = snapshots[-MAX_SNAPSHOTS_LOADED:]
+                truncated = True
+    if truncated:
+        logger.warning(
+            "[TruthLedger] History exceeded %d snapshots; returning the most recent window.",
+            MAX_SNAPSHOTS_LOADED,
+        )
     snapshots.sort(key=lambda s: s.get("recorded_at", ""))
     return snapshots
 
@@ -324,8 +370,7 @@ def backfill_from_markdown(log_path: Optional[str] = None) -> int:
             "unbacked": [],
             "hidden": [],
         }
-        with io.open(HISTORY_FILE, "a", encoding="utf-8") as f:
-            f.write(json.dumps(snapshot, ensure_ascii=False) + "\n")
+        _append_line(snapshot)
         existing.add((brand, recorded_at))
         written += 1
     return written

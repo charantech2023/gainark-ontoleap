@@ -12,6 +12,7 @@ Provides standard W3C knowledge graph capabilities:
 import os
 import re
 import json
+import time
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Set, Tuple
 from urllib.parse import urlparse
@@ -152,7 +153,17 @@ def build_rdf_graph(
         "automates": SCHEMA.potentialAction,
         "integratesWith": SCHEMA.isRelatedTo,
         "compliesWith": SCHEMA.legislationApplies,
-        "supportsPricingModel": SCHEMA.priceSpecification
+        "supportsPricingModel": SCHEMA.priceSpecification,
+        "hasFeature": SCHEMA.featureList,
+        "replacesWorkflow": SCHEMA.actionOption,
+        "targetsSegment": SCHEMA.audience,
+        "servesIndustry": SCHEMA.industry,
+        "deployedAs": SCHEMA.deliveryLeadTime,
+        "certifiedBy": SCHEMA.award,
+        "hasAPI": SCHEMA.interface,
+        "supportsLocale": SCHEMA.availableLanguage,
+        "guarantees": SCHEMA.serviceOutput,
+        "competesAgainst": SCHEMA.isSimilarTo
     }
 
     seen_triples = set()
@@ -297,6 +308,64 @@ def export_to_rdf_ntriples(
     return g.serialize(format="nt")
 
 
+# SPARQL keywords that mutate the graph. Rejected outright.
+_SPARQL_MUTATION_KEYWORDS = (
+    "INSERT", "DELETE", "DROP", "CLEAR", "CREATE", "LOAD", "COPY", "MOVE", "ADD",
+)
+
+# SPARQL keywords that make the query engine open a network connection of its own.
+# RDFLib evaluates SERVICE by issuing a real HTTP request to the given endpoint, which
+# turns this endpoint into a full server-side request forgery primitive: a caller could
+# reach the cloud metadata service or any internal host from inside the container.
+# FROM / FROM NAMED name remote graphs for the same reason.
+_SPARQL_NETWORK_KEYWORDS = ("SERVICE", "FROM")
+
+# Evaluation is bounded so a deliberately expensive query (cartesian joins, unbounded
+# property paths) cannot pin a worker. LIMIT caps rows returned, not work performed.
+SPARQL_TIMEOUT_SECONDS = float(os.environ.get("SPARQL_TIMEOUT_SECONDS", "10") or 10)
+
+
+def _strip_sparql_noise(query: str) -> str:
+    """
+    Remove comments, string literals and IRIs from a query so keyword scanning sees only
+    syntax.
+
+    Without this the guard both under- and over-blocks: it misses nothing real, but it
+    rejects a perfectly legal `FILTER(CONTAINS(?o, "drop"))` because the word appears
+    inside a literal.
+    """
+    body = re.sub(r"#[^\n]*", " ", query)
+    # Triple-quoted, then single/double quoted literals.
+    body = re.sub(r'"""(?:[^\\]|\\.)*?"""', ' "" ', body, flags=re.DOTALL)
+    body = re.sub(r"'''(?:[^\\]|\\.)*?'''", " '' ", body, flags=re.DOTALL)
+    body = re.sub(r'"(?:[^"\\\n]|\\.)*"', ' "" ', body)
+    body = re.sub(r"'(?:[^'\\\n]|\\.)*'", " '' ", body)
+    # IRIs, including those introduced by PREFIX and BASE declarations.
+    body = re.sub(r"<[^<>\s]*>", " <> ", body)
+    return body
+
+
+def _assert_sparql_is_safe(sparql_query: str) -> None:
+    """Reject any query that mutates the graph or makes the engine talk to the network."""
+    body = _strip_sparql_noise(sparql_query)
+
+    for kw in _SPARQL_MUTATION_KEYWORDS:
+        if re.search(rf"\b{kw}\b", body, re.IGNORECASE):
+            raise ValueError(
+                f"SPARQL mutation command '{kw}' is not permitted. Only read-only SELECT queries are supported."
+            )
+
+    for kw in _SPARQL_NETWORK_KEYWORDS:
+        if re.search(rf"\b{kw}\b", body, re.IGNORECASE):
+            raise ValueError(
+                f"SPARQL '{kw}' clauses are not permitted: this endpoint evaluates queries only "
+                f"against the RDF graph supplied in the request and never fetches remote data."
+            )
+
+    if not re.search(r"\bSELECT\b", body, re.IGNORECASE):
+        raise ValueError("Only SPARQL SELECT queries are supported.")
+
+
 def execute_sparql_query_on_ttl(turtle_data: str, sparql_query: str) -> Dict[str, Any]:
     """
     Executes a W3C SPARQL 1.1 query against an RDF Turtle knowledge graph
@@ -304,18 +373,12 @@ def execute_sparql_query_on_ttl(turtle_data: str, sparql_query: str) -> Dict[str
 
     Query sanitization & memory safety:
     - Enforces read-only SELECT queries (rejects UPDATE, INSERT, DELETE, DROP, CLEAR)
+    - Rejects SERVICE / FROM clauses, which would let the engine fetch remote graphs (SSRF)
     - Enforces a strict maximum limit of 1000 rows to prevent memory exhaustion
+    - Bounds total evaluation time to SPARQL_TIMEOUT_SECONDS
     """
     cleaned_query = sparql_query.strip()
-    query_body = re.sub(r"#.*", "", cleaned_query)
-    query_body = re.sub(r"PREFIX\s+[\w\-]+:\s*<[^>]+>", "", query_body, flags=re.IGNORECASE).strip()
-
-    for kw in ["INSERT", "DELETE", "DROP", "CLEAR", "CREATE", "LOAD", "COPY", "MOVE", "ADD"]:
-        if re.search(rf"\b{kw}\b", query_body, re.IGNORECASE):
-            raise ValueError(f"SPARQL mutation command '{kw}' is not permitted. Only read-only SELECT queries are supported.")
-
-    if not re.search(r"\bSELECT\b", query_body, re.IGNORECASE):
-        raise ValueError("Only SPARQL SELECT queries are supported.")
+    _assert_sparql_is_safe(cleaned_query)
 
     limit_match = re.search(r"\bLIMIT\s+(\d+)", cleaned_query, re.IGNORECASE)
     if not limit_match:
@@ -325,6 +388,8 @@ def execute_sparql_query_on_ttl(turtle_data: str, sparql_query: str) -> Dict[str
 
     g = Graph()
     g.parse(data=turtle_data, format="turtle")
+
+    deadline = time.monotonic() + SPARQL_TIMEOUT_SECONDS
     qres = g.query(cleaned_query)
 
     cols = [str(v) for v in qres.vars] if hasattr(qres, "vars") and qres.vars else []
@@ -332,6 +397,12 @@ def execute_sparql_query_on_ttl(turtle_data: str, sparql_query: str) -> Dict[str
     for row in qres:
         if len(rows) >= 1000:
             break
+        # RDFLib evaluates lazily, so the cost of a pathological query is paid here.
+        if time.monotonic() > deadline:
+            raise ValueError(
+                f"SPARQL query exceeded the {SPARQL_TIMEOUT_SECONDS:.0f}s evaluation budget "
+                f"and was cancelled. Narrow the query or add a smaller LIMIT."
+            )
         if hasattr(row, "__iter__"):
             rows.append([str(item) if item is not None else "" for item in row])
         else:
@@ -394,7 +465,17 @@ def build_owl_ontology(
         ("SoftwareIntegration", "External enterprise application or ecosystem integration"),
         ("ComplianceStandard", "Regulatory, accounting, or security compliance framework"),
         ("PricingModel", "Commercial monetization, billing, or pricing structure"),
-        ("TopicAuthorityHub", "Canonical topic cluster landing page anchoring topical authority")
+        ("TopicAuthorityHub", "Canonical topic cluster landing page anchoring topical authority"),
+        ("ProductFeature", "Specific discrete functional feature of the platform"),
+        ("LegacyWorkflow", "Manual or legacy business process replaced by the platform"),
+        ("CustomerSegment", "Target enterprise or market demographic segment"),
+        ("IndustryVertical", "Industry market sector served by the software"),
+        ("DeploymentModel", "Infrastructure deployment or hosting architecture"),
+        ("TrustCertification", "Audited security, privacy, or trust certification"),
+        ("APIStandard", "Developer API or programmatic interface protocol"),
+        ("GeographicMarket", "Geographic locale or regional market supported"),
+        ("SLAGuarantee", "Contractual uptime or reliability SLA commitment"),
+        ("CompetitorEntity", "Direct or indirect industry competitor organization")
     ]
     for c_name, c_desc in classes:
         c_uri = ONTO[c_name]
@@ -411,7 +492,10 @@ def build_owl_ontology(
         (ONTO.PlatformCapability, ONTO.ComplianceStandard),
         (ONTO.PlatformCapability, ONTO.PricingModel),
         (ONTO.PlatformCapability, ONTO.TopicAuthorityHub),
-        (ONTO.ComplianceStandard, ONTO.PricingModel)
+        (ONTO.ComplianceStandard, ONTO.PricingModel),
+        (ONTO.EnterprisePlatform, ONTO.CompetitorEntity),
+        (ONTO.CustomerSegment, ONTO.IndustryVertical),
+        (ONTO.DeploymentModel, ONTO.PricingModel)
     ]
     for c1, c2 in disjoint_pairs:
         g.add((c1, OWL.disjointWith, c2))
@@ -422,7 +506,17 @@ def build_owl_ontology(
         ("integratesWithSystem", "isIntegratedInto", ONTO.EnterprisePlatform, ONTO.SoftwareIntegration, "Relates platform to integrated systems", "Relates integration back to host platform"),
         ("compliesWithStandard", "isCompliedWithBy", ONTO.EnterprisePlatform, ONTO.ComplianceStandard, "Relates platform to compliance frameworks", "Relates compliance standard back to certified platform"),
         ("supportsPricingArchitecture", "isPricingModelOf", ONTO.EnterprisePlatform, ONTO.PricingModel, "Relates platform to monetization models", "Relates monetization model back to platform"),
-        ("anchorsTopicHub", "isTopicHubOf", ONTO.EnterprisePlatform, ONTO.TopicAuthorityHub, "Relates platform to its canonical topic hubs", "Relates topic hub back to anchoring platform")
+        ("anchorsTopicHub", "isTopicHubOf", ONTO.EnterprisePlatform, ONTO.TopicAuthorityHub, "Relates platform to its canonical topic hubs", "Relates topic hub back to anchoring platform"),
+        ("hasFeature", "isFeatureOf", ONTO.EnterprisePlatform, ONTO.ProductFeature, "Relates platform to discrete product features", "Relates feature back to parent platform"),
+        ("replacesWorkflow", "isReplacedBy", ONTO.EnterprisePlatform, ONTO.LegacyWorkflow, "Relates platform to legacy workflows replaced", "Relates legacy workflow back to replacing platform"),
+        ("targetsSegment", "isTargetedBy", ONTO.EnterprisePlatform, ONTO.CustomerSegment, "Relates platform to intended customer segments", "Relates segment back to targeting platform"),
+        ("servesIndustry", "isServedBy", ONTO.EnterprisePlatform, ONTO.IndustryVertical, "Relates platform to business industry verticals served", "Relates industry vertical back to serving platform"),
+        ("deployedAs", "isDeploymentModelOf", ONTO.EnterprisePlatform, ONTO.DeploymentModel, "Relates platform to deployment infrastructure architectures", "Relates deployment architecture back to platform"),
+        ("certifiedBy", "certifies", ONTO.EnterprisePlatform, ONTO.TrustCertification, "Relates platform to trust and compliance certifications", "Relates certification back to certified platform"),
+        ("hasAPI", "isAPIOf", ONTO.EnterprisePlatform, ONTO.APIStandard, "Relates platform to supported API and integration standards", "Relates API standard back to platform"),
+        ("supportsLocale", "isLocaleSupportedBy", ONTO.EnterprisePlatform, ONTO.GeographicMarket, "Relates platform to supported geographic regions or locales", "Relates locale back to supporting platform"),
+        ("guarantees", "isGuaranteedBy", ONTO.EnterprisePlatform, ONTO.SLAGuarantee, "Relates platform to contractual reliability SLAs and guarantees", "Relates SLA back to guaranteeing platform"),
+        ("competesAgainst", "competesWith", ONTO.EnterprisePlatform, ONTO.CompetitorEntity, "Relates platform to named market competitor entities", "Relates competitor back to platform")
     ]
     for forward_name, inv_name, domain_uri, range_uri, f_comment, inv_comment in obj_props:
         p_uri = ONTO[forward_name]
@@ -475,7 +569,17 @@ def build_owl_ontology(
         "automates": (ONTO.automatesWorkflow, ONTO.PlatformCapability),
         "integratesWith": (ONTO.integratesWithSystem, ONTO.SoftwareIntegration),
         "compliesWith": (ONTO.compliesWithStandard, ONTO.ComplianceStandard),
-        "supportsPricingModel": (ONTO.supportsPricingArchitecture, ONTO.PricingModel)
+        "supportsPricingModel": (ONTO.supportsPricingArchitecture, ONTO.PricingModel),
+        "hasFeature": (ONTO.hasFeature, ONTO.ProductFeature),
+        "replacesWorkflow": (ONTO.replacesWorkflow, ONTO.LegacyWorkflow),
+        "targetsSegment": (ONTO.targetsSegment, ONTO.CustomerSegment),
+        "servesIndustry": (ONTO.servesIndustry, ONTO.IndustryVertical),
+        "deployedAs": (ONTO.deployedAs, ONTO.DeploymentModel),
+        "certifiedBy": (ONTO.certifiedBy, ONTO.TrustCertification),
+        "hasAPI": (ONTO.hasAPI, ONTO.APIStandard),
+        "supportsLocale": (ONTO.supportsLocale, ONTO.GeographicMarket),
+        "guarantees": (ONTO.guarantees, ONTO.SLAGuarantee),
+        "competesAgainst": (ONTO.competesAgainst, ONTO.CompetitorEntity)
     }
 
     seen_individuals = set()

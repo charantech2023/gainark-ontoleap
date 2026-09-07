@@ -751,7 +751,6 @@ def execute_product_truth_audit(
                     technical_triples.extend(t_from_text)
             except (json.JSONDecodeError, ValueError):
                 # HTML technical documentation or support portal page
-                headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
                 doc_texts = [clean_docs]
                 try:
                     soup = BeautifulSoup(raw_docs, "html.parser")
@@ -1054,7 +1053,17 @@ def export_product_truth_to_prov_ttl(
         "automates": SCHEMA.potentialAction,
         "integratesWith": SCHEMA.isRelatedTo,
         "compliesWith": SCHEMA.legislationApplies,
-        "supportsPricingModel": SCHEMA.priceSpecification
+        "supportsPricingModel": SCHEMA.priceSpecification,
+        "hasFeature": SCHEMA.featureList,
+        "replacesWorkflow": SCHEMA.actionOption,
+        "targetsSegment": SCHEMA.audience,
+        "servesIndustry": SCHEMA.industry,
+        "deployedAs": SCHEMA.deliveryLeadTime,
+        "certifiedBy": SCHEMA.award,
+        "hasAPI": SCHEMA.interface,
+        "supportsLocale": SCHEMA.availableLanguage,
+        "guarantees": SCHEMA.serviceOutput,
+        "competesAgainst": SCHEMA.isSimilarTo
     }
 
     def _add_capability_node(t: SemanticTriple, status: str, derives_from_marketing: bool, derives_from_tech: bool):

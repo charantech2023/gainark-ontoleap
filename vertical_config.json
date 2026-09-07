@@ -7,7 +7,17 @@
     "Accounting Standard",
     "Integration Partner",
     "Security Standard",
-    "Pricing Model"
+    "Pricing Model",
+    "Product Feature",
+    "Customer Segment",
+    "Industry Vertical",
+    "Deployment Model",
+    "Trust Certification",
+    "API Standard",
+    "Geographic Market",
+    "SLA Commitment",
+    "Competitor",
+    "Legacy Workflow"
   ],
   "mandatory_schema_types": [
     "SoftwareApplication",

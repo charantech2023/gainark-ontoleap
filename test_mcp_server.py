@@ -21,6 +21,8 @@ class TestMCPServer(unittest.TestCase):
             self.assertIn("ontoleap_cross_examine_diff", tool_names)
             self.assertIn("ontoleap_probe_ai_sov", tool_names)
             self.assertIn("ontoleap_map_site_topology", tool_names)
+            self.assertIn("ontoleap_track_competitor_changes", tool_names)
+            self.assertIn("ontoleap_export_w3c_ontology", tool_names)
         finally:
             loop.close()
 
@@ -82,6 +84,48 @@ class TestMCPServer(unittest.TestCase):
             self.assertEqual(data["brand_name"], "Ordway")
             self.assertIn("share_of_voice_pct", data)
             self.assertIn("queries_audited", data)
+        finally:
+            loop.close()
+
+    def test_mcp_track_competitor_changes(self):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            res = loop.run_until_complete(
+                app.call_tool(
+                    "ontoleap_track_competitor_changes",
+                    {"brand_name": "Chargebee"}
+                )
+            )
+            self.assertFalse(res.is_error)
+            text_out = res.content[0].text
+            data = json.loads(text_out)
+            self.assertEqual(data["brand"], "Chargebee")
+            self.assertIn("changes", data)
+            self.assertIn("snapshots", data)
+        finally:
+            loop.close()
+
+    def test_mcp_export_w3c_ontology(self):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            res = loop.run_until_complete(
+                app.call_tool(
+                    "ontoleap_export_w3c_ontology",
+                    {
+                        "source": "Acme automates Invoicing and complies with SOC 2.",
+                        "domain": "acme.com",
+                        "export_format": "turtle"
+                    }
+                )
+            )
+            self.assertFalse(res.is_error)
+            text_out = res.content[0].text
+            data = json.loads(text_out)
+            self.assertEqual(data["domain"], "acme.com")
+            self.assertIn("serialized_ontology", data)
+            self.assertIn("@prefix", data["serialized_ontology"])
         finally:
             loop.close()
 

@@ -16,6 +16,7 @@ from linking import (
 )
 from link_prediction import predict_kg_links
 from graph_export import generate_standalone_graph_html
+from pipeline import validate_url_for_fetch
 from models import (
     SemanticTriple,
     SparqlQueryRequest,
@@ -36,16 +37,18 @@ class NTriplesExportRequest(BaseModel):
 
 class OwlExportRequest(BaseModel):
     root_domain: str = Field(default="example.com", description="Root domain of the platform")
-    triples: List[SemanticTriple] = Field(default_factory=list, description="Extracted relational triples")
+    triples: List[SemanticTriple] = Field(default_factory=list, max_length=5000, description="Extracted relational triples")
     topic_hubs: Dict[str, str] = Field(default_factory=dict, description="Canonical topic hubs map")
-    entities: List[str] = Field(default_factory=list, description="Extracted entities")
+    entities: List[str] = Field(default_factory=list, max_length=5000, description="Extracted entities")
     rdf_turtle: Optional[str] = Field(default=None, max_length=500_000, description="Optional Turtle to convert directly")
 
 
 class SemanticClustersRequest(BaseModel):
-    urls: List[str] = Field(default_factory=list)
-    sitemap_url: Optional[str] = None
-    max_pages: int = 10
+    urls: List[str] = Field(default_factory=list, max_length=100)
+    sitemap_url: Optional[str] = Field(default=None, max_length=2048)
+    # Bounded for the same reason as /api/batch-crawl: every page is a fetch plus a
+    # model inference pass.
+    max_pages: int = Field(default=10, ge=1, le=100)
 
 
 @router.post("/api/sparql", response_model=SparqlQueryResponse, summary="Execute SPARQL 1.1 Query on Knowledge Graph")
@@ -143,9 +146,24 @@ async def api_semantic_clusters(req: SemanticClustersRequest):
     Analyzes content across site pages, computing TF-IDF vectors, pairwise cosine
     similarity matrix, cannibalization overlaps (>=0.70), and thematic topic silos.
     """
+    # This endpoint crawls whatever it is given, exactly as /api/internal-links does,
+    # and so needs the same SSRF guard. It previously had none.
+    try:
+        if req.sitemap_url:
+            validate_url_for_fetch(req.sitemap_url)
+        for u in req.urls or []:
+            validate_url_for_fetch(u)
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
+
+    if not req.sitemap_url and not req.urls:
+        raise HTTPException(status_code=400, detail="Provide either 'sitemap_url' or a non-empty 'urls' list.")
+
     try:
         audit_res = await audit_internal_links(sitemap_url=req.sitemap_url, urls=req.urls, max_pages=req.max_pages)
         return audit_res.semantic_clustering or {}
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
     except Exception as e:
         logger.error("Semantic cluster analysis failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Semantic cluster analysis failed.")

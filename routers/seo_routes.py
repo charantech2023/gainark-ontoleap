@@ -35,14 +35,17 @@ router = APIRouter(tags=["Semantic SEO & Linking"])
 class InternalLinkAuditRequest(BaseModel):
     sitemap_url: Optional[str] = Field(
         default=None,
+        max_length=2048,
         description="Target XML sitemap or sitemap index URL",
         example="https://www.ordwaylabs.com/sitemap.xml"
     )
     urls: Optional[List[str]] = Field(
         default=None,
-        description="Optional explicit list of target URLs to audit and link across"
+        max_length=100,
+        description="Optional explicit list of target URLs to audit and link across (max 100)"
     )
-    max_pages: int = Field(default=10, description="Maximum number of pages to crawl and analyze")
+    # Bounded: every page is a network fetch plus a model inference pass.
+    max_pages: int = Field(default=10, ge=1, le=100, description="Maximum number of pages to crawl and analyze (1-100)")
 
 
 @router.post("/api/internal-links", response_model=SiteAuditAndLinkResult)
@@ -71,7 +74,7 @@ async def api_internal_links(req: InternalLinkAuditRequest):
         raise HTTPException(status_code=400, detail=str(val_err))
     except Exception as e:
         logger.error("Internal link audit failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal link audit failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal link audit failed. Check server logs.")
 
 
 @router.post("/api/simulate-search", response_model=SearchSimulationResponse)
@@ -226,9 +229,11 @@ def api_geo_citation_audit(req: GeoAuditRequest):
     """
     try:
         return geo_engine.execute_geo_citation_audit(req)
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
     except Exception as e:
         logger.error("GEO citation audit failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"GEO citation audit failed: {e}")
+        raise HTTPException(status_code=500, detail="GEO citation audit failed. Check server logs.")
 
 
 @router.post("/api/geo/generate-queries", response_model=List[GeoQueryItem], summary="Generate Ontology-Grounded Buyer Evaluation Queries")
@@ -247,7 +252,9 @@ def api_geo_generate_queries(req: GeoAuditRequest):
             vertical_name=v_name,
             count=5,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("GEO query generation failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Query generation failed: {e}")
+        raise HTTPException(status_code=500, detail="Query generation failed. Check server logs.")
 

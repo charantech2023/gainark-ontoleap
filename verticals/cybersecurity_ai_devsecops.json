@@ -1,0 +1,94 @@
+{
+  "vertical_id": "cybersecurity_ai_devsecops",
+  "display_name": "AI Security & DevSecOps Platform",
+  "gliner_labels": [
+    "AI Security Platform",
+    "AI-Generated Code",
+    "Development Agent",
+    "AI-Native Application",
+    "Vulnerability Management",
+    "Security Posture"
+  ],
+  "mandatory_schema_types": [
+    "SoftwareApplication",
+    "Organization",
+    "Offer"
+  ],
+  "core_seed_concepts": [
+    "AI Security",
+    "DevSecOps",
+    "Application Security (AppSec)",
+    "Code Security",
+    "Agentic Development",
+    "AI-Native Applications",
+    "Vulnerability Scanning",
+    "Software Supply Chain Security",
+    "Risk Posture",
+    "Automated AI Attacks",
+    "Security Governance",
+    "AI Model Security"
+  ],
+  "known_integrations": [
+    "GitHub",
+    "GitLab",
+    "Jira",
+    "Jenkins",
+    "Azure DevOps",
+    "AWS",
+    "Google Cloud Platform",
+    "Docker",
+    "Kubernetes",
+    "Slack",
+    "VS Code",
+    "OpenAI"
+  ],
+  "known_compliance": [
+    "SOC 2",
+    "ISO 27001",
+    "NIST CSF",
+    "GDPR",
+    "OWASP Top 10",
+    "CISA SSCA"
+  ],
+  "known_pricing": [
+    "Per-Developer Pricing",
+    "Tiered Enterprise",
+    "Usage-Based Scanning",
+    "Free Tier"
+  ],
+  "known_automation": [
+    "Vulnerability Scanning",
+    "AI-Generated Code Security Analysis",
+    "AI Agent Governance",
+    "AI Application Inventory",
+    "Automated Policy Enforcement",
+    "Software Supply Chain Risk Assessment",
+    "Security Posture Monitoring",
+    "Automated Remediation Guidance",
+    "Continuous Security Validation",
+    "Threat Detection for AI Systems"
+  ],
+  "concept_hierarchy": {
+    "AI Security": "Cybersecurity",
+    "DevSecOps": "Cybersecurity",
+    "Application Security (AppSec)": "Cybersecurity",
+    "Code Security": "Application Security (AppSec)",
+    "Agentic Development": "AI Security",
+    "AI-Native Applications": "AI Security",
+    "Vulnerability Scanning": "Application Security (AppSec)",
+    "Software Supply Chain Security": "DevSecOps",
+    "Risk Posture": "AI Security",
+    "Automated AI Attacks": "AI Security",
+    "Security Governance": "AI Security",
+    "AI Model Security": "AI Security",
+    "Vulnerability Management": "Vulnerability Scanning",
+    "Code Analysis": "Code Security",
+    "Runtime Protection": "AI-Native Applications",
+    "Policy Enforcement": "Security Governance",
+    "Incident Response": "Security Governance",
+    "Audit Trail": "Security Governance",
+    "AI-Generated Code Security": "Code Security",
+    "AI Agent Governance": "Agentic Development",
+    "AI Application Inventory": "AI-Native Applications"
+  }
+}

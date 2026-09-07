@@ -35,9 +35,11 @@ USER appuser
 # Expose port (Cloud Run injects PORT environment variable at runtime)
 EXPOSE 8080
 
-# Health check
+# Health check.
+# /api/health is the liveness endpoint and stays public even when ONTOLEAP_API_KEY is
+# set; /api/info would return 401 under authentication and fail the healthcheck.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/api/info || exit 1
+    CMD curl -f http://localhost:${PORT}/api/health || exit 1
 
 # Launch FastAPI app with Uvicorn
 CMD ["sh", "-c", "uvicorn api:app --host 0.0.0.0 --port ${PORT}"]

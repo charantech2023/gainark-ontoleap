@@ -58,6 +58,46 @@ class VerticalConfig(BaseModel):
             "name. Empty means flat, which is the previous behaviour."
         ),
     )
+    known_features: List[str] = Field(
+        default_factory=list,
+        description="Discrete product features and capabilities (e.g. Automated Invoicing, SSO).",
+    )
+    known_segments: List[str] = Field(
+        default_factory=list,
+        description="Target customer segments (e.g. Enterprise, Mid-Market, SMB).",
+    )
+    known_industries: List[str] = Field(
+        default_factory=list,
+        description="Target industry verticals served (e.g. SaaS, FinTech, HealthTech).",
+    )
+    known_deployment: List[str] = Field(
+        default_factory=list,
+        description="Hosting and deployment architectures (e.g. Cloud-Native, Multi-Tenant, On-Premise).",
+    )
+    known_certifications: List[str] = Field(
+        default_factory=list,
+        description="Trust and compliance certifications (e.g. SOC 2 Type II, ISO 27001).",
+    )
+    known_api_types: List[str] = Field(
+        default_factory=list,
+        description="Supported API standards and integration protocols (e.g. REST API, Webhooks).",
+    )
+    known_locales: List[str] = Field(
+        default_factory=list,
+        description="Supported geographic regions and locales (e.g. United States, European Union).",
+    )
+    known_sla: List[str] = Field(
+        default_factory=list,
+        description="Contractual reliability and uptime SLA commitments (e.g. 99.99% Uptime).",
+    )
+    known_replaces: List[str] = Field(
+        default_factory=list,
+        description="Legacy manual workflows eliminated or replaced (e.g. Manual Spreadsheets).",
+    )
+    known_competitors: List[str] = Field(
+        default_factory=list,
+        description="Direct market competitors operating in this vertical (e.g. Zuora, Chargebee).",
+    )
 
 
 class EntityMatch(BaseModel):
@@ -300,11 +340,11 @@ class SearchSimulationRequest(BaseModel):
     """
     Request model for simulating Perplexity / SearchGPT generative query answering.
     """
-    query: str = Field(..., description="User search query, e.g., 'What accounting standards does the platform comply with?'")
-    root_domain: str = Field(..., description="The audited domain")
-    triples: List[SemanticTriple] = Field(default_factory=list, description="Extracted domain triples")
+    query: str = Field(..., max_length=2000, description="User search query, e.g., 'What accounting standards does the platform comply with?'")
+    root_domain: str = Field(..., max_length=2048, description="The audited domain")
+    triples: List[SemanticTriple] = Field(default_factory=list, max_length=5000, description="Extracted domain triples")
     topic_hubs: Dict[str, str] = Field(default_factory=dict, description="Canonical topic hubs map")
-    entities: List[str] = Field(default_factory=list, description="Extracted key entities")
+    entities: List[str] = Field(default_factory=list, max_length=5000, description="Extracted key entities")
 
 
 class SearchSimulationResponse(BaseModel):
@@ -354,9 +394,9 @@ class LinkPredictionRequest(BaseModel):
     """
     Request model for inferring missing knowledge graph relations from ontological priors.
     """
-    domain: str = Field(default="example.com", description="Target domain of the knowledge graph")
-    triples: List[SemanticTriple] = Field(default_factory=list, description="Existing extracted relational triples")
-    entities: List[str] = Field(default_factory=list, description="Recognized key entities")
+    domain: str = Field(default="example.com", max_length=2048, description="Target domain of the knowledge graph")
+    triples: List[SemanticTriple] = Field(default_factory=list, max_length=5000, description="Existing extracted relational triples")
+    entities: List[str] = Field(default_factory=list, max_length=5000, description="Recognized key entities")
     topic_hubs: Dict[str, str] = Field(default_factory=dict, description="Canonical topic hubs map")
 
 
@@ -399,7 +439,7 @@ class DraftAlignmentRequest(BaseModel):
     Request model for analyzing draft content against canonical Product Knowledge Graph.
     """
     draft_text: str = Field(..., max_length=20_000, description="Draft blog post, landing page, or PR copy")
-    brand_name: str = Field(default="The Platform", description="Brand under evaluation")
+    brand_name: str = Field(default="The Platform", max_length=200, description="Brand under evaluation")
     site_url: Optional[str] = Field(default="https://example.com")
     vertical_id: str = Field(default="b2b_saas_fintech")
     triples: List[SemanticTriple] = Field(default_factory=list)
@@ -455,8 +495,8 @@ class ExportPdfRequest(BaseModel):
     vertical_id: str = Field(default="b2b_saas_fintech")
     readiness_score: Optional[float] = 0.0
     mandatory_schema_status: Optional[Dict[str, bool]] = Field(default_factory=dict)
-    triples: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
-    benchmark_table: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
+    triples: Optional[List[Dict[str, Any]]] = Field(default_factory=list, max_length=5000)
+    benchmark_table: Optional[List[Dict[str, Any]]] = Field(default_factory=list, max_length=500)
     google_kg_presence: Optional[Dict[str, Any]] = Field(default=None, description="Google Knowledge Graph verification data")
 
 
@@ -479,7 +519,7 @@ class IndustryDiscoveryRequest(BaseModel):
     Request model for autonomous industry and vertical ontology discovery.
     """
     url: str = Field(..., max_length=2048, description="Target company or product website URL")
-    brand_hint: Optional[str] = Field(default=None, description="Optional brand name hint")
+    brand_hint: Optional[str] = Field(default=None, max_length=200, description="Optional brand name hint")
 
 
 class IndustryDiscoveryResponse(BaseModel):
@@ -498,6 +538,11 @@ class IndustryDiscoveryResponse(BaseModel):
     known_integrations: List[str] = Field(default_factory=list)
     ecosystem_integrations: List[str] = Field(default_factory=list)
     known_pricing: List[str] = Field(default_factory=list)
+    known_features: List[str] = Field(default_factory=list)
+    known_segments: List[str] = Field(default_factory=list)
+    known_deployment: List[str] = Field(default_factory=list)
+    known_sla: List[str] = Field(default_factory=list)
+    known_replaces: List[str] = Field(default_factory=list)
     gliner_labels: List[str] = Field(default_factory=list)
     suggested_competitors: List[str] = Field(default_factory=list)
     direct_competitors: List[Any] = Field(default_factory=list)
@@ -513,12 +558,12 @@ class ProductTruthRequest(BaseModel):
     Request model for generating the Company Product Truth Matrix.
     """
     marketing_url: str = Field(..., max_length=2048, description="Brand marketing website or landing page")
-    brand_name: Optional[str] = Field(default=None, description="Brand name (optional, will auto-detect if omitted)")
-    company_name: Optional[str] = Field(default=None, description="Company name alias for brand_name")
+    brand_name: Optional[str] = Field(default=None, max_length=200, description="Brand name (optional, will auto-detect if omitted)")
+    company_name: Optional[str] = Field(default=None, max_length=200, description="Company name alias for brand_name")
     vertical_id: Optional[str] = Field(default=None, description="Industry vertical ID (optional)")
     tech_docs_url: Optional[str] = Field(default=None, max_length=2048, description="Public documentation, developer portal, or OpenAPI URL")
     openapi_spec: Optional[Dict[str, Any]] = Field(default=None, description="Optional raw OpenAPI / Swagger JSON specification")
-    tech_docs_text: Optional[str] = Field(default=None, description="Optional raw markdown or text documentation")
+    tech_docs_text: Optional[str] = Field(default=None, max_length=1_000_000, description="Optional raw markdown or text documentation (max 1 MB)")
 
 
 class ProductTruthMatrixResponse(BaseModel):
@@ -664,7 +709,7 @@ class CompetitorOntologyRequest(BaseModel):
     Request model to crawl and extract the ontology of a competitor website.
     """
     url: str = Field(..., max_length=2048, description="Competitor homepage or product URL")
-    brand_name: Optional[str] = Field(default=None, description="Competitor brand name (optional)")
+    brand_name: Optional[str] = Field(default=None, max_length=200, description="Competitor brand name (optional)")
     crawl_subpages: bool = Field(default=True, description="Whether to discover and crawl /pricing, /features, /integrations")
     max_subpages: int = Field(default=3, ge=1, le=10, description="Max subpages to crawl")
 
@@ -712,12 +757,12 @@ class GeoProbeResult(BaseModel):
 
 class GeoAuditRequest(BaseModel):
     """Request payload for executing a multi-query GEO citation audit."""
-    brand_name: str = Field(..., description="Target brand to evaluate, e.g. 'Ordway'")
-    domain: str = Field(..., description="Target brand website domain, e.g. 'ordwaylabs.com'")
-    competitor_names: List[str] = Field(default_factory=list, description="Competitors to track, e.g. ['Chargebee', 'Stripe']")
-    triples: List[SemanticTriple] = Field(default_factory=list, description="Verified ontology triples for grounding check")
+    brand_name: str = Field(..., max_length=200, description="Target brand to evaluate, e.g. 'Ordway'")
+    domain: str = Field(..., max_length=2048, description="Target brand website domain, e.g. 'ordwaylabs.com'")
+    competitor_names: List[str] = Field(default_factory=list, max_length=25, description="Competitors to track, e.g. ['Chargebee', 'Stripe']")
+    triples: List[SemanticTriple] = Field(default_factory=list, max_length=5000, description="Verified ontology triples for grounding check")
     vertical_id: Optional[str] = Field(default="b2b_saas_fintech", description="Industry vertical ID")
-    custom_queries: Optional[List[str]] = Field(default=None, description="Optional custom buyer queries to probe")
+    custom_queries: Optional[List[str]] = Field(default=None, max_length=10, description="Optional custom buyer queries to probe (max 10 outbound probes)")
 
 
 class GeoAuditResponse(BaseModel):

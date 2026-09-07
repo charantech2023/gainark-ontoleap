@@ -23,6 +23,7 @@ from models import (
     ExportPdfRequest
 )
 from routers.deps import get_pipeline
+from security import content_disposition, csv_safe
 
 logger = logging.getLogger("ontoleap.api.audit")
 
@@ -30,8 +31,10 @@ router = APIRouter(tags=["Audit & Benchmarking"])
 
 
 class BatchCrawlRequest(BaseModel):
-    sitemap_url: str = Field(..., description="Target XML sitemap or sitemap index URL", example="https://www.ordwaylabs.com/sitemap.xml")
-    max_pages: int = Field(default=10, description="Maximum number of pages to crawl and synthesize")
+    sitemap_url: str = Field(..., max_length=2048, description="Target XML sitemap or sitemap index URL", example="https://www.ordwaylabs.com/sitemap.xml")
+    # Each page is a full fetch plus a model inference pass. Unbounded, one request can
+    # occupy a worker indefinitely and hammer the target site on our behalf.
+    max_pages: int = Field(default=10, ge=1, le=100, description="Maximum number of pages to crawl and synthesize (1-100)")
 
 
 class AuditRequest(BaseModel):
@@ -72,7 +75,8 @@ class BenchmarkRequest(BaseModel):
     )
     competitor_urls: Optional[List[str]] = Field(
         default=None,
-        description="List of competitor URLs to compare against",
+        max_length=20,
+        description="List of competitor URLs to compare against (max 20)",
         example=[
             "https://www.chargebee.com",
             "https://www.maxio.com",
@@ -81,7 +85,8 @@ class BenchmarkRequest(BaseModel):
     )
     urls: Optional[List[str]] = Field(
         default=None,
-        description="Fallback list of URLs to benchmark (if primary_url is omitted)"
+        max_length=20,
+        description="Fallback list of URLs to benchmark (if primary_url is omitted, max 20)"
     )
     vertical_id: Optional[str] = Field(default=None, description="Vertical ontology domain ID", example="b2b_saas_fintech")
 
@@ -111,7 +116,7 @@ class BenchmarkResponse(BaseModel):
 
 
 class BenchmarkCsvExportRequest(BaseModel):
-    comparative_table: List[Dict[str, Any]]
+    comparative_table: List[Dict[str, Any]] = Field(default_factory=list, max_length=500)
 
 
 @router.post("/api/batch-crawl", response_model=UnifiedSiteGraph)
@@ -306,14 +311,18 @@ def api_export_benchmark_csv(req: BenchmarkCsvExportRequest):
     writer = csv.writer(output)
     writer.writerow(["Rank", "Domain", "Readiness Score", "Schema Valid", "Entities Found", "Triples Extracted", "Key Gaps"])
     for item in req.comparative_table:
+        gaps = item.get("gaps")
+        gaps_text = "; ".join(str(g) for g in gaps) if isinstance(gaps, list) else str(gaps or "")
+        # Values originate from crawled third-party pages. csv_safe prefixes anything a
+        # spreadsheet would evaluate as a formula so the cell renders as inert text.
         writer.writerow([
-            item.get("rank", ""),
-            item.get("url", ""),
-            item.get("readiness_score", 0),
+            csv_safe(item.get("rank", "")),
+            csv_safe(item.get("url", "")),
+            csv_safe(item.get("readiness_score", 0)),
             "Yes" if item.get("schema_valid") else "No",
-            item.get("entity_count", 0),
-            item.get("triple_count", 0),
-            "; ".join(item.get("gaps", [])) if isinstance(item.get("gaps"), list) else str(item.get("gaps", ""))
+            csv_safe(item.get("entity_count", 0)),
+            csv_safe(item.get("triple_count", 0)),
+            csv_safe(gaps_text),
         ])
     return PlainTextResponse(content=output.getvalue(), media_type="text/csv")
 
@@ -342,13 +351,14 @@ def api_export_pdf(req: ExportPdfRequest):
         )
 
         clean_name = req.url.replace("https://", "").replace("http://", "").split("/")[0].replace(".", "_")
-        filename = f"GainARK_OntoLeap_{clean_name}.pdf"
 
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename}"'
+                # req.url is caller-supplied; content_disposition strips quotes and CRLF
+                # so it cannot terminate the header or inject another one.
+                "Content-Disposition": content_disposition(f"GainARK_OntoLeap_{clean_name}.pdf")
             }
         )
     except Exception as e:
@@ -363,14 +373,13 @@ def api_export_battlecards_pdf(req: Dict[str, Any]):
     """
     try:
         pdf_bytes = report_pdf.generate_battlecards_pdf_report(req)
-        comp = req.get("company_name", "Brand").replace(" ", "_").replace("/", "_")
-        filename = f"GainARK_{comp}_Competitive_Battlecards.pdf"
+        comp = str(req.get("company_name") or "Brand")
 
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename}"'
+                "Content-Disposition": content_disposition(f"GainARK_{comp}_Competitive_Battlecards.pdf")
             }
         )
     except Exception as e:
@@ -392,7 +401,7 @@ def api_download_pitch_pdf():
             content=pdf_bytes,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": 'inline; filename="OntoLeap_Executive_Pitch_OnePager.pdf"'
+                "Content-Disposition": content_disposition("OntoLeap_Executive_Pitch_OnePager.pdf", inline=True)
             }
         )
     except Exception as e:

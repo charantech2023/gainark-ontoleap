@@ -19,6 +19,9 @@ from typing import Optional, List, Dict, Any
 
 from mcp.server.mcpserver import MCPServer
 from graph_engine import get_graph_engine
+import truth_ledger.history as ledger_history
+from knowledge_graph import export_to_rdf_turtle, export_to_owl_xml
+from models import SemanticTriple
 
 # Set up logging to stderr so stdout remains clean for MCP stdio protocol
 logging.basicConfig(
@@ -57,7 +60,7 @@ async def ontoleap_extract_facts(
         return json.dumps(result, indent=2)
     except Exception as e:
         logger.error("ontoleap_extract_facts failed: %s", e, exc_info=True)
-        return json.dumps({"error": str(e), "status": "failed"})
+        return json.dumps({"error": type(e).__name__, "status": "failed"})
 
 
 @app.tool(
@@ -83,7 +86,7 @@ async def ontoleap_cross_examine_diff(
         return json.dumps(result, indent=2)
     except Exception as e:
         logger.error("ontoleap_cross_examine_diff failed: %s", e, exc_info=True)
-        return json.dumps({"error": str(e), "status": "failed"})
+        return json.dumps({"error": type(e).__name__, "status": "failed"})
 
 
 @app.tool(
@@ -119,7 +122,7 @@ async def ontoleap_probe_ai_sov(
         return json.dumps(result, indent=2)
     except Exception as e:
         logger.error("ontoleap_probe_ai_sov failed: %s", e, exc_info=True)
-        return json.dumps({"error": str(e), "status": "failed"})
+        return json.dumps({"error": type(e).__name__, "status": "failed"})
 
 
 @app.tool(
@@ -149,7 +152,79 @@ async def ontoleap_map_site_topology(
         return json.dumps(result, indent=2)
     except Exception as e:
         logger.error("ontoleap_map_site_topology failed: %s", e, exc_info=True)
-        return json.dumps({"error": str(e), "status": "failed"})
+        return json.dumps({"error": type(e).__name__, "status": "failed"})
+
+
+@app.tool(
+    name="ontoleap_track_competitor_changes",
+    description="Tracks historical claim movement and grounding changes for a competitor brand using the immutable Product Truth ledger. Identifies newly added claims, dropped capabilities, and grounding drift."
+)
+async def ontoleap_track_competitor_changes(
+    brand_name: str
+) -> str:
+    """
+    Retrieves the competitor change history timeline for a brand.
+
+    Args:
+        brand_name: Competitor brand name (e.g. 'Chargebee', 'Ordway').
+    """
+    try:
+        timeline = ledger_history.brand_timeline(brand_name)
+        return json.dumps(timeline, indent=2)
+    except Exception as e:
+        logger.error("ontoleap_track_competitor_changes failed: %s", e, exc_info=True)
+        return json.dumps({"error": type(e).__name__, "status": "failed"})
+
+
+@app.tool(
+    name="ontoleap_export_w3c_ontology",
+    description="Exports an extracted knowledge graph into formal W3C RDF Turtle (.ttl) or OWL 2 DL RDF/XML (.owl) format with Dublin Core, DCAT cataloging, SKOS taxonomies, and owl:inverseOf axioms."
+)
+async def ontoleap_export_w3c_ontology(
+    source: str,
+    domain: Optional[str] = None,
+    export_format: str = "turtle",
+    vertical_id: str = "b2b_saas_fintech"
+) -> str:
+    """
+    Exports a domain's knowledge graph to standard W3C RDF or OWL.
+
+    Args:
+        source: Web URL or raw text to extract from.
+        domain: Domain name (e.g. 'ordwaylabs.com'). If omitted, extracted from source URL or defaults to 'platform.local'.
+        export_format: 'turtle' (.ttl) or 'owl_xml' (.owl).
+        vertical_id: Domain vertical ID.
+    """
+    try:
+        engine = get_graph_engine()
+        kg = await engine.extract_knowledge_graph(source=source, vertical_id=vertical_id)
+        triples = [
+            SemanticTriple(
+                subject=t["subject"],
+                predicate=t["predicate"],
+                object=t["object"],
+                confidence=t.get("confidence", 0.9),
+                evidence_sentence=t.get("evidence", "")
+            )
+            for t in kg.get("triples", [])
+        ]
+        resolved_domain = domain or (source.split("://")[1].split("/")[0] if source.startswith("http") else "platform.local")
+        entities = [e["text"] for e in kg.get("entities", [])]
+
+        if export_format.lower() == "owl_xml":
+            output = export_to_owl_xml(resolved_domain, triples, hubs={}, entities=entities)
+        else:
+            output = export_to_rdf_turtle(resolved_domain, triples, hubs={}, entities=entities, vertical_id=vertical_id)
+
+        return json.dumps({
+            "domain": resolved_domain,
+            "format": export_format,
+            "triples_count": len(triples),
+            "serialized_ontology": output
+        }, indent=2)
+    except Exception as e:
+        logger.error("ontoleap_export_w3c_ontology failed: %s", e, exc_info=True)
+        return json.dumps({"error": type(e).__name__, "status": "failed"})
 
 
 if __name__ == "__main__":

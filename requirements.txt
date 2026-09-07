@@ -8,7 +8,7 @@ charset-normalizer==3.5.1
 click==8.5.0
 colorama==0.4.6
 courlan==1.4.0
-curl_cffi>=0.7.0
+curl_cffi==0.16.3
 dateparser==1.4.3
 extruct==0.18.0
 fastapi==0.141.1
@@ -16,7 +16,7 @@ filelock==3.32.5
 flatbuffers==25.12.19
 fsspec==2026.7.0
 gliner==0.2.28
-google-auth>=2.0.0
+google-auth==2.57.1
 h11==0.16.0
 hf-xet==1.6.0
 html-text==0.7.1
@@ -51,7 +51,7 @@ pytz==2026.3.post1
 PyYAML==6.0.3
 rdflib==7.6.0
 regex==2026.9.3
-reportlab>=4.0.0
+reportlab==5.0.1
 requests==2.34.2
 rich==15.0.0
 safetensors==0.8.0
@@ -76,5 +76,5 @@ urllib3==2.7.0
 uvicorn==0.52.4
 w3lib==2.4.1
 webencodings==0.6.1
-pyshacl>=0.25.0
-mcp>=1.2.0
+pyshacl==0.40.1
+mcp==2.1.1

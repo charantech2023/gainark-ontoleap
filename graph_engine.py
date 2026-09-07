@@ -42,6 +42,29 @@ class GraphEngine:
 
     def __init__(self, pipeline: Optional[OntologyPipeline] = None):
         self.pipeline = pipeline or get_default_pipeline()
+        self._explicit_pipeline = pipeline is not None
+
+    def _pipeline_for(self, vertical_id: Optional[str]) -> OntologyPipeline:
+        """
+        Resolve the ontology pipeline for a vertical.
+
+        Every tool here advertises a vertical_id argument, but the value was previously
+        discarded and the default vertical used regardless, so asking for
+        'cybersecurity' silently analysed the site through the billing vocabulary. An
+        explicitly injected pipeline still wins, and an unknown ID degrades to the
+        default with a warning rather than failing the tool call.
+        """
+        if self._explicit_pipeline or not vertical_id:
+            return self.pipeline
+        try:
+            from routers.deps import get_pipeline
+            return get_pipeline(vertical_id)
+        except Exception as exc:
+            logger.warning(
+                "Unknown or unloadable vertical_id %r (%s); falling back to the default vertical.",
+                vertical_id, type(exc).__name__,
+            )
+            return self.pipeline
 
     async def extract_knowledge_graph(
         self,
@@ -58,11 +81,12 @@ class GraphEngine:
         text = ""
         html = None
         url = None
+        pipeline = self._pipeline_for(vertical_id)
 
         if is_url:
             url = source.strip()
             loop = asyncio.get_running_loop()
-            html = await loop.run_in_executor(None, self.pipeline.fetch_url, url)
+            html = await loop.run_in_executor(None, pipeline.fetch_url, url)
             if not html:
                 raise ValueError(f"Failed to fetch content from URL: {url}")
         else:
@@ -71,7 +95,7 @@ class GraphEngine:
         loop = asyncio.get_running_loop()
         extraction: ExtractionResult = await loop.run_in_executor(
             None,
-            lambda: self.pipeline.process(html=html, text=text if text else None, url=url, deep_crawl=False)
+            lambda: pipeline.process(html=html, text=text if text else None, url=url, deep_crawl=False)
         )
 
         triples_data = [
@@ -214,6 +238,9 @@ class GraphEngine:
         Crawls target pages across a domain, calculates PageRank authority hubs,
         and generates high-intent internal link insertion recommendations.
         """
+        # Bounded for the same reason as the HTTP crawl endpoints: each page is a fetch
+        # plus a model inference pass.
+        max_pages = max(1, min(int(max_pages or 10), 100))
         res: SiteAuditAndLinkResult = await audit_internal_links(
             sitemap_url=sitemap_url,
             urls=urls,

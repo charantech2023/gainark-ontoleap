@@ -2719,6 +2719,31 @@ SELECT ?capability ?evidence WHERE {
                 .replace(/'/g, '&#039;');
         }
 
+        // Values rendered here come from crawled third-party pages and from Schema.org
+        // JSON-LD authored by whoever owns the audited site, so they are untrusted.
+        // escapeHtml alone cannot stop `javascript:alert(1)` in an href: that payload
+        // contains no character escapeHtml touches. Only http(s) links are emitted;
+        // anything else becomes an inert anchor.
+        function safeUrl(u) {
+            if (!u) return '#';
+            const raw = String(u).trim();
+            try {
+                const parsed = new URL(raw, window.location.origin);
+                if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '#';
+                return escapeHtml(parsed.href);
+            } catch (e) {
+                return '#';
+            }
+        }
+
+        // Spreadsheets execute a cell beginning with =, +, - or @ as a formula.
+        function csvCell(value) {
+            let text = (value === null || value === undefined) ? '' : String(value);
+            text = text.replace(/[\r\n]+/g, ' ');
+            if (/^[=+\-@\t]/.test(text)) text = "'" + text;
+            return '"' + text.replace(/"/g, '""') + '"';
+        }
+
         async function getApiErrorMessage(response, defaultMsg) {
             try {
                 const err = await response.json();
@@ -4923,10 +4948,10 @@ SELECT ?capability ?evidence WHERE {
                     // Links
                     linksEl.innerHTML = '';
                     if (kg.google_kg_url) {
-                        linksEl.innerHTML += `<a href="${kg.google_kg_url}" target="_blank" class="inline-flex items-center gap-1 font-semibold text-brand-600 hover:text-brand-800 hover:underline"><span>Google Knowledge Graph</span> <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
+                        linksEl.innerHTML += `<a href="${safeUrl(kg.google_kg_url)}" target="_blank" class="inline-flex items-center gap-1 font-semibold text-brand-600 hover:text-brand-800 hover:underline"><span>Google Knowledge Graph</span> <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
                     }
                     if (kg.wikipedia_url) {
-                        linksEl.innerHTML += `<a href="${kg.wikipedia_url}" target="_blank" class="inline-flex items-center gap-1 font-semibold text-indigo-600 hover:text-indigo-800 hover:underline"><span>Wikipedia Entry</span> <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
+                        linksEl.innerHTML += `<a href="${safeUrl(kg.wikipedia_url)}" target="_blank" class="inline-flex items-center gap-1 font-semibold text-indigo-600 hover:text-indigo-800 hover:underline"><span>Wikipedia Entry</span> <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>`;
                     }
 
                     // Score & Bar
@@ -5094,10 +5119,10 @@ SELECT ?capability ?evidence WHERE {
                 tr.innerHTML = `
                     <td class="py-4 px-6 font-medium">
                         <div class="flex items-center">
-                            <span class="font-semibold text-slate-900">${item.title || 'Untitled'}</span>
+                            <span class="font-semibold text-slate-900">${escapeHtml(item.title) || 'Untitled'}</span>
                             ${primaryBadge}
                         </div>
-                        <a href="${item.url}" target="_blank" class="text-xs text-brand-600 hover:underline font-mono">${item.url}</a>
+                        <a href="${safeUrl(item.url)}" target="_blank" class="text-xs text-brand-600 hover:underline font-mono">${escapeHtml(item.url)}</a>
                     </td>
                     <td class="py-4 px-6 text-center">
                         <span class="inline-block px-3 py-1 rounded-full text-xs font-bold border ${scoreColor}">
@@ -5166,10 +5191,10 @@ SELECT ?capability ?evidence WHERE {
                         return `
                             <li class="flex items-center justify-between bg-white p-2.5 rounded-lg border border-slate-200">
                                 <div class="flex items-center gap-2 truncate pr-2">
-                                    <span class="font-semibold text-slate-800 truncate">${kg.concept}</span>
-                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold border ${badgeStyle}">${kg.priority}</span>
+                                    <span class="font-semibold text-slate-800 truncate">${escapeHtml(kg.concept)}</span>
+                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-bold border ${badgeStyle}">${escapeHtml(kg.priority)}</span>
                                 </div>
-                                <span class="text-[11px] text-slate-500 font-mono shrink-0" title="Found on ${kg.competitors.join(', ')}">
+                                <span class="text-[11px] text-slate-500 font-mono shrink-0" title="Found on ${escapeHtml((kg.competitors || []).join(', '))}">
                                     ${kg.competitor_count} competitor${kg.competitor_count > 1 ? 's' : ''}
                                 </span>
                             </li>
@@ -5250,7 +5275,7 @@ SELECT ?capability ?evidence WHERE {
                 { key: "Founding Date", val: payload.foundingDate },
                 { key: "Telephone", val: payload.telephone },
                 { key: "Email", val: payload.email },
-                { key: "Website", val: payload.url ? `<a href="${payload.url}" target="_blank" class="text-brand-600 hover:underline break-all">${payload.url}</a>` : null, isHtml: true }
+                { key: "Website", val: payload.url ? `<a href="${safeUrl(payload.url)}" target="_blank" class="text-brand-600 hover:underline break-all">${escapeHtml(payload.url)}</a>` : null, isHtml: true }
             ];
 
             let renderedCount = 0;
@@ -5617,7 +5642,7 @@ SELECT ?capability ?evidence WHERE {
                             <div class="truncate" title="${escapeHtml(concept)}">${escapeHtml(concept)}</div>
                         </td>
                         <td class="py-3 px-4 max-w-[320px]">
-                            <a href="${escapeHtml(hubUrl)}" target="_blank" class="text-brand-600 hover:underline font-mono text-[11px] inline-flex items-center gap-1.5 max-w-full truncate" title="${escapeHtml(hubUrl)}">
+                            <a href="${safeUrl(hubUrl)}" target="_blank" class="text-brand-600 hover:underline font-mono text-[11px] inline-flex items-center gap-1.5 max-w-full truncate" title="${escapeHtml(hubUrl)}">
                                 <span class="truncate">${escapeHtml(hubUrl)}</span>
                                 <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                             </a>
@@ -5660,7 +5685,7 @@ SELECT ?capability ?evidence WHERE {
                         </td>
                         <td class="py-3 px-3 max-w-[190px]">
                             <div class="truncate">
-                                <a href="${escapeHtml(o.source_url)}" target="_blank" class="font-mono text-[11px] text-slate-800 hover:text-brand-600 hover:underline truncate block" title="${escapeHtml(o.source_url)}">${escapeHtml(srcPath)}</a>
+                                <a href="${safeUrl(o.source_url)}" target="_blank" class="font-mono text-[11px] text-slate-800 hover:text-brand-600 hover:underline truncate block" title="${escapeHtml(o.source_url)}">${escapeHtml(srcPath)}</a>
                             </div>
                         </td>
                         <td class="py-3 px-3 max-w-[190px]">
@@ -5671,7 +5696,7 @@ SELECT ?capability ?evidence WHERE {
                         </td>
                         <td class="py-3 px-3 max-w-[190px]">
                             <div class="truncate">
-                                <a href="${escapeHtml(o.target_url)}" target="_blank" class="font-mono text-[11px] text-brand-600 hover:underline truncate block" title="${escapeHtml(o.target_url)}">${escapeHtml(tgtPath)}</a>
+                                <a href="${safeUrl(o.target_url)}" target="_blank" class="font-mono text-[11px] text-brand-600 hover:underline truncate block" title="${escapeHtml(o.target_url)}">${escapeHtml(tgtPath)}</a>
                             </div>
                         </td>
                         <td class="py-3 px-3 max-w-[170px]">
@@ -5783,7 +5808,7 @@ SELECT ?capability ?evidence WHERE {
                     const row = document.createElement('div');
                     row.className = 'flex items-center justify-between p-2.5 bg-white rounded-lg border border-amber-200 gap-2';
                     row.innerHTML = `
-                        <a href="${escapeHtml(u)}" target="_blank" class="font-mono text-xs text-amber-950 truncate hover:underline hover:text-brand-600" title="${escapeHtml(u)}">
+                        <a href="${safeUrl(u)}" target="_blank" class="font-mono text-xs text-amber-950 truncate hover:underline hover:text-brand-600" title="${escapeHtml(u)}">
                             ${escapeHtml(u)}
                         </a>
                         <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 shrink-0">
@@ -5807,7 +5832,7 @@ SELECT ?capability ?evidence WHERE {
                     box.className = 'p-3 bg-white rounded-lg border border-rose-200 space-y-1.5';
                     const compRows = (r.competing_urls || []).map(u => `
                         <div class="truncate text-slate-500 hover:text-slate-800">
-                            • <a href="${escapeHtml(u)}" target="_blank" class="hover:underline">${escapeHtml(u)}</a>
+                            • <a href="${safeUrl(u)}" target="_blank" class="hover:underline">${escapeHtml(u)}</a>
                         </div>
                     `).join('');
 
@@ -5822,7 +5847,7 @@ SELECT ?capability ?evidence WHERE {
                             ${compRows}
                         </div>
                         <div class="text-[11px] text-brand-700 font-semibold pt-1 border-t border-slate-100 flex items-center justify-between">
-                            <span class="truncate">Canonical Hub: <a href="${escapeHtml(r.recommended_canonical_hub)}" target="_blank" class="hover:underline font-mono text-brand-800">${escapeHtml(r.recommended_canonical_hub)}</a></span>
+                            <span class="truncate">Canonical Hub: <a href="${safeUrl(r.recommended_canonical_hub)}" target="_blank" class="hover:underline font-mono text-brand-800">${escapeHtml(r.recommended_canonical_hub)}</a></span>
                         </div>
                     `;
                     cannibalList.appendChild(box);
@@ -6457,7 +6482,7 @@ SELECT ?capability ?evidence WHERE {
                     const card = document.createElement('div');
                     card.className = 'p-4 rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50/50 to-white shadow-sm space-y-2';
                     const kwPills = (c.theme_keywords || []).map(k => `<span class="px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 text-[10px] font-bold">${escapeHtml(k)}</span>`).join(' ');
-                    const pageList = (c.pages || []).map(p => `<li class="truncate text-[11px] font-mono text-slate-600"><a href="${escapeHtml(p)}" target="_blank" class="hover:underline hover:text-indigo-600">${escapeHtml(p)}</a></li>`).join('');
+                    const pageList = (c.pages || []).map(p => `<li class="truncate text-[11px] font-mono text-slate-600"><a href="${safeUrl(p)}" target="_blank" class="hover:underline hover:text-indigo-600">${escapeHtml(p)}</a></li>`).join('');
                     card.innerHTML = `
                         <div class="flex items-center justify-between">
                             <h4 class="text-xs font-bold text-slate-900">${escapeHtml(c.cluster_name)}</h4>
@@ -6484,10 +6509,10 @@ SELECT ?capability ?evidence WHERE {
                         : 'bg-amber-100 text-amber-800 border border-amber-200 font-semibold';
                     tr.innerHTML = `
                         <td class="py-2.5 px-3 max-w-[200px] truncate" title="${escapeHtml(pair.url_a)}">
-                            <a href="${escapeHtml(pair.url_a)}" target="_blank" class="text-brand-600 hover:underline">${escapeHtml(pair.url_a)}</a>
+                            <a href="${safeUrl(pair.url_a)}" target="_blank" class="text-brand-600 hover:underline">${escapeHtml(pair.url_a)}</a>
                         </td>
                         <td class="py-2.5 px-3 max-w-[200px] truncate" title="${escapeHtml(pair.url_b)}">
-                            <a href="${escapeHtml(pair.url_b)}" target="_blank" class="text-brand-600 hover:underline">${escapeHtml(pair.url_b)}</a>
+                            <a href="${safeUrl(pair.url_b)}" target="_blank" class="text-brand-600 hover:underline">${escapeHtml(pair.url_b)}</a>
                         </td>
                         <td class="py-2.5 px-3 text-center font-bold text-slate-900">
                             ${pair.similarity_score.toFixed(3)}
@@ -6566,7 +6591,7 @@ SELECT ?capability ?evidence WHERE {
                 else if (pLow.includes('pricing')) predBadgeClass = 'bg-amber-50 text-amber-700 border border-amber-200';
 
                 const wikiHtml = pl.wikidata_url
-                    ? `<a href="${escapeHtml(pl.wikidata_url)}" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-purple-600 hover:text-purple-800 font-mono ml-1.5 underline">
+                    ? `<a href="${safeUrl(pl.wikidata_url)}" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-purple-600 hover:text-purple-800 font-mono ml-1.5 underline">
                         <span class="px-1.5 py-0.2 bg-purple-100 rounded text-[10px] font-bold">${escapeHtml(pl.wikidata_id || 'Wikidata')}</span>
                        </a>`
                     : '';
@@ -6711,7 +6736,7 @@ SELECT ?capability ?evidence WHERE {
                             td.className = 'py-2 px-3 text-slate-700 max-w-[280px] truncate';
                             td.title = val;
                             if (val.startsWith('http://') || val.startsWith('https://')) {
-                                td.innerHTML = `<a href="${escapeHtml(val)}" target="_blank" class="text-brand-600 hover:underline truncate block">${escapeHtml(val)}</a>`;
+                                td.innerHTML = `<a href="${safeUrl(val)}" target="_blank" class="text-brand-600 hover:underline truncate block">${escapeHtml(val)}</a>`;
                             } else {
                                 td.innerText = val;
                             }
@@ -6755,14 +6780,14 @@ SELECT ?capability ?evidence WHERE {
             const opps = currentLinkingData.opportunities;
             const headers = ['Priority', 'Source URL', 'Target URL', 'Entity', 'Predicate', 'Suggested Anchor Text', 'Context Sentence', 'HTML Snippet'];
             const rows = opps.map(o => [
-                `"${o.priority || ''}"`,
-                `"${o.source_url || ''}"`,
-                `"${o.target_url || ''}"`,
-                `"${(o.entity || '').replace(/"/g, '""')}"`,
-                `"${o.predicate || ''}"`,
-                `"${(o.suggested_anchor || '').replace(/"/g, '""')}"`,
-                `"${(o.context_sentence || '').replace(/"/g, '""')}"`,
-                `"${(o.html_snippet || '').replace(/"/g, '""')}"`
+                csvCell(o.priority),
+                csvCell(o.source_url),
+                csvCell(o.target_url),
+                csvCell(o.entity),
+                csvCell(o.predicate),
+                csvCell(o.suggested_anchor),
+                csvCell(o.context_sentence),
+                csvCell(o.html_snippet)
             ]);
             const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -6874,7 +6899,7 @@ SELECT ?capability ?evidence WHERE {
                     const cIdx = parseInt(p1, 10);
                     const citation = (simData.citations || []).find(c => c.index === cIdx);
                     if (citation) {
-                        return `<a href="${escapeHtml(citation.target_url)}" target="_blank" class="inline-flex items-center px-1.5 py-0.2 bg-cyan-100 text-cyan-800 font-bold rounded text-[11px] hover:bg-cyan-200 transition font-mono mx-0.5" title="${escapeHtml(citation.entity)}: ${escapeHtml(citation.target_url)}">[${p1}]</a>`;
+                        return `<a href="${safeUrl(citation.target_url)}" target="_blank" class="inline-flex items-center px-1.5 py-0.2 bg-cyan-100 text-cyan-800 font-bold rounded text-[11px] hover:bg-cyan-200 transition font-mono mx-0.5" title="${escapeHtml(citation.entity)}: ${escapeHtml(citation.target_url)}">[${p1}]</a>`;
                     }
                     return `<span class="inline-flex items-center px-1.5 py-0.2 bg-cyan-100 text-cyan-800 font-bold rounded text-[11px] font-mono mx-0.5">[${p1}]</span>`;
                 });
@@ -6896,7 +6921,7 @@ SELECT ?capability ?evidence WHERE {
                             </div>
                             <p class="text-[10px] text-slate-500 mt-1 italic line-clamp-1">${escapeHtml(c.evidence)}</p>
                         </div>
-                        <a href="${escapeHtml(c.target_url)}" target="_blank" class="text-brand-600 hover:text-brand-800 p-1 shrink-0" title="Visit Canonical Topic Hub">
+                        <a href="${safeUrl(c.target_url)}" target="_blank" class="text-brand-600 hover:text-brand-800 p-1 shrink-0" title="Visit Canonical Topic Hub">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                         </a>
                     `;
@@ -6937,7 +6962,7 @@ SELECT ?capability ?evidence WHERE {
             document.getElementById('diff-modal-before').innerHTML = highlightedBefore;
 
             // Remediated After Box with styled link anchor
-            const anchorReplacement = `<a href="${escapeHtml(o.target_url)}" title="${escapeHtml(o.suggested_anchor)}" class="text-brand-600 font-semibold underline bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 hover:bg-indigo-100 transition">${escapeHtml(o.suggested_anchor)}</a>`;
+            const anchorReplacement = `<a href="${safeUrl(o.target_url)}" title="${escapeHtml(o.suggested_anchor)}" class="text-brand-600 font-semibold underline bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 hover:bg-indigo-100 transition">${escapeHtml(o.suggested_anchor)}</a>`;
             const remediatedAfter = escapeHtml(sentence).replace(entityRegex, anchorReplacement);
             document.getElementById('diff-modal-after').innerHTML = remediatedAfter;
 

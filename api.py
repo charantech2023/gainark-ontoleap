@@ -7,6 +7,9 @@ Modular gateway mounting decoupled domain routers:
 - Knowledge Graph Operations (SPARQL 1.1, N-Triples, OWL 2 DL, link prediction)
 - Semantic SEO & Linking (internal links, SearchGPT simulation, draft alignment)
 - Site Audit & Benchmarking (sitemap crawl, audits, benchmark matrix, PDF reports)
+
+Cross-cutting controls applied here, outermost first:
+  CORS -> security headers -> request size ceiling -> rate limit -> API key auth
 """
 
 import os
@@ -20,6 +23,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+
+from security import API_KEY_HEADER, api_key_matches, configured_api_key
 
 from routers.deps import (
     get_pipeline,
@@ -140,6 +145,14 @@ app = FastAPI(
     version="2.2.0"
 )
 
+# Endpoints that must stay reachable without credentials: liveness probes, the capability
+# manifest, and the dashboard shell itself.
+PUBLIC_PATHS = frozenset({
+    "/", "/dashboard", "/api/health", "/api/info", "/api/v1/mcp-info",
+    "/docs", "/redoc", "/openapi.json",
+})
+
+
 # ---------------------------------------------------------------------------
 # CORS Configuration with Environment Variable & Safe Production Defaults
 # ---------------------------------------------------------------------------
@@ -156,13 +169,60 @@ else:
         "http://127.0.0.1:8000"
     ]
 
+# "*" with allow_credentials is rejected by browsers and, if a middleware ever echoed
+# the request Origin instead, would let any site read authenticated responses. Refuse
+# the combination explicitly rather than shipping a config that silently does nothing.
+allow_credentials = True
+if "*" in allowed_origins:
+    logger.warning(
+        "ALLOWED_ORIGINS contains '*'; disabling credentialed CORS. "
+        "Set an explicit origin list to allow credentials."
+    )
+    allow_credentials = False
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_credentials=allow_credentials,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "Authorization", API_KEY_HEADER],
 )
+
+
+# ---------------------------------------------------------------------------
+# API Key Authentication
+# ---------------------------------------------------------------------------
+class ApiKeyAuthMiddleware(BaseHTTPMiddleware):
+    """
+    Enforces a shared API key on every non-public endpoint when ONTOLEAP_API_KEY is set.
+
+    Auth is opt-in so an existing deployment keeps working after upgrade, but the
+    absence of a key is logged loudly at startup: without it, anyone on the internet can
+    make this service crawl arbitrary URLs and spend the operator's Gemini and Google
+    Knowledge Graph quota.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        expected = configured_api_key()
+        path = request.url.path
+
+        if not expected or request.method == "OPTIONS" or path in PUBLIC_PATHS:
+            return await call_next(request)
+
+        presented = request.headers.get(API_KEY_HEADER)
+        if not presented:
+            auth_header = request.headers.get("authorization", "")
+            if auth_header.lower().startswith("bearer "):
+                presented = auth_header[7:].strip()
+
+        if not api_key_matches(presented):
+            logger.warning("Rejected unauthenticated request to %s", path)
+            return JSONResponse(
+                status_code=401,
+                content={"detail": f"Missing or invalid API key. Supply it in the '{API_KEY_HEADER}' header."},
+            )
+
+        return await call_next(request)
 
 
 # ---------------------------------------------------------------------------
@@ -173,7 +233,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     In-memory rolling-window rate limiter per client IP.
     Protects heavy model inference, crawling, and PDF generation from DoS.
     Includes active key pruning to eliminate memory leaks over long lifecycles.
+
+    Note this is per-process state. Behind more than one replica the effective limit is
+    the configured value multiplied by the replica count; a shared store would be needed
+    for an exact global limit.
     """
+
+    # X-Forwarded-For is client-controlled. Honouring it blindly lets an attacker rotate
+    # the header and bypass the limiter entirely. Only the hop appended by our own proxy
+    # can be trusted, so we index from the right by however many proxies sit in front.
+    # Cloud Run appends exactly one, hence the default of 1.
+    TRUSTED_PROXY_COUNT = int(os.environ.get("TRUSTED_PROXY_COUNT", "1") or 0)
+
     def __init__(self, app):
         super().__init__(app)
         self.history = defaultdict(list)
@@ -184,22 +255,47 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             "/api/benchmark": 3,             # Max 3 multi-domain benchmarks/min
             "/api/batch-crawl": 3,           # Max 3 sitemap crawls/min
             "/api/internal-links": 5,        # Max 5 internal linking crawls/min
+            "/api/semantic-clusters": 5,     # Max 5 clustering crawls/min
             "/api/discover-industry": 5,     # Max 5 zero-shot discoveries/min
             "/api/product-truth": 5,         # Max 5 truth audits/min
             "/api/tri-ontology-align": 5,    # Max 5 alignment runs/min
+            "/api/competitor-ontology": 5,   # Max 5 competitor crawls/min
+            "/api/sparql": 20,               # Max 20 graph queries/min
+            "/api/google-kg": 15,            # Fans out to a metered upstream API
+            "/api/geo/citation-audit": 3,    # Fans out to live AI engines
+            "/api/geo/generate-queries": 10,
+            "/api/check-draft": 10,          # Billed LLM call
+            "/api/content-brief": 10,        # Billed LLM call
+            "/api/simulate-search": 10,      # Billed LLM call
+            "/api/cache/clear": 2,           # Flushes shared state
             "/api/download-pitch-pdf": 10,   # Max 10 pitch downloads/min
             "/api/export-pdf": 10,           # Max 10 audit PDF exports/min
             "/api/export-battlecards-pdf": 10# Max 10 battlecard PDF exports/min
         }
         self.default_limit = 60              # Default 60 requests/min
 
+    def _client_ip(self, request: Request) -> str:
+        """Resolve the caller's address, trusting only proxies we sit behind."""
+        peer = request.client.host if request.client else "127.0.0.1"
+        if self.TRUSTED_PROXY_COUNT <= 0:
+            return peer
+
+        forwarded = request.headers.get("x-forwarded-for")
+        if not forwarded:
+            return peer
+
+        hops = [h.strip() for h in forwarded.split(",") if h.strip()]
+        if not hops:
+            return peer
+        # The rightmost entries were appended by infrastructure we control. Anything
+        # further left was supplied by the client and is not evidence of anything.
+        index = len(hops) - self.TRUSTED_PROXY_COUNT
+        return hops[max(0, min(index, len(hops) - 1))]
+
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
         if path.startswith("/api/") and path not in ("/api/health", "/api/info"):
-            client_ip = request.client.host if request.client else "127.0.0.1"
-            forwarded = request.headers.get("x-forwarded-for")
-            if forwarded:
-                client_ip = forwarded.split(",")[0].strip()
+            client_ip = self._client_ip(request)
 
             max_requests = self.limits.get(path, self.default_limit)
             now = time.time()
@@ -227,7 +323,91 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         return await call_next(request)
 
+
+# ---------------------------------------------------------------------------
+# Request Body Size Ceiling
+# ---------------------------------------------------------------------------
+class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
+    """
+    Rejects request bodies above MAX_REQUEST_BYTES.
+
+    Several endpoints accept free-form RDF Turtle, OpenAPI specs and triple lists.
+    Without a ceiling a single request can be made large enough to exhaust process
+    memory before any handler or validator sees it.
+    """
+
+    MAX_REQUEST_BYTES = int(os.environ.get("MAX_REQUEST_BYTES", str(4 * 1024 * 1024)) or 4 * 1024 * 1024)
+
+    async def dispatch(self, request: Request, call_next):
+        declared = request.headers.get("content-length")
+        if declared:
+            try:
+                if int(declared) > self.MAX_REQUEST_BYTES:
+                    return JSONResponse(
+                        status_code=413,
+                        content={"detail": f"Request body exceeds the {self.MAX_REQUEST_BYTES} byte limit."},
+                    )
+            except ValueError:
+                return JSONResponse(status_code=400, content={"detail": "Malformed Content-Length header."})
+        elif request.headers.get("transfer-encoding", "").lower() == "chunked":
+            # No declared length: buffer under the cap and hand the body onward.
+            body = b""
+            async for chunk in request.stream():
+                body += chunk
+                if len(body) > self.MAX_REQUEST_BYTES:
+                    return JSONResponse(
+                        status_code=413,
+                        content={"detail": f"Request body exceeds the {self.MAX_REQUEST_BYTES} byte limit."},
+                    )
+
+            async def replay():
+                return {"type": "http.request", "body": body, "more_body": False}
+
+            request._receive = replay  # type: ignore[attr-defined]
+
+        return await call_next(request)
+
+
+# ---------------------------------------------------------------------------
+# Security Response Headers
+# ---------------------------------------------------------------------------
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Applies baseline hardening headers to every response."""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+        response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+        if request.url.scheme == "https":
+            response.headers.setdefault(
+                "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+            )
+        return response
+
+
+# Starlette runs the most recently added middleware first, so these are registered in
+# reverse of the intended execution order:
+#   CORS -> security headers -> size ceiling -> rate limit -> auth -> route
+app.add_middleware(ApiKeyAuthMiddleware)
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(RequestSizeLimitMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+
+
+@app.on_event("startup")
+async def _warn_if_unauthenticated() -> None:
+    """Make an open deployment impossible to miss in the logs."""
+    if not configured_api_key():
+        logger.warning(
+            "ONTOLEAP_API_KEY is not set: every endpoint is reachable without "
+            "credentials. Anyone who can reach this service can make it crawl arbitrary "
+            "URLs and consume metered Gemini / Google Knowledge Graph quota. Set "
+            "ONTOLEAP_API_KEY before exposing this service publicly."
+        )
+
 
 # ---------------------------------------------------------------------------
 # Mount Decoupled Routers
@@ -278,4 +458,11 @@ def get_mcp_info():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
+    # reload=True is a development convenience and must not be the deployed entrypoint;
+    # the Dockerfile runs uvicorn directly without it.
+    uvicorn.run(
+        "api:app",
+        host=os.environ.get("HOST", "127.0.0.1"),
+        port=int(os.environ.get("PORT", "8000")),
+        reload=os.environ.get("DEV_RELOAD", "").lower() in ("1", "true", "yes"),
+    )

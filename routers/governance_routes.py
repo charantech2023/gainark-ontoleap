@@ -97,7 +97,10 @@ def api_validate_kg_shacl(req: ShaclValidationRequest):
         )
     except Exception as e:
         logger.error("SHACL validation failure: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"SHACL validation error: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail="SHACL validation failed. Verify the RDF Turtle and shapes parse as valid Turtle.",
+        )
 
 
 @router.post(
@@ -113,9 +116,12 @@ def api_product_truth_audit(req: ProductTruthRequest):
     3. Computes the Product Truth Matrix
     4. Calculates the Marketing Grounding Index (MGI) and emits actionable governance alerts.
     """
-    validate_url_for_fetch(req.marketing_url)
-    if req.tech_docs_url:
-        validate_url_for_fetch(req.tech_docs_url)
+    try:
+        validate_url_for_fetch(req.marketing_url)
+        if req.tech_docs_url:
+            validate_url_for_fetch(req.tech_docs_url)
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
 
     pipeline = get_pipeline(req.vertical_id)
 
@@ -139,9 +145,12 @@ def api_tri_ontology_align(req: TriOntologyAlignmentRequest):
     2. Company Product Truth (Verified capabilities vs. marketing claims)
     3. Competitor Product Truth (Competitor verified reality vs. competitor marketing claims)
     """
-    validate_url_for_fetch(req.company.marketing_url)
-    for comp in req.competitors:
-        validate_url_for_fetch(comp.marketing_url)
+    try:
+        validate_url_for_fetch(req.company.marketing_url)
+        for comp in req.competitors:
+            validate_url_for_fetch(comp.marketing_url)
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
 
     pipeline = get_pipeline(req.vertical_id)
 
@@ -164,7 +173,10 @@ def api_competitor_ontology(req: CompetitorOntologyRequest):
     using the SmartScraper (Chrome TLS impersonation).
     Extracts relational triples, Schema.org nodes, and entity grounding.
     """
-    validate_url_for_fetch(req.url)
+    try:
+        validate_url_for_fetch(req.url)
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
     pipeline = get_pipeline()
     try:
         return competitive_alignment.extract_competitor_ontology(req, pipeline)

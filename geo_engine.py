@@ -30,6 +30,10 @@ import vertex_ai_client
 
 logger = logging.getLogger("gainark.geo_engine")
 
+# Every probe is a live outbound call to an AI engine or search endpoint, so the number
+# a single request can trigger is capped.
+MAX_PROBE_QUERIES = 10
+
 # Known category leaders for fallback competitor presence detection
 DEFAULT_VERTICAL_COMPETITORS = {
     "b2b_saas_fintech": ["Chargebee", "Stripe", "Zuora", "Maxio", "Recurly", "Paddle"],
@@ -369,9 +373,9 @@ def execute_geo_citation_audit(req: GeoAuditRequest) -> GeoAuditResponse:
     # 1. Prepare query suite
     queries: List[GeoQueryItem] = []
     if req.custom_queries:
-        for q in req.custom_queries:
-            if q.strip():
-                queries.append(GeoQueryItem(query_text=q.strip(), category="Custom Inquiry"))
+        for q in req.custom_queries[:MAX_PROBE_QUERIES]:
+            if q and q.strip():
+                queries.append(GeoQueryItem(query_text=q.strip()[:500], category="Custom Inquiry"))
     if not queries:
         queries = generate_buyer_queries(
             brand_name=req.brand_name,
@@ -381,9 +385,18 @@ def execute_geo_citation_audit(req: GeoAuditRequest) -> GeoAuditResponse:
             count=5,
         )
 
+    if not queries:
+        # ThreadPoolExecutor(max_workers=0) raises, so an empty suite crashed the audit
+        # rather than returning an empty result. Reaching here means custom_queries held
+        # only blank strings and query generation produced nothing.
+        raise ValueError(
+            "No buyer queries could be generated or supplied. Provide at least one "
+            "non-empty entry in 'custom_queries'."
+        )
+
     # 2. Probe queries concurrently
     probe_results: List[GeoProbeResult] = []
-    with ThreadPoolExecutor(max_workers=min(len(queries), 4)) as pool:
+    with ThreadPoolExecutor(max_workers=max(1, min(len(queries), 4))) as pool:
         future_map = {
             pool.submit(
                 probe_ai_citation,

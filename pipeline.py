@@ -28,6 +28,7 @@ import socket
 import logging
 import xml.etree.ElementTree as ET
 import asyncio
+import threading
 from typing import Optional, List, Dict, Any, Set
 from urllib.parse import urlparse, urljoin
 import requests
@@ -44,7 +45,10 @@ from models import (
 from scraper import smart_fetch, smart_fetch_async, validate_url_for_fetch
 from constants import (
     WIKIDATA_KB, KNOWN_INTEGRATIONS, KNOWN_COMPLIANCE,
-    KNOWN_PRICING, KNOWN_AUTOMATION, DEEP_CRAWL_PATHS, DEEP_CRAWL_MAX,
+    KNOWN_PRICING, KNOWN_AUTOMATION, KNOWN_FEATURES, KNOWN_SEGMENTS,
+    KNOWN_INDUSTRIES, KNOWN_DEPLOYMENT, KNOWN_CERTIFICATIONS, KNOWN_API_TYPES,
+    KNOWN_LOCALES, KNOWN_SLA, KNOWN_REPLACES, KNOWN_COMPETITORS,
+    DEEP_CRAWL_PATHS, DEEP_CRAWL_MAX,
     BLOCKED_IP_PREFIXES, BLOCKED_HOSTNAMES, resolve_vocabulary,
 )
 
@@ -58,6 +62,31 @@ logger = logging.getLogger(__name__)
 
 
 from remediation import generate_schema_patch
+
+
+# ---------------------------------------------------------------------------
+# Shared GLiNER model registry
+# ---------------------------------------------------------------------------
+# The model is a stateless read-only forward pass, but it is several hundred MB of
+# weights. Held per-pipeline it was loaded once per vertical, so serving N verticals
+# cost N copies of the same weights. Keyed by model name and shared process-wide.
+_MODEL_REGISTRY: Dict[str, Any] = {}
+_MODEL_REGISTRY_LOCK = threading.Lock()
+
+
+def _load_shared_gliner(model_name: str) -> Any:
+    """Return the process-wide GLiNER instance for `model_name`, loading it once."""
+    with _MODEL_REGISTRY_LOCK:
+        if model_name in _MODEL_REGISTRY:
+            return _MODEL_REGISTRY[model_name]
+
+    logger.info("Loading GLiNER model on-demand: %s", model_name)
+    from gliner import GLiNER
+    model = GLiNER.from_pretrained(model_name)
+
+    with _MODEL_REGISTRY_LOCK:
+        # Another thread may have finished first; keep whichever instance won.
+        return _MODEL_REGISTRY.setdefault(model_name, model)
 
 
 class OntologyPipeline:
@@ -80,9 +109,7 @@ class OntologyPipeline:
     @property
     def model(self) -> Any:
         if self._model is None:
-            logger.info("Loading GLiNER model on-demand: %s", self.gliner_model_name)
-            from gliner import GLiNER
-            self._model = GLiNER.from_pretrained(self.gliner_model_name)
+            self._model = _load_shared_gliner(self.gliner_model_name)
         return self._model
 
     def fetch_url(self, url: str, timeout: int = 15) -> str:
@@ -333,6 +360,16 @@ class OntologyPipeline:
         vocab_integrations = resolve_vocabulary(self.config, 'known_integrations', KNOWN_INTEGRATIONS)
         vocab_compliance = resolve_vocabulary(self.config, 'known_compliance', KNOWN_COMPLIANCE)
         vocab_pricing = resolve_vocabulary(self.config, 'known_pricing', KNOWN_PRICING)
+        vocab_features = resolve_vocabulary(self.config, 'known_features', KNOWN_FEATURES)
+        vocab_segments = resolve_vocabulary(self.config, 'known_segments', KNOWN_SEGMENTS)
+        vocab_industries = resolve_vocabulary(self.config, 'known_industries', KNOWN_INDUSTRIES)
+        vocab_deployment = resolve_vocabulary(self.config, 'known_deployment', KNOWN_DEPLOYMENT)
+        vocab_certifications = resolve_vocabulary(self.config, 'known_certifications', KNOWN_CERTIFICATIONS)
+        vocab_api_types = resolve_vocabulary(self.config, 'known_api_types', KNOWN_API_TYPES)
+        vocab_locales = resolve_vocabulary(self.config, 'known_locales', KNOWN_LOCALES)
+        vocab_sla = resolve_vocabulary(self.config, 'known_sla', KNOWN_SLA)
+        vocab_replaces = resolve_vocabulary(self.config, 'known_replaces', KNOWN_REPLACES)
+        vocab_competitors = resolve_vocabulary(self.config, 'known_competitors', KNOWN_COMPETITORS)
 
         # 1. automates
         auto_cues = ["automate", "automates", "automating", "automated", "streamline", "streamlines", "effortless", "liberate", "replaces spreadsheet"]
@@ -372,6 +409,105 @@ class OntologyPipeline:
                 if pm.lower() in s_lower or (pm_simple in s_lower and any(cue in s_lower for cue in pricing_cues)):
                     add_triple("supportsPricingModel", pm, conf=0.90, ev=sent)
 
+        # 5. hasFeature
+        feature_cues = ["feature", "features", "capability", "capabilities", "includes", "offers", "provides", "built-in", "native"]
+        for sent in sentences:
+            s_lower = sent.lower()
+            if any(cue in s_lower for cue in feature_cues):
+                for feat in vocab_features:
+                    if feat.lower() in s_lower:
+                        add_triple("hasFeature", feat, conf=0.85, ev=sent)
+
+        # 6. replacesWorkflow
+        replace_cues = ["replace", "replaces", "eliminate", "eliminates", "no more", "ditch", "stop using", "get rid of", "instead of", "without"]
+        for sent in sentences:
+            s_lower = sent.lower()
+            if any(cue in s_lower for cue in replace_cues):
+                for wf in vocab_replaces:
+                    if wf.lower() in s_lower or any(w in s_lower for w in ["spreadsheet", "excel", "manual", "journal entr"]):
+                        add_triple("replacesWorkflow", wf, conf=0.85, ev=sent)
+            # Catch implicit manual workflow elimination
+            if any(c in s_lower for c in ["manual", "spreadsheet", "excel"]) and any(c in s_lower for c in ["eliminate", "automate", "replace", "no longer"]):
+                add_triple("replacesWorkflow", "Manual Processes", conf=0.80, ev=sent)
+
+        # 7. targetsSegment
+        segment_cues = ["for", "built for", "designed for", "serving", "ideal for", "tailored for", "made for", "focused on"]
+        for sent in sentences:
+            s_lower = sent.lower()
+            for seg in vocab_segments:
+                if seg.lower() in s_lower and any(cue in s_lower for cue in segment_cues):
+                    add_triple("targetsSegment", seg, conf=0.85, ev=sent)
+
+        # 8. servesIndustry
+        industry_cues = ["industry", "sector", "vertical", "market", "serving", "for companies", "for businesses"]
+        for sent in sentences:
+            s_lower = sent.lower()
+            for ind in vocab_industries:
+                if ind.lower() in s_lower:
+                    add_triple("servesIndustry", ind, conf=0.85, ev=sent)
+
+        # 9. deployedAs
+        deploy_cues = ["deployed", "deployment", "hosted", "available as", "delivered as", "runs on", "infrastructure"]
+        for sent in sentences:
+            s_lower = sent.lower()
+            if any(cue in s_lower for cue in deploy_cues):
+                for dep in vocab_deployment:
+                    if dep.lower() in s_lower:
+                        add_triple("deployedAs", dep, conf=0.85, ev=sent)
+            # Cloud-native often appears without explicit deploy cues
+            for dep in ["Cloud-Native", "SaaS", "Multi-Tenant"]:
+                if dep.lower() in s_lower:
+                    add_triple("deployedAs", dep, conf=0.80, ev=sent)
+
+        # 10. certifiedBy
+        cert_cues = ["certified", "certification", "compliant", "compliance", "audited", "attested", "accredited"]
+        for sent in sentences:
+            s_lower = sent.lower()
+            for cert in vocab_certifications:
+                if re.search(rf'\b{re.escape(cert.lower())}\b', s_lower):
+                    add_triple("certifiedBy", cert, conf=0.92, ev=sent)
+
+        # 11. hasAPI
+        api_cues = ["api", "integration", "connect", "developer", "sdk", "webhook", "endpoint"]
+        for sent in sentences:
+            s_lower = sent.lower()
+            if any(cue in s_lower for cue in api_cues):
+                for api in vocab_api_types:
+                    if api.lower() in s_lower:
+                        add_triple("hasAPI", api, conf=0.88, ev=sent)
+
+        # 12. supportsLocale
+        locale_cues = ["available in", "supports", "operates in", "headquartered", "global", "international", "localized"]
+        for sent in sentences:
+            s_lower = sent.lower()
+            if any(cue in s_lower for cue in locale_cues):
+                for loc in vocab_locales:
+                    if loc.lower() in s_lower:
+                        add_triple("supportsLocale", loc, conf=0.82, ev=sent)
+
+        # 13. guarantees
+        sla_cues = ["uptime", "sla", "guarantee", "reliability", "availability", "support", "downtime"]
+        for sent in sentences:
+            s_lower = sent.lower()
+            if any(cue in s_lower for cue in sla_cues):
+                for sla in vocab_sla:
+                    if sla.lower() in s_lower:
+                        add_triple("guarantees", sla, conf=0.88, ev=sent)
+            # Catch percentage uptime patterns
+            import re as _re
+            uptime_match = _re.search(r'(\d{2,3}\.?\d*\s*%\s*uptime)', s_lower)
+            if uptime_match:
+                add_triple("guarantees", uptime_match.group(1).title(), conf=0.90, ev=sent)
+
+        # 14. competesAgainst
+        compete_cues = ["versus", "vs", "compared to", "unlike", "alternative to", "switch from", "migrate from", "better than", "competitor"]
+        for sent in sentences:
+            s_lower = sent.lower()
+            if any(cue in s_lower for cue in compete_cues):
+                for comp in vocab_competitors:
+                    if re.search(rf'\b{re.escape(comp.lower())}\b', s_lower):
+                        add_triple("competesAgainst", comp, conf=0.80, ev=sent)
+
         # Augment with extracted entities and seed concepts
         if entities:
             for ent in entities:
@@ -384,6 +520,24 @@ class OntologyPipeline:
                     add_triple("supportsPricingModel", txt, conf=0.88)
                 elif ent.label == "Billing Feature" and any(w in txt.lower() for w in ["automate", "recognition", "invoicing", "dunning", "reconciliation"]):
                     add_triple("automates", txt, conf=0.88)
+                elif ent.label == "Product Feature":
+                    add_triple("hasFeature", txt, conf=0.88)
+                elif ent.label == "Customer Segment":
+                    add_triple("targetsSegment", txt, conf=0.88)
+                elif ent.label == "Industry Vertical":
+                    add_triple("servesIndustry", txt, conf=0.88)
+                elif ent.label == "Deployment Model":
+                    add_triple("deployedAs", txt, conf=0.88)
+                elif ent.label == "Trust Certification":
+                    add_triple("certifiedBy", txt, conf=0.92)
+                elif ent.label == "API Standard":
+                    add_triple("hasAPI", txt, conf=0.88)
+                elif ent.label == "Geographic Market":
+                    add_triple("supportsLocale", txt, conf=0.82)
+                elif ent.label == "SLA Commitment":
+                    add_triple("guarantees", txt, conf=0.88)
+                elif ent.label == "Competitor":
+                    add_triple("competesAgainst", txt, conf=0.80)
 
         if seed_concepts:
             for sc in seed_concepts:
@@ -916,12 +1070,16 @@ async def crawl_and_build_unified_graph(
                     entities_found=len(entities)
                 ))
             except Exception as e:
+                # The full exception goes to the server log; the response carries only
+                # the class name, so internal paths and library internals are not echoed
+                # back to an unauthenticated caller.
+                logger.warning("Crawl worker failed for %s: %s", url, e, exc_info=True)
                 summaries.append(PageCrawlSummary(
                     url=url,
                     status="failed",
                     triples_found=0,
                     entities_found=0,
-                    error=str(e)
+                    error=type(e).__name__
                 ))
 
     await asyncio.gather(*(worker(u) for u in urls))

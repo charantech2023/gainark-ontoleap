@@ -8,6 +8,8 @@ Connects to Google Gemini 2.5 Flash for:
 
 import os
 import json
+import time
+import random
 import logging
 import urllib.request
 import urllib.error
@@ -35,10 +37,57 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 
+# Transient upstream failures worth retrying: rate limit and the 5xx family.
+_RETRYABLE_STATUS = (429, 500, 502, 503, 504)
+_MAX_ATTEMPTS = int(os.environ.get("GEMINI_MAX_ATTEMPTS", "3") or 3)
+
 
 def is_available() -> bool:
     """Check if Gemini API key is configured."""
     return bool(GEMINI_API_KEY)
+
+
+# ---------------------------------------------------------------------------
+# Model output coercion
+# ---------------------------------------------------------------------------
+# A language model JSON response is untrusted input: a key may be absent, a value may be
+# a string where a list was asked for, or a nested object. Coercing here keeps a
+# malformed generation from surfacing to the caller as a 500 out of the response model.
+
+def _parse_json_object(raw: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Extract the first JSON object from a model response, or None."""
+    if not raw:
+        return None
+    import re
+    match = re.search(r"\{.*\}", raw, re.DOTALL)
+    if not match:
+        logger.warning("Gemini response contained no JSON object; using deterministic fallback.")
+        return None
+    try:
+        parsed = json.loads(match.group(0))
+    except (json.JSONDecodeError, ValueError):
+        logger.warning("Gemini response was not valid JSON; using deterministic fallback.")
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _as_str_list(value: Any, limit: int = 50) -> List[str]:
+    """Coerce a model-supplied value into a bounded list of strings."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value[:1000]]
+    if isinstance(value, (list, tuple)):
+        return [str(v)[:1000] for v in value[:limit] if v is not None]
+    return [str(value)[:1000]]
+
+
+def _as_int(value: Any, default: int) -> int:
+    """Coerce a model-supplied value into an int, falling back on anything unusable."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def _call_gemini(
@@ -54,8 +103,13 @@ def _call_gemini(
         logger.warning("Gemini API key is not configured.")
         return None
 
-    url = f"{BASE_URL}/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
-    headers = {"Content-Type": "application/json"}
+    # The key travels in a header, never in the query string: a URL is logged by every
+    # proxy in the path and lands in exception text, access logs and crash reports.
+    url = f"{BASE_URL}/models/{GEMINI_MODEL}:generateContent"
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": GEMINI_API_KEY,
+    }
 
     gen_config: Dict[str, Any] = {
         "temperature": temperature,
@@ -74,20 +128,45 @@ def _call_gemini(
             "parts": [{"text": system_instruction}]
         }
 
-    try:
-        data_bytes = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(url, data=data_bytes, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            res_json = json.loads(resp.read().decode("utf-8"))
-            candidates = res_json.get("candidates", [])
-            if candidates:
-                parts = candidates[0].get("content", {}).get("parts", [])
-                if parts:
-                    return parts[0].get("text", "").strip()
-        return None
-    except Exception as e:
-        logger.error(f"Gemini API request failed: {e}")
-        return None
+    data_bytes = json.dumps(payload).encode("utf-8")
+
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
+        try:
+            req = urllib.request.Request(url, data=data_bytes, headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                res_json = json.loads(resp.read().decode("utf-8"))
+                candidates = res_json.get("candidates", [])
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    if parts:
+                        return parts[0].get("text", "").strip()
+            return None
+        except urllib.error.HTTPError as http_err:
+            # Log status and class only. Upstream error bodies can echo request material
+            # back, and must never be written to the log alongside credentials.
+            if http_err.code in _RETRYABLE_STATUS and attempt < _MAX_ATTEMPTS:
+                backoff = min(8.0, 0.5 * (2 ** (attempt - 1))) + random.uniform(0, 0.3)
+                logger.warning(
+                    "Gemini API returned HTTP %d (attempt %d/%d); retrying in %.1fs",
+                    http_err.code, attempt, _MAX_ATTEMPTS, backoff,
+                )
+                time.sleep(backoff)
+                continue
+            logger.error("Gemini API request failed with HTTP %d", http_err.code)
+            return None
+        except Exception as e:
+            if attempt < _MAX_ATTEMPTS:
+                backoff = min(8.0, 0.5 * (2 ** (attempt - 1))) + random.uniform(0, 0.3)
+                logger.warning(
+                    "Gemini API request failed (%s, attempt %d/%d); retrying in %.1fs",
+                    type(e).__name__, attempt, _MAX_ATTEMPTS, backoff,
+                )
+                time.sleep(backoff)
+                continue
+            logger.error("Gemini API request failed: %s", type(e).__name__)
+            return None
+
+    return None
 
 
 def generate_search_answer(
@@ -204,14 +283,16 @@ def generate_product_brief(
     )
 
     raw_resp = _call_gemini(user_prompt, system_instruction=system_prompt, temperature=0.2)
-    if raw_resp:
-        try:
-            import re
-            m = re.search(r"\{.*\}", raw_resp, re.DOTALL)
-            if m:
-                return json.loads(m.group(0))
-        except Exception as e:
-            logger.error(f"Failed to parse Gemini brief JSON: {e}. Raw: {raw_resp[:150]}")
+    parsed = _parse_json_object(raw_resp)
+    if parsed is not None:
+        return {
+            "target_alignment_score": _as_int(parsed.get("target_alignment_score"), 90),
+            "must_include_entities": _as_str_list(parsed.get("must_include_entities")),
+            "required_relational_triples": _as_str_list(parsed.get("required_relational_triples")),
+            "prohibited_claims": _as_str_list(parsed.get("prohibited_claims")),
+            "suggested_outline": _as_str_list(parsed.get("suggested_outline")),
+            "differentiation_angles": _as_str_list(parsed.get("differentiation_angles")),
+        }
 
     # Deterministic fallback brief
     return {
@@ -278,14 +359,16 @@ def check_draft_alignment(
     )
 
     raw_resp = _call_gemini(user_prompt, system_instruction=system_prompt, temperature=0.1)
-    if raw_resp:
-        try:
-            import re
-            m = re.search(r"\{.*\}", raw_resp, re.DOTALL)
-            if m:
-                return json.loads(m.group(0))
-        except Exception as e:
-            logger.error(f"Failed to parse Gemini draft review JSON: {e}")
+    parsed = _parse_json_object(raw_resp)
+    if parsed is not None:
+        return {
+            "grounded_claims": _as_str_list(parsed.get("grounded_claims")),
+            "ungrounded_claims": _as_str_list(parsed.get("ungrounded_claims")),
+            "contradictions": _as_str_list(parsed.get("contradictions")),
+            "fluff_phrases": _as_str_list(parsed.get("fluff_phrases")),
+            "executive_verdict": str(parsed.get("executive_verdict") or "")[:2000],
+            "rewrite_recommendations": _as_str_list(parsed.get("rewrite_recommendations")),
+        }
 
     # Fallback heuristic judge
     return {

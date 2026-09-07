@@ -6,7 +6,26 @@ Enables stakeholders to visualize their website's topic authority hubs, spoke pa
 relational semantic triples, and AI-predicted links with dynamic force-directed physics.
 """
 
+import html
 import json
+
+
+def _json_for_script(value) -> str:
+    """
+    Serialise `value` as JSON that is safe to embed inside an HTML <script> block.
+
+    Plain json.dumps output can terminate the script element ("</script>") or introduce
+    markup, so the characters that make that possible are emitted as JSON unicode
+    escapes. The result parses identically as JavaScript.
+    """
+    return (
+        json.dumps(value)
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )
 from typing import List, Dict, Any, Optional
 from urllib.parse import urlparse
 
@@ -179,15 +198,23 @@ def generate_standalone_graph_html(
             "width": 2.0
         })
 
-    nodes_json = json.dumps(vis_nodes)
-    edges_json = json.dumps(vis_edges)
+    # json.dumps does not escape "</script>", so any node label carrying that sequence
+    # closes the script element and everything after it is parsed as markup. Node labels
+    # come from crawled pages and from caller-supplied triples, so they are untrusted.
+    # Escaping the three characters that can start a tag or an entity keeps the payload
+    # valid JSON while making it inert inside a script block.
+    nodes_json = _json_for_script(vis_nodes)
+    edges_json = _json_for_script(vis_edges)
+
+    # The domain is interpolated into HTML text, not into JSON, and needs escaping too.
+    safe_domain = html.escape(str(domain or ""), quote=True)
 
     html_template = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GainARK OntoLeap — Interactive Knowledge Graph: {domain}</title>
+    <title>GainARK OntoLeap — Interactive Knowledge Graph: {safe_domain}</title>
     <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -426,7 +453,7 @@ def generate_standalone_graph_html(
                 <span style="color:#64748B; margin: 0 6px;">/</span>
                 <span style="font-size: 13px; color: #94A3B8;">Interactive Knowledge Graph</span>
             </div>
-            <span class="domain-tag">{domain}</span>
+            <span class="domain-tag">{safe_domain}</span>
         </div>
         <div class="toolbar">
             <input type="text" id="search-box" placeholder="Search nodes..." onkeyup="searchNodes()">

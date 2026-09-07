@@ -9,6 +9,7 @@ import json
 import logging
 import urllib.request
 import urllib.parse
+import urllib.error
 from typing import Dict, Any, Optional, List
 
 logger = logging.getLogger("gainark.google_kg")
@@ -31,6 +32,24 @@ if os.path.exists(_env_path):
 GOOGLE_KG_API_KEY = os.environ.get("GOOGLE_KG_API_KEY", "")
 BASE_URL = "https://kgsearch.googleapis.com/v1/entities:search"
 
+# kgsearch authenticates with an API key in the query string; that is the mechanism
+# Google documents for this endpoint. Because the key therefore appears in the request
+# URL, nothing derived from that URL may ever reach a log line unredacted.
+_DISAMBIGUATION_SUFFIXES = ("software", "company", "labs", "platform")
+
+# One lookup plus at most this many disambiguation retries. Previously every miss fanned
+# out to five sequential upstream calls at 10s each, so a handful of concurrent requests
+# could stall workers and burn the account quota.
+MAX_DISAMBIGUATION_RETRIES = int(os.environ.get("GOOGLE_KG_MAX_RETRIES", "2") or 2)
+REQUEST_TIMEOUT_SECONDS = int(os.environ.get("GOOGLE_KG_TIMEOUT", "10") or 10)
+
+
+def _redact(text: str) -> str:
+    """Remove the API key from any string before it is logged."""
+    if GOOGLE_KG_API_KEY and GOOGLE_KG_API_KEY in text:
+        return text.replace(GOOGLE_KG_API_KEY, "***REDACTED***")
+    return text
+
 
 def is_available() -> bool:
     """Check if Google Knowledge Graph API key is configured."""
@@ -46,14 +65,7 @@ def search_entity(query: str, limit: int = 3) -> Optional[Dict[str, Any]]:
     if not GOOGLE_KG_API_KEY or not query or not query.strip():
         return None
 
-    clean_query = query.strip()
-    params = {
-        "query": clean_query,
-        "key": GOOGLE_KG_API_KEY,
-        "limit": limit,
-        "indent": "True"
-    }
-    encoded_url = f"{BASE_URL}?{urllib.parse.urlencode(params)}"
+    clean_query = query.strip()[:500]
 
     try:
         BUSINESS_TYPES = {"Organization", "Corporation", "SoftwareApplication", "Product", "Service", "Company"}
@@ -62,7 +74,7 @@ def search_entity(query: str, limit: int = 3) -> Optional[Dict[str, Any]]:
             p = {"query": q, "key": GOOGLE_KG_API_KEY, "limit": limit, "indent": "True"}
             u = f"{BASE_URL}?{urllib.parse.urlencode(p)}"
             r = urllib.request.Request(u)
-            with urllib.request.urlopen(r, timeout=10) as response:
+            with urllib.request.urlopen(r, timeout=REQUEST_TIMEOUT_SECONDS) as response:
                 d = json.loads(response.read().decode("utf-8"))
                 return d.get("itemListElement", [])
 
@@ -78,7 +90,7 @@ def search_entity(query: str, limit: int = 3) -> Optional[Dict[str, Any]]:
 
         # 2. If ambiguous or non-business (e.g. Person like Melissa Ordway), retry with disambiguation terms
         if not best_item:
-            for suffix in ["software", "company", "labs", "platform"]:
+            for suffix in _DISAMBIGUATION_SUFFIXES[:MAX_DISAMBIGUATION_RETRIES]:
                 retry_items = _fetch_kg_items(f"{clean_query} {suffix}")
                 for item in retry_items:
                     types = set(item.get("result", {}).get("@type", []))
@@ -141,6 +153,14 @@ def search_entity(query: str, limit: int = 3) -> Optional[Dict[str, Any]]:
                 "High Risk (Ambiguous or low entity presence)"
             )
         }
+    except urllib.error.HTTPError as http_err:
+        # HTTPError.url carries the key-bearing request URL, so log the status only.
+        logger.error("Google Knowledge Graph Search API returned HTTP %d", http_err.code)
+        return None
     except Exception as e:
-        logger.error(f"Google Knowledge Graph Search API failed for '{query}': {e}")
+        logger.error(
+            "Google Knowledge Graph Search API failed (%s): %s",
+            type(e).__name__,
+            _redact(str(e))[:300],
+        )
         return None

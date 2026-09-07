@@ -59,7 +59,7 @@ It executes discrete, repeatable graph mathematics across digital text, code spe
 
 ---
 
-## 3. The 4 MCP Tools (Signatures & JSON Schemas)
+## 3. The 6 MCP Tools (Signatures & JSON Schemas)
 
 AI assistants call these tools via the Model Context Protocol:
 
@@ -163,6 +163,48 @@ AI assistants call these tools via the Model Context Protocol:
       }
     ],
     "internal_link_opportunities": [...]
+  }
+  ```
+
+### Tool 5: `ontoleap_track_competitor_changes`
+* **Description**: Tracks chronological claim movements and grounding index shifts for a competitor brand using the immutable Product Truth ledger. Identifies newly added claims, dropped capabilities, and gates out crawl noise.
+* **Arguments**:
+  * `brand_name` (str, required): Competitor brand name (e.g. `"Chargebee"` or `"Ordway"`).
+* **Returns**:
+  ```json
+  {
+    "brand": "Chargebee",
+    "snapshots": 2,
+    "changes": [
+      {
+        "from": "2026-08-01T09:00:00+00:00",
+        "to": "2026-08-22T09:00:00+00:00",
+        "hours_apart": 504.0,
+        "grounding_from": 0.5,
+        "grounding_to": 0.6,
+        "added": [{"predicate": "compliesWith", "object": "SOC 2"}],
+        "dropped": [],
+        "low_confidence": false,
+        "notes": []
+      }
+    ]
+  }
+  ```
+
+### Tool 6: `ontoleap_export_w3c_ontology`
+* **Description**: Exports an extracted knowledge graph into formal W3C RDF Turtle (`.ttl`) or OWL 2 DL RDF/XML (`.owl`) format with Dublin Core, DCAT cataloging, SKOS taxonomies, and `owl:inverseOf` axioms.
+* **Arguments**:
+  * `source` (str, required): Web URL or raw text.
+  * `domain` (str, optional): Target domain (e.g. `"ordwaylabs.com"`).
+  * `export_format` (str, optional, default: `"turtle"`): `"turtle"` (`.ttl`) or `"owl_xml"` (`.owl`).
+  * `vertical_id` (str, optional, default: `"b2b_saas_fintech"`): Domain vertical.
+* **Returns**:
+  ```json
+  {
+    "domain": "ordwaylabs.com",
+    "format": "turtle",
+    "triples_count": 8,
+    "serialized_ontology": "@prefix schema: <https://schema.org/> .\n..."
   }
   ```
 
