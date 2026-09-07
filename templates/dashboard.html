@@ -118,6 +118,9 @@
                 <a href="/api/download-pitch-pdf" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors shadow-sm">
                     <span>📄 Pitch One-Pager (PDF)</span>
                 </a>
+                <button type="button" onclick="openMcpModal()" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors shadow-sm cursor-pointer">
+                    <span>⚡ Claude / Cursor (MCP)</span>
+                </button>
                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                     <span class="w-1.5 h-1.5 mr-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
                     API Connected
@@ -3287,6 +3290,32 @@ SELECT ?capability ?evidence WHERE {
         function toggleShaclRaw() {
             const reportPre = document.getElementById('shacl-report-text');
             if (reportPre) reportPre.classList.toggle('hidden');
+        }
+
+        function openMcpModal() {
+            const modal = document.getElementById('mcp-modal');
+            if (modal) modal.classList.remove('hidden');
+        }
+
+        function closeMcpModal() {
+            const modal = document.getElementById('mcp-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function copyMcpConfig(elementId, btnId) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            const text = el.innerText || el.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById(btnId);
+                if (btn) {
+                    const original = btn.innerText;
+                    btn.innerText = 'Copied! ✓';
+                    setTimeout(() => { btn.innerText = original; }, 2000);
+                }
+            }).catch(() => {
+                alert('Failed to copy to clipboard');
+            });
         }
 
         async function handleExportProvTtl() {
@@ -7188,6 +7217,126 @@ SELECT ?capability ?evidence WHERE {
             <div class="px-6 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
                 <span class="text-xs text-slate-500">OntoLeap W3C SHACL Engine</span>
                 <button type="button" onclick="closeShaclModal()" class="px-4 py-1.5 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Model Context Protocol (MCP) Integration Modal -->
+    <div id="mcp-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+            <!-- Header -->
+            <div class="px-6 py-4 bg-gradient-to-r from-purple-900 to-slate-900 text-white flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">⚡</span>
+                    <div>
+                        <h3 class="text-base font-bold flex items-center gap-2">
+                            Model Context Protocol (MCP) Server
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/30 text-purple-200 border border-purple-400/30">MCP 2.x</span>
+                        </h3>
+                        <p class="text-xs text-purple-200/80">Connect OntoLeap as a native reasoning &amp; verification tool inside Claude Desktop, Cursor, or Antigravity</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeMcpModal()" class="text-slate-400 hover:text-white text-xl font-bold p-1 leading-none cursor-pointer">
+                    &times;
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
+                <!-- Explainer Card -->
+                <div class="p-4 bg-purple-50 rounded-xl border border-purple-100 flex items-start gap-3">
+                    <span class="text-xl">🤖</span>
+                    <div>
+                        <p class="font-semibold text-purple-950 text-sm">Empower Your AI Agents with Verified Graph Truth</p>
+                        <p class="text-purple-800/90 text-xs mt-1 leading-relaxed">
+                            Rather than relying on vague prompts or probabilistic hallucinations, OntoLeap exposes 4 deterministic Knowledge Graph tools via JSON-RPC. Claude or Cursor can extract entity triples, compute set-theoretic graph diffs (<em>A &cap; B</em>), probe live AI engines, and analyze site topology directly in conversation.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Exposed Tools List -->
+                <div>
+                    <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Exposed MCP Tools</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                            <span class="font-mono font-bold text-purple-700 text-[11px]">ontoleap_extract_facts</span>
+                            <p class="text-slate-600 text-[11px] mt-0.5">Extracts verified entities (GLiNER) &amp; semantic triples &lt;S, P, O&gt; from URLs or text.</p>
+                        </div>
+                        <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                            <span class="font-mono font-bold text-purple-700 text-[11px]">ontoleap_cross_examine_diff</span>
+                            <p class="text-slate-600 text-[11px] mt-0.5">Computes discrete graph diff (grounded claims, unbacked claims, omitted features).</p>
+                        </div>
+                        <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                            <span class="font-mono font-bold text-purple-700 text-[11px]">ontoleap_probe_ai_sov</span>
+                            <p class="text-slate-600 text-[11px] mt-0.5">Probes AI search engines with buyer prompts, audits citations &amp; calculates SOV %.</p>
+                        </div>
+                        <div class="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                            <span class="font-mono font-bold text-purple-700 text-[11px]">ontoleap_map_site_topology</span>
+                            <p class="text-slate-600 text-[11px] mt-0.5">Crawls sitemaps, calculates PageRank authority hubs, and flags missing topic links.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Client Configurations -->
+                <div class="space-y-4">
+                    <!-- Claude Desktop -->
+                    <div class="border border-slate-200 rounded-xl overflow-hidden">
+                        <div class="bg-slate-100 px-4 py-2.5 flex items-center justify-between border-b border-slate-200">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-slate-800 text-xs">Claude Desktop Configuration</span>
+                                <span class="text-[10px] text-slate-500 font-mono">claude_desktop_config.json</span>
+                            </div>
+                            <button type="button" id="copy-claude-btn" onclick="copyMcpConfig('claude-config-code', 'copy-claude-btn')" class="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-300 rounded text-slate-700 text-[11px] font-semibold transition cursor-pointer">
+                                Copy JSON
+                            </button>
+                        </div>
+                        <pre id="claude-config-code" class="p-3.5 bg-slate-900 text-purple-300 font-mono text-[11px] overflow-x-auto leading-relaxed">{
+  "mcpServers": {
+    "ontoleap": {
+      "command": "python",
+      "args": ["d:\\gainARK\\drive-download-20260904T061910Z-1-001\\Ontology\\mcp_server.py"],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  }
+}</pre>
+                    </div>
+
+                    <!-- Cursor IDE -->
+                    <div class="border border-slate-200 rounded-xl overflow-hidden">
+                        <div class="bg-slate-100 px-4 py-2.5 flex items-center justify-between border-b border-slate-200">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-slate-800 text-xs">Cursor IDE Configuration</span>
+                                <span class="text-[10px] text-slate-500 font-mono">.cursor/mcp.json</span>
+                            </div>
+                            <button type="button" id="copy-cursor-btn" onclick="copyMcpConfig('cursor-config-code', 'copy-cursor-btn')" class="px-2.5 py-1 bg-white hover:bg-slate-50 border border-slate-300 rounded text-slate-700 text-[11px] font-semibold transition cursor-pointer">
+                                Copy JSON
+                            </button>
+                        </div>
+                        <pre id="cursor-config-code" class="p-3.5 bg-slate-900 text-emerald-300 font-mono text-[11px] overflow-x-auto leading-relaxed">{
+  "mcpServers": {
+    "ontoleap": {
+      "command": "python",
+      "args": ["d:\\gainARK\\drive-download-20260904T061910Z-1-001\\Ontology\\mcp_server.py"]
+    }
+  }
+}</pre>
+                    </div>
+                </div>
+
+                <div class="text-[11px] text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-200 flex items-center justify-between">
+                    <span>📖 Full technical architecture &amp; co-working protocol documented in <strong class="text-slate-700 font-mono">ARCHITECTURE_ENGINE.md</strong>.</span>
+                    <a href="/api/v1/mcp-info" target="_blank" class="text-purple-600 font-bold hover:underline">View Endpoint Specs &rarr;</a>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+                <span class="text-xs text-slate-500">OntoLeap Engine Protocol Transport: <strong class="font-mono text-slate-700">stdio / JSON-RPC</strong></span>
+                <button type="button" onclick="closeMcpModal()" class="px-4 py-1.5 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition cursor-pointer">
                     Close
                 </button>
             </div>

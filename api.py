@@ -239,6 +239,43 @@ app.include_router(seo_router)
 app.include_router(audit_router)
 
 
+@app.get("/api/v1/mcp-info", tags=["MCP & Agent Integration"])
+def get_mcp_info():
+    """Returns the Model Context Protocol (MCP) server specifications, tools, and client configs."""
+    return {
+        "mcp_server": "OntoLeap Knowledge Graph & Graph-Diff Engine",
+        "version": "1.0.0",
+        "protocol": "Model Context Protocol (MCP) 2.x",
+        "transports": ["stdio", "sse"],
+        "tools": [
+            {
+                "name": "ontoleap_extract_facts",
+                "description": "Extracts verified semantic triples <S, P, O>, entities, and schemas from a URL or raw text."
+            },
+            {
+                "name": "ontoleap_cross_examine_diff",
+                "description": "Calculates the discrete set-theoretic graph diff (A ∩ B, A \\ B, B \\ A) between two sources."
+            },
+            {
+                "name": "ontoleap_probe_ai_sov",
+                "description": "Probes live AI answer engines with buyer queries to measure Share of Voice (SOV %) and audit hallucinations."
+            },
+            {
+                "name": "ontoleap_map_site_topology",
+                "description": "Crawls sitemaps, calculates PageRank authority hubs, and generates in-context internal link opportunities."
+            }
+        ],
+        "claude_desktop_config": {
+            "mcpServers": {
+                "ontoleap": {
+                    "command": "python",
+                    "args": ["<path_to_ontology>/mcp_server.py"]
+                }
+            }
+        }
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)

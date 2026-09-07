@@ -77,3 +77,4 @@ uvicorn==0.52.4
 w3lib==2.4.1
 webencodings==0.6.1
 pyshacl>=0.25.0
+mcp>=1.2.0

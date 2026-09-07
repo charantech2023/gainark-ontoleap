@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "ontoleap": {
+      "command": "d:\\gainARK\\drive-download-20260904T061910Z-1-001\\Ontology\\venv\\Scripts\\python.exe",
+      "args": [
+        "d:\\gainARK\\drive-download-20260904T061910Z-1-001\\Ontology\\mcp_server.py"
+      ]
+    }
+  }
+}
