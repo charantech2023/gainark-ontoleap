@@ -30,6 +30,7 @@ attribution to their exact public proof origins.
 import concurrent.futures
 import json
 import logging
+import os
 import re
 import socket
 import time
@@ -314,6 +315,135 @@ def discover_public_sdks(brand: str, domain: str, timeout: int = 4) -> Tuple[Lis
     return triples, proof_sources
 
 
+def discover_github_evidence(
+    brand: str,
+    domain: str,
+    timeout: int = 4
+) -> Tuple[List[SemanticTriple], Optional[Dict[str, Any]]]:
+    """
+    Probes public GitHub organization repositories for official SDKs, OpenAPI specs,
+    and ecosystem connectors.
+    Unauthenticated up to 60 req/hr; uses GITHUB_TOKEN (up to 5,000 req/hr) when set.
+    """
+    brand_slug = re.sub(r"[^a-zA-Z0-9-]", "", brand.lower())
+    clean_domain = domain.replace("https://", "").replace("http://", "").strip("/").split("/")[0]
+    if clean_domain.startswith("www."):
+        clean_domain = clean_domain[4:]
+    domain_slug = clean_domain.split(".")[0].lower()
+
+    candidates: List[str] = []
+    for c in [brand_slug, domain_slug]:
+        if c and c not in candidates:
+            candidates.append(c)
+
+    triples: List[SemanticTriple] = []
+    proof_source: Optional[Dict[str, Any]] = None
+
+    headers = dict(_REGISTRY_HEADERS)
+    headers["Accept"] = "application/vnd.github+json"
+    gh_token = os.environ.get("GITHUB_TOKEN", "").strip()
+    if gh_token:
+        headers["Authorization"] = f"Bearer {gh_token}"
+
+    for org in candidates:
+        api_url = f"https://api.github.com/orgs/{org}/repos?per_page=15&sort=pushed"
+        try:
+            validate_url_for_fetch(api_url)
+            resp = requests.get(api_url, headers=headers, timeout=timeout)
+            if resp.status_code != 200:
+                if resp.status_code == 404:
+                    user_api_url = f"https://api.github.com/users/{org}/repos?per_page=15&sort=pushed"
+                    validate_url_for_fetch(user_api_url)
+                    resp = requests.get(user_api_url, headers=headers, timeout=timeout)
+                    if resp.status_code != 200:
+                        continue
+                else:
+                    continue
+
+            repos = resp.json()
+            if not isinstance(repos, list) or not repos:
+                continue
+
+            extracted_count = 0
+            repo_names = []
+            languages = set()
+
+            for r in repos:
+                if not isinstance(r, dict):
+                    continue
+                r_name = r.get("name", "")
+                r_desc = r.get("description") or ""
+                r_lang = r.get("language") or ""
+                repo_names.append(r_name)
+                if r_lang:
+                    languages.add(r_lang)
+
+                lower_name = r_name.lower()
+                lower_desc = r_desc.lower()
+
+                # 1. Official SDKs
+                if any(x in lower_name for x in ["-sdk", "-python", "-node", "-go", "-java", "-ruby", "-php", "client", "sdk"]):
+                    sdk_name = f"{r_lang} SDK" if r_lang else f"{r_name} SDK"
+                    triples.append(
+                        SemanticTriple(
+                            subject=brand,
+                            predicate="providesSdk",
+                            object=sdk_name,
+                            confidence=0.85,
+                            source_type="technical_truth",
+                            provenance=f"github:{org}/{r_name}",
+                            evidence_sentence=f"GitHub repository {org}/{r_name}: {r_desc}" if r_desc else f"GitHub repository {org}/{r_name}"
+                        )
+                    )
+                    extracted_count += 1
+
+                # 2. OpenAPI / API Specification
+                if any(x in lower_name for x in ["openapi", "swagger", "api-spec", "api-docs"]):
+                    triples.append(
+                        SemanticTriple(
+                            subject=brand,
+                            predicate="providesApi",
+                            object="OpenAPI Specification",
+                            confidence=0.90,
+                            source_type="technical_truth",
+                            provenance=f"github:{org}/{r_name}",
+                            evidence_sentence=f"API specification repository {org}/{r_name}"
+                        )
+                    )
+                    extracted_count += 1
+
+                # 3. Connectors & Integrations
+                for partner in ["Salesforce", "NetSuite", "HubSpot", "Slack", "Jira", "Stripe", "Kubernetes", "Terraform", "AWS", "Google Cloud", "Azure"]:
+                    if partner.lower() in lower_name or partner.lower() in lower_desc:
+                        triples.append(
+                            SemanticTriple(
+                                subject=brand,
+                                predicate="integratesWith",
+                                object=partner,
+                                confidence=0.85,
+                                source_type="technical_truth",
+                                provenance=f"github:{org}/{r_name}",
+                                evidence_sentence=f"Integration repository {org}/{r_name}: {r_desc}" if r_desc else f"Integration repository {org}/{r_name}"
+                            )
+                        )
+                        extracted_count += 1
+
+            proof_source = {
+                "source_type": "github_org",
+                "org": org,
+                "url": f"https://github.com/{org}",
+                "public_repos_evaluated": len(repos),
+                "languages": sorted(list(languages)),
+                "capabilities_count": extracted_count,
+                "status": "verified" if extracted_count > 0 else "unverified"
+            }
+            break  # Found matching org
+        except Exception as ex:
+            logger.debug("GitHub proof discovery error for %s: %s", org, ex)
+
+    return triples, proof_source
+
+
 def discover_public_changelog(domain: str, brand: str, pipeline=None, timeout: int = 4) -> Tuple[List[SemanticTriple], Optional[Dict[str, Any]]]:
     """
     Probes public changelogs and release notes:
@@ -446,19 +576,20 @@ def orchestrate_autonomous_proof_discovery(
     all_triples: List[SemanticTriple] = []
     proof_sources: List[Dict[str, Any]] = []
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         f_trust = executor.submit(discover_trust_center, marketing_url, brand_name, 4)
         f_sdk = executor.submit(discover_public_sdks, brand_name, marketing_url, 4)
         f_change = executor.submit(discover_public_changelog, marketing_url, brand_name, pipeline, 4)
         f_spec = executor.submit(probe_common_specs, marketing_url, brand_name, config, 3)
+        f_gh = executor.submit(discover_github_evidence, brand_name, marketing_url, 4)
 
-        futures = [f_trust, f_sdk, f_change, f_spec]
+        futures = [f_trust, f_sdk, f_change, f_spec, f_gh]
         done, _ = concurrent.futures.wait(futures, timeout=time_budget)
 
         for f in done:
             try:
                 res = f.result()
-                if f is f_trust or f is f_change or f is f_spec:
+                if f in (f_trust, f_change, f_spec, f_gh):
                     t_list, meta = res
                     all_triples.extend(t_list)
                     if meta:

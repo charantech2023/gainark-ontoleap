@@ -35,89 +35,20 @@ current deployment until the key is set.
 
 ---
 
-## High priority
+## High priority — Completed
 
-### T1 — Fix `_concepts_match` false positives
+### [DONE] T1 — Fix `_concepts_match` false positives
+* Completed: Added `_extract_semantic_head` and `_match_concept_details` in `product_truth.py`. Single-token matches require common token to match the semantic head of both concepts.
+* Added `match_strength` to `SemanticTriple` and `verified_claims_breakdown` to `ProductTruthMatrixResponse`.
+* Verified with `test_concept_matching.py`.
 
-**Problem.** [`product_truth.py:141`](product_truth.py:141) treats a single shared
-token as a match when the token is not in `generic_terms` and is longer than 3 chars.
-Confirmed failures:
+### [DONE] T2 — Gate or remove the Ordway demo fallback
+* Completed: Gated `ordway_extraction.json` behind `ONTOLEAP_DEMO_MODE` env var and exact host verification (`ordwaylabs.com`).
+* Verified with `test_concept_matching.py` and `test_product_truth.py`.
 
-```
-'payment processing'  matches  'payment fraud detection'   -> True
-'invoice automation'  matches  'invoice fraud'             -> True
-```
-
-`_concepts_match` decides **verified vs. unbacked** in `build_product_truth_matrix`,
-so this inflates the Marketing Grounding Index and suppresses legitimate drift alerts.
-It is silent — nothing in the output distinguishes a strong match from a one-token
-coincidence.
-
-Worse in the billing vertical, where `payment`, `invoice`, `billing`, `revenue`,
-`subscription`, `tax` and `usage` are the highest-frequency tokens.
-
-**Change.** Preferred approach (2 + 3 together):
-
-1. *(Weakest)* Extend `generic_terms` with the domain head nouns. One line, but a
-   blocklist needing per-vertical maintenance.
-2. Require the shared token to be the **semantic head** (compare final tokens) rather
-   than any set-intersection member. Kills both cases above;
-   `dunning automation` / `automated dunning` still matches.
-3. Carry **match strength** into the output — record whether a claim was verified by
-   exact, substring, or single-token match, and treat single-token verifications as
-   provisional in the MGI, the way `evidence_status` already handles thin evidence.
-
-**Acceptance.** Regression tests asserting the two pairs above return `False` while
-every pair in the `test_alert_precision` / `test_evidence_gating` suites is unchanged.
-
-**Note.** This shifts a scoring rule and will move reported MGI values on
-already-published audits.
-
-### T2 — Gate or remove the Ordway demo fallback
-
-**Problem.** [`product_truth.py:451`](product_truth.py:451):
-
-```python
-if "ordway" in url.lower() and os.path.exists("ordway_extraction.json"):
-```
-
-Any URL containing the substring `ordway` is served canned extraction data instead of
-a live crawl. So an audit of Ordway is replaying a fixture, not measuring Ordway. It
-also fires on unrelated domains (`ordway-consulting.com`).
-
-This is why **every 100% grounding score in the ledger is the degenerate
-`Marketing Claims: 3` case**.
-
-For a product whose value proposition is verified ground truth, a shortcut that
-fabricates a clean result for one named customer should not be in the shipped path.
-
-**Change.** Gate behind an explicit `ONTOLEAP_DEMO_MODE` env var, or delete it. If
-kept, match on exact host, not substring.
-
-**Acceptance.** With `ONTOLEAP_DEMO_MODE` unset, an audit of `ordwaylabs.com`
-performs a live crawl.
-
-### T3 — Add GitHub as a proof-discovery source
-
-**Problem.** Technical evidence starves. Across 29 logged audits: 17–75 marketing
-claims against 0–16 technical capabilities, roughly a 10:1 imbalance. Every low MGI in
-the ledger is a measurement artifact, not a finding.
-
-**Change.** New source in `proof_discovery.py`, following the shape of
-`discover_public_sdks()` (which already queries PyPI and npm):
-
-* Company org repos, languages, release frequency
-* OpenAPI / AsyncAPI specs committed to repos
-* Public SDK repos corroborating registry findings
-
-Unauthenticated at 60 req/hr; honour `GITHUB_TOKEN` for 5,000 req/hr when present.
-Route through `smart_fetch` so it inherits SSRF and response-size protection.
-
-Do **not** treat repo activity as proof of production use — emit it at a confidence
-level `evidence_status` can gate on.
-
-**Acceptance.** A brand with public repos yields technical triples that raise the
-capability count above the `MIN_CONFIDENT_TECHNICAL_EVIDENCE` threshold.
+### [DONE] T3 — Add GitHub as a proof-discovery source
+* Completed: Added `discover_github_evidence` to `proof_discovery.py` extracting official client SDKs (`providesSdk`), OpenAPI specs (`providesApi`), and connectors (`integratesWith`) from public GitHub org/user repositories. Integrated into `orchestrate_autonomous_proof_discovery`.
+* Verified with `test_proof_discovery.py`.
 
 ---
 

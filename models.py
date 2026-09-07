@@ -141,6 +141,7 @@ class SemanticTriple(BaseModel):
     evidence_sentence: Optional[str] = Field(default=None, description="Source context sentence")
     source_type: Optional[str] = Field(default="marketing_claim", description="'marketing_claim', 'technical_truth', or 'industry_standard'")
     provenance: Optional[str] = Field(default=None, description="Exact source URI, endpoint path, or document section")
+    match_strength: Optional[str] = Field(default=None, description="Semantic match strength: 'exact', 'substring', 'multi_token', 'head_token'")
 
 
 class ExtractionResult(BaseModel):
@@ -607,6 +608,7 @@ class ProductTruthMatrixResponse(BaseModel):
     verified_claims_count: int
     unbacked_claims_count: int
     hidden_capabilities_count: int
+    verified_claims_breakdown: Dict[str, int] = Field(default_factory=dict, description="Counts of verified claims grouped by match strength ('exact', 'substring', 'multi_token', 'head_token')")
     verified_triples: List[SemanticTriple] = Field(default_factory=list, description="Claims proven in both marketing and technical documentation")
     unbacked_claims: List[SemanticTriple] = Field(default_factory=list, description="Marketing claims with no technical backing (Product Drift / Fluff)")
     hidden_capabilities: List[SemanticTriple] = Field(default_factory=list, description="Real technical capabilities omitted from marketing copy")

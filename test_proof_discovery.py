@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from models import ProductTruthRequest, SemanticTriple
 from proof_discovery import (
+    discover_github_evidence,
     discover_public_changelog,
     discover_public_sdks,
     discover_trust_center,
@@ -101,14 +102,54 @@ class TestProofDiscovery(unittest.TestCase):
             self.assertIn("Salesforce", objects)
             self.assertIn("NetSuite", objects)
 
+    def test_github_evidence_discovery(self):
+        github_mock_repos = [
+            {
+                "name": "acme-python-sdk",
+                "description": "Official Python SDK for Acme automated billing platform",
+                "language": "Python"
+            },
+            {
+                "name": "acme-openapi-spec",
+                "description": "Official OpenAPI specification for Acme core APIs",
+                "language": "JSON"
+            },
+            {
+                "name": "acme-salesforce-connector",
+                "description": "Bi-directional Salesforce integration connector",
+                "language": "Apex"
+            }
+        ]
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = github_mock_repos
+
+        with patch("proof_discovery.validate_url_for_fetch", return_value=True), \
+             patch("requests.get", return_value=mock_resp):
+            triples, source = discover_github_evidence("Acme", "https://acme.com")
+
+            self.assertIsNotNone(source)
+            self.assertEqual(source["source_type"], "github_org")
+            self.assertEqual(source["status"], "verified")
+            self.assertTrue(len(triples) >= 3)
+
+            predicates = [t.predicate for t in triples]
+            objects = [t.object for t in triples]
+
+            self.assertIn("providesSdk", predicates)
+            self.assertIn("providesApi", predicates)
+            self.assertIn("integratesWith", predicates)
+
+            self.assertIn("Python SDK", objects)
+            self.assertIn("OpenAPI Specification", objects)
+            self.assertIn("Salesforce", objects)
+
     def test_orchestrator_concurrency_and_deduplication(self):
-        sample_trust_html = """
-        <html><body><p>Certified SOC 2 Type II and HIPAA compliant.</p></body></html>
-        """
         with patch("proof_discovery.discover_trust_center") as mock_trust, \
              patch("proof_discovery.discover_public_sdks") as mock_sdk, \
              patch("proof_discovery.discover_public_changelog") as mock_change, \
-             patch("proof_discovery.probe_common_specs") as mock_spec:
+             patch("proof_discovery.probe_common_specs") as mock_spec, \
+             patch("proof_discovery.discover_github_evidence") as mock_gh:
 
             mock_trust.return_value = (
                 [SemanticTriple(subject="Acme", predicate="compliesWith", object="SOC 2 Type II", provenance="trust_center:test")],
@@ -123,13 +164,17 @@ class TestProofDiscovery(unittest.TestCase):
                 {"source_type": "changelog", "url": "https://acme.com/changelog"}
             )
             mock_spec.return_value = ([], None)
+            mock_gh.return_value = (
+                [SemanticTriple(subject="Acme", predicate="providesApi", object="OpenAPI Specification", provenance="github:acme/spec")],
+                {"source_type": "github_org", "url": "https://github.com/acme"}
+            )
 
             triples, proofs = orchestrate_autonomous_proof_discovery("https://acme.com", "Acme", time_budget=5.0)
 
-            self.assertEqual(len(triples), 3)
-            self.assertEqual(len(proofs), 3)
+            self.assertEqual(len(triples), 4)
+            self.assertEqual(len(proofs), 4)
             predicates = {t.predicate for t in triples}
-            self.assertEqual(predicates, {"compliesWith", "providesSdk", "integratesWith"})
+            self.assertEqual(predicates, {"compliesWith", "providesSdk", "integratesWith", "providesApi"})
 
     def test_audit_end_to_end_proof_augmentation(self):
         from product_truth import execute_product_truth_audit

@@ -123,27 +123,81 @@ def _normalize_concept(text: str) -> str:
     return " ".join(clean.split())
 
 
-def _concepts_match(c1: str, c2: str) -> bool:
-    """Check if two concepts match either exactly, via substring, or via significant non-generic token overlap."""
+GENERIC_CONCEPT_TERMS = {
+    "management", "platform", "system", "service", "services", "support",
+    "engine", "software", "solution", "solutions", "analytics", "operations",
+    "automation", "automated", "tool", "tools", "infrastructure", "capability",
+    "capabilities", "feature", "features"
+}
+
+
+def _extract_semantic_head(normalized_text: str) -> Optional[str]:
+    """
+    Extracts the semantic head noun from a normalized multi-word concept.
+    In English compound noun phrases, the head noun typically appears at the end.
+    Generic wrappers (e.g. 'automation', 'platform', 'system', 'management')
+    at the end or beginning are stripped to find the core content head.
+    e.g.
+    'dunning automation' -> 'dunning'
+    'automated dunning'  -> 'dunning'
+    'payment processing' -> 'processing'
+    'payment fraud detection' -> 'detection'
+    'invoice automation' -> 'invoice'
+    'invoice fraud'      -> 'fraud'
+    """
+    words = [w for w in normalized_text.split() if w]
+    if not words:
+        return None
+    # Strip generic suffix terms from the right
+    while words and words[-1] in GENERIC_CONCEPT_TERMS:
+        words.pop()
+    # Strip generic prefix terms from the left (e.g., 'automated')
+    while words and words[0] in GENERIC_CONCEPT_TERMS:
+        words.pop(0)
+    if words:
+        return words[-1]
+    # Fallback to the original last word if all words were generic
+    all_words = normalized_text.split()
+    return all_words[-1] if all_words else None
+
+
+def _match_concept_details(c1: str, c2: str) -> Tuple[bool, Optional[str]]:
+    """
+    Check if two concepts match, returning (matches, match_strength).
+    Match strengths:
+    - 'exact': exact string match after normalization
+    - 'substring': one concept is a substring of the other
+    - 'multi_token': 2 or more non-generic tokens match
+    - 'head_token': exactly 1 non-generic token matches AND that token is the
+                    semantic head of both concepts.
+    """
     n1 = _normalize_concept(c1)
     n2 = _normalize_concept(c2)
     if not n1 or not n2:
-        return False
+        return False, None
     if n1 == n2:
-        return True
+        return True, "exact"
     if n1 in n2 or n2 in n1:
-        return True
+        return True, "substring"
     tokens1 = set(n1.split())
     tokens2 = set(n2.split())
     common = tokens1.intersection(tokens2)
-    if len(common) >= 2:
-        return True
-    if len(common) == 1:
-        tok = next(iter(common))
-        generic_terms = {"management", "platform", "system", "service", "support", "engine", "software", "solution", "analytics", "operations", "automation"}
-        if tok not in generic_terms and len(tok) > 3:
-            return True
-    return False
+    non_generic_common = {t for t in common if t not in GENERIC_CONCEPT_TERMS and len(t) > 2}
+    if len(non_generic_common) >= 2:
+        return True, "multi_token"
+    if len(non_generic_common) == 1:
+        tok = next(iter(non_generic_common))
+        head1 = _extract_semantic_head(n1)
+        head2 = _extract_semantic_head(n2)
+        if head1 and head2 and head1 == head2 and head1 == tok:
+            return True, "head_token"
+    return False, None
+
+
+def _concepts_match(c1: str, c2: str) -> bool:
+    """Check if two concepts match either exactly, via substring, or via significant semantic head/token overlap."""
+    matched, _ = _match_concept_details(c1, c2)
+    return matched
 
 
 def parse_openapi_spec(
@@ -448,9 +502,12 @@ def fetch_docs_content(url: str, timeout: float = 15.0) -> Tuple[str, str]:
     try:
         raw = smart_fetch(url, timeout=int(timeout))
     except Exception as fetch_err:
-        # Priority 3: Built-in high-fidelity cached fallback for Ordway demo
-        if "ordway" in url.lower() and os.path.exists("ordway_extraction.json"):
-            logger.info("Using local high-fidelity ordway_extraction.json fallback for %s", url)
+        # Priority 3: Built-in cached fallback for Ordway demo (gated behind ONTOLEAP_DEMO_MODE)
+        demo_mode = os.environ.get("ONTOLEAP_DEMO_MODE", "").strip().lower() in ("1", "true", "yes")
+        parsed_host = urlparse(url).netloc.lower()
+        is_ordway_host = parsed_host == "ordwaylabs.com" or parsed_host.endswith(".ordwaylabs.com")
+        if demo_mode and is_ordway_host and os.path.exists("ordway_extraction.json"):
+            logger.info("Using local ordway_extraction.json fallback for %s (DEMO_MODE enabled)", url)
             try:
                 with open("ordway_extraction.json", "r", encoding="utf-8") as f:
                     cached = json.load(f)
@@ -528,6 +585,7 @@ def build_product_truth_matrix(
     hidden: List[SemanticTriple] = []
 
     matched_tech_indices: Set[int] = set()
+    breakdown: Dict[str, int] = {"exact": 0, "substring": 0, "multi_token": 0, "head_token": 0}
 
     # Step 1: Evaluate each marketing claim against technical triples
     for m_triple in marketing_triples:
@@ -535,9 +593,11 @@ def build_product_truth_matrix(
         for idx, t_triple in enumerate(technical_triples):
             # Check predicate match and object concept match
             if m_triple.predicate.lower() == t_triple.predicate.lower():
-                if _concepts_match(m_triple.object, t_triple.object):
+                matched, strength = _match_concept_details(m_triple.object, t_triple.object)
+                if matched:
                     match_found = True
                     matched_tech_indices.add(idx)
+                    breakdown[strength or "exact"] = breakdown.get(strength or "exact", 0) + 1
                     # Verified triple combines marketing claim with technical evidence
                     verified.append(SemanticTriple(
                         subject=brand_name,
@@ -546,7 +606,8 @@ def build_product_truth_matrix(
                         confidence=max(m_triple.confidence, t_triple.confidence),
                         evidence_sentence=f"[Marketing]: {m_triple.evidence_sentence or m_triple.object} | [Tech Reality]: {t_triple.evidence_sentence or t_triple.object}",
                         source_type="verified_truth",
-                        provenance=f"{m_triple.provenance or 'marketing'} ⟷ {t_triple.provenance or 'tech_docs'}"
+                        provenance=f"{m_triple.provenance or 'marketing'} ⟷ {t_triple.provenance or 'tech_docs'}",
+                        match_strength=strength
                     ))
                     break
 
@@ -599,6 +660,16 @@ def build_product_truth_matrix(
     else:
         evidence_status = "conclusive"
         evidence_note = None
+
+    # If all verifications were purely single-token semantic head matches and evidence is sparse, mark provisional
+    if evidence_status == "conclusive" and verified_count > 0:
+        head_token_count = breakdown.get("head_token", 0)
+        if head_token_count == verified_count and verified_count < MIN_CONFIDENT_TECHNICAL_EVIDENCE:
+            evidence_status = "low_confidence"
+            evidence_note = (
+                f"All {verified_count} verified claim(s) matched solely on single-token semantic heads. "
+                "The grounding score is provisional and should be confirmed against primary documentation."
+            )
 
     if evidence_status == "inconclusive":
         # No score: a percentage here would be read as "0% of your claims are true".
@@ -680,6 +751,7 @@ def build_product_truth_matrix(
         verified_claims_count=verified_count,
         unbacked_claims_count=len(unbacked),
         hidden_capabilities_count=len(hidden),
+        verified_claims_breakdown=breakdown,
         verified_triples=verified,
         unbacked_claims=unbacked,
         hidden_capabilities=hidden,
