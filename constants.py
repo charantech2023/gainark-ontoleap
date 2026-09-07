@@ -126,10 +126,12 @@ KNOWN_AUTOMATION: List[str] = [
 # ---------------------------------------------------------------------------
 
 DEEP_CRAWL_PATHS: List[str] = [
-    "/pricing", "/features", "/product", "/integrations", "/solutions", "/platform",
+    "/pricing", "/features", "/feature", "/product", "/products",
+    "/integrations", "/integration", "/solutions", "/solution",
+    "/platform", "/resources", "/customers", "/use-cases", "/services",
 ]
 
-DEEP_CRAWL_MAX: int = 3
+DEEP_CRAWL_MAX: int = 5
 
 
 # ---------------------------------------------------------------------------

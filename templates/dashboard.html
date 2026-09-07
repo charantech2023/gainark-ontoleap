@@ -2751,7 +2751,7 @@ SELECT ?capability ?evidence WHERE {
             if (prim) prim.focus();
         }
 
-        function loadSampleLinking(url = 'https://www.ordwaylabs.com/sitemap.xml') {
+        function loadSampleLinking(url = 'https://www.ordwaylabs.com/sitemap_index.xml') {
             const input = document.getElementById('linking-sitemap-url');
             if (input) {
                 input.value = url;
@@ -2774,6 +2774,7 @@ SELECT ?capability ?evidence WHERE {
         /* ============================================================= */
         
         let currentTruthMatrix = null;
+        let currentTruthData = null;
         let currentBattlecardData = null;
         let currentDiscoveredVertical = null;
         let currentBattleFilter = 'all';
@@ -3020,6 +3021,7 @@ SELECT ?capability ?evidence WHERE {
                 if (truthRes.status === 'fulfilled' && truthRes.value.ok) {
                     const data = await truthRes.value.json();
                     currentTruthMatrix = data;
+                    currentTruthData = data;
                     renderTruthMatrixData(data, brand);
                 }
 
@@ -3665,6 +3667,7 @@ SELECT ?capability ?evidence WHERE {
 
                 const data = await res.json();
                 currentTruthMatrix = data;
+                currentTruthData = data;
                 resultsBox.classList.remove('hidden');
 
                 renderTruthMatrixData(data, brand);
@@ -4195,7 +4198,8 @@ SELECT ?capability ?evidence WHERE {
             btnIcon.innerText = '⏳';
 
             try {
-                const triples = (currentTruthData && (currentTruthData.verified_triples || currentTruthData.verified_capabilities)) || [];
+                const activeTruth = (typeof currentTruthMatrix !== 'undefined' && currentTruthMatrix) || (typeof currentTruthData !== 'undefined' && currentTruthData) || null;
+                const triples = (activeTruth && (activeTruth.verified_triples || activeTruth.verified_capabilities)) || [];
 
                 const payload = {
                     brand_name: brand,

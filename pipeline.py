@@ -238,14 +238,14 @@ class OntologyPipeline:
             else:
                 continue
             parsed_href = urlparse(full)
-            # Must be same domain and match a high-value path prefix
-            if parsed_href.netloc != parsed.netloc:
+            # Must be same domain (ignoring www prefix differences) and match a high-value path prefix
+            if parsed_href.netloc.replace("www.", "").lower() != parsed.netloc.replace("www.", "").lower():
                 continue
             path = parsed_href.path.rstrip("/").lower()
             for target in DEEP_CRAWL_PATHS:
                 if path == target or path.startswith(target + "/") or path.startswith(target + "-"):
-                    canonical = f"{base_origin}{parsed_href.path}"
-                    if canonical not in seen and canonical != base_url:
+                    canonical = f"{parsed_href.scheme}://{parsed_href.netloc}{parsed_href.path}"
+                    if canonical not in seen and path != "":
                         seen.add(canonical)
                         found.append(canonical)
                     break
@@ -737,7 +737,31 @@ async def fetch_sitemap_urls(sitemap_url: str, max_urls: int = 15, _depth: int =
                     break
     except Exception as e:
         # FIX #21: use logger instead of print
-        logger.error("Error parsing sitemap %s: %s", sitemap_url, e)
+        logger.warning("Could not parse sitemap %s: %s", sitemap_url, e)
+
+    # If top-level sitemap fetch returned no URLs, probe common alternative sitemap paths
+    if not urls and _depth == 0:
+        parsed = urlparse(sitemap_url)
+        if parsed.scheme and parsed.netloc:
+            origin = f"{parsed.scheme}://{parsed.netloc}"
+            candidate_paths = [
+                "/sitemap_index.xml",
+                "/wp-sitemap.xml",
+                "/page-sitemap.xml",
+                "/sitemap.xml",
+                "/sitemap-index.xml"
+            ]
+            for path in candidate_paths:
+                candidate_url = f"{origin}{path}"
+                if candidate_url.lower() == sitemap_url.lower():
+                    continue
+                try:
+                    alt_urls = await fetch_sitemap_urls(candidate_url, max_urls=max_urls, _depth=1)
+                    if alt_urls:
+                        logger.info("Discovered active alternative sitemap: %s (%d URLs)", candidate_url, len(alt_urls))
+                        return alt_urls[:max_urls]
+                except Exception:
+                    continue
 
     return urls[:max_urls]
 

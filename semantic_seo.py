@@ -297,20 +297,43 @@ async def audit_internal_links(
     Runs an end-to-end multi-page audit to extract semantic entities,
     synthesize a site-wide knowledge graph, and generate internal linking recommendations.
     """
+    loop = asyncio.get_running_loop()
     p = pipeline or get_default_pipeline()
     target_urls: List[str] = []
 
     if sitemap_url:
         target_urls = await fetch_sitemap_urls(sitemap_url, max_urls=max_pages)
 
+    # Fallback to crawler if sitemap yields 0 URLs
+    if not target_urls and sitemap_url:
+        logger.info("Sitemap parsing returned 0 URLs for '%s'. Falling back to autonomous crawler.", sitemap_url)
+        parsed_sm = urlparse(sitemap_url)
+        if parsed_sm.scheme and parsed_sm.netloc:
+            base_origin = f"{parsed_sm.scheme}://{parsed_sm.netloc}"
+            try:
+                home_html = await asyncio.wait_for(
+                    loop.run_in_executor(None, p.fetch_url, base_origin),
+                    timeout=20.0
+                )
+                if home_html:
+                    discovered = p.discover_subpages(base_origin, home_html)
+                    target_urls = [base_origin] + [u for u in discovered if u != base_origin]
+                    target_urls = target_urls[:max_pages]
+                    logger.info("Crawler fallback discovered %d pages from %s", len(target_urls), base_origin)
+            except Exception as crawl_err:
+                logger.warning("Crawler fallback failed for %s: %s", base_origin, crawl_err)
+
     if not target_urls and urls:
         target_urls = [u.strip() for u in urls if u.strip()][:max_pages]
 
     if not target_urls:
-        raise ValueError("Must provide a valid 'sitemap_url' or non-empty 'urls' list.")
+        target_src = sitemap_url or (urls[0] if urls else "the site")
+        raise ValueError(
+            f"Could not discover any pages to audit from '{target_src}'. "
+            "Please check that the URL is publicly reachable or paste explicit URLs into the Custom URLs field."
+        )
 
     domain = urlparse(target_urls[0]).netloc
-    loop = asyncio.get_running_loop()
 
     pages_data: List[PageData] = []
     collected_triples: List[SemanticTriple] = []

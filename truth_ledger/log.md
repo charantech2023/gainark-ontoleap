@@ -380,3 +380,10 @@
 - **Verified Truth**: SOC 2 Type II (compliesWith), Python SDK (providesSdk), Salesforce (integratesWith)
 - **Drift Findings**: 0 critical regulatory drifts
 - **Unmarketed Engineering Gold**: 2 capabilities
+
+### 2026-09-07 04:26:25 UTC — [PRODUCT TRUTH AUDIT]
+- **Target**: `Acme` (https://acme.com)
+- **Grounding Index**: **100.0%** | Marketing Claims: 3 | Technical Capabilities: 5
+- **Verified Truth**: SOC 2 Type II (compliesWith), Python SDK (providesSdk), Salesforce (integratesWith)
+- **Drift Findings**: 0 critical regulatory drifts
+- **Unmarketed Engineering Gold**: 2 capabilities

@@ -66,9 +66,12 @@ async def api_internal_links(req: InternalLinkAuditRequest):
             urls=req.urls,
             max_pages=req.max_pages
         )
+    except ValueError as val_err:
+        logger.warning("Internal link audit client error: %s", val_err)
+        raise HTTPException(status_code=400, detail=str(val_err))
     except Exception as e:
         logger.error("Internal link audit failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal link audit failed. Check server logs for details.")
+        raise HTTPException(status_code=500, detail=f"Internal link audit failed: {str(e)}")
 
 
 @router.post("/api/simulate-search", response_model=SearchSimulationResponse)

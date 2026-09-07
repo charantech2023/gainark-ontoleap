@@ -140,8 +140,24 @@ def test_api():
     print("  Ordway KG Status :", kg_ordway.get("status"))
     print("  Ordway Risk      :", kg_ordway.get("ai_overview_risk"))
 
+    print("\n[10] Testing POST /api/internal-links (Sitemap & Resilient Discovery) ...")
+    # Test invalid SSRF
+    r_bad = client.post("/api/internal-links", json={"sitemap_url": "http://127.0.0.1/sitemap.xml"})
+    assert r_bad.status_code == 400
+    print("  SSRF Guard Status:", r_bad.status_code, "(Blocked internal IP)")
+
+    # Test valid request with explicit URLs
+    r_links = client.post("/api/internal-links", json={
+        "urls": ["https://example.com"],
+        "max_pages": 1
+    })
+    assert r_links.status_code == 200, f"Error: {r_links.text}"
+    links_data = r_links.json()
+    print("  Internal Links   : 200 OK (Pages analyzed:", links_data["pages_analyzed"], ")")
+
     print("\nAll API tests PASSED successfully!")
 
 if __name__ == "__main__":
     test_api()
+
 
