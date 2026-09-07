@@ -791,6 +791,9 @@
                     <button type="button" id="subtab-industry-btn" onclick="switchSearchSubView('industry')" class="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition whitespace-nowrap">
                         🌐 Autonomous Profiler
                     </button>
+                    <button type="button" id="subtab-geo-btn" onclick="switchSearchSubView('geo')" class="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition whitespace-nowrap">
+                        📡 Live AI Search &amp; SOV
+                    </button>
                 </div>
             </div>
 
@@ -958,6 +961,168 @@
             </div>
         </section>
 
+        <!-- ============================================================= -->
+        <!-- TAB: LIVE AI SEARCH CITATION & SHARE OF VOICE (GEO)           -->
+        <!-- ============================================================= -->
+        <section id="view-geo" class="hidden space-y-8">
+            <!-- Header Banner -->
+            <div class="bg-gradient-to-r from-violet-950 via-slate-900 to-indigo-950 rounded-2xl p-6 text-white shadow-md">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-violet-500/20 text-violet-200 border border-violet-400/30">
+                                Generative Engine Optimization · Live AI Probing
+                            </span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                                3-Tier Multi-Engine
+                            </span>
+                        </div>
+                        <h2 class="text-xl font-extrabold mt-2">Live AI Search Citation &amp; Share of Voice (SOV)</h2>
+                        <p class="text-xs text-slate-300 mt-1 max-w-2xl">
+                            Probes real AI answer engines (Perplexity, SearchGPT, Google Gemini, and open web snippets) with unbranded B2B buyer queries. Measures whether AI recommends your brand or rivals, and audits whether claims are grounded or hallucinated.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="loadGeoSample()" class="px-3.5 py-2 text-xs font-bold text-violet-900 bg-white hover:bg-violet-50 rounded-xl shadow-sm transition">
+                            ⚡ Quick Test: Ordway vs Competitors
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuration & Audit Form Card -->
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+                <div class="border-b border-slate-100 pb-4">
+                    <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                        <span>📡 Buyer Query &amp; Citation Probing Configuration</span>
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        Configure target brand and competitors. Our engine synthesizes unbranded, high-intent buyer evaluation queries and probes AI search citation behavior.
+                    </p>
+                </div>
+
+                <form id="geo-audit-form" onsubmit="handleGeoCitationAudit(event)" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="geo-brand-name" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                                Company / Brand Name
+                            </label>
+                            <input type="text" id="geo-brand-name" value="Ordway" required placeholder="e.g. Ordway"
+                                class="block w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-violet-500 focus:bg-white text-slate-900 transition">
+                        </div>
+                        <div>
+                            <label for="geo-domain" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                                Website Domain
+                            </label>
+                            <input type="text" id="geo-domain" value="ordwaylabs.com" required placeholder="e.g. ordwaylabs.com"
+                                class="block w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-violet-500 focus:bg-white text-slate-900 transition">
+                        </div>
+                        <div>
+                            <label for="geo-competitors" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                                Competitor Brands (comma-separated)
+                            </label>
+                            <input type="text" id="geo-competitors" value="Chargebee, Stripe, Zuora" placeholder="e.g. Chargebee, Stripe, Zuora"
+                                class="block w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-violet-500 focus:bg-white text-slate-900 transition">
+                        </div>
+                    </div>
+
+                    <!-- Custom Queries (Optional) -->
+                    <div>
+                        <label for="geo-custom-queries" class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                            Custom Buyer Queries <span class="text-slate-400 font-normal normal-case">(optional; leave blank to auto-synthesize from ontology)</span>
+                        </label>
+                        <textarea id="geo-custom-queries" rows="2" placeholder="Which enterprise billing platforms comply with ASC 606 and NetSuite sync?&#10;Top alternatives to Chargebee for recurring invoicing"
+                            class="block w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-violet-500 focus:bg-white text-slate-900 transition"></textarea>
+                    </div>
+
+                    <button type="submit" id="geo-submit-btn"
+                        class="w-full inline-flex items-center justify-center px-5 py-3 text-xs font-bold text-white bg-violet-600 hover:bg-violet-700 rounded-xl shadow-md shadow-violet-500/20 transition disabled:opacity-50 gap-2">
+                        <span id="geo-btn-icon">📡</span>
+                        <span id="geo-btn-text">Execute Live AI Search Citation Audit &amp; Compute Share of Voice</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Results Container -->
+            <div id="geo-results-container" class="hidden space-y-6">
+                <!-- Top Metric Scorecard -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-white rounded-2xl p-5 border border-violet-200 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <div class="text-[11px] font-bold text-violet-700 uppercase tracking-wider">Share of AI Voice (SOV)</div>
+                            <div class="text-3xl font-extrabold text-slate-900 mt-2" id="geo-sov-score">0.0%</div>
+                        </div>
+                        <div class="text-[11px] text-slate-500 mt-2">Queries citing your brand</div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <div class="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Weighted Citation Score</div>
+                            <div class="text-3xl font-extrabold text-slate-900 mt-2" id="geo-weighted-score">0.0%</div>
+                        </div>
+                        <div class="text-[11px] text-slate-500 mt-2">Rank-weighted recommendation authority</div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <div class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Ontology Grounding</div>
+                            <div class="text-3xl font-extrabold text-slate-900 mt-2" id="geo-grounding-score">100%</div>
+                        </div>
+                        <div class="text-[11px] text-slate-500 mt-2">Claims verified by Truth Graph</div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <div class="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Citation Gaps</div>
+                            <div class="text-3xl font-extrabold text-slate-900 mt-2" id="geo-gaps-count">0</div>
+                        </div>
+                        <div class="text-[11px] text-slate-500 mt-2">Queries where rivals won recommendations</div>
+                    </div>
+                </div>
+
+                <!-- Competitor SOV Leaderboard -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <span>📊 AI Search Share of Voice: Brand vs. Competitors</span>
+                    </h4>
+                    <div id="geo-competitor-bars" class="space-y-3">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Query Citation Feed Table -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <span>🔍 Live Buyer Query Probing Results</span>
+                    </h4>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-xs text-left">
+                            <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                                <tr>
+                                    <th class="p-3">Buyer Query &amp; Intent</th>
+                                    <th class="p-3">Brand Citation</th>
+                                    <th class="p-3">Competitors Cited</th>
+                                    <th class="p-3">AI Engine Synthesis &amp; Grounding</th>
+                                </tr>
+                            </thead>
+                            <tbody id="geo-queries-tbody" class="divide-y divide-slate-100 font-medium">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Strategic Recommendations Card -->
+                <div class="bg-violet-50/50 rounded-2xl p-6 border border-violet-200 space-y-3">
+                    <h4 class="text-sm font-bold text-violet-950 flex items-center gap-2">
+                        <span>💡 Strategic Generative Engine Optimization (GEO) Recommendations</span>
+                    </h4>
+                    <ul id="geo-recommendations-list" class="space-y-2 text-xs text-violet-900">
+                        <!-- Populated dynamically -->
+                    </ul>
+                </div>
+            </div>
+        </section>
 
         <!-- ============================================================= -->
         <!-- TAB: SINGLE SITE AUDIT (ORIGINAL) -->
@@ -2664,7 +2829,7 @@ SELECT ?capability ?evidence WHERE {
         }
 
         const ALL_DASHBOARD_TABS = ['truth', 'battlecards', 'search'];
-        const SEARCH_SUBTABS = ['audit', 'linking', 'bench', 'alignment', 'industry'];
+        const SEARCH_SUBTABS = ['audit', 'linking', 'bench', 'alignment', 'industry', 'geo'];
         let currentSearchSubTab = 'audit';
 
         function switchSearchSubView(sub) {
@@ -3985,6 +4150,185 @@ SELECT ?capability ?evidence WHERE {
                 sel.value = currentDiscoveredVertical.vertical_id;
                 alert(`Active vertical updated to: ${currentDiscoveredVertical.display_name} (${currentDiscoveredVertical.vertical_id})!`);
             }
+        }
+
+        /* ------------------------------------------------------------- */
+        /* LIVE AI SEARCH CITATION & SHARE OF VOICE (GEO)                */
+        /* ------------------------------------------------------------- */
+        function loadGeoSample() {
+            const brandEl = document.getElementById('geo-brand-name');
+            const domEl = document.getElementById('geo-domain');
+            const compEl = document.getElementById('geo-competitors');
+            const qEl = document.getElementById('geo-custom-queries');
+            if (brandEl) brandEl.value = 'Ordway';
+            if (domEl) domEl.value = 'ordwaylabs.com';
+            if (compEl) compEl.value = 'Chargebee, Stripe, Zuora';
+            if (qEl) qEl.value = '';
+        }
+
+        async function handleGeoCitationAudit(e) {
+            e.preventDefault();
+            const brand = document.getElementById('geo-brand-name').value.trim();
+            const domain = document.getElementById('geo-domain').value.trim();
+            const compRaw = document.getElementById('geo-competitors').value.trim();
+            const customQRaw = document.getElementById('geo-custom-queries').value.trim();
+
+            const competitors = compRaw ? compRaw.split(',').map(c => c.trim()).filter(Boolean) : [];
+            const customQueries = customQRaw ? customQRaw.split('\n').map(q => q.trim()).filter(Boolean) : [];
+
+            const submitBtn = document.getElementById('geo-submit-btn');
+            const btnText = document.getElementById('geo-btn-text');
+            const btnIcon = document.getElementById('geo-btn-icon');
+            const resultsBox = document.getElementById('geo-results-container');
+
+            submitBtn.disabled = true;
+            btnText.innerText = 'Probing AI Answer Engines & Computing Share of Voice...';
+            btnIcon.innerText = '⏳';
+
+            try {
+                const triples = (currentTruthData && (currentTruthData.verified_triples || currentTruthData.verified_capabilities)) || [];
+
+                const payload = {
+                    brand_name: brand,
+                    domain: domain,
+                    competitor_names: competitors,
+                    triples: triples,
+                    vertical_id: document.getElementById('vertical-select') ? document.getElementById('vertical-select').value : 'b2b_saas_fintech',
+                    custom_queries: customQueries.length > 0 ? customQueries : null
+                };
+
+                const res = await fetch('/api/geo/citation-audit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) {
+                    const errMsg = await getApiErrorMessage(res, 'GEO citation audit failed');
+                    throw new Error(errMsg);
+                }
+
+                const data = await res.json();
+                renderGeoAuditResults(data);
+                resultsBox.classList.remove('hidden');
+            } catch (err) {
+                alert(`Error executing AI citation audit: ${err.message}`);
+            } finally {
+                submitBtn.disabled = false;
+                btnText.innerText = 'Execute Live AI Search Citation Audit & Compute Share of Voice';
+                btnIcon.innerText = '📡';
+            }
+        }
+
+        function renderGeoAuditResults(data) {
+            // 1. Top Scorecard
+            document.getElementById('geo-sov-score').innerText = `${data.share_of_voice.toFixed(1)}%`;
+            document.getElementById('geo-weighted-score').innerText = `${data.weighted_sov.toFixed(1)}%`;
+
+            const groundingEl = document.getElementById('geo-grounding-score');
+            if (data.hallucination_rate === 0.0) {
+                groundingEl.innerText = '100%';
+                groundingEl.className = 'text-3xl font-extrabold text-emerald-600 mt-2';
+            } else {
+                groundingEl.innerText = `${(100.0 - data.hallucination_rate).toFixed(0)}%`;
+                groundingEl.className = 'text-3xl font-extrabold text-amber-600 mt-2';
+            }
+
+            const gapsCount = (data.citation_gap_queries || []).length;
+            const gapsEl = document.getElementById('geo-gaps-count');
+            gapsEl.innerText = gapsCount;
+            gapsEl.className = gapsCount > 0 ? 'text-3xl font-extrabold text-amber-600 mt-2' : 'text-3xl font-extrabold text-slate-900 mt-2';
+
+            // 2. Competitor Share of Voice Bars
+            const compContainer = document.getElementById('geo-competitor-bars');
+            compContainer.innerHTML = '';
+
+            // Add target brand bar
+            const brandBar = document.createElement('div');
+            brandBar.className = 'space-y-1.5';
+            brandBar.innerHTML = `
+                <div class="flex items-center justify-between text-xs">
+                    <span class="font-bold text-violet-950 flex items-center gap-1.5">
+                        <span>⭐</span>
+                        <span>${escapeHtml(data.brand_name)} (You)</span>
+                    </span>
+                    <span class="font-extrabold text-violet-700">${data.share_of_voice.toFixed(1)}% SOV</span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                    <div class="h-2.5 rounded-full bg-violet-600 transition-all duration-500" style="width: ${Math.min(100, Math.max(0, data.share_of_voice))}%"></div>
+                </div>
+            `;
+            compContainer.appendChild(brandBar);
+
+            // Add competitors
+            const compSov = data.competitor_sov || {};
+            for (const [comp, sov] of Object.entries(compSov)) {
+                const cBar = document.createElement('div');
+                cBar.className = 'space-y-1.5';
+                const isLeader = sov > data.share_of_voice;
+                cBar.innerHTML = `
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="font-semibold text-slate-700">${escapeHtml(comp)}</span>
+                        <span class="font-bold ${isLeader ? 'text-rose-600' : 'text-slate-600'}">${sov.toFixed(1)}% SOV</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                        <div class="h-2 rounded-full ${isLeader ? 'bg-rose-400' : 'bg-slate-400'} transition-all duration-500" style="width: ${Math.min(100, Math.max(0, sov))}%"></div>
+                    </div>
+                `;
+                compContainer.appendChild(cBar);
+            }
+
+            // 3. Query Feed Table
+            const tbody = document.getElementById('geo-queries-tbody');
+            tbody.innerHTML = '';
+            (data.probe_results || []).forEach(res => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition';
+
+                let statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">🔴 Omitted</span>';
+                if (res.brand_cited) {
+                    if (res.brand_rank === 1) {
+                        statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">🟢 Cited (#1)</span>';
+                    } else {
+                        statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">🟡 Cited (#${res.brand_rank})</span>`;
+                    }
+                }
+
+                const compsStr = (res.competitors_cited || []).map(c => `<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-mono">${escapeHtml(c)}</span>`).join(' ') || '<span class="text-slate-400 text-[11px] italic">None</span>';
+
+                let claimsDetail = '';
+                if (res.verified_claims && res.verified_claims.length > 0) {
+                    claimsDetail += `<div class="text-[10px] text-emerald-700 mt-1">✓ Grounded: ${escapeHtml(res.verified_claims.join(', '))}</div>`;
+                }
+                if (res.hallucinated_claims && res.hallucinated_claims.length > 0) {
+                    claimsDetail += `<div class="text-[10px] text-rose-700 mt-1 font-semibold">⚠️ Unbacked: ${escapeHtml(res.hallucinated_claims.join(', '))}</div>`;
+                }
+
+                tr.innerHTML = `
+                    <td class="p-3 align-top max-w-xs">
+                        <div class="font-bold text-slate-900">${escapeHtml(res.query)}</div>
+                        <span class="text-[10px] text-slate-400 font-mono mt-0.5 uppercase">${escapeHtml(res.category || 'Buyer Intent')}</span>
+                    </td>
+                    <td class="p-3 align-top whitespace-nowrap">${statusBadge}</td>
+                    <td class="p-3 align-top max-w-[150px]"><div class="flex flex-wrap gap-1">${compsStr}</div></td>
+                    <td class="p-3 align-top text-slate-700 max-w-md">
+                        <p class="text-[11px] leading-relaxed line-clamp-3 hover:line-clamp-none transition">${escapeHtml(res.synthesized_answer)}</p>
+                        <div class="text-[10px] text-slate-400 mt-1 font-mono">${escapeHtml(res.engine_used || 'AI Answer Engine')}</div>
+                        ${claimsDetail}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // 4. Strategic Recommendations
+            const recList = document.getElementById('geo-recommendations-list');
+            recList.innerHTML = '';
+            (data.geo_recommendations || []).forEach(r => {
+                const li = document.createElement('li');
+                li.className = 'flex items-start gap-2';
+                li.innerHTML = `<span class="text-violet-600 mt-0.5 font-bold">→</span><span>${escapeHtml(r)}</span>`;
+                recList.appendChild(li);
+            });
         }
 
         // Initialize verticals on DOMContentLoaded

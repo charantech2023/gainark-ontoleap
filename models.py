@@ -687,3 +687,49 @@ class CompetitorOntologyResponse(BaseModel):
     wikidata_grounded: bool = False
     ontology_summary: str
 
+
+class GeoQueryItem(BaseModel):
+    """A synthesized or user-supplied high-intent buyer query."""
+    query_text: str = Field(..., description="High-intent buyer query, e.g. 'Which billing software supports ASC 606?'")
+    category: str = Field(default="Feature & Compliance", description="Intent category (Compliance, Integration, Automation, Shortlist)")
+    intent_stage: str = Field(default="Evaluation", description="Buyer journey stage (Discovery, Evaluation, Vendor Selection)")
+    targeted_capabilities: List[str] = Field(default_factory=list, description="Targeted ontology concepts/capabilities")
+
+
+class GeoProbeResult(BaseModel):
+    """Audit result for a single buyer query probed against an AI search engine."""
+    query: str
+    category: str = "Evaluation"
+    synthesized_answer: str = Field(..., description="Answer text from the AI search engine")
+    engine_used: str = Field(default="Google Gemini 2.5 Flash", description="AI search engine or fallback tier used")
+    brand_cited: bool = Field(..., description="Whether the evaluated brand was cited/recommended")
+    brand_rank: Optional[int] = Field(default=None, description="Rank/position of the brand if mentioned (1 = top recommendation)")
+    competitors_cited: List[str] = Field(default_factory=list, description="Competitor brands cited in the response")
+    verified_claims: List[str] = Field(default_factory=list, description="Claims about the brand backed by the ontology truth graph")
+    hallucinated_claims: List[str] = Field(default_factory=list, description="Claims about the brand that lack ontology backing")
+    citation_urls: List[str] = Field(default_factory=list, description="URLs cited or referenced by the engine")
+
+
+class GeoAuditRequest(BaseModel):
+    """Request payload for executing a multi-query GEO citation audit."""
+    brand_name: str = Field(..., description="Target brand to evaluate, e.g. 'Ordway'")
+    domain: str = Field(..., description="Target brand website domain, e.g. 'ordwaylabs.com'")
+    competitor_names: List[str] = Field(default_factory=list, description="Competitors to track, e.g. ['Chargebee', 'Stripe']")
+    triples: List[SemanticTriple] = Field(default_factory=list, description="Verified ontology triples for grounding check")
+    vertical_id: Optional[str] = Field(default="b2b_saas_fintech", description="Industry vertical ID")
+    custom_queries: Optional[List[str]] = Field(default=None, description="Optional custom buyer queries to probe")
+
+
+class GeoAuditResponse(BaseModel):
+    """Aggregated GEO Share of Voice & Citation Audit Report."""
+    brand_name: str
+    share_of_voice: float = Field(..., description="Percentage of queries where brand was cited (0-100%)")
+    weighted_sov: float = Field(..., description="Rank-weighted Share of Voice score (0-100%)")
+    ai_mention_rate: float = Field(..., description="Percentage of queries with positive brand mention")
+    hallucination_rate: float = Field(default=0.0, description="Percentage of AI-attributed claims lacking ontology verification")
+    competitor_sov: Dict[str, float] = Field(default_factory=dict, description="Share of Voice for each competitor (0-100%)")
+    probe_results: List[GeoProbeResult] = Field(default_factory=list, description="Detailed probe results for each buyer query")
+    citation_gap_queries: List[str] = Field(default_factory=list, description="High-intent queries where competitors were cited but brand was omitted")
+    geo_recommendations: List[str] = Field(default_factory=list, description="Strategic recommendations to improve AI search citation rate")
+
+

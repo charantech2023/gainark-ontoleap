@@ -19,9 +19,13 @@ from models import (
     DraftAlignmentRequest,
     DraftAlignmentResponse,
     ProductBriefRequest,
-    ProductBriefResponse
+    ProductBriefResponse,
+    GeoAuditRequest,
+    GeoAuditResponse,
+    GeoQueryItem
 )
 from routers.deps import get_pipeline
+import geo_engine
 
 logger = logging.getLogger("ontoleap.api.seo")
 
@@ -209,3 +213,38 @@ def api_content_brief(req: ProductBriefRequest):
     except Exception as e:
         logger.error("Content brief generation failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Content brief generation failed. Check server logs.")
+
+
+@router.post("/api/geo/citation-audit", response_model=GeoAuditResponse, summary="Execute Live AI Search Citation & Share of Voice Audit")
+def api_geo_citation_audit(req: GeoAuditRequest):
+    """
+    Evaluates real-world AI search engine citations (Gemini 2.5 Flash, DuckDuckGo snippets, or deterministic baseline)
+    for unbranded B2B buyer queries. Computes Share of AI Voice (SOV), Competitor SOV, and checks for hallucinations.
+    """
+    try:
+        return geo_engine.execute_geo_citation_audit(req)
+    except Exception as e:
+        logger.error("GEO citation audit failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"GEO citation audit failed: {e}")
+
+
+@router.post("/api/geo/generate-queries", response_model=List[GeoQueryItem], summary="Generate Ontology-Grounded Buyer Evaluation Queries")
+def api_geo_generate_queries(req: GeoAuditRequest):
+    """
+    Synthesizes realistic, unbranded high-intent buyer evaluation queries grounded in verified ontology capabilities.
+    """
+    try:
+        pipeline = get_pipeline(req.vertical_id) if req.vertical_id else None
+        v_name = pipeline.config.display_name if pipeline else "B2B SaaS"
+        return geo_engine.generate_buyer_queries(
+            brand_name=req.brand_name,
+            domain=req.domain,
+            triples=req.triples,
+            competitors=req.competitor_names,
+            vertical_name=v_name,
+            count=5,
+        )
+    except Exception as e:
+        logger.error("GEO query generation failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Query generation failed: {e}")
+
