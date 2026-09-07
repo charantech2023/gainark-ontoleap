@@ -27,6 +27,8 @@ from models import (
     GroundedConcept
 )
 
+from security import verticals_dir
+
 logger = logging.getLogger("gainark.industry_profiler")
 
 
@@ -289,15 +291,16 @@ def save_vertical_configuration(
     Saves the discovered vertical configuration into verticals/<vertical_id>.json
     so that OntologyPipeline can immediately instantiate it.
     """
-    os.makedirs("verticals", exist_ok=True)
+    target_dir = verticals_dir()
+    os.makedirs(target_dir, exist_ok=True)
     clean_id = _sanitize_slug(vertical_id)
-    config_path = os.path.join("verticals", f"{clean_id}.json")
+    config_path = os.path.join(target_dir, f"{clean_id}.json")
 
     # /api/discover-industry writes one profile per call and is reachable by anyone who
     # can reach the API, so without a ceiling repeated calls fill the disk. Overwriting
     # an existing profile is always allowed; only creating a brand new one is capped.
     if not os.path.exists(config_path):
-        existing = [f for f in os.listdir("verticals") if f.endswith(".json")]
+        existing = [f for f in os.listdir(target_dir) if f.endswith(".json")]
         if len(existing) >= MAX_VERTICAL_PROFILES:
             raise RuntimeError(
                 f"Vertical profile limit reached ({MAX_VERTICAL_PROFILES}). "

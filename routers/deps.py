@@ -8,14 +8,14 @@ from typing import Optional, Set
 from fastapi import HTTPException
 
 from pipeline import OntologyPipeline
-from security import BoundedRegistry, is_valid_vertical_id
+from security import BoundedRegistry, is_valid_vertical_id, verticals_dir
 
 logger = logging.getLogger("ontoleap.api.deps")
 
 # Directory holding vertical ontology profiles, resolved absolutely so behaviour does
 # not depend on the process working directory.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-VERTICALS_DIR = os.path.join(BASE_DIR, "verticals")
+VERTICALS_DIR = verticals_dir()
 CONFIGS_DIR = os.path.join(BASE_DIR, "configs")
 DEFAULT_CONFIG = os.path.join(BASE_DIR, "vertical_config.json")
 

@@ -1,9 +1,32 @@
 """
 Test suite for Autonomous Industry Profiler (Step 1 of Tri-Ontology Architecture)
 Verifies zero-shot discovery across different B2B domains.
+
+This suite calls POST /api/discover-industry, which PERSISTS a vertical profile.
+Left pointing at the repo's verticals/ directory it overwrites hand-curated profiles
+with freshly discovered ones -- and since those edits are often uncommitted, they are
+then unrecoverable. The redirect below must be set before `api` is imported, because
+the profile directory is resolved at import time.
 """
 
 import os
+import tempfile
+
+_TEST_VERTICALS_DIR = os.path.join(tempfile.gettempdir(), "ontoleap_test_verticals")
+os.makedirs(_TEST_VERTICALS_DIR, exist_ok=True)
+os.environ.setdefault("ONTOLEAP_VERTICALS_DIR", _TEST_VERTICALS_DIR)
+
+# Seed the disposable directory with the real profiles so discovery and lookup behave
+# as they do in production, while writes land somewhere throwaway.
+_REPO_VERTICALS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "verticals")
+if os.path.isdir(_REPO_VERTICALS):
+    import shutil
+    for _f in os.listdir(_REPO_VERTICALS):
+        if _f.endswith(".json"):
+            _dst = os.path.join(_TEST_VERTICALS_DIR, _f)
+            if not os.path.exists(_dst):
+                shutil.copy2(os.path.join(_REPO_VERTICALS, _f), _dst)
+
 from fastapi.testclient import TestClient
 from api import app, get_pipeline
 

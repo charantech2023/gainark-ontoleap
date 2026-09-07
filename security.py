@@ -39,6 +39,26 @@ def is_valid_vertical_id(vertical_id: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Vertical profile storage location
+# ---------------------------------------------------------------------------
+# Industry discovery writes a profile per call, and the test suite exercises that
+# endpoint against live sites. With a hardcoded directory a test run silently
+# overwrites hand-curated profiles in the repo, and those edits are unrecoverable if
+# they were never committed. One env var lets tests redirect writes somewhere
+# disposable while production keeps the default.
+
+_PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+
+def verticals_dir() -> str:
+    """Directory holding vertical ontology profiles. Override with ONTOLEAP_VERTICALS_DIR."""
+    override = os.environ.get("ONTOLEAP_VERTICALS_DIR", "").strip()
+    if override:
+        return os.path.abspath(override)
+    return os.path.join(_PROJECT_ROOT, "verticals")
+
+
+# ---------------------------------------------------------------------------
 # HTTP header / filename safety
 # ---------------------------------------------------------------------------
 _UNSAFE_FILENAME_CHARS = re.compile(r'[^A-Za-z0-9._-]+')
