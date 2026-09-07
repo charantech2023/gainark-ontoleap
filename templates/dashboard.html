@@ -118,46 +118,127 @@
         </div>
     </header>
 
-    <!-- Navigation Tabs -->
+    <!-- Executive Navigation Tabs -->
     <div class="bg-white border-b border-slate-200 sticky top-16 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-6 sm:space-x-8 overflow-x-auto">
-            <button id="tab-truth-btn" onclick="switchTab('truth')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors tab-active flex items-center gap-1.5 whitespace-nowrap">
-                <span>⚖️ Product Truth Matrix</span>
-                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 uppercase">Dual Ingest</span>
-            </button>
-            <button id="tab-battlecards-btn" onclick="switchTab('battlecards')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors flex items-center gap-1.5 whitespace-nowrap">
-                <span>⚔️ Tri-Ontology Battlecards</span>
-                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 uppercase">Grounded AI</span>
-            </button>
-            <button id="tab-industry-btn" onclick="switchTab('industry')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors flex items-center gap-1.5 whitespace-nowrap">
-                <span>🌐 Industry Profiler</span>
-                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 uppercase">Zero-Shot</span>
-            </button>
-            <button id="tab-alignment-btn" onclick="switchTab('alignment')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors flex items-center gap-1.5 whitespace-nowrap">
-                <span>📝 Pre-Publish Linter (PAS)</span>
-                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 uppercase">Fluff Radar</span>
-            </button>
-            <button id="tab-audit-btn" onclick="switchTab('audit')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors whitespace-nowrap">
-                🔍 Single Site Audit
-            </button>
-            <button id="tab-bench-btn" onclick="switchTab('bench')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors whitespace-nowrap">
-                📊 Competitor Benchmark
-            </button>
-            <button id="tab-linking-btn" onclick="switchTab('linking')" class="py-4 text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-colors flex items-center gap-1.5 whitespace-nowrap">
-                <span>🕸️ Site Graph &amp; Linking</span>
-            </button>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+            <div class="flex space-x-4 sm:space-x-8 overflow-x-auto py-1">
+                <button id="tab-truth-btn" onclick="switchTab('truth')" class="py-3 text-sm font-semibold text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-all tab-active flex items-center gap-2 whitespace-nowrap">
+                    <span class="text-base">⚖️</span>
+                    <span>Product Truth &amp; Governance</span>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 uppercase">MGI Engine</span>
+                </button>
+                <button id="tab-battlecards-btn" onclick="switchTab('battlecards')" class="py-3 text-sm font-semibold text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-all flex items-center gap-2 whitespace-nowrap">
+                    <span class="text-base">⚔️</span>
+                    <span>Competitive Battlecards &amp; Drift</span>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 uppercase">Sales Intel</span>
+                </button>
+                <button id="tab-search-btn" onclick="switchTab('search')" class="py-3 text-sm font-semibold text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-all flex items-center gap-2 whitespace-nowrap">
+                    <span class="text-base">🌐</span>
+                    <span>AI Search (GEO) &amp; Knowledge Graph</span>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 uppercase">Perplexity / LLMs</span>
+                </button>
+            </div>
+            <div class="hidden lg:flex items-center gap-2 text-xs text-slate-500">
+                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>W3C PROV-O &amp; SHACL Certified</span>
+            </div>
         </div>
     </div>
 
     <!-- Main Container -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
         <!-- ============================================================= -->
-        <!-- TAB 1: SINGLE SITE AUDIT -->
+        <!-- ⚡ UNIFIED 1-CLICK EXECUTIVE COMMAND CENTER                  -->
         <!-- ============================================================= -->
-        
+        <section class="bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 rounded-2xl p-6 text-white shadow-lg border border-slate-800">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                <div class="space-y-1.5 max-w-xl">
+                    <div class="flex items-center gap-2">
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-sky-500/20 text-sky-200 border border-sky-400/30">
+                            Unified Enterprise Intelligence Bar
+                        </span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                            Zero-Configuration Ingestion
+                        </span>
+                    </div>
+                    <h2 class="text-xl sm:text-2xl font-black text-white tracking-tight">Audit Truth, Competitors &amp; AI Citations</h2>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Enter any B2B domain. OntoLeap auto-discovers developer specs, verifies public marketing claims against technical truth, exposes competitor vulnerabilities, and builds W3C knowledge graphs.
+                    </p>
+                </div>
+
+                <!-- 1-Click Scan Form -->
+                <div class="w-full lg:max-w-lg bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/15 space-y-3">
+                    <form id="unified-scan-form" onsubmit="handleUnifiedScan(event)" class="flex flex-col sm:flex-row gap-2">
+                        <div class="relative flex-1">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">🌐</span>
+                            <input type="url" id="unified-scan-url" required value="https://www.ordwaylabs.com" placeholder="https://company.com"
+                                class="w-full pl-8 pr-3 py-2.5 text-xs font-medium bg-white text-slate-900 rounded-xl border-0 shadow-inner focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                        </div>
+                        <button type="submit" id="unified-scan-btn"
+                            class="px-5 py-2.5 bg-gradient-to-r from-sky-500 to-brand-600 hover:from-sky-400 hover:to-brand-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 whitespace-nowrap">
+                            <span>⚡ Run Audit</span>
+                        </button>
+                    </form>
+
+                    <!-- Presets & Advanced Toggle -->
+                    <div class="flex items-center justify-between text-[11px] text-slate-300 pt-1 flex-wrap gap-2">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="text-slate-400 font-semibold">Presets:</span>
+                            <button type="button" onclick="loadUnifiedPreset('ordway')" class="px-2 py-0.5 rounded bg-white/15 hover:bg-white/25 text-white font-medium transition">Ordway (SaaS)</button>
+                            <button type="button" onclick="loadUnifiedPreset('chargebee')" class="px-2 py-0.5 rounded bg-white/15 hover:bg-white/25 text-white font-medium transition">Chargebee (Billing)</button>
+                            <button type="button" onclick="loadUnifiedPreset('snyk')" class="px-2 py-0.5 rounded bg-white/15 hover:bg-white/25 text-white font-medium transition">Snyk (SecOps)</button>
+                        </div>
+                        <button type="button" onclick="toggleAdvancedSettings()" class="text-sky-300 hover:text-white font-semibold flex items-center gap-1">
+                            <span>⚙️ Options</span>
+                            <span id="adv-arrow">&darr;</span>
+                        </button>
+                    </div>
+
+                    <!-- Collapsible Advanced Drawer -->
+                    <div id="unified-advanced-drawer" class="hidden pt-3 border-t border-white/10 space-y-2 text-xs">
+                        <div>
+                            <label for="unified-custom-docs" class="block text-[10px] font-bold text-slate-300 uppercase tracking-wider mb-1">Custom Tech Docs URL (Optional)</label>
+                            <input type="url" id="unified-custom-docs" placeholder="https://docs.company.com/openapi.json"
+                                class="w-full px-3 py-1.5 text-xs bg-slate-900/80 border border-slate-700 rounded-lg text-slate-100 font-mono focus:ring-1 focus:ring-sky-400">
+                        </div>
+                        <div>
+                            <label for="unified-custom-competitors" class="block text-[10px] font-bold text-slate-300 uppercase tracking-wider mb-1">Target Competitor URLs (Comma-separated)</label>
+                            <input type="text" id="unified-custom-competitors" value="https://www.chargebee.com" placeholder="https://rival1.com, https://rival2.com"
+                                class="w-full px-3 py-1.5 text-xs bg-slate-900/80 border border-slate-700 rounded-lg text-slate-100 font-mono focus:ring-1 focus:ring-sky-400">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Executive Health Scorecard -->
+            <div id="top-executive-scorecard" class="mt-6 pt-6 border-t border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="bg-slate-900/70 p-3.5 rounded-xl border border-slate-800/80">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-sky-400">Grounding Index (MGI)</div>
+                    <div class="text-2xl font-black text-white mt-1" id="kpi-mgi-score">--</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5" id="kpi-mgi-subtitle">Awaiting audit run</div>
+                </div>
+                <div class="bg-slate-900/70 p-3.5 rounded-xl border border-slate-800/80">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-rose-400">Critical Drift Alerts</div>
+                    <div class="text-2xl font-black text-white mt-1" id="kpi-drift-count">--</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5" id="kpi-drift-subtitle">Regulatory &amp; Integration</div>
+                </div>
+                <div class="bg-slate-900/70 p-3.5 rounded-xl border border-slate-800/80">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Exclusive Advantages</div>
+                    <div class="text-2xl font-black text-white mt-1" id="kpi-adv-count">--</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5" id="kpi-adv-subtitle">Verified vs Competitors</div>
+                </div>
+                <div class="bg-slate-900/70 p-3.5 rounded-xl border border-slate-800/80">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-indigo-400">Structured Data Score</div>
+                    <div class="text-2xl font-black text-white mt-1" id="kpi-geo-score">--</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5" id="kpi-geo-subtitle">Readiness Index (0–100)</div>
+                </div>
+            </div>
+        </section>
+
         <!-- ============================================================= -->
-        <!-- TAB: PRODUCT TRUTH MATRIX (DUAL INGESTION & MGI) -->
+        <!-- WORKSPACE 1: PRODUCT TRUTH & GOVERNANCE                      -->
         <!-- ============================================================= -->
         <section id="view-truth" class="space-y-8">
             <!-- Header Banner -->
@@ -410,6 +491,14 @@
                             class="px-4 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition shadow-sm flex items-center gap-1.5">
                             <span>📝 Pre-Publish Lint Drafts</span>
                         </button>
+                        <button type="button" onclick="handleValidateShacl()"
+                            class="px-4 py-2 text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-xl transition shadow-sm border border-slate-700 flex items-center gap-1.5">
+                            <span>🛡️ Validate W3C SHACL</span>
+                        </button>
+                        <button type="button" onclick="handleExportProvTtl()"
+                            class="px-4 py-2 text-xs font-bold bg-sky-950 hover:bg-sky-900 text-sky-200 rounded-xl transition shadow-sm border border-sky-800 flex items-center gap-1.5">
+                            <span>📥 Export PROV-O (.ttl)</span>
+                        </button>
                     </div>
                 </div>
 
@@ -602,9 +691,92 @@
                     <!-- Populated dynamically -->
                 </div>
 
+                <!-- Competitor Claim Movement & Drift Timeline Card -->
+                <div id="battle-competitor-timeline-card" class="bg-white rounded-2xl p-6 border border-amber-200/80 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-amber-100 pb-4">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                    Ledger Audit Trail
+                                </span>
+                                <span class="text-[10px] font-semibold text-slate-500">Consecutive Diffing &amp; Noise Gating</span>
+                            </div>
+                            <h3 class="text-base font-bold text-slate-900 mt-1 flex items-center gap-2">
+                                <span>⏱️ Competitor Claim Movement &amp; Drift Timeline</span>
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-0.5">
+                                Tracks what competitors started claiming, dropped claiming, or gained technical backing across historical audits.
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label for="timeline-brand-select" class="text-xs font-semibold text-slate-600">Tracked Brand:</label>
+                            <select id="timeline-brand-select" onchange="fetchAndRenderCompetitorTimeline(this.value)" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500">
+                                <option value="Chargebee" selected>Chargebee</option>
+                                <option value="Ordway">Ordway</option>
+                            </select>
+                            <button type="button" onclick="refreshTrackedBrands()" class="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100" title="Refresh Tracked Brands">
+                                🔄
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Timeline Stream Container -->
+                    <div id="competitor-timeline-content" class="space-y-4 pt-2">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </div>
+
             </div>
         </section>
 
+
+        <!-- ============================================================= -->
+        <!-- WORKSPACE 3: AI SEARCH (GEO) & KNOWLEDGE GRAPH ENGINE         -->
+        <!-- ============================================================= -->
+        <section id="view-search" class="hidden space-y-8">
+            <!-- Header Banner -->
+            <div class="bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-md">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-indigo-500/20 text-indigo-200 border border-indigo-400/30">
+                                Generative Engine Optimization (GEO) · W3C Linked Data
+                            </span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                                Step 3 Complete
+                            </span>
+                        </div>
+                        <h2 class="text-xl font-extrabold mt-2">AI Search Readiness, Graph Topology &amp; Authority</h2>
+                        <p class="text-xs text-slate-300 mt-1 max-w-2xl">
+                            Position your brand to be cited by Perplexity, SearchGPT, Claude, and Gemini. Audit single-page Schema.org semantic density, crawl site-wide topic clusters, and compare against rival domain graphs.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Segmented Subview Navigation -->
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                <div class="flex items-center gap-2 overflow-x-auto">
+                    <button type="button" id="subtab-audit-btn" onclick="switchSearchSubView('audit')" class="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-900 text-white shadow-sm transition whitespace-nowrap">
+                        🔍 Single-Page Schema (40/30/30)
+                    </button>
+                    <button type="button" id="subtab-linking-btn" onclick="switchSearchSubView('linking')" class="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition whitespace-nowrap">
+                        🕸️ Site-Wide Knowledge Graph (4x25%)
+                    </button>
+                    <button type="button" id="subtab-bench-btn" onclick="switchSearchSubView('bench')" class="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition whitespace-nowrap">
+                        ⚡ Comparative Benchmark
+                    </button>
+                    <button type="button" id="subtab-alignment-btn" onclick="switchSearchSubView('alignment')" class="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition whitespace-nowrap">
+                        📝 AI Draft Alignment
+                    </button>
+                    <button type="button" id="subtab-industry-btn" onclick="switchSearchSubView('industry')" class="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition whitespace-nowrap">
+                        🌐 Autonomous Profiler
+                    </button>
+                </div>
+            </div>
+
+            <!-- Subview Containers -->
+            <div id="search-subviews-container" class="space-y-6">
 
         <!-- ============================================================= -->
         <!-- TAB: AUTONOMOUS INDUSTRY PROFILER -->
@@ -2315,6 +2487,8 @@ SELECT ?capability ?evidence WHERE {
 
             </div>
         </section>
+            </div>
+        </section>
 
     </main>
 
@@ -2397,6 +2571,8 @@ SELECT ?capability ?evidence WHERE {
             if (hostEl && window.location.origin) {
                 hostEl.innerText = window.location.origin;
             }
+            refreshTrackedBrands();
+            fetchAndRenderCompetitorTimeline('Chargebee');
         });
 
 
@@ -2468,27 +2644,681 @@ SELECT ?capability ?evidence WHERE {
             }
         }
 
-        const ALL_DASHBOARD_TABS = ['truth', 'battlecards', 'industry', 'alignment', 'audit', 'bench', 'linking'];
+        const ALL_DASHBOARD_TABS = ['truth', 'battlecards', 'search'];
+        const SEARCH_SUBTABS = ['audit', 'linking', 'bench', 'alignment', 'industry'];
+        let currentSearchSubTab = 'audit';
 
-        function switchTab(tab) {
-            ALL_DASHBOARD_TABS.forEach(t => {
-                const btn = document.getElementById(`tab-${t}-btn`);
-                const view = document.getElementById(`view-${t}`);
-                if (btn) btn.classList.remove('tab-active');
+        function switchSearchSubView(sub) {
+            currentSearchSubTab = sub;
+            SEARCH_SUBTABS.forEach(s => {
+                const btn = document.getElementById(`subtab-${s}-btn`);
+                const view = document.getElementById(`view-${s}`);
+                if (btn) {
+                    btn.classList.remove('bg-slate-900', 'text-white');
+                    btn.classList.add('bg-slate-100', 'text-slate-700');
+                }
                 if (view) view.classList.add('hidden');
             });
-            const activeBtn = document.getElementById(`tab-${tab}-btn`);
-            const activeView = document.getElementById(`view-${tab}`);
-            if (activeBtn) activeBtn.classList.add('tab-active');
+
+            const activeBtn = document.getElementById(`subtab-${sub}-btn`);
+            const activeView = document.getElementById(`view-${sub}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-slate-100', 'text-slate-700');
+                activeBtn.classList.add('bg-slate-900', 'text-white');
+            }
             if (activeView) activeView.classList.remove('hidden');
 
-            if (tab === 'linking' && currentLinkingData && currentLinkingData.cluster_topology) {
+            if (sub === 'linking' && currentLinkingData && currentLinkingData.cluster_topology) {
                 setTimeout(() => {
                     if (typeof initClusterGraph === 'function') {
                         initClusterGraph(currentLinkingData.cluster_topology);
                     }
                 }, 50);
             }
+        }
+
+        function switchTab(tab) {
+            let targetTab = tab;
+            let targetSubTab = null;
+
+            if (SEARCH_SUBTABS.includes(tab)) {
+                targetTab = 'search';
+                targetSubTab = tab;
+            } else if (tab === 'search') {
+                targetSubTab = currentSearchSubTab || 'audit';
+            }
+
+            ALL_DASHBOARD_TABS.forEach(t => {
+                const btn = document.getElementById(`tab-${t}-btn`);
+                const view = document.getElementById(`view-${t}`);
+                if (btn) btn.classList.remove('tab-active');
+                if (view) view.classList.add('hidden');
+            });
+
+            const activeBtn = document.getElementById(`tab-${targetTab}-btn`);
+            const activeView = document.getElementById(`view-${targetTab}`);
+            if (activeBtn) activeBtn.classList.add('tab-active');
+            if (activeView) activeView.classList.remove('hidden');
+
+            if (targetTab === 'search' && targetSubTab) {
+                switchSearchSubView(targetSubTab);
+            }
+        }
+
+        /* ------------------------------------------------------------- */
+        /* UNIFIED EXECUTIVE COMMAND CENTER & PRESETS                    */
+        /* ------------------------------------------------------------- */
+        function toggleAdvancedSettings() {
+            const drawer = document.getElementById('unified-advanced-drawer');
+            const arrow = document.getElementById('adv-arrow');
+            if (!drawer) return;
+            const isHidden = drawer.classList.contains('hidden');
+            if (isHidden) {
+                drawer.classList.remove('hidden');
+                if (arrow) arrow.innerHTML = '&uarr;';
+            } else {
+                drawer.classList.add('hidden');
+                if (arrow) arrow.innerHTML = '&darr;';
+            }
+        }
+
+        function loadUnifiedPreset(preset) {
+            const presets = {
+                ordway: {
+                    url: 'https://www.ordwaylabs.com',
+                    brand: 'Ordway',
+                    docs: '',
+                    competitors: 'https://www.chargebee.com'
+                },
+                chargebee: {
+                    url: 'https://www.chargebee.com',
+                    brand: 'Chargebee',
+                    docs: 'https://apidocs.chargebee.com',
+                    competitors: 'https://www.ordwaylabs.com'
+                },
+                snyk: {
+                    url: 'https://snyk.io',
+                    brand: 'Snyk',
+                    docs: 'https://docs.snyk.io',
+                    competitors: 'https://www.wiz.io'
+                }
+            };
+            const p = presets[preset];
+            if (!p) return;
+            const urlInput = document.getElementById('unified-scan-url');
+            const docsInput = document.getElementById('unified-custom-docs');
+            const compInput = document.getElementById('unified-custom-competitors');
+            if (urlInput) urlInput.value = p.url;
+            if (docsInput) docsInput.value = p.docs;
+            if (compInput) compInput.value = p.competitors;
+
+            const fakeEvent = { preventDefault: () => {} };
+            handleUnifiedScan(fakeEvent);
+        }
+
+        async function handleUnifiedScan(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            const urlInput = document.getElementById('unified-scan-url');
+            if (!urlInput || !urlInput.value) return;
+            const url = urlInput.value.trim();
+            const docsInput = document.getElementById('unified-custom-docs');
+            const docsUrl = docsInput ? docsInput.value.trim() : '';
+            const btn = document.getElementById('unified-scan-btn');
+            const originalBtnHtml = btn ? btn.innerHTML : '';
+
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<span>⏳ Auditing...</span>`;
+            }
+
+            let brand = 'Brand';
+            try {
+                const parsed = new URL(url);
+                brand = parsed.hostname.replace('www.', '').split('.')[0];
+                brand = brand.charAt(0).toUpperCase() + brand.slice(1);
+            } catch {}
+
+            const tUrl = document.getElementById('truth-marketing-url');
+            const tBrand = document.getElementById('truth-brand-name');
+            const tDocs = document.getElementById('truth-docs-url');
+            if (tUrl) tUrl.value = url;
+            if (tBrand) tBrand.value = brand;
+            if (tDocs) tDocs.value = docsUrl;
+
+            const aUrl = document.getElementById('audit-url');
+            if (aUrl) aUrl.value = url;
+
+            switchTab('truth');
+
+            try {
+                const vertSelect = document.getElementById('vertical-select');
+                const vertId = vertSelect ? vertSelect.value : 'b2b_saas_fintech';
+                const specEl = document.getElementById('truth-spec-json');
+                const specContent = specEl ? specEl.value.trim() : '';
+                let openapiSpec = null;
+                if (specContent) {
+                    try {
+                        openapiSpec = JSON.parse(specContent);
+                    } catch {}
+                }
+
+                const truthPayload = {
+                    brand_name: brand,
+                    company_name: brand,
+                    marketing_url: url,
+                    tech_docs_url: docsUrl || null,
+                    vertical_id: vertId,
+                    openapi_spec: openapiSpec
+                };
+
+                const [truthRes, auditRes] = await Promise.allSettled([
+                    fetch('/api/product-truth', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(truthPayload)
+                    }),
+                    fetch('/api/audit', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: url, vertical_id: vertId })
+                    })
+                ]);
+
+                if (truthRes.status === 'fulfilled' && truthRes.value.ok) {
+                    const data = await truthRes.value.json();
+                    currentTruthMatrix = data;
+                    renderTruthMatrixData(data, brand);
+                }
+
+                if (auditRes.status === 'fulfilled' && auditRes.value.ok) {
+                    const adata = await auditRes.value.json();
+                    renderAuditResult(adata);
+                    const resultsSection = document.getElementById('audit-results');
+                    if (resultsSection) resultsSection.classList.remove('hidden');
+                }
+
+                fetchAndRenderCompetitorTimeline(brand);
+            } catch (err) {
+                console.error('Error in unified scan:', err);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalBtnHtml;
+                }
+            }
+        }
+
+        /* ------------------------------------------------------------- */
+        /* COMPETITOR CLAIM MOVEMENT & DRIFT TIMELINE                     */
+        /* ------------------------------------------------------------- */
+        async function refreshTrackedBrands() {
+            const select = document.getElementById('timeline-brand-select');
+            if (!select) return;
+            try {
+                const res = await fetch('/api/competitor-changes');
+                if (!res.ok) return;
+                const data = await res.json();
+                const brands = data.brands || [];
+                if (brands.length === 0) return;
+                const cur = select.value;
+                select.innerHTML = '';
+                brands.forEach(b => {
+                    const opt = document.createElement('option');
+                    opt.value = b.brand;
+                    opt.innerText = `${b.brand} (${b.snapshots} audits)`;
+                    if (b.brand.toLowerCase() === cur.toLowerCase()) opt.selected = true;
+                    select.appendChild(opt);
+                });
+            } catch (e) {
+                console.warn('Could not refresh tracked brands:', e);
+            }
+        }
+
+        async function fetchAndRenderCompetitorTimeline(brand) {
+            const container = document.getElementById('competitor-timeline-content');
+            if (!container) return;
+            if (!brand) brand = 'Chargebee';
+
+            container.innerHTML = `
+                <div class="p-4 text-center text-xs text-slate-400">
+                    <span class="inline-block animate-spin mr-1.5">⏳</span> Loading ledger timeline for ${escapeHtml(brand)}...
+                </div>
+            `;
+
+            try {
+                const res = await fetch(`/api/competitor-changes?brand=${encodeURIComponent(brand)}`);
+                if (!res.ok) {
+                    container.innerHTML = `
+                        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-500">
+                            No ledger history available yet for <strong class="text-slate-700">${escapeHtml(brand)}</strong>.
+                        </div>
+                    `;
+                    return;
+                }
+                const data = await res.json();
+                const changes = data.changes || [];
+                if (changes.length === 0) {
+                    container.innerHTML = `
+                        <div class="p-5 rounded-xl bg-slate-50 border border-slate-200 text-center text-xs text-slate-600 space-y-2">
+                            <div class="text-2xl">🌱</div>
+                            <div class="font-bold text-slate-800">Snapshot Registered for ${escapeHtml(brand)}</div>
+                            <div class="text-slate-500 max-w-md mx-auto">
+                                The ledger has ${data.snapshots || 1} snapshot recorded. Run subsequent audits to track additions, dropped capabilities, and grounding drift.
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '<div class="relative border-l-2 border-amber-300 ml-4 pl-6 space-y-6">';
+                changes.forEach(ch => {
+                    const gFrom = (ch.grounding_from * 100).toFixed(0);
+                    const gTo = (ch.grounding_to * 100).toFixed(0);
+                    const gDelta = (gTo - gFrom);
+                    const deltaColor = gDelta >= 0 ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-rose-600 bg-rose-50 border-rose-200';
+                    const deltaIcon = gDelta >= 0 ? '↗' : '↘';
+
+                    html += `
+                        <div class="relative group">
+                            <div class="absolute -left-[31px] top-1.5 w-3 h-3 rounded-full bg-amber-500 border-2 border-white shadow-xs"></div>
+                            <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
+                                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                                    <div class="text-xs font-bold text-slate-900">
+                                        Audit Shift: <span class="font-mono text-slate-600">${escapeHtml(ch.from)}</span> &rarr; <span class="font-mono text-slate-600">${escapeHtml(ch.to)}</span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${deltaColor}">
+                                            MGI: ${gFrom}% &rarr; ${gTo}% (${deltaIcon} ${Math.abs(gDelta)}%)
+                                        </span>
+                                        ${ch.low_confidence ? '<span class="text-[10px] font-semibold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">Low Confidence</span>' : ''}
+                                    </div>
+                                </div>
+
+                                ${ch.added && ch.added.length > 0 ? `
+                                    <div>
+                                        <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-700 mb-1">
+                                            + Started Claiming (${ch.added.length})
+                                        </div>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            ${ch.added.map(a => `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-100 text-emerald-800 border border-emerald-200">+ ${escapeHtml(a)}</span>`).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+
+                                ${ch.dropped && ch.dropped.length > 0 ? `
+                                    <div>
+                                        <div class="text-[10px] font-bold uppercase tracking-wider text-rose-700 mb-1">
+                                            - Dropped / Abandoned (${ch.dropped.length})
+                                        </div>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            ${ch.dropped.map(d => `<span class="px-2 py-0.5 rounded text-[11px] font-medium bg-rose-100 text-rose-800 border border-rose-200">- ${escapeHtml(d)}</span>`).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+
+                                ${ch.notes && ch.notes.length > 0 ? `
+                                    <div class="pt-2 border-t border-slate-200/80 text-[11px] text-slate-500">
+                                        ${ch.notes.map(n => `<div>ℹ️ ${escapeHtml(n)}</div>`).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            } catch (err) {
+                container.innerHTML = `<div class="p-4 text-xs text-rose-600">Failed to load timeline: ${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        /* ------------------------------------------------------------- */
+        /* W3C SHACL GOVERNANCE & PROV-O TURTLE EXPORT                   */
+        /* ------------------------------------------------------------- */
+        async function handleValidateShacl() {
+            if (!currentTruthMatrix) {
+                alert('Please run or load a Product Truth Audit first before validating W3C SHACL.');
+                return;
+            }
+
+            const modal = document.getElementById('shacl-modal');
+            const statusCard = document.getElementById('shacl-status-card');
+            const container = document.getElementById('shacl-violations-container');
+            const reportPre = document.getElementById('shacl-report-text');
+
+            if (statusCard) {
+                statusCard.className = 'p-4 rounded-xl border border-sky-200 bg-sky-50 flex items-center justify-between';
+                statusCard.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="animate-spin text-xl">⏳</span>
+                        <div>
+                            <div class="text-xs font-bold text-sky-900">Validating Knowledge Graph against W3C SHACL Shapes...</div>
+                            <div class="text-[10px] text-sky-700">Checking ontology constraints, required predicates, and non-empty literals</div>
+                        </div>
+                    </div>
+                `;
+            }
+            if (container) container.innerHTML = '';
+            if (reportPre) {
+                reportPre.innerText = '';
+                reportPre.classList.add('hidden');
+            }
+            if (modal) modal.classList.remove('hidden');
+
+            try {
+                const provRes = await fetch('/api/export-product-truth-prov', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(currentTruthMatrix)
+                });
+                if (!provRes.ok) {
+                    throw new Error('Failed to serialize Product Truth into PROV-O Turtle format.');
+                }
+                const provData = await provRes.json();
+                const turtle = provData.rdf_turtle;
+
+                const shaclRes = await fetch('/api/validate-kg-shacl', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rdf_turtle: turtle })
+                });
+                if (!shaclRes.ok) {
+                    throw new Error('SHACL validation endpoint returned an error.');
+                }
+                const shaclData = await shaclRes.json();
+
+                if (shaclData.conforms) {
+                    statusCard.className = 'p-4 rounded-xl border border-emerald-200 bg-emerald-50 flex items-center justify-between';
+                    statusCard.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">✅</span>
+                            <div>
+                                <div class="text-xs font-bold text-emerald-900">Ontology Conforms to W3C SHACL Standards</div>
+                                <div class="text-[10px] text-emerald-700">0 constraint violations detected · Enterprise Graph Governance Certified</div>
+                            </div>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-xs font-black bg-emerald-600 text-white shadow-xs">CONFORMS</span>
+                    `;
+                    container.innerHTML = `
+                        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-1">
+                            <div class="font-bold text-slate-800">W3C Shapes Constraint Language (SHACL) Evaluation:</div>
+                            <div>• All verified capabilities satisfy W3C owl:Class definitions.</div>
+                            <div>• Domain, range, and provenance assertions validated.</div>
+                            <div>• Ready for direct ingest into enterprise graph stores (Neo4j, Ontotext GraphDB, Amazon Neptune).</div>
+                        </div>
+                    `;
+                } else {
+                    const count = shaclData.violations_count || (shaclData.violations ? shaclData.violations.length : 1);
+                    statusCard.className = 'p-4 rounded-xl border border-rose-200 bg-rose-50 flex items-center justify-between';
+                    statusCard.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">⚠️</span>
+                            <div>
+                                <div class="text-xs font-bold text-rose-900">${count} SHACL Constraint Violation${count > 1 ? 's' : ''} Detected</div>
+                                <div class="text-[10px] text-rose-700">Ontology shapes require schema remediation before enterprise deployment</div>
+                            </div>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-xs font-black bg-rose-600 text-white shadow-xs">NON-CONFORMANT</span>
+                    `;
+
+                    let violHtml = '<div class="space-y-2">';
+                    (shaclData.violations || []).forEach(v => {
+                        violHtml += `
+                            <div class="p-3 bg-white border border-rose-200 rounded-xl text-xs space-y-1">
+                                <div class="font-bold text-rose-800">${escapeHtml(v.message || 'Constraint Violation')}</div>
+                                <div class="text-slate-500 text-[11px]">Focus Node: <code class="font-mono text-slate-700">${escapeHtml(v.focus_node || 'N/A')}</code></div>
+                                ${v.shape ? `<div class="text-slate-500 text-[11px]">Shape: <code class="font-mono text-slate-700">${escapeHtml(v.shape)}</code></div>` : ''}
+                            </div>
+                        `;
+                    });
+                    violHtml += '</div>';
+                    container.innerHTML = violHtml;
+                }
+
+                if (reportPre && shaclData.report_text) {
+                    reportPre.innerText = shaclData.report_text;
+                }
+            } catch (err) {
+                statusCard.className = 'p-4 rounded-xl border border-rose-200 bg-rose-50';
+                statusCard.innerHTML = `<div class="text-xs font-bold text-rose-900">Validation Error: ${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        function closeShaclModal() {
+            const modal = document.getElementById('shacl-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function toggleShaclRaw() {
+            const reportPre = document.getElementById('shacl-report-text');
+            if (reportPre) reportPre.classList.toggle('hidden');
+        }
+
+        async function handleExportProvTtl() {
+            if (!currentTruthMatrix) {
+                alert('Please run or load a Product Truth Audit first before exporting PROV-O.');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/export-product-truth-prov', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(currentTruthMatrix)
+                });
+                if (!res.ok) {
+                    throw new Error('Failed to export PROV-O Turtle data.');
+                }
+                const data = await res.json();
+                const blob = new Blob([data.rdf_turtle], { type: 'text/turtle;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = data.filename || 'product_truth_prov.ttl';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                alert(`Export failed: ${err.message}`);
+            }
+        }
+
+        /* ------------------------------------------------------------- */
+        /* PRODUCT TRUTH MATRIX RENDERING HELPER                         */
+        /* ------------------------------------------------------------- */
+        function renderTruthMatrixData(data, brand) {
+            const resultsBox = document.getElementById('truth-results-container');
+            if (resultsBox) resultsBox.classList.remove('hidden');
+
+            const mgi = data.marketing_grounding_index;
+            const evidenceStatus = data.evidence_status || 'conclusive';
+            const bar = document.getElementById('truth-mgi-bar');
+            const badge = document.getElementById('truth-mgi-badge');
+
+            if (mgi === null || mgi === undefined || evidenceStatus === 'inconclusive') {
+                const scoreEl = document.getElementById('truth-mgi-score');
+                if (scoreEl) scoreEl.innerText = 'Not assessed';
+                if (bar) {
+                    bar.style.width = '0%';
+                    bar.className = 'h-3 rounded-full bg-slate-300 transition-all duration-500';
+                }
+                if (badge) {
+                    badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700';
+                    badge.innerText = 'Docs unreadable';
+                }
+            } else {
+                const scoreEl = document.getElementById('truth-mgi-score');
+                if (scoreEl) scoreEl.innerText = `${mgi.toFixed(1)}%${evidenceStatus === 'low_confidence' ? '*' : ''}`;
+                if (bar) bar.style.width = `${Math.min(100, Math.max(0, mgi))}%`;
+
+                if (evidenceStatus === 'low_confidence') {
+                    if (badge) {
+                        badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700';
+                        badge.innerText = 'Provisional';
+                    }
+                    if (bar) bar.className = 'h-3 rounded-full bg-slate-400 transition-all duration-500';
+                } else if (mgi >= 80) {
+                    if (badge) {
+                        badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800';
+                        badge.innerText = 'High Grounding';
+                    }
+                    if (bar) bar.className = 'h-3 rounded-full bg-emerald-500 transition-all duration-500';
+                } else if (mgi >= 50) {
+                    if (badge) {
+                        badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800';
+                        badge.innerText = 'Moderate Drift';
+                    }
+                    if (bar) bar.className = 'h-3 rounded-full bg-amber-500 transition-all duration-500';
+                } else {
+                    if (badge) {
+                        badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800';
+                        badge.innerText = 'Severe Drift';
+                    }
+                    if (bar) bar.className = 'h-3 rounded-full bg-rose-500 transition-all duration-500';
+                }
+            }
+
+            const verifiedCount = data.verified_claims_count ?? data.verified_capabilities_count ?? 0;
+            const unbackedCount = data.unbacked_claims_count ?? data.unbacked_marketing_claims_count ?? 0;
+            const hiddenCount = data.hidden_capabilities_count ?? 0;
+            const totalMkt = data.total_marketing_claims ?? 0;
+
+            const verdictEl = document.getElementById('truth-mgi-verdict');
+            if (verdictEl) {
+                if (mgi === null || mgi === undefined || evidenceStatus === 'inconclusive') {
+                    verdictEl.innerText = `${totalMkt} marketing claims found, but no technical capabilities could be read from the documentation, so nothing could be verified either way. ${data.evidence_note || ''}`;
+                } else {
+                    verdictEl.innerText = `${hiddenCount} shipped capabilities are missing from your marketing. ${verifiedCount} of ${totalMkt} claims are confirmed in the source checked; ${unbackedCount} were not found there and need review.` + (evidenceStatus === 'low_confidence' ? ` * ${data.evidence_note || ''}` : '');
+                }
+            }
+
+            // Counts
+            const verCountEl = document.getElementById('truth-verified-count');
+            const unbCountEl = document.getElementById('truth-unbacked-count');
+            const hidCountEl = document.getElementById('truth-hidden-count');
+            if (verCountEl) verCountEl.innerText = verifiedCount;
+            if (unbCountEl) unbCountEl.innerText = unbackedCount;
+            if (hidCountEl) hidCountEl.innerText = hiddenCount;
+
+            const colVerB = document.getElementById('col-verified-badge');
+            const colUnbB = document.getElementById('col-unbacked-badge');
+            const colHidB = document.getElementById('col-hidden-badge');
+            if (colVerB) colVerB.innerText = verifiedCount;
+            if (colUnbB) colUnbB.innerText = unbackedCount;
+            if (colHidB) colHidB.innerText = hiddenCount;
+
+            // Alerts
+            const alertsCard = document.getElementById('truth-alerts-card');
+            const alertsList = document.getElementById('truth-alerts-list');
+            if (alertsList) {
+                alertsList.innerHTML = '';
+                const allAlerts = (data.drift_alerts || []).concat(data.growth_recommendations || data.growth_alerts || []);
+                if (allAlerts.length > 0) {
+                    if (alertsCard) alertsCard.classList.remove('hidden');
+                    allAlerts.forEach(al => {
+                        const div = document.createElement('div');
+                        const isDrift = (data.drift_alerts || []).includes(al);
+                        div.className = isDrift
+                            ? 'p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 font-medium flex items-center gap-2'
+                            : 'p-2.5 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-900 font-medium flex items-center gap-2';
+                        div.innerHTML = `<span>${isDrift ? '⚠️' : '💡'}</span><span>${escapeHtml(al)}</span>`;
+                        alertsList.appendChild(div);
+                    });
+                } else {
+                    if (alertsCard) alertsCard.classList.add('hidden');
+                }
+            }
+
+            // Differential Column 1: Verified
+            const colVer = document.getElementById('truth-col-verified');
+            if (colVer) {
+                colVer.innerHTML = '';
+                const verList = data.verified_triples || data.verified_capabilities || [];
+                if (verList.length > 0) {
+                    verList.forEach(t => {
+                        const div = document.createElement('div');
+                        div.className = 'p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-xl';
+                        div.innerHTML = `
+                            <div class="font-bold text-emerald-950 flex items-center justify-between">
+                                <span>✓ ${escapeHtml(t.object)}</span>
+                                <span class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">${escapeHtml(t.predicate)}</span>
+                            </div>
+                            <div class="text-[10px] text-emerald-700 mt-1 font-mono truncate">
+                                ${escapeHtml(t.provenance || 'API Spec')}
+                            </div>
+                        `;
+                        colVer.appendChild(div);
+                    });
+                } else {
+                    colVer.innerHTML = '<div class="text-xs text-slate-400 italic">No verified claims found.</div>';
+                }
+            }
+
+            // Differential Column 2: Unbacked Claims
+            const colUnb = document.getElementById('truth-col-unbacked');
+            if (colUnb) {
+                colUnb.innerHTML = '';
+                const unbList = data.unbacked_claims || data.unbacked_marketing_claims || [];
+                if (unbList.length > 0) {
+                    unbList.forEach(t => {
+                        const div = document.createElement('div');
+                        div.className = 'p-2.5 bg-rose-50/70 border border-rose-200 rounded-xl';
+                        div.innerHTML = `
+                            <div class="font-bold text-rose-950 flex items-center justify-between">
+                                <span>⚠️ ${escapeHtml(t.object)}</span>
+                                <span class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-rose-100 text-rose-800">${escapeHtml(t.predicate)}</span>
+                            </div>
+                            <div class="text-[10px] text-rose-700 mt-1">
+                                Advertised on marketing, 0 technical endpoints.
+                            </div>
+                        `;
+                        colUnb.appendChild(div);
+                    });
+                } else {
+                    colUnb.innerHTML = '<div class="text-xs text-emerald-600 font-medium italic">Zero unbacked claims! 100% truthful.</div>';
+                }
+            }
+
+            // Differential Column 3: Unmarketed Capabilities
+            const colHid = document.getElementById('truth-col-hidden');
+            if (colHid) {
+                colHid.innerHTML = '';
+                const hidList = data.hidden_capabilities || [];
+                if (hidList.length > 0) {
+                    hidList.forEach(t => {
+                        const div = document.createElement('div');
+                        div.className = 'p-2.5 bg-sky-50/70 border border-sky-200 rounded-xl';
+                        div.innerHTML = `
+                            <div class="font-bold text-sky-950 flex items-center justify-between">
+                                <span>⚡ ${escapeHtml(t.object)}</span>
+                                <span class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-sky-100 text-sky-800">${escapeHtml(t.predicate)}</span>
+                            </div>
+                            <div class="text-[10px] text-sky-700 mt-1 font-mono truncate">
+                                Provenance: ${escapeHtml(t.provenance || 'openapi.json')}
+                            </div>
+                        `;
+                        colHid.appendChild(div);
+                    });
+                } else {
+                    colHid.innerHTML = '<div class="text-xs text-slate-400 italic">No unmarketed capabilities detected.</div>';
+                }
+            }
+
+            // Update Top Executive Health Scorecard KPIs
+            const kpiMgi = document.getElementById('kpi-mgi-score');
+            const kpiMgiSub = document.getElementById('kpi-mgi-subtitle');
+            const kpiDrift = document.getElementById('kpi-drift-count');
+            const kpiDriftSub = document.getElementById('kpi-drift-subtitle');
+            const kpiAdv = document.getElementById('kpi-adv-count');
+            const kpiAdvSub = document.getElementById('kpi-adv-subtitle');
+
+            if (kpiMgi) kpiMgi.innerText = (mgi !== null && mgi !== undefined && evidenceStatus !== 'inconclusive') ? `${mgi.toFixed(0)}%` : 'N/A';
+            if (kpiMgiSub) kpiMgiSub.innerText = `Audit: ${brand || data.brand_name || 'Brand'}`;
+            if (kpiDrift) kpiDrift.innerText = (data.drift_alerts || []).length;
+            if (kpiDriftSub) kpiDriftSub.innerText = `${unbackedCount} unbacked claims`;
+            if (kpiAdv) kpiAdv.innerText = verifiedCount;
+            if (kpiAdvSub) kpiAdvSub.innerText = `${hiddenCount} hidden capabilities`;
         }
 
         /* ------------------------------------------------------------- */
@@ -2581,157 +3411,7 @@ SELECT ?capability ?evidence WHERE {
                 currentTruthMatrix = data;
                 resultsBox.classList.remove('hidden');
 
-                // Render MGI Score
-                const mgi = data.marketing_grounding_index;
-                const evidenceStatus = data.evidence_status || 'conclusive';
-                const bar = document.getElementById('truth-mgi-bar');
-                const badge = document.getElementById('truth-mgi-badge');
-
-                // Docs unreadable: show that we could not check, never a 0% that reads
-                // as "none of your claims are true".
-                if (mgi === null || mgi === undefined || evidenceStatus === 'inconclusive') {
-                    document.getElementById('truth-mgi-score').innerText = 'Not assessed';
-                    bar.style.width = '0%';
-                    bar.className = 'h-3 rounded-full bg-slate-300 transition-all duration-500';
-                    badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700';
-                    badge.innerText = 'Docs unreadable';
-                } else {
-                document.getElementById('truth-mgi-score').innerText = `${mgi.toFixed(1)}%${evidenceStatus === 'low_confidence' ? '*' : ''}`;
-                bar.style.width = `${Math.min(100, Math.max(0, mgi))}%`;
-
-                if (evidenceStatus === 'low_confidence') {
-                    badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700';
-                    badge.innerText = 'Provisional';
-                    bar.className = 'h-3 rounded-full bg-slate-400 transition-all duration-500';
-                } else if (mgi >= 80) {
-                    badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800';
-                    badge.innerText = 'High Grounding';
-                    bar.className = 'h-3 rounded-full bg-emerald-500 transition-all duration-500';
-                } else if (mgi >= 50) {
-                    badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800';
-                    badge.innerText = 'Moderate Drift';
-                    bar.className = 'h-3 rounded-full bg-amber-500 transition-all duration-500';
-                } else {
-                    badge.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800';
-                    badge.innerText = 'Severe Drift';
-                    bar.className = 'h-3 rounded-full bg-rose-500 transition-all duration-500';
-                }
-                }
-
-                const verifiedCount = data.verified_claims_count ?? data.verified_capabilities_count ?? 0;
-                const unbackedCount = data.unbacked_claims_count ?? data.unbacked_marketing_claims_count ?? 0;
-                const hiddenCount = data.hidden_capabilities_count ?? 0;
-                const totalMkt = data.total_marketing_claims ?? 0;
-
-                // When the docs could not be read, say so instead of reporting claims
-                // as "unbacked" - nothing was checked against anything.
-                if (mgi === null || mgi === undefined || evidenceStatus === 'inconclusive') {
-                    document.getElementById('truth-mgi-verdict').innerText =
-                        `${totalMkt} marketing claims found, but no technical capabilities could be read from the documentation, so nothing could be verified either way. ${data.evidence_note || ''}`;
-                } else {
-                    document.getElementById('truth-mgi-verdict').innerText =
-                        `${hiddenCount} shipped capabilities are missing from your marketing. ${verifiedCount} of ${totalMkt} claims are confirmed in the source checked; ${unbackedCount} were not found there and need review.`
-                        + (evidenceStatus === 'low_confidence' ? ` * ${data.evidence_note || ''}` : '');
-                }
-
-                // Counts
-                document.getElementById('truth-verified-count').innerText = verifiedCount;
-                document.getElementById('truth-unbacked-count').innerText = unbackedCount;
-                document.getElementById('truth-hidden-count').innerText = hiddenCount;
-
-                document.getElementById('col-verified-badge').innerText = verifiedCount;
-                document.getElementById('col-unbacked-badge').innerText = unbackedCount;
-                document.getElementById('col-hidden-badge').innerText = hiddenCount;
-
-                // Alerts
-                const alertsCard = document.getElementById('truth-alerts-card');
-                const alertsList = document.getElementById('truth-alerts-list');
-                alertsList.innerHTML = '';
-                const allAlerts = (data.drift_alerts || []).concat(data.growth_recommendations || data.growth_alerts || []);
-                if (allAlerts.length > 0) {
-                    alertsCard.classList.remove('hidden');
-                    allAlerts.forEach(al => {
-                        const div = document.createElement('div');
-                        const isDrift = (data.drift_alerts || []).includes(al);
-                        div.className = isDrift
-                            ? 'p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 font-medium flex items-center gap-2'
-                            : 'p-2.5 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-900 font-medium flex items-center gap-2';
-                        div.innerHTML = `<span>${isDrift ? '⚠️' : '💡'}</span><span>${escapeHtml(al)}</span>`;
-                        alertsList.appendChild(div);
-                    });
-                } else {
-                    alertsCard.classList.add('hidden');
-                }
-
-                // Differential Column 1: Verified
-                const colVer = document.getElementById('truth-col-verified');
-                colVer.innerHTML = '';
-                const verList = data.verified_triples || data.verified_capabilities || [];
-                if (verList.length > 0) {
-                    verList.forEach(t => {
-                        const div = document.createElement('div');
-                        div.className = 'p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-xl';
-                        div.innerHTML = `
-                            <div class="font-bold text-emerald-950 flex items-center justify-between">
-                                <span>✓ ${escapeHtml(t.object)}</span>
-                                <span class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">${escapeHtml(t.predicate)}</span>
-                            </div>
-                            <div class="text-[10px] text-emerald-700 mt-1 font-mono truncate">
-                                ${escapeHtml(t.provenance || 'API Spec')}
-                            </div>
-                        `;
-                        colVer.appendChild(div);
-                    });
-                } else {
-                    colVer.innerHTML = '<div class="text-xs text-slate-400 italic">No verified claims found.</div>';
-                }
-
-                // Differential Column 2: Unbacked Claims
-                const colUnb = document.getElementById('truth-col-unbacked');
-                colUnb.innerHTML = '';
-                const unbList = data.unbacked_claims || data.unbacked_marketing_claims || [];
-                if (unbList.length > 0) {
-                    unbList.forEach(t => {
-                        const div = document.createElement('div');
-                        div.className = 'p-2.5 bg-rose-50/70 border border-rose-200 rounded-xl';
-                        div.innerHTML = `
-                            <div class="font-bold text-rose-950 flex items-center justify-between">
-                                <span>⚠️ ${escapeHtml(t.object)}</span>
-                                <span class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-rose-100 text-rose-800">${escapeHtml(t.predicate)}</span>
-                            </div>
-                            <div class="text-[10px] text-rose-700 mt-1">
-                                Advertised on marketing, 0 technical endpoints.
-                            </div>
-                        `;
-                        colUnb.appendChild(div);
-                    });
-                } else {
-                    colUnb.innerHTML = '<div class="text-xs text-emerald-600 font-medium italic">Zero unbacked claims! 100% truthful.</div>';
-                }
-
-                // Differential Column 3: Unmarketed Capabilities
-                const colHid = document.getElementById('truth-col-hidden');
-                colHid.innerHTML = '';
-                const hidList = data.hidden_capabilities || [];
-                if (hidList.length > 0) {
-                    hidList.forEach(t => {
-                        const div = document.createElement('div');
-                        div.className = 'p-2.5 bg-sky-50/70 border border-sky-200 rounded-xl';
-                        div.innerHTML = `
-                            <div class="font-bold text-sky-950 flex items-center justify-between">
-                                <span>⚡ ${escapeHtml(t.object)}</span>
-                                <span class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-sky-100 text-sky-800">${escapeHtml(t.predicate)}</span>
-                            </div>
-                            <div class="text-[10px] text-sky-700 mt-1 font-mono truncate">
-                                Provenance: ${escapeHtml(t.provenance || 'openapi.json')}
-                            </div>
-                        `;
-                        colHid.appendChild(div);
-                    });
-                } else {
-                    colHid.innerHTML = '<div class="text-xs text-slate-400 italic">No unmarketed capabilities detected.</div>';
-                }
-
+                renderTruthMatrixData(data, brand);
                 resultsBox.scrollIntoView({ behavior: 'smooth' });
 
             } catch (err) {
@@ -3560,6 +4240,14 @@ SELECT ?capability ?evidence WHERE {
             document.getElementById('res-score-top').innerText = `${score.toFixed(1)} / 100`;
             document.getElementById('card-total-score').innerText = score.toFixed(1);
             document.getElementById('card-total-bar').style.width = `${Math.min(score, 100)}%`;
+
+            // Update Top Executive Health Scorecard
+            const kpiGeo = document.getElementById('kpi-geo-score');
+            const kpiGeoSub = document.getElementById('kpi-geo-subtitle');
+            if (kpiGeo && score !== undefined) {
+                kpiGeo.innerText = `${score.toFixed(0)} / 100`;
+                if (kpiGeoSub) kpiGeoSub.innerText = 'Structured Data Readiness';
+            }
 
             // Badge styling
             const badgeEl = document.getElementById('score-badge');
@@ -6018,6 +6706,51 @@ SELECT ?capability ?evidence WHERE {
                         Close
                     </button>
                 </div>
+            </div>
+    <!-- W3C SHACL Validation Report Modal -->
+    <div id="shacl-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[85vh]">
+            <!-- Header -->
+            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-xl">🛡️</span>
+                    <div>
+                        <h3 class="text-sm font-bold">W3C SHACL Ontology Governance Report</h3>
+                        <p class="text-[11px] text-slate-300">W3C Shapes Constraint Language (SHACL) Automated Validation</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeShaclModal()" class="text-slate-400 hover:text-white text-lg font-bold p-1 leading-none">
+                    &times;
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 overflow-y-auto space-y-4 flex-1">
+                <div id="shacl-status-card" class="p-4 rounded-xl border flex items-center justify-between">
+                    <!-- Populated dynamically -->
+                </div>
+
+                <div id="shacl-violations-container" class="space-y-2">
+                    <!-- Violations list if any -->
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">Raw SHACL Validation Output</span>
+                        <button type="button" onclick="toggleShaclRaw()" class="text-[11px] text-sky-600 font-semibold hover:underline">
+                            Toggle Full Log
+                        </button>
+                    </div>
+                    <pre id="shacl-report-text" class="hidden p-3 bg-slate-900 text-emerald-400 font-mono text-[11px] rounded-xl overflow-x-auto max-h-60"></pre>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+                <span class="text-xs text-slate-500">OntoLeap W3C SHACL Engine</span>
+                <button type="button" onclick="closeShaclModal()" class="px-4 py-1.5 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition">
+                    Close
+                </button>
             </div>
         </div>
     </div>
