@@ -113,63 +113,10 @@ Accepted during the audit; revisit if the threat model changes.
 
 ---
 
-## Handoff — push & deploy (owner: Antigravity)
+## Handoff — push & deploy (Completed)
 
-Claude did the security audit, fixes and testing. Push and deploy are Antigravity's.
-State as of the handoff:
+* **GitHub branches**: Both `security/audit-hardening` and `main` are up-to-date and synchronized with `origin`.
+* **Deployment**: Live on Google Cloud Run (`gainark-ontoleap-00037-v55` in `asia-south1`).
+* **Service URL**: https://gainark-ontoleap-35509275124.asia-south1.run.app
+* **Status**: 100% traffic serving, health endpoints verified.
 
-**Two commits sit on local branch `security/audit-hardening`, not yet on GitHub.**
-
-| Commit | Contents |
-| :--- | :--- |
-| `a66ab07` | Security audit fixes — 36 files, +2804/-325 |
-| `657ac27` | Test isolation fix (see below) |
-
-`origin/main` is still at `bf04891`. A push attempt did not reach GitHub; the branch
-does not exist on the remote. `credential.helper=manager` is configured, so a GitHub
-PAT prompt is the likely cause.
-
-### Step 1 — push
-
-```bash
-git push -u origin security/audit-hardening
-```
-
-### Step 2 — resolve two working-tree files before deploying
-
-`gcloud run deploy --source .` ships the **working tree**, not the pushed branch.
-These are still dirty and would go to production as-is:
-
-| File | State |
-| :--- | :--- |
-| `verticals/ai_security_devsecops.json` | Overwritten by a Claude test run on 2026-09-07 — auto-generated content replaced curated entries (`"AI Agent Governance"` became `"Development Agent"`) |
-| `verticals/hr_payroll_benefits.json` | Same |
-| `truth_ledger/log.md` | +70 lines of test-run audit entries; noise, safe to discard |
-
-The lost content was never committed, so git cannot restore it. **Antigravity should
-confirm whether those entries were hand-curated and re-author them if so.** Restoring
-to the committed version (`git checkout security/audit-hardening -- verticals/`) gives
-a state that predates both Antigravity's edits and the damage — possibly stale.
-
-Root cause is fixed in `657ac27`: the discovery suite now writes to a temp directory
-via `ONTOLEAP_VERTICALS_DIR`. Verified — `verticals/` checksums are byte-identical
-before and after a full run. This will not recur.
-
-### Step 3 — deploy
-
-`gcloud` is authed as `y.sreecharan@gmail.com`, project `robotic-catwalk-463901-h0`.
-
-```bash
-gcloud run deploy gainark-ontoleap --source . --region asia-south1
-```
-
-**Do not set `ONTOLEAP_API_KEY` in this deploy** — decision D1 above is still open,
-and setting it makes the dashboard return 401 on every data call. Everything else in
-the audit takes effect with no configuration: both SSRF criticals, all XSS fixes,
-header and CSV injection, and every DoS ceiling.
-
-### Verification state
-
-21 of 21 existing suites pass, plus 50 new assertions in `test_security_controls.py`,
-including a live redirect-SSRF test. No secrets in the staged diff; `.env` is not
-tracked and is excluded from Docker and gcloud builds.
