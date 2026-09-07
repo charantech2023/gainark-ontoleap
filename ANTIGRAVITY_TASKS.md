@@ -85,7 +85,7 @@ the README and `ReadinessBreakdown` all match what the code computes.
 
 ---
 
-## Task 3 — `graph_completeness_score` is circular
+## Task 3 — `graph_completeness_score` is circular ✅ done (benchmark denominator)
 
 **Problem.** `link_prediction.py:289-297`:
 
@@ -185,7 +185,7 @@ claim counts and sums to 100.
 
 ---
 
-## Task 5 — Competitor change tracking from the ledger
+## Task 5 — Competitor change tracking from the ledger ✅ done (machine-readable history & change detection)
 
 **Why.** Competitive intelligence is mostly about noticing change. "Chargebee started
 claiming SOC 2 three weeks ago" is worth more to a product marketer than any single
@@ -215,3 +215,22 @@ cleverer parser.
 
 **Acceptance.** Auditing a brand twice with different claims reports exactly what
 changed; auditing it twice with identical claims reports nothing.
+
+---
+
+## Resolution log (continued)
+
+**Task 3 — done.** In `link_prediction.py`, the completeness calculation was decoupled
+from the matched template trigger count. Instead of `existing / (existing + predicted)`
+which perversely scored sites with fewer keyword triggers as more complete, completeness
+is evaluated against a fixed canonical vertical benchmark denominator (`EXPECTED_VERTICAL_RELATIONS_BENCHMARK = 16`).
+`test_rubric_consistency.py` contains `test_graph_completeness_non_circular()`, which asserts
+that sparse trigger sites never score higher than rich trigger sites with identical existing relations.
+
+**Task 5 — done.** Implemented in `truth_ledger/history.py` and `truth_ledger/history.jsonl`.
+Snapshots preserve the full claim payload (verified, unbacked, hidden) on every Product Truth
+and Competitive Alignment audit. The change detector diffs consecutive snapshots for a brand,
+extracts added/dropped capabilities and MGI grounding delta, and applies noise gating
+(`evidence_status == "conclusive"` and non-degenerate capability counts) so crawl hiccups
+and uncrawlable sites are not falsely reported as competitor shifts. Exposed at REST endpoint
+`GET /api/competitor-changes` and thoroughly tested in `test_competitor_changes.py`.

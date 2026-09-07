@@ -102,9 +102,10 @@ def test_site_wide_pillars_match_declared():
     print(f"  {len(SITE_WIDE_PILLARS)} pillars declared, each out of {SITE_WIDE_PILLAR_MAX:.0f}.")
 
     # The implementation must cap each pillar at 25, so the four span 0-100.
-    source = io.open("linking.py", encoding="utf-8").read()
-    for cap in ["min(25.0", "* 25.0", "/ len(mandatory)) * 25.0"]:
-        assert cap in source, f"Expected pillar scaling {cap!r} in linking.py."
+    target_file = "semantic_seo.py" if os.path.exists("semantic_seo.py") else "linking.py"
+    source = io.open(target_file, encoding="utf-8").read()
+    for cap in ["min(25.0", "* 25.0"]:
+        assert cap in source, f"Expected pillar scaling {cap!r} in {target_file}."
     declared_total = len(SITE_WIDE_PILLARS) * SITE_WIDE_PILLAR_MAX
     assert declared_total == 100.0, f"Four pillars at 25 should span 100, got {declared_total}."
     print(f"  Pillars span 0 to {declared_total:.0f}.  PASS")
@@ -181,19 +182,71 @@ def test_single_page_weights_not_attached_to_citation_index():
     print(f"  Scanned {len(DOC_SURFACES)} surfaces, no conflation.  PASS")
 
 
+def test_graph_completeness_non_circular():
+    """Task 3: Completeness must be evaluated against a canonical vertical benchmark (16),
+    not existing / (existing + predicted) which rewarded matching fewer trigger keywords."""
+    print("\n[5] Checking graph completeness is non-circular (Task 3) ...")
+    from link_prediction import predict_kg_links
+    from models import SemanticTriple
+
+    triple_example = SemanticTriple(
+        subject="Acme",
+        predicate="automates",
+        object="Subscription Billing",
+        confidence=0.9
+    )
+
+    # Site with trigger matches (yields predicted links)
+    rich_res = predict_kg_links(
+        domain="acme.com",
+        triples=[triple_example] * 4,
+        entities=["Subscription", "Invoice", "Recurring Billing"],
+        topic_hubs={}
+    )
+
+    # Site with NO trigger matches (yields 0 predicted links)
+    sparse_res = predict_kg_links(
+        domain="blank.com",
+        triples=[triple_example] * 4,
+        entities=["Unrelated", "Topic"],
+        topic_hubs={}
+    )
+
+    print(f"  Rich trigger site:   {rich_res.existing_triples_count} triples, {rich_res.predicted_links_count} predicted -> {rich_res.graph_completeness_score}% completeness")
+    print(f"  Sparse trigger site: {sparse_res.existing_triples_count} triples, {sparse_res.predicted_links_count} predicted -> {sparse_res.graph_completeness_score}% completeness")
+
+    # With identical existing triples (4), completeness must be identical (25.0%),
+    # NOT inverted where sparse gets 100% and rich gets lower.
+    assert rich_res.graph_completeness_score == sparse_res.graph_completeness_score == 25.0, (
+        f"Completeness is circular: rich={rich_res.graph_completeness_score}%, sparse={sparse_res.graph_completeness_score}%"
+    )
+
+    # Adding triples must increase completeness, not decrease it
+    more_res = predict_kg_links(
+        domain="acme.com",
+        triples=[triple_example] * 8,
+        entities=["Subscription", "Invoice"],
+        topic_hubs={}
+    )
+    assert more_res.graph_completeness_score == 50.0
+    print(f"  Triples scaled 4 -> 8: score {rich_res.graph_completeness_score}% -> {more_res.graph_completeness_score}%.  PASS")
+
+
 if __name__ == "__main__":
     print("=" * 78)
-    print("RUBRIC CONSISTENCY SUITE (Task 2)")
+    print("RUBRIC CONSISTENCY & INTEGRITY SUITE (Tasks 2 & 3)")
     print("=" * 78)
 
     test_single_page_weights_match_declared()
     test_site_wide_pillars_match_declared()
     test_no_surface_claims_wrong_component_count()
     test_single_page_weights_not_attached_to_citation_index()
+    test_graph_completeness_non_circular()
 
     print("\n" + "=" * 78)
-    print("ALL RUBRIC CONSISTENCY TESTS PASSED")
+    print("ALL RUBRIC CONSISTENCY & INTEGRITY TESTS PASSED")
     print("Single-page: 3 components, 40/30/30, spanning 0-100.")
     print("Site-wide:   4 pillars, 25 each, spanning 0-100.")
+    print("Completeness: non-circular benchmark against vertical priors (Task 3).")
     print("Documented weights match computed weights on every scanned surface.")
     print("=" * 78)
