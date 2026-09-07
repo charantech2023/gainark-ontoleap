@@ -802,6 +802,35 @@ def execute_product_truth_audit(
         t_from_text = extract_technical_triples_from_text(req.tech_docs_text, pipeline, brand, "uploaded_docs_text")
         technical_triples.extend(t_from_text)
 
+    # Priority D: Autonomous Technical Proof Discovery (Trust Centers, Public SDKs, Changelogs, Specs)
+    discovered_proof_sources: List[Dict[str, Any]] = []
+    if len(technical_triples) < MIN_CONFIDENT_TECHNICAL_EVIDENCE or not req.openapi_spec:
+        logger.info(
+            "Evaluating Autonomous Technical Proof Discovery for %s (current capabilities=%d)...",
+            brand,
+            len(technical_triples),
+        )
+        try:
+            from proof_discovery import orchestrate_autonomous_proof_discovery
+
+            auto_triples, auto_proofs = orchestrate_autonomous_proof_discovery(
+                marketing_url=req.marketing_url,
+                brand_name=brand,
+                pipeline=pipeline,
+                time_budget=6.0,
+            )
+            if auto_triples:
+                technical_triples.extend(auto_triples)
+                discovered_proof_sources.extend(auto_proofs)
+                logger.info(
+                    "Autonomous Proof Discovery augmented %d capabilities across %d sources for %s",
+                    len(auto_triples),
+                    len(auto_proofs),
+                    brand,
+                )
+        except Exception as e:
+            logger.warning("Autonomous Proof Discovery encountered an error for %s: %s", brand, e)
+
     # Deduplicate technical triples by (predicate, normalized object)
     dedup_tech: List[SemanticTriple] = []
     seen_tech = set()
@@ -821,6 +850,7 @@ def execute_product_truth_audit(
         tech_docs_url=req.tech_docs_url
     )
     matrix.tech_docs_discovered = docs_url_discovered
+    matrix.proof_sources = discovered_proof_sources
     if docs_url_discovered:
         note = (
             f"Technical documentation was located automatically at {req.tech_docs_url}; "

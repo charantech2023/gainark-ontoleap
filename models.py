@@ -569,6 +569,7 @@ class ProductTruthMatrixResponse(BaseModel):
     growth_recommendations: List[str] = Field(default_factory=list, description="Recommendations to market hidden technical gems")
     executive_summary: str
     rdf_turtle: Optional[str] = Field(default=None, description="W3C PROV-O and SKOS compliant RDF Turtle serialization of the Product Truth Graph")
+    proof_sources: List[Dict[str, Any]] = Field(default_factory=list, description="Autonomous technical proof sources evaluated (e.g. Trust Centers, Public SDKs, Changelog, Specs)")
 
 
 class ComparativeCapability(BaseModel):
