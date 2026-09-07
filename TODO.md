@@ -11,21 +11,14 @@ Security fixes from the audit are **already applied** — see `git diff` and
 
 ## Blocking decisions (need a human call)
 
-### D1 — How should the dashboard authenticate?
+### [RESOLVED] D1 — How should the dashboard authenticate?
 
-`ONTOLEAP_API_KEY` is implemented and enforced, but **the dashboard has no way to
-send the key**. Setting it in production today means `/dashboard` renders and every
-data call returns 401.
-
-Pick one:
-
-| Option | Effect |
-| :--- | :--- |
-| Network-layer auth (IAP / Cloud Armor) | No code change. Dashboard and API both protected at the perimeter. API key stays for programmatic clients |
-| Key field in the dashboard UI | Dashboard stores the key in `localStorage`, sends `x-api-key` on every fetch. Simple, but the key lives in the browser |
-| Leave auth off, restrict at the network | Status quo. Only safe if the service is genuinely not internet-reachable |
-
-**Until this is decided, do not set `ONTOLEAP_API_KEY` in production.**
+Resolved: Key field & manager in the dashboard UI (`templates/dashboard.html`).
+* Added API Key configuration modal and navbar indicator button (`#api-key-btn`).
+* Key persists in `localStorage` (`ontoleap_api_key`).
+* Global `window.fetch` interceptor automatically injects `x-api-key` header on all outgoing API calls.
+* HTTP `401 Unauthorized` responses are automatically intercepted to display the modal with an actionable prompt.
+* Verified with `test_security_controls.py` and dashboard template integration tests.
 
 ### D2 — Should auth fail closed?
 
