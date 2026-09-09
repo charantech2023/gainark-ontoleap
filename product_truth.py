@@ -22,6 +22,18 @@ from urllib.parse import urlparse
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Set, Tuple
 import requests
+try:
+    import sector_ontology as _sector_ontology
+except ImportError:
+    _sector_ontology = None
+try:
+    import compliance_ontology as _compliance_ontology
+except ImportError:
+    _compliance_ontology = None
+try:
+    import alert_severity as _alert_severity
+except ImportError:
+    _alert_severity = None
 from bs4 import BeautifulSoup
 from rdflib import Graph, Literal, RDF, RDFS, URIRef, Namespace, XSD
 
@@ -457,46 +469,240 @@ def discover_docs_url(marketing_url: str, timeout: int = _DISCOVERY_TIMEOUT) -> 
     return None
 
 
+
+# Keywords in link text or href that signal an integration/security money page
+_SECONDARY_TECH_LINK_HINTS = {
+    "integrat", "partner", "connect", "marketplace", "app-director",
+    "ecosystem", "security", "trust", "compliance", "certif",
+}
+
+def discover_secondary_tech_pages(
+    marketing_url: str,
+    timeout: int = _DISCOVERY_TIMEOUT,
+    total_budget: float = 20.0,
+) -> List[str]:
+    """
+    Find integration/security money pages by scanning the marketing site's own links.
+
+    Reads the marketing homepage and follows any internal links whose href or
+    anchor text contains integration/security/trust/compliance keywords.
+    This is far more reliable than probing conventional path guesses, because
+    the company itself links to its real pages.
+
+    Returns at most 4 URLs, bounded by a hard 20-second wall-clock budget.
+    """
+    try:
+        parsed = urlparse(marketing_url)
+        host = parsed.netloc
+        root = host[4:] if host.startswith("www.") else host
+        origin = f"{parsed.scheme}://{host}"
+    except Exception:
+        return []
+
+    # Step 1: scan marketing page links
+    candidates: List[str] = []
+    try:
+        html = smart_fetch(marketing_url, timeout=timeout)
+        soup = BeautifulSoup(html, "html.parser")
+        for a in soup.find_all("a", href=True):
+            href = a["href"].strip()
+            anchor = a.get_text(strip=True).lower()
+            href_lower = href.lower()
+            if not any(h in href_lower or h in anchor for h in _SECONDARY_TECH_LINK_HINTS):
+                continue
+            if href.startswith("//"):
+                href = f"{parsed.scheme}:{href}"
+            elif href.startswith("/"):
+                href = f"{origin}{href}"
+            elif not href.startswith("http"):
+                continue
+            if root not in urlparse(href).netloc:
+                continue
+            if href not in candidates:
+                candidates.append(href)
+    except Exception as e:
+        logger.debug("Secondary tech discovery: could not scan marketing page: %s", e)
+        return []
+
+    # Step 2: fetch and validate each candidate
+    deadline = time.monotonic() + total_budget
+    found: List[str] = []
+    seen: set = set()
+    for candidate in candidates:
+        if len(found) >= 4 or time.monotonic() >= deadline:
+            break
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        try:
+            validate_url_for_fetch(candidate)
+            raw = smart_fetch(candidate, timeout=timeout)
+        except Exception:
+            continue
+        if raw and len(raw) > 200:
+            found.append(candidate)
+            logger.info("Secondary tech page found: %s", candidate)
+
+    if not found:
+        logger.info("Secondary tech discovery: no money pages found for %s", marketing_url)
+    return found
+
+
+
+def targeted_support_search(
+    support_url: str,
+    terms: List[str],
+    pipeline,
+    brand: str,
+    timeout: int = 8,
+    max_per_term: int = 2,
+) -> List:
+    """
+    Search a support/help-center site for specific terms and return extracted triples.
+
+    Tries the Zendesk Help Center search API first (works for any Zendesk-hosted
+    support portal without authentication). Falls back to a simple HTML keyword
+    search on the support root page.
+
+    Only fetches articles directly relevant to the drift terms, so we fetch
+    5-15 targeted articles instead of 50 random ones.
+    """
+    import urllib.parse as _up
+    try:
+        parsed = urlparse(support_url)
+        origin = f"{parsed.scheme}://{parsed.netloc}"
+    except Exception:
+        return []
+
+    found_triples: List = []
+    seen_urls: set = set()
+
+    for term in terms[:12]:   # cap at 12 search terms
+        if not term.strip():
+            continue
+        # --- Zendesk search API ---
+        search_api = f"{origin}/api/v2/help_center/articles/search.json?query={_up.quote(term)}&per_page={max_per_term}"
+        try:
+            validate_url_for_fetch(search_api)
+            raw = smart_fetch(search_api, timeout=timeout)
+            data = json.loads(raw)
+            for article in data.get("results", [])[:max_per_term]:
+                art_url = article.get("html_url", "")
+                if art_url and art_url not in seen_urls:
+                    seen_urls.add(art_url)
+                    try:
+                        art_raw = smart_fetch(art_url, timeout=timeout)
+                        art_soup = BeautifulSoup(art_raw, "html.parser")
+                        art_text = art_soup.get_text(separator=" ", strip=True)
+                        triples = extract_technical_triples_from_text(art_text[:25_000], pipeline, brand, art_url)
+                        if triples:
+                            found_triples.extend(triples)
+                            logger.info("Targeted crawl: %d triples from '%s' article at %s", len(triples), term, art_url)
+                    except Exception:
+                        pass
+            continue   # Zendesk worked, skip HTML fallback
+        except Exception:
+            pass
+
+        # --- HTML fallback: scan support index for matching links ---
+        try:
+            root_raw = smart_fetch(support_url, timeout=timeout)
+            root_soup = BeautifulSoup(root_raw, "html.parser")
+            for a in root_soup.find_all("a", href=True):
+                anchor_text = a.get_text(strip=True).lower()
+                href = a["href"]
+                if term.lower() not in anchor_text and term.lower() not in href.lower():
+                    continue
+                if href.startswith("/"):
+                    href = f"{origin}{href}"
+                elif not href.startswith("http"):
+                    continue
+                if href not in seen_urls:
+                    seen_urls.add(href)
+                    try:
+                        art_raw = smart_fetch(href, timeout=timeout)
+                        art_soup = BeautifulSoup(art_raw, "html.parser")
+                        art_text = art_soup.get_text(separator=" ", strip=True)
+                        triples = extract_technical_triples_from_text(art_text[:25_000], pipeline, brand, href)
+                        if triples:
+                            found_triples.extend(triples)
+                            logger.info("Targeted crawl (fallback): %d triples from '%s' at %s", len(triples), term, href)
+                    except Exception:
+                        pass
+                if len(seen_urls) >= max_per_term * 12:
+                    break
+        except Exception:
+            pass
+
+    logger.info("Targeted support search: fetched %d articles, yielded %d triples for %s",
+                len(seen_urls), len(found_triples), brand)
+    return found_triples
+
+
+def _resolve_alerts_with_new_triples(
+    alerts: List[str],
+    new_triples: List,
+    brand: str,
+) -> List[str]:
+    """
+    Drop drift alerts that are now evidenced by newly discovered triples.
+
+    Matches the quoted term in each alert against the objects in new_triples.
+    A case-insensitive substring match is enough — if the support article
+    extracted a triple whose object contains the alert's quoted term (or vice
+    versa), that alert is considered resolved.
+    """
+    import re as _re
+    new_objects = [t.object.lower() for t in new_triples if getattr(t, "object", None)]
+    resolved: List[str] = []
+    for alert in alerts:
+        terms = _re.findall(r"'([^']{2,80})'", alert)
+        alert_term = terms[0].lower().strip() if terms else ""
+        if alert_term and any(
+            alert_term in obj or obj in alert_term
+            for obj in new_objects
+        ):
+            logger.info("Alert resolved by targeted evidence: %s", alert[:100])
+            continue
+        resolved.append(alert)
+    return resolved
+
+
 def fetch_docs_content(url: str, timeout: float = 15.0) -> Tuple[str, str]:
     """
-    Fetches documentation HTML, JSON, or Zendesk Help Center API articles using Smart Scraper.
+    Fetches documentation HTML, JSON, or help center articles using Smart Scraper.
+    Automatically detects the help center platform (Zendesk, GitBook, Intercom, Freshdesk,
+    Readme.io) and uses the most reliable fetch method for each.
     Returns (raw_content, clean_text).
     """
     parsed = urlparse(url)
     base_origin = f"{parsed.scheme}://{parsed.netloc}"
+    netloc = parsed.netloc.lower()
 
-    # Priority 1: If this is a Zendesk Help Center portal (/hc/ or support.* subdomain),
-    # use the public Zendesk Help Center REST API to bypass Cloudflare HTML challenges entirely.
-    if "/hc" in parsed.path.lower() or "support." in parsed.netloc.lower():
-        api_endpoints = [
-            f"{base_origin}/api/v2/help_center/en-us/articles.json",
-            f"{base_origin}/api/v2/help_center/articles.json"
-        ]
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "Accept": "application/json, text/plain, */*",
-            "Referer": url
-        }
-        for api_url in api_endpoints:
-            try:
-                resp = requests.get(api_url, headers=headers, timeout=int(timeout))
-                if resp.status_code == 200:
-                    data = resp.json()
-                    articles = data.get("articles", [])
-                    if articles:
-                        chunks = []
-                        for a in articles:
-                            title = a.get("title") or ""
-                            body_html = a.get("body") or ""
-                            soup = BeautifulSoup(body_html, "html.parser")
-                            clean_b = soup.get_text(separator=" ", strip=True)
-                            if clean_b:
-                                chunks.append(f"Documentation Topic: {title}\n{clean_b}")
-                        clean_text = "\n\n".join(chunks)
-                        logger.info("Successfully extracted %d Zendesk articles (%d chars) from %s", len(articles), len(clean_text), api_url)
-                        return json.dumps(data), clean_text
-            except Exception as e:
-                logger.debug("Zendesk API check failed for %s: %s", api_url, e)
+    # Priority 1: Platform-aware help center fetching
+    # Triggers on support.*, help.*, docs.* subdomains or /hc/ paths
+    is_help_subdomain = any(
+        netloc.startswith(prefix) for prefix in ["support.", "help.", "docs.", "kb."]
+    )
+    is_hc_path = "/hc" in parsed.path.lower()
+
+    if is_help_subdomain or is_hc_path:
+        try:
+            from platform_detector import fetch_help_center_content
+            platform, clean_text = fetch_help_center_content(url)
+            if clean_text and len(clean_text) > 100:
+                logger.info(
+                    "Platform detector (%s) extracted %d chars from %s",
+                    platform, len(clean_text), url
+                )
+                return clean_text, clean_text
+            else:
+                logger.warning(
+                    "Platform detector (%s) returned no content for %s — falling through to scraper",
+                    platform, url
+                )
+        except Exception as _pd_e:
+            logger.warning("Platform detector failed for %s: %s — falling through to scraper", url, _pd_e)
 
     # Priority 2: Smart Fetch with Chrome TLS Impersonation
     try:
@@ -511,7 +717,7 @@ def fetch_docs_content(url: str, timeout: float = 15.0) -> Tuple[str, str]:
             try:
                 with open("ordway_extraction.json", "r", encoding="utf-8") as f:
                     cached = json.load(f)
-                    text = cached.get("extracted_text_snippet") or "Ordway subscription billing, revenue automation, ASC 606 compliance, NetSuite integration."
+                    text = cached.get("extracted_text_snippet") or ""  # Removed hardcoded fallback — if cache has no snippet, return empty rather than injecting fake claims
                     return json.dumps(cached), text
             except Exception:
                 pass
@@ -688,9 +894,60 @@ def build_product_truth_matrix(
         source_desc = tech_docs_url or "the technical documentation reviewed"
         for u in _dedupe_triples(unbacked):
             if u.predicate == "compliesWith":
-                # Only real standards get a regulatory alert. Anything else under this
-                # predicate is an extraction artifact, not a compliance claim.
+                # Gate 1: regulatory claims need strong extraction confidence (≥0.85).
+                # Below this the extractor isn't sure the claim was actually made —
+                # an educational mention, an ISO number in a list, a vendor name —
+                # and emitting a compliance gap alert on weak evidence harms precision.
+                if (u.confidence or 0.0) < 0.85:
+                    continue
+                # Gate 2: Only real standards get a regulatory alert. Anything else under
+                # this predicate is an extraction artifact, not a compliance claim.
                 if not _is_recognized_standard(u.object):
+                    continue
+                # Gate 3: Compliance attestations live on trust/security/compliance pages,
+                # not in API specs. Only flag as drift when evidence is conclusive (meaning
+                # compliance-type pages were actually in scope and crawled). When evidence
+                # is low_confidence, the pages simply weren't crawled — skip the flag
+                # rather than falsely accusing the company of a compliance gap.
+                if evidence_status != "conclusive":
+                    continue
+                # Payment messaging FORMAT standards — billing platforms read/parse these
+                # bank file formats but do not get "certified" against them the way they
+                # get SOC 2 audited or ASC 606 compliant. Any mention is descriptive/
+                # technical, never a certification claim, so suppress unconditionally.
+                _FORMAT_ONLY_STANDARDS = {
+                    "ISO 20022", "MT940", "BAI2", "BAI 2", "SWIFT MT", "CAMT",
+                    "CAMT.053", "CAMT.054", "pain.001", "pain.002",
+                }
+                if u.object in _FORMAT_ONLY_STANDARDS:
+                    continue
+                # Context check: skip when the evidence sentence reveals an *educational*
+                # mention of the standard rather than an actual compliance claim.
+                # e.g. "formats like BAI2, MT940, and ISO 20022 CAMT contain structured
+                # transaction data..." — the standard is described as an input format the
+                # product can *read*, not one it *certifies against*.
+                # These signals identify *descriptive/educational* uses of a standard name,
+                # where the standard is a data format being processed rather than a
+                # compliance certification being claimed. "such as" is deliberately excluded
+                # because it also appears in genuine compliance contexts ("standards such as
+                # PCI-DSS are enforced"). Signals below are specific enough to fire only on
+                # educational/format-description sentences.
+                _EDUCATIONAL_CONTEXT_SIGNALS = (
+                    "formats like", "format like", "including formats",
+                    "like bai2", "like mt940", "like iso 20022",
+                    "contain structured", "can parse", "can match", "can post",
+                    "example of", "examples include",
+                    "types of", "type of format",
+                    "standard format", "industry format", "bank format",
+                    "bank statement format", "file format",
+                )
+                _ev = (u.evidence_sentence or "").lower()
+                if any(sig in _ev for sig in _EDUCATIONAL_CONTEXT_SIGNALS):
+                    import logging as _log
+                    _log.getLogger(__name__).info(
+                        "Suppressing educational compliesWith alert for '%s' "
+                        "(evidence context: %.120s)", u.object, _ev
+                    )
                     continue
                 drift_alerts.append(
                     f"{provisional}Regulatory Drift: Marketing claims compliance with '{u.object}', "
@@ -699,11 +956,19 @@ def build_product_truth_matrix(
                     f"covers compliance before treating this as a gap."
                 )
             elif u.predicate == "integratesWith":
+                # Gate: integration claims need ≥0.75 extraction confidence.
+                # 0.70 was too permissive — vendor names from blog/changelog pages
+                # (e.g. Paubox from a customer story) passed through as integration claims.
+                if (u.confidence or 0.0) < 0.75:
+                    continue
                 drift_alerts.append(
                     f"{provisional}Integration Drift: Marketing claims integration with '{u.object}', "
                     f"but no connector, endpoint or SDK parameter for it was found in {source_desc}."
                 )
             elif u.predicate == "automates":
+                # Gate: capability claims need ≥0.70 extraction confidence.
+                if (u.confidence or 0.0) < 0.70:
+                    continue
                 drift_alerts.append(
                     f"{provisional}Capability Drift: Marketing advertises automated '{u.object}', "
                     f"which is absent from the API methods and documentation in {source_desc}."
@@ -774,14 +1039,61 @@ def execute_product_truth_audit(
     brand = req.brand_name or req.company_name or (urlparse(req.marketing_url).netloc.replace("www.", "").split(".")[0].capitalize() if req.marketing_url else "Unknown")
 
     # 1. Marketing Claims Ingestion
+    # Step 1a: Process the main marketing URL with deep crawl (follows homepage sublinks)
     logger.info("Extracting marketing claims from %s for %s...", req.marketing_url, brand)
     marketing_result = pipeline.process(url=req.marketing_url, deep_crawl=True)
     marketing_triples = marketing_result.triples
 
-    # Tag provenance
+    # Step 1b: Expand coverage via sitemap — fetch product-relevant pages the homepage
+    # may not link to (compliance, trust, integrations, pricing etc.)
+    # This is what eliminates most false drift alerts caused by single-page crawling.
+    try:
+        from platform_detector import fetch_sitemap_urls_sync
+        from urllib.parse import urlparse as _urlparse
+        _base_domain = _urlparse(req.marketing_url).netloc.lstrip("www.")
+        sitemap_urls = fetch_sitemap_urls_sync(_base_domain, max_pages=25)
+        logger.info("Sitemap expansion: found %d product-relevant pages for %s", len(sitemap_urls), brand)
+        for sm_url in sitemap_urls:
+            if sm_url == req.marketing_url:
+                continue
+            try:
+                sm_result = pipeline.process(url=sm_url, deep_crawl=False)
+                for t in sm_result.triples:
+                    t.source_type = "marketing_claim"
+                    t.provenance = sm_url
+                marketing_triples = marketing_triples + sm_result.triples
+                logger.debug("Sitemap page %s added %d triples", sm_url, len(sm_result.triples))
+            except Exception as _sm_e:
+                logger.debug("Sitemap page fetch failed for %s: %s", sm_url, _sm_e)
+    except Exception as _sitemap_e:
+        logger.warning("Sitemap expansion failed for %s: %s", brand, _sitemap_e)
+
+    # Tag provenance on all marketing triples (homepage + sitemap pages)
     for mt in marketing_triples:
         mt.source_type = "marketing_claim"
-        mt.provenance = req.marketing_url
+        if not mt.provenance:
+            mt.provenance = req.marketing_url
+
+    # Filter out generic team/department names that GLiNER wrongly extracts as
+    # integrations. These are phrases like "customer success team" or "finance team"
+    # that appear near integration language on marketing pages but are NOT product
+    # integrations — they are job functions or internal org descriptions.
+    _GENERIC_INTEGRATION_PHRASES = {
+        "accounting staff", "accounting team", "finance team", "finance teams",
+        "customer success", "customer success team", "sales team", "operations team",
+        "revenue team", "billing team", "accounting department",
+        "general ledger integration", "billing operations",
+        "third-party consulting firms", "consulting firms", "third-party",
+        "partner ecosystem", "solution partners",
+        "enterprise customers", "revenue operations", "finance operations",
+    }
+    marketing_triples = [
+        mt for mt in marketing_triples
+        if not (
+            mt.predicate == "integratesWith"
+            and mt.object.lower().strip() in _GENERIC_INTEGRATION_PHRASES
+        )
+    ]
 
     # 2. Technical Reality Ingestion
     technical_triples: List[SemanticTriple] = []
@@ -829,20 +1141,51 @@ def execute_product_truth_audit(
                     sub_links = []
                     parsed_base = urlparse(req.tech_docs_url)
                     base_origin = f"{parsed_base.scheme}://{parsed_base.netloc}"
-                    for a in soup.find_all("a", href=True):
-                        href = a["href"].strip()
-                        if any(pattern in href.lower() for pattern in ["/article", "/hc/", "/guide", "/docs/", "/api/", "/integration", "/billing", "/revenue", "/invoic"]):
-                            if href.startswith("/"):
-                                full_url = base_origin + href
-                            elif href.startswith("http"):
-                                full_url = href
-                            else:
-                                continue
-                            if urlparse(full_url).netloc == parsed_base.netloc and full_url != req.tech_docs_url:
-                                if full_url not in sub_links and not any(skip in full_url.lower() for skip in ["signin", "signup", "login", "auth", "search"]):
-                                    sub_links.append(full_url)
+                    DOC_PATTERNS = ["/article", "/hc/", "/guide", "/docs/", "/api/", "/integration", "/billing", "/revenue", "/invoic", "/payment", "/subscription", "/category", "/section"]
+                    SKIP_SUB = ["signin", "signup", "login", "auth", "search", "404", "sitemap"]
+
+                    # Level-1: collect links from the support root page
+                    sub_links_with_depth = []
+                    seen_sub = {req.tech_docs_url}
+
+                    def _collect_links(s, depth=0):
+                        for a in s.find_all("a", href=True):
+                            href = a["href"].strip()
+                            if any(pattern in href.lower() for pattern in DOC_PATTERNS):
+                                if href.startswith("/"):
+                                    full_url = base_origin + href
+                                elif href.startswith("http"):
+                                    full_url = href
+                                else:
+                                    continue
+                                if (urlparse(full_url).netloc == parsed_base.netloc
+                                        and full_url not in seen_sub
+                                        and not any(sk in full_url.lower() for sk in SKIP_SUB)):
+                                    seen_sub.add(full_url)
+                                    sub_links_with_depth.append((full_url, depth))
+
+                    _collect_links(soup, depth=0)
+
+                    # Level-2: fetch category/section pages and collect their article links
+                    category_pages = [(u, d) for u, d in sub_links_with_depth
+                                      if any(p in u.lower() for p in ["/category", "/section", "/hc/en-us/categories", "/hc/en-us/sections"])]
+                    for cat_url, _ in category_pages[:10]:
+                        try:
+                            cat_html = smart_fetch(cat_url, timeout=6)
+                            cat_soup = BeautifulSoup(cat_html, "html.parser")
+                            _collect_links(cat_soup, depth=1)
+                        except Exception:
+                            pass
+
+                    # Sort: depth-0 (direct articles) first, then depth-1; skip category index pages themselves
+                    article_urls = [
+                        u for u, d in sorted(sub_links_with_depth, key=lambda x: x[1])
+                        if not any(p in u.lower() for p in ["/category", "/section", "/hc/en-us/categories", "/hc/en-us/sections"])
+                    ]
+                    sub_links = article_urls
+
                     # Fetch top documentation sub-articles
-                    for sub_url in sub_links[:6]:
+                    for sub_url in sub_links[:50]:  # 50 articles for better coverage
                         try:
                             s_text = smart_fetch(sub_url, timeout=8)
                             s_soup = BeautifulSoup(s_text, "html.parser")
@@ -902,6 +1245,34 @@ def execute_product_truth_audit(
         except Exception as e:
             logger.warning("Autonomous Proof Discovery encountered an error for %s: %s", brand, e)
 
+    # Priority E: Secondary Tech Evidence Pages (integrations page, security/trust page)
+    # Discovers money pages by following links on the marketing site itself — no blind path guessing.
+    _sec_urls: List[str] = list(req.secondary_tech_urls or [])
+    if not _sec_urls:
+        _sec_urls = discover_secondary_tech_pages(req.marketing_url)
+    if _sec_urls:
+        logger.info("Ingesting %d secondary tech pages for %s: %s", len(_sec_urls), brand, _sec_urls)
+        for _sec_url in _sec_urls:
+            try:
+                _sec_raw = smart_fetch(_sec_url, timeout=_DISCOVERY_TIMEOUT)
+                if not _sec_raw:
+                    continue
+                try:
+                    _sec_text = BeautifulSoup(_sec_raw, "html.parser").get_text(separator=" ", strip=True)
+                except Exception:
+                    _sec_text = _sec_raw
+                _sec_triples = extract_technical_triples_from_text(
+                    _sec_text[:40_000], pipeline, brand, _sec_url
+                )
+                if _sec_triples:
+                    technical_triples.extend(_sec_triples)
+                    logger.info(
+                        "Secondary tech page %s yielded %d triples for %s",
+                        _sec_url, len(_sec_triples), brand,
+                    )
+            except Exception as _sec_err:
+                logger.warning("Secondary tech page %s skipped: %s", _sec_url, _sec_err)
+
     # Deduplicate technical triples by (predicate, normalized object)
     dedup_tech: List[SemanticTriple] = []
     seen_tech = set()
@@ -911,6 +1282,40 @@ def execute_product_truth_audit(
             seen_tech.add(k)
             dedup_tech.append(tt)
     technical_triples = dedup_tech
+
+    # SKOS synonym expansion: inject marketing-language clone-triples so buyer
+    # vocabulary ('Order-to-Revenue Cycle') matches tech-doc vocabulary ('order management').
+    if _sector_ontology is not None:
+        try:
+            _tech_text_for_synonyms = locals().get('combined_doc_text', '') or ''
+            if not _tech_text_for_synonyms and req.tech_docs_text:
+                _tech_text_for_synonyms = req.tech_docs_text
+            if not _tech_text_for_synonyms:
+                # Fall back to evidence sentences from already-extracted triples
+                _tech_text_for_synonyms = ' '.join(
+                    t.evidence_sentence or '' for t in technical_triples
+                )
+            _synonym_map = _sector_ontology.build_synonym_map(
+                tech_text=_tech_text_for_synonyms,
+                brand=brand,
+                cache_dir=os.path.dirname(os.path.abspath(__file__)),
+                tech_triple_objects=[t.object for t in technical_triples if t.object],
+            )
+            technical_triples = _sector_ontology.expand_tech_triples(
+                technical_triples, _synonym_map
+            )
+        except Exception as _syn_err:
+            logger.warning('Synonym expansion skipped: %s', _syn_err)
+
+    # Compliance ontology: inject supportsEvidenceFor triples so marketing claims like
+    # 'compliesWith ASC 606' are verified by feature-level tech doc evidence.
+    if _compliance_ontology is not None:
+        try:
+            technical_triples = _compliance_ontology.inject_compliance_triples(
+                technical_triples, brand
+            )
+        except Exception as _comp_err:
+            logger.warning('Compliance ontology injection skipped: %s', _comp_err)
 
     # 3. Build Truth Matrix
     matrix = build_product_truth_matrix(
@@ -931,6 +1336,27 @@ def execute_product_truth_audit(
         matrix.evidence_note = f"{matrix.evidence_note} {note}" if matrix.evidence_note else note
     if doc_warning:
         matrix.drift_alerts.insert(0, doc_warning)
+
+    # First dedup pass on drift alerts (before executable assertions add more).
+    # Normalises near-duplicate alerts that differ only in phrasing (e.g. "SOC 2 Type II"
+    # vs "SOC 2 Certification") so we don't show two alerts for the same underlying gap.
+    import re as _re_dedup
+
+    def _alert_dedup_key(alert: str) -> str:
+        s = alert.lower()
+        s = _re_dedup.sub(r"\[assert_[a-z0-9_]+\]", "", s)
+        s = _re_dedup.sub(r"\b(certification|compliance|type ii|type 2|type i|standard|requirement|assertion)\b", "", s)
+        m = _re_dedup.search(r"'([^']{2,40})'", s)
+        if m:
+            s = m.group(1)
+        return " ".join(s.split())[:80]
+
+    seen_alert_keys: set = set()
+    matrix.drift_alerts = [
+        a for a in matrix.drift_alerts
+        if not seen_alert_keys.__contains__(_alert_dedup_key(a))
+        and not seen_alert_keys.add(_alert_dedup_key(a))
+    ]
 
     # 4. Run Executable Assertion Checks (Karpathy + llm-iso27001 compounding checks).
     # These assert marketing claims against (openapi_spec + docs_text). With neither
@@ -963,6 +1389,45 @@ def execute_product_truth_audit(
                         matrix.drift_alerts.append(drift_msg)
         except Exception as check_err:
             logger.debug("Executable checks runner notice: %s", check_err)
+
+    # Second dedup pass — executable assertions may have added new alerts that
+    # overlap with matrix alerts already in the list (e.g. two SOC 2 variants).
+    seen_final: set = set()
+    matrix.drift_alerts = [
+        a for a in matrix.drift_alerts
+        if not seen_final.__contains__(_alert_dedup_key(a))
+        and not seen_final.add(_alert_dedup_key(a))
+    ]
+
+    # 4-tier severity: prefix CRITICAL/HIGH/MEDIUM/LOW, sort by severity.
+    if _alert_severity is not None:
+        try:
+            matrix.drift_alerts = _alert_severity.apply_severity_to_alerts(matrix.drift_alerts, brand=brand)
+        except Exception as _sev_err:
+            logger.warning('Severity classification skipped: %s', _sev_err)
+
+    # 4b. Targeted Evidence Resolution: search support site for unresolved drift terms.
+    # Only runs when a tech_docs_url was provided (the support site). Searches for
+    # the exact quoted terms in each drift alert so we fetch 5-15 focused articles
+    # instead of 50 random ones, then drops any alert now backed by new evidence.
+    _support_url = req.tech_docs_url if req.tech_docs_url else None
+    if _support_url and matrix.drift_alerts and _alert_severity is not None:
+        try:
+            _drift_terms = _alert_severity.extract_drift_terms(matrix.drift_alerts)
+            if _drift_terms:
+                logger.info("Targeted evidence resolution: searching %s for %d terms: %s",
+                            _support_url, len(_drift_terms), _drift_terms[:6])
+                _targeted_triples = targeted_support_search(
+                    _support_url, _drift_terms, pipeline, brand
+                )
+                if _targeted_triples:
+                    matrix.drift_alerts = _resolve_alerts_with_new_triples(
+                        matrix.drift_alerts, _targeted_triples, brand
+                    )
+                    logger.info("Targeted resolution: %d alerts remaining after evidence check (was %d)",
+                                len(matrix.drift_alerts), len(matrix.drift_alerts) + len(_targeted_triples))
+        except Exception as _ter:
+            logger.warning("Targeted evidence resolution skipped: %s", _ter)
 
     # 5. Append to Compounding Truth Ledger.
     # The markdown log is human-readable and lossy (verified claims truncate at five),

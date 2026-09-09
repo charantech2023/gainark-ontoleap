@@ -29,6 +29,13 @@ try:
 except ImportError:
     CURL_CFFI_AVAILABLE = False
 
+try:
+    from crawl4ai import AsyncWebCrawler
+    from crawl4ai.async_configs import BrowserConfig, CrawlerRunConfig, CacheMode
+    CRAWL4AI_AVAILABLE = True
+except ImportError:
+    CRAWL4AI_AVAILABLE = False
+
 from constants import BLOCKED_HOSTNAMES, BLOCKED_IP_PREFIXES
 
 logger = logging.getLogger("gainark.scraper")
@@ -281,6 +288,52 @@ class SmartScraper:
             )
         }
 
+
+    def _fetch_crawl4ai(self, url: str, timeout: int = 30) -> Optional[str]:
+        """
+        Level 2 fallback: Crawl4AI with a real headless Chrome browser.
+        Bypasses Cloudflare, WAF, and JS-rendered pages that curl_cffi cannot handle.
+        Runs the async crawler in a fresh event loop so it works from sync callers.
+        """
+        if not CRAWL4AI_AVAILABLE:
+            return None
+        try:
+            import asyncio
+
+            async def _crawl():
+                browser_cfg = BrowserConfig(headless=True, verbose=False)
+                run_cfg = CrawlerRunConfig(
+                    cache_mode=CacheMode.BYPASS,
+                    page_timeout=timeout * 1000,  # milliseconds
+                    word_count_threshold=10,       # skip layout fragments & short boilerplate
+                    exclude_external_links=True,   # stay in scope, reduce noise
+                    process_iframes=False,         # skip embedded widgets
+                )
+                async with AsyncWebCrawler(config=browser_cfg) as crawler:
+                    result = await crawler.arun(url=url, config=run_cfg)
+                    if result.success:
+                        # Prefer clean markdown; fall back to raw html if markdown empty
+                        text = (result.markdown or "").strip()
+                        if not text and result.html:
+                            text = result.html
+                        return text if text else None
+                    return None
+
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                        future = pool.submit(asyncio.run, _crawl())
+                        return future.result(timeout=timeout + 10)
+                else:
+                    return loop.run_until_complete(_crawl())
+            except RuntimeError:
+                return asyncio.run(_crawl())
+        except Exception as e:
+            logger.warning("Crawl4AI failed for %s: %s", url, e)
+            return None
+
     def _fetch_firecrawl(self, url: str, timeout: int = 25) -> Optional[str]:
         """Routes scrape through Firecrawl API to bypass advanced bot protection / JS."""
         if not self.firecrawl_api_key:
@@ -405,13 +458,23 @@ class SmartScraper:
             except Exception as e:
                 logger.warning("Level 1 curl_cffi failed for %s: %s", target, e)
 
-        # Level 2: Firecrawl fallback (if key is set and level 1 failed)
+        # Level 2: Crawl4AI headless browser fallback (free, bypasses Cloudflare)
+        # Returns clean markdown — significantly better signal-to-noise than raw HTML
+        if not html_result and CRAWL4AI_AVAILABLE:
+            logger.info("Attempting Level 2 Crawl4AI for %s...", target)
+            c4a_text = self._fetch_crawl4ai(target, timeout=timeout)
+            if c4a_text and not is_challenge_page(200, c4a_text):
+                html_result = c4a_text
+                logger.info("Level 2 Crawl4AI succeeded for %s (%d chars)", target, len(c4a_text))
+
+        # Level 3: Firecrawl fallback (if key is set and levels 1+2 failed)
         if not html_result and self.firecrawl_api_key:
+            logger.info("Attempting Level 3 Firecrawl for %s...", target)
             fc_html = self._fetch_firecrawl(target, timeout=timeout + 10)
             if fc_html:
                 html_result = fc_html
 
-        # Level 3: Resilient standard requests with browser headers, streamed under a cap
+        # Level 4: Resilient standard requests with browser headers, streamed under a cap
         if not html_result:
             logger.info("Attempting Level 3 standard requests for %s...", target)
             session = requests.Session()

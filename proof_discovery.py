@@ -134,6 +134,15 @@ def discover_trust_center(domain: str, brand: str, timeout: int = 4) -> Tuple[Li
             continue
         try:
             validate_url_for_fetch(url)
+            # Quick HEAD check to skip 404/redirect pages before full fetch
+            try:
+                import requests as _req
+                head_resp = _req.head(url, timeout=timeout, allow_redirects=True, headers={"User-Agent": "Mozilla/5.0"})
+                if head_resp.status_code in (404, 410, 403):
+                    logger.debug("Trust Center probe: %s returned %d, skipping", url, head_resp.status_code)
+                    continue
+            except Exception:
+                pass  # If HEAD fails, still try full fetch
             html = smart_fetch(url, timeout=timeout)
             if not html or len(html) < 200:
                 continue

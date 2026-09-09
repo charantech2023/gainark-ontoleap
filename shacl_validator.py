@@ -36,7 +36,7 @@ class SHACLValidationReport(BaseModel):
 def validate_rdf_graph_shacl(
     data_graph_or_ttl: Union[Graph, str],
     shapes_graph_or_ttl: Optional[Union[Graph, str]] = None,
-    inference: Optional[str] = "rdfs"
+    inference: Optional[str] = "owlrl"
 ) -> SHACLValidationReport:
     """
     Validates an RDF knowledge graph against W3C SHACL governance shapes.
@@ -68,10 +68,28 @@ def validate_rdf_graph_shacl(
         shapes_graph = shapes_graph_or_ttl
 
     # Execute pySHACL validation
+    # Safety guard: if owlrl inference is requested, pre-expand the graph using
+    # owlrl directly (targeted closure) rather than letting pyshacl do a full
+    # OWL-RL expansion which can exhaust memory on large graphs.
+    if inference == "owlrl":
+        try:
+            import owlrl
+            owlrl.DeductiveClosure(
+                owlrl.OWLRL_Extension,
+                rdfs_closure=False,   # skip RDFS rules — keeps expansion tight
+                axiomatic_triples=False  # skip owl:Thing spam triples
+            ).expand(data_graph)
+            effective_inference = None  # pyshacl skips its own expansion (already done)
+        except ImportError:
+            logger.debug("owlrl library not installed; falling back to pyshacl owlrl inference")
+            effective_inference = "owlrl"
+    else:
+        effective_inference = inference
+
     conforms, report_graph, report_text = pyshacl.validate(
         data_graph,
         shacl_graph=shapes_graph,
-        inference=inference,
+        inference=effective_inference,
         abort_on_first=False,
         meta_shacl=False,
         advanced=True
