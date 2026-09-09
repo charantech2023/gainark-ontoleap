@@ -20,13 +20,16 @@ from urllib.parse import urlparse
 from rdflib import Graph, Literal, RDF, RDFS, URIRef, Namespace, OWL, XSD
 from models import SemanticTriple
 from constants import WIKIDATA_KB
+from entity_grounding import ground_url, prefetch as prefetch_grounding
 from ontology_schema import (
     scheme_uri as onto_scheme_uri,
     concept_uri as onto_concept_uri,
     slug_for_label,
 )
 
-# Canonical Wikidata Knowledge Base for Zero-Latency Entity Grounding
+# The curated Q-IDs, still exported under the old name for anything importing it.
+# Grounding itself goes through entity_grounding, which keeps this dict as its fast path
+# and adds live resolution for the phrases it has never heard of.
 WIKIDATA_KNOWLEDGE_BASE: Dict[str, str] = WIKIDATA_KB
 
 
@@ -123,6 +126,13 @@ def build_rdf_graph(
     brand_clean = re.sub(r'[^a-zA-Z0-9]+', '', brand) or "Platform"
     root_uri = URIRef(f"https://{domain}/#{brand_clean}")
 
+    # Ground everything this build will ask about, in one concurrent batch, before the
+    # loops below start asking. ground_url() never touches the network, so without this
+    # the graph is grounded by the 40 curated Q-IDs alone; with it, phrases outside that
+    # dict get an external identity too. Costs one round trip, and nothing if the
+    # resolver is unreachable.
+    prefetch_grounding([brand] + [t.object for t in triples] + list(hubs.keys()))
+
     # Root Organization & Software Application definitions
     g.add((root_uri, RDF.type, SCHEMA.SoftwareApplication))
     g.add((root_uri, RDF.type, SCHEMA.Organization))
@@ -130,8 +140,9 @@ def build_rdf_graph(
     g.add((root_uri, SCHEMA.url, URIRef(f"https://{domain}/")))
 
     # Check if brand matches Wikidata
-    if brand.lower() in WIKIDATA_KNOWLEDGE_BASE:
-        g.add((root_uri, SCHEMA.sameAs, URIRef(WIKIDATA_KNOWLEDGE_BASE[brand.lower()])))
+    brand_url = ground_url(brand)
+    if brand_url:
+        g.add((root_uri, SCHEMA.sameAs, URIRef(brand_url)))
 
     # W3C PROV-O: SoftwareAgent & Activity Definitions
     now_utc = datetime.now(timezone.utc)
@@ -348,9 +359,9 @@ def build_rdf_graph(
                 g.add((obj_uri, SKOS.related, c_uri))
 
             # Canonical Wikidata Entity Grounding
-            obj_lower = t.object.lower().strip()
-            if obj_lower in WIKIDATA_KNOWLEDGE_BASE:
-                g.add((obj_uri, SCHEMA.sameAs, URIRef(WIKIDATA_KNOWLEDGE_BASE[obj_lower])))
+            obj_url = ground_url(t.object)
+            if obj_url:
+                g.add((obj_uri, SCHEMA.sameAs, URIRef(obj_url)))
         else:
             g.add((root_uri, rel, Literal(t.object)))
 
@@ -375,9 +386,9 @@ def build_rdf_graph(
                 skos_concepts_created.add(concept)
             g.add((hub_uri, SKOS.related, c_uri))
 
-            concept_lower = concept.lower().strip()
-            if concept_lower in WIKIDATA_KNOWLEDGE_BASE:
-                g.add((hub_uri, SCHEMA.sameAs, URIRef(WIKIDATA_KNOWLEDGE_BASE[concept_lower])))
+            concept_url = ground_url(concept)
+            if concept_url:
+                g.add((hub_uri, SCHEMA.sameAs, URIRef(concept_url)))
         except Exception:
             continue
 
@@ -696,6 +707,10 @@ def build_owl_ontology(
         "competesAgainst": (ONTO.competesAgainst, ONTO.CompetitorEntity)
     }
 
+    # Same one-batch warm-up as build_rdf_graph. Usually free: an audit that built the
+    # RDF graph first has already cached these phrases, positives and negatives alike.
+    prefetch_grounding([t.object for t in triples])
+
     seen_individuals = set()
     for t in triples:
         obj_slug = re.sub(r'[^a-zA-Z0-9]+', '', t.object)
@@ -715,8 +730,9 @@ def build_owl_ontology(
             g.add((ind_uri, ONTO.evidenceSentence, Literal(t.evidence_sentence)))
 
         obj_lower = t.object.lower().strip()
-        if obj_lower in WIKIDATA_KNOWLEDGE_BASE:
-            g.add((ind_uri, SCHEMA.sameAs, URIRef(WIKIDATA_KNOWLEDGE_BASE[obj_lower])))
+        ind_url = ground_url(obj_lower)
+        if ind_url:
+            g.add((ind_uri, SCHEMA.sameAs, URIRef(ind_url)))
 
     # Hub individuals
     for concept, hub_url in hubs.items():

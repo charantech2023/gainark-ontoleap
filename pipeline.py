@@ -44,6 +44,7 @@ from models import (
     SemanticTriple, PageCrawlSummary, UnifiedSiteGraph
 )
 from scraper import smart_fetch, smart_fetch_async, validate_url_for_fetch
+from entity_grounding import ground_url, prefetch as prefetch_grounding
 from constants import (
     WIKIDATA_KB, KNOWN_INTEGRATIONS, KNOWN_COMPLIANCE,
     KNOWN_PRICING, KNOWN_AUTOMATION, KNOWN_FEATURES, KNOWN_SEGMENTS,
@@ -1161,6 +1162,9 @@ def deduplicate_site_triples(all_triples: List[SemanticTriple]) -> List[Semantic
 
 # FIX #5: WIKIDATA_MAP is now an alias of the canonical WIKIDATA_KB from constants.py.
 # This preserves backward compatibility with any code that still references WIKIDATA_MAP.
+# Grounding below goes through entity_grounding instead, which keeps this dict as its
+# fast path and adds live resolution behind it - so the Schema.org output a crawler sees
+# is grounded on the same terms as the RDF graph, rather than on 40 entries alone.
 WIKIDATA_MAP = WIKIDATA_KB
 
 
@@ -1173,11 +1177,14 @@ def build_site_wide_schema_graph(domain: str, triples: List[SemanticTriple], ent
     clean_domain = domain.replace("www.", "") if domain else "example.com"
     brand_name = clean_domain.split('.')[0].capitalize()
 
+    # One concurrent batch before the loops start asking; ground_url() itself is pure.
+    prefetch_grounding([brand_name] + [t.object for t in triples])
+
     integrations = []
     for t in triples:
         if t.predicate == "integratesWith":
             item = {"@type": "SoftwareApplication", "name": t.object}
-            w_url = WIKIDATA_MAP.get(t.object.lower().strip())
+            w_url = ground_url(t.object)
             if w_url:
                 item["sameAs"] = w_url
             integrations.append(item)
@@ -1189,7 +1196,7 @@ def build_site_wide_schema_graph(domain: str, triples: List[SemanticTriple], ent
     for t in triples:
         if t.predicate == "compliesWith":
             item = {"@type": "DefinedTerm", "name": t.object, "termCode": t.object}
-            w_url = WIKIDATA_MAP.get(t.object.lower().strip())
+            w_url = ground_url(t.object)
             if w_url:
                 item["sameAs"] = w_url
             compliance.append(item)
@@ -1201,8 +1208,9 @@ def build_site_wide_schema_graph(domain: str, triples: List[SemanticTriple], ent
         "url": f"https://{domain}/",
         "knowsAbout": capabilities + [c["name"] for c in compliance]
     }
-    if brand_name.lower() in WIKIDATA_MAP:
-        org_node["sameAs"] = [WIKIDATA_MAP[brand_name.lower()]]
+    brand_url = ground_url(brand_name)
+    if brand_url:
+        org_node["sameAs"] = [brand_url]
 
     return {
         "@context": "https://schema.org",

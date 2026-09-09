@@ -259,10 +259,13 @@ async def ground_discovered_entities(
 
     for name, res in zip(candidates, results):
         if isinstance(res, dict) and res:
+            # resolve_wikidata returns id/sameAs, not wikidata_id/wikidata_url. Reading
+            # the wrong keys made every entity here come back with a description and no
+            # Q-ID at all - grounding that reported itself as ungrounded.
             grounded.append(GroundedConcept(
                 name=name,
-                wikidata_id=res.get("wikidata_id"),
-                wikidata_url=res.get("wikidata_url"),
+                wikidata_id=res.get("id"),
+                wikidata_url=res.get("sameAs"),
                 description=res.get("description")
             ))
         else:

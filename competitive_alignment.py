@@ -38,7 +38,8 @@ from models import (
 from pipeline import OntologyPipeline
 from scraper import smart_fetch, validate_url_for_fetch
 from product_truth import execute_product_truth_audit, _concepts_match, _normalize_concept
-from constants import DEEP_CRAWL_PATHS, WIKIDATA_KB, covers_concept
+from constants import DEEP_CRAWL_PATHS, covers_concept
+from entity_grounding import is_grounded, prefetch as prefetch_grounding
 
 logger = logging.getLogger("gainark.competitive_alignment")
 
@@ -480,8 +481,11 @@ def extract_competitor_ontology(
     except Exception:
         pass
 
-    # Wikidata check
-    wikidata_grounded = brand_name.lower() in WIKIDATA_KB
+    # Wikidata check. A competitor is a small private B2B company far more often than
+    # not, which is exactly the case the 40 curated Q-IDs never covered - so ask the
+    # live resolver about this one name before reporting the brand as ungrounded.
+    prefetch_grounding([brand_name])
+    wikidata_grounded = is_grounded(brand_name)
 
     summary = (
         f"Competitor Ontology for {brand_name} ({req.url}): "

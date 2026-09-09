@@ -47,11 +47,37 @@ current deployment until the key is set.
 
 ## Medium priority
 
-### T4 — Live Wikidata SPARQL for entity grounding
+### [DONE] T4 — Live Wikidata grounding for entities
 
-Currently 40 hardcoded Q-IDs in `constants.py:WIKIDATA_KB`. Live SPARQL against
-`query.wikidata.org` widens coverage. Cheap; coverage is poor for small private B2B
-companies, so keep the static KB as a fast path and fall back to live queries.
+Filed as "live SPARQL". SPARQL was the wrong endpoint: name → Q-ID is what
+`wbsearchentities` is for, and `remediation.resolve_wikidata` already called it
+conservatively — dropping scholarly-article and place-name matches, requiring a
+business/software/finance description, refusing ambiguous results. It was wired into
+`industry_profiler` and nowhere else, so the graph never saw it.
+
+New `entity_grounding.py` is the single authority over which external identity a phrase
+has. The 40 curated Q-IDs in `constants.WIKIDATA_KB` stay the fast path and are never
+overridden by a fetched answer; live resolution sits behind them.
+
+* **Latency shaped the design.** The call sites are tight loops inside a synchronous
+  graph build, and a marketing page yields dozens of phrases the KB has never seen, so
+  a network call per miss would turn one build into minutes of sequential 4s timeouts.
+  `ground_url()` / `ground_id()` / `is_grounded()` therefore never touch the network;
+  `prefetch()` is the only path that does, in one bounded concurrent batch per run.
+* Repointed `knowledge_graph.py` (brand, triple objects, hubs, OWL individuals),
+  `link_prediction.py` and `competitive_alignment.py`. Both graph builders prefetch
+  once up front.
+* Negative results are cached, so a phrase Wikidata cannot ground is asked about once
+  per process rather than once per graph.
+* `ONTOLEAP_WIKIDATA_LIVE=0` restores the old dict-only behaviour exactly;
+  `ONTOLEAP_WIKIDATA_BUDGET` (default 24) caps lookups per run.
+* **Bug fixed in passing:** `industry_profiler.ground_discovered_entities` read
+  `res["wikidata_id"]` / `res["wikidata_url"]`, but the resolver returns `id` / `sameAs`.
+  Every entity on the one live-grounding path in the codebase came back with a
+  description and no Q-ID — grounding that reported itself as ungrounded.
+* Verified with `test_entity_grounding.py` — precedence, the pure-lookup promise,
+  negative caching, the budget, an unreachable resolver, the disabled path, prefetch
+  under a running event loop, and an end-to-end graph carrying a live-resolved `sameAs`.
 
 ### T5 — Sentence Transformers for semantic matching
 

@@ -20,7 +20,7 @@ from models import (
     LinkPredictionResponse
 )
 
-from constants import WIKIDATA_KB
+from entity_grounding import ground_id, ground_url, prefetch as prefetch_grounding
 
 # Domain link prediction heuristics & relational priors
 PREDICTION_TEMPLATES: List[Dict[str, Any]] = [
@@ -197,6 +197,12 @@ def predict_kg_links(
     predicted_items: List[PredictedLink] = []
     seen_predictions: Set[Tuple[str, str]] = set()
 
+    # The objects a template can predict are a fixed, bounded set, so warming them once
+    # grounds predicted links that fall outside the 40 curated Q-IDs at the cost of a
+    # single batch - and after the first run of a process it is all cache hits.
+    prefetch_grounding([p_spec["object"] for tmpl in PREDICTION_TEMPLATES
+                        for p_spec in tmpl["predictions"]])
+
     for tmpl in PREDICTION_TEMPLATES:
         triggers = tmpl["trigger_keywords"]
         # Measure trigger relevance score
@@ -226,8 +232,8 @@ def predict_kg_links(
             conf = round(p_spec["base_confidence"] * relevance_multiplier, 3)
 
             # Ground with Wikidata
-            wiki_url = WIKIDATA_KB.get(obj_norm)
-            wiki_id = wiki_url.split("/")[-1] if wiki_url else None
+            wiki_url = ground_url(obj_norm)
+            wiki_id = ground_id(obj_norm)
 
             predicted_items.append(PredictedLink(
                 subject=brand,
