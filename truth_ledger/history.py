@@ -17,6 +17,7 @@ at startup, so a recycled container recovers what it recorded instead of quietly
 reseeding a lossy summary from log.md.
 """
 
+import hashlib
 import io
 import json
 import logging
@@ -410,22 +411,44 @@ def backfill_from_markdown(log_path: Optional[str] = None) -> int:
 ARCHIVE_KIND = "ledger"
 
 
+def _snapshot_id(snapshot: Dict[str, Any]) -> str:
+    """A snapshot's identity: a short digest of its content.
+
+    (brand, recorded_at) looks like the identity - backfill_from_markdown() dedupes on
+    it - but it is not unique. Two audits of one brand inside the same clock tick stamp
+    the same recorded_at, and a coarse clock makes that ordinary rather than exotic:
+    Windows ticks about every 15ms, and back-to-back audits of the same brand land
+    inside one. Keyed on that pair, the second archive write overwrote the first, the
+    local file kept both, and the loss only surfaced after a container recycle - the
+    exact failure this archive exists to prevent.
+
+    Hashing the content instead is unique where it must be and identical where it must
+    be: two distinct audits differ in their claims or grounding index and get different
+    ids, while the same snapshot mirrored twice - or a backfill regenerating one from
+    log.md - hashes the same and collapses, keeping the write idempotent.
+    """
+    body = json.dumps(snapshot, ensure_ascii=False, sort_keys=True, default=str)
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()[:12]
+
+
 def _snapshot_key(snapshot: Dict[str, Any]) -> str:
     """The archive object key for one snapshot.
-
-    (brand, recorded_at) is already this module's identity for a snapshot - it is what
-    backfill_from_markdown() dedupes on - so keying the object on it makes an archive
-    write idempotent for free: the same audit mirrored twice lands on the same object
-    instead of duplicating history.
 
     Timestamp first, so a lexical sort of keys is chronological. That is what lets
     sync_from_archive() take the newest snapshots under a cap without fetching every
     object to discover which ones those are. Every writer here stamps UTC, so the
-    offsets are uniform and the ordering holds.
+    offsets are uniform and the ordering holds. Brand next, so the archive is legible
+    to a person listing it; the digest last, to make it unique.
+
+    Snapshots sharing a timestamp restore in digest order, which is arbitrary. That is
+    acceptable rather than merely tolerated: two audits stamped the same instant have no
+    real order to recover, and diff_snapshots() already refuses to read anything under
+    MIN_MEANINGFUL_INTERVAL_HOURS as change. What matters is that both survive.
     """
     import graph_archive as ga
-    return ga.object_key(ARCHIVE_KIND, "%s__%s" % (
-        snapshot.get("recorded_at") or "", snapshot.get("brand") or "unknown"))
+    return ga.object_key(ARCHIVE_KIND, "%s__%s__%s" % (
+        snapshot.get("recorded_at") or "", snapshot.get("brand") or "unknown",
+        _snapshot_id(snapshot)))
 
 
 def _mirror_to_archive(snapshot: Dict[str, Any], archive=None) -> bool:
@@ -474,7 +497,7 @@ def sync_from_archive(archive=None, limit: Optional[int] = None) -> Dict[str, in
     if archive is None:
         return {"pulled": 0, "skipped": 0, "unreadable": 0}
 
-    known = {(s.get("brand"), s.get("recorded_at")) for s in load_snapshots()}
+    known = {_snapshot_id(s) for s in load_snapshots()}
     try:
         keys = sorted(k for k in archive.list(ARCHIVE_KIND + "/")
                       if not k.endswith(".partial"))
@@ -506,7 +529,7 @@ def sync_from_archive(archive=None, limit: Optional[int] = None) -> Dict[str, in
             logger.warning("[TruthLedger] Unreadable archived snapshot %r: %s", key, exc)
             unreadable += 1
             continue
-        identity = (snap.get("brand"), snap.get("recorded_at"))
+        identity = _snapshot_id(snap)
         if identity in known:
             skipped += 1
             continue

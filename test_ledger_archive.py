@@ -146,12 +146,52 @@ def test_cold_instance_rebuilds_its_history():
     result = history.sync_from_archive()
 
     timeline = history.brand_timeline("Chargebee")
-    print("    recorded %d, cold start held 0, pulled %d -> timeline sees %d"
-          % (before, result["pulled"], timeline["snapshots"]))
+    restored = sorted(s["grounding_index"] for s in history.load_snapshots("Chargebee"))
+    print("    recorded %d, cold start held 0, pulled %d -> timeline sees %d %s"
+          % (before, result["pulled"], timeline["snapshots"], restored))
     assert result["pulled"] == 2, result
     assert timeline["snapshots"] == 2, "History did not survive the recycle."
-    added = [c["object"] for c in timeline["changes"][0]["added"]]
+    assert restored == [40.0, 70.0], "A snapshot came back altered: %s" % restored
+    # Deliberately no assertion on the direction of the diff here. These two audits are
+    # written back to back, so on a coarse clock they can share a timestamp, and two
+    # snapshots stamped the same instant have no defined order to restore. That costs
+    # nothing: diff_snapshots already treats anything under MIN_MEANINGFUL_INTERVAL_HOURS
+    # as measurement noise rather than news. Test [2b] covers ordering on the realistic
+    # spacing, and test [6] covers the collision itself.
+    print("  PASS")
+
+
+def test_change_tracking_survives_a_restore():
+    print("\n[2b] A diff still reads correctly after a restore ...")
+    root = tempfile.mkdtemp()
+    fresh_instance(root)
+
+    # Three weeks apart, which is what audits of one brand actually look like and what
+    # brand_timeline() is for. Written directly so the timestamps are the point rather
+    # than whatever the clock happened to say.
+    for stamp, verified, mgi in (
+            ("2026-08-01T09:00:00+00:00", ["Invoicing"], 40.0),
+            ("2026-08-22T09:00:00+00:00", ["Invoicing", "SOC 2"], 70.0)):
+        snap = {
+            "recorded_at": stamp, "brand": "Chargebee", "domain": "https://x.example",
+            "source": "test", "grounding_index": mgi, "evidence_status": "conclusive",
+            "total_marketing_claims": len(verified), "total_technical_capabilities": 10,
+            "verified": [{"predicate": "automates", "object": v,
+                          "key": history._claim_key("automates", v)} for v in verified],
+            "unbacked": [], "hidden": [],
+        }
+        history._append_line(snap)
+        history._mirror_to_archive(snap)
+
+    fresh_instance(root)
+    history.sync_from_archive()
+
+    change = history.brand_timeline("Chargebee")["changes"][0]
+    added = [c["object"] for c in change["added"]]
+    print("    after restore: added %s | %.0f days apart"
+          % (added, change["hours_apart"] / 24))
     assert added == ["SOC 2"], "Change tracking broke across the restore: %s" % added
+    assert not change["dropped"], change["dropped"]
     print("  PASS")
 
 
@@ -225,8 +265,66 @@ def test_complete_snapshots_outrank_the_markdown_reseed():
     print("  PASS")
 
 
+def test_same_tick_audits_both_survive():
+    print("\n[6] Two audits inside one clock tick are both kept ...")
+    root = tempfile.mkdtemp()
+    fresh_instance(root)
+
+    # A coarse clock makes this ordinary, not exotic: Windows ticks about every 15ms and
+    # back-to-back audits of one brand land inside a single tick, stamping an identical
+    # recorded_at. Keyed on (brand, recorded_at) the second write overwrote the first,
+    # the local file kept both, and the loss appeared only after a recycle. Forcing the
+    # timestamp here reproduces on any clock what a coarse one produces by itself.
+    stamp = "2026-08-01T09:00:00+00:00"
+    for verified, mgi in ((["Invoicing"], 40.0), (["Invoicing", "SOC 2"], 70.0)):
+        snap = {
+            "recorded_at": stamp, "brand": "Chargebee", "domain": "https://x.example",
+            "source": "test", "grounding_index": mgi, "evidence_status": "conclusive",
+            "total_marketing_claims": len(verified), "total_technical_capabilities": 10,
+            "verified": [{"predicate": "automates", "object": v,
+                          "key": history._claim_key("automates", v)} for v in verified],
+            "unbacked": [], "hidden": [],
+        }
+        history._append_line(snap)
+        history._mirror_to_archive(snap)
+
+    archived = ga.DirectoryArchive(root).list("ledger/")
+    fresh_instance(root)
+    pulled = history.sync_from_archive()
+
+    print("    2 audits at one timestamp -> %d archived object(s), %d pulled back"
+          % (len(archived), pulled["pulled"]))
+    assert len(archived) == 2, (
+        "The second audit overwrote the first in the archive: %s" % archived)
+    assert pulled["pulled"] == 2, pulled
+    groundings = sorted(s["grounding_index"] for s in local_snapshots())
+    assert groundings == [40.0, 70.0], groundings
+    print("  PASS")
+
+
+def test_identical_snapshots_still_collapse():
+    print("\n[7] The same snapshot mirrored twice is still one object ...")
+    root = tempfile.mkdtemp()
+    fresh_instance(root)
+
+    # The flip side of keying on content: uniqueness must not cost idempotence, or a
+    # backfill regenerating history from log.md would duplicate it on every restart.
+    snap = {"recorded_at": "2026-08-01T09:00:00+00:00", "brand": "Ordway",
+            "domain": "https://o.example", "source": "backfill_markdown",
+            "grounding_index": 50.0, "evidence_status": "conclusive",
+            "total_marketing_claims": 1, "total_technical_capabilities": 10,
+            "verified": [], "unbacked": [], "hidden": []}
+    history._mirror_to_archive(snap)
+    history._mirror_to_archive(dict(snap))
+
+    archived = ga.DirectoryArchive(root).list("ledger/")
+    print("    same snapshot mirrored twice -> %d object(s)" % len(archived))
+    assert len(archived) == 1, "Idempotence was lost: %s" % archived
+    print("  PASS")
+
+
 def test_unreachable_archive_does_not_fail_the_audit():
-    print("\n[6] A broken archive costs durability, not the audit ...")
+    print("\n[8] A broken archive costs durability, not the audit ...")
     fresh_instance(tempfile.mkdtemp())
     saved = ga.open_archive
     ga.open_archive = lambda uri=None: BrokenArchive()
@@ -245,7 +343,7 @@ def test_unreachable_archive_does_not_fail_the_audit():
 
 
 def test_reads_never_touch_the_archive():
-    print("\n[7] Reading a timeline costs no archive traffic ...")
+    print("\n[9] Reading a timeline costs no archive traffic ...")
     root = tempfile.mkdtemp()
     fresh_instance(root)
     history.record_snapshot(Matrix("Paddle", verified=["Invoicing"], mgi=40.0))
@@ -269,7 +367,7 @@ def test_reads_never_touch_the_archive():
 
 
 def test_ephemeral_deployment_is_reported():
-    print("\n[8] An unarchived container says so out loud ...")
+    print("\n[10] An unarchived container says so out loud ...")
     saved_uri, saved_k = ga.ARCHIVE_URI, os.environ.get("K_SERVICE")
     try:
         ga.ARCHIVE_URI = ""
@@ -302,9 +400,12 @@ if __name__ == "__main__":
     try:
         test_recorded_audit_is_mirrored()
         test_cold_instance_rebuilds_its_history()
+        test_change_tracking_survives_a_restore()
         test_two_instances_see_each_others_audits()
         test_sync_is_idempotent()
         test_complete_snapshots_outrank_the_markdown_reseed()
+        test_same_tick_audits_both_survive()
+        test_identical_snapshots_still_collapse()
         test_unreachable_archive_does_not_fail_the_audit()
         test_reads_never_touch_the_archive()
         test_ephemeral_deployment_is_reported()
