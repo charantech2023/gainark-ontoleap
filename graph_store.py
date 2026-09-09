@@ -422,6 +422,8 @@ def sync_from_archive(archive=None, path: Optional[str] = None) -> Dict[str, int
 
     Local graphs are never overwritten: run graphs are immutable, so if it is already
     indexed there is nothing to learn from re-reading it.
+
+    Never raises. An archive that cannot be reached costs durability, not the caller.
     """
     import graph_archive as ga
     archive = archive if archive is not None else ga.open_archive()
@@ -432,10 +434,25 @@ def sync_from_archive(archive=None, path: Optional[str] = None) -> Dict[str, int
         known = {r[0] for r in conn.execute("SELECT graph_id FROM graphs").fetchall()}
 
     pulled = skipped = quads = 0
-    for key in archive.list():
+    try:
+        keys = list(archive.list())
+    except Exception as err:
+        # Opening an archive proves configuration, not access. A bucket the service
+        # account cannot list constructs fine and fails here, so this has to degrade to
+        # the local index rather than propagate - a caller asking what runs exist should
+        # get the ones this instance holds, not an exception about object storage.
+        logger.error("Could not list the graph archive (%s): %s",
+                     getattr(archive, "describe", lambda: "archive")(), err)
+        return {"pulled": 0, "skipped": 0, "quads": 0}
+
+    for key in keys:
         if key.endswith(".meta.json"):
             continue
-        raw_meta = archive.get(key + ".meta.json")
+        try:
+            raw_meta = archive.get(key + ".meta.json")
+        except Exception as err:
+            logger.warning("Could not read archive metadata for %r: %s", key, err)
+            continue
         if raw_meta is None:
             logger.warning("Archived object %r has no metadata; skipping.", key)
             continue
@@ -448,7 +465,11 @@ def sync_from_archive(archive=None, path: Optional[str] = None) -> Dict[str, int
         if gid in known:
             skipped += 1
             continue
-        payload = archive.get(key)
+        try:
+            payload = archive.get(key)
+        except Exception as err:
+            logger.warning("Could not read archived graph %r: %s", key, err)
+            continue
         if payload is None:
             continue
         graph = ga.decode(payload)

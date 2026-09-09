@@ -40,6 +40,45 @@ def fresh_archive():
     return ga.DirectoryArchive(tempfile.mkdtemp())
 
 
+class BrokenArchive:
+    """Every operation fails, the way a bucket with the wrong IAM would."""
+
+    def put(self, key, payload):
+        raise IOError("archive unreachable")
+
+    def get(self, key):
+        raise IOError("archive unreachable")
+
+    def list(self, prefix=""):
+        raise IOError("archive unreachable")
+
+    def describe(self):
+        return "broken://"
+
+
+class UnreadableArchive:
+    """Lists what it holds and then refuses to hand any of it over.
+
+    A narrower failure than BrokenArchive and a real one: list and read are separate
+    permissions, so a service account can enumerate a bucket it cannot download from.
+    """
+
+    def __init__(self, inner):
+        self._inner = inner
+
+    def put(self, key, payload):
+        return self._inner.put(key, payload)
+
+    def get(self, key):
+        raise IOError("object unreadable")
+
+    def list(self, prefix=""):
+        return self._inner.list(prefix)
+
+    def describe(self):
+        return "unreadable://"
+
+
 def claim_graph(domain, concepts):
     g = Graph()
     product = URIRef("https://%s/#Product" % domain)
@@ -196,6 +235,41 @@ def test_ephemeral_deployment_is_reported():
     print("  PASS")
 
 
+def test_unreachable_archive_does_not_fail_the_sync():
+    """Opening an archive proves configuration, not access.
+
+    A GCS bucket the service account has no IAM on builds a GcsArchive perfectly well
+    and then raises on list_blobs. sync_from_archive() promises to cost durability, not
+    to fail its caller, so a store with a broken archive still answers from its index.
+    """
+    print("\n[8] An unreachable archive degrades instead of raising ...")
+    index = fresh_index()
+    gid = gs.run_graph_id("ordwaylabs.com", datetime(2026, 9, 9, tzinfo=timezone.utc))
+    gs.persist_graph(claim_graph("ordwaylabs.com", ["Renewal"]), gid, kind="run",
+                     domain="ordwaylabs.com", vertical_id=VERTICAL,
+                     path=index, archive_write=False)
+
+    unlistable = gs.sync_from_archive(BrokenArchive(), path=index)
+
+    # Narrower failure: the archive lists, but every object read is denied.
+    stocked = fresh_archive()
+    other = gs.run_graph_id("chargebee.com", datetime(2026, 9, 9, tzinfo=timezone.utc))
+    gs._mirror_to_archive(claim_graph("chargebee.com", ["Dunning"]), other, "run",
+                          "chargebee.com", VERTICAL, None, archive=stocked)
+    unreadable = gs.sync_from_archive(UnreadableArchive(stocked), path=index)
+
+    runs = gs.list_runs("ordwaylabs.com", path=index)
+    print("    unlistable -> %s | unreadable -> %s | local runs %d"
+          % (unlistable, unreadable, len(runs)))
+
+    assert unlistable == {"pulled": 0, "skipped": 0, "quads": 0}, unlistable
+    assert unreadable["pulled"] == 0, unreadable
+    assert len(runs) == 1, (
+        "A broken archive cost the instance the history it already held locally."
+    )
+    print("  PASS")
+
+
 if __name__ == "__main__":
     print("=" * 78)
     print("DURABLE ARCHIVE")
@@ -207,6 +281,7 @@ if __name__ == "__main__":
     test_sync_is_idempotent()
     test_archive_key_cannot_escape_the_root()
     test_ephemeral_deployment_is_reported()
+    test_unreachable_archive_does_not_fail_the_sync()
     print("\n" + "=" * 78)
     print("ALL ARCHIVE TESTS PASSED")
     print("=" * 78)
