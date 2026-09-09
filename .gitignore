@@ -9,3 +9,15 @@ __pycache__/
 truth_ledger/history.jsonl
 .ontoleap_cache/
 .test_cache/
+
+# Audit run output. Regenerated on every run, and gcloud deploys ship the working
+# tree, so leaving these tracked meant shipping one client's results with the image.
+ordway_extraction.json
+report_ordway.html
+test_output.txt
+
+# Per-brand SKOS synonym caches. Rebuilt on a cache miss from the vertical vocabulary.
+synonym_cache_*.json
+
+# Stale working copy of product_truth.py, kept locally, not part of the build.
+product_truth-1.py
