@@ -108,8 +108,8 @@ Accepted during the audit; revisit if the threat model changes.
 
 ## Handoff — push & deploy (Completed)
 
-* **GitHub branches**: Both `security/audit-hardening` and `main` are up-to-date and synchronized with `origin`.
-* **Deployment**: Live on Google Cloud Run (`gainark-ontoleap-00037-v55` in `asia-south1`).
+* **GitHub branches**: Both `ontology-foundation` and `main` are up-to-date and synchronized with `origin` (`fc2aa27`).
+* **Deployment**: Live on Google Cloud Run (`gainark-ontoleap-00040-n7d` in `asia-south1`).
 * **Service URL**: https://gainark-ontoleap-35509275124.asia-south1.run.app
-* **Status**: 100% traffic serving, health endpoints verified.
+* **Status**: 100% traffic serving, health endpoints verified (/api/health, /api/info, /dashboard).
 
