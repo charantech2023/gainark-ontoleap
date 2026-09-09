@@ -132,11 +132,24 @@ class TestProvSkosOntology(unittest.TestCase):
         narrower_links = list(g.subject_objects(SKOS.narrower))
         self.assertGreaterEqual(len(narrower_links), 3, "Hierarchy must emit inverse skos:narrower links")
 
-        # Verify ASC 606 broader Revenue Recognition
-        asc_concept_uri = URIRef(f"https://{self.domain}/concept/ASC606")
-        revrec_concept_uri = URIRef(f"https://{self.domain}/concept/RevenueRecognition")
+        # Verify the hierarchy passed in by the caller is honoured. The URIs live in the
+        # shared vertical namespace, not under the audited domain: concepts belong to
+        # the ontology, so the same concept is one resource across every client's graph.
+        # Minting them per client made "Revenue Recognition" for one vendor a different
+        # thing from "Revenue Recognition" for another, and nothing could be compared.
+        from ontology_schema import concept_uri as onto_concept_uri
+        asc_concept_uri = URIRef(onto_concept_uri("b2b_saas_fintech", "asc-606"))
+        revrec_concept_uri = URIRef(onto_concept_uri("b2b_saas_fintech", "revenue-recognition"))
         self.assertIn((asc_concept_uri, SKOS.broader, revrec_concept_uri), g)
         self.assertIn((revrec_concept_uri, SKOS.narrower, asc_concept_uri), g)
+
+        # No concept may be minted under the client's domain.
+        client_scoped = [c for c in concepts if self.domain in str(c)]
+        self.assertEqual(
+            client_scoped, [],
+            "Concepts were minted under the audited domain (%s), which forks the shared "
+            "ontology into a private copy per client." % client_scoped[:3],
+        )
 
     def test_export_to_rdf_turtle_and_sparql(self):
         """Verify Turtle serialization parses correctly and answers SPARQL 1.1 queries."""

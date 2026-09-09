@@ -23,6 +23,7 @@ Changes:
 """
 
 import json
+import os
 import re
 import socket
 import logging
@@ -47,9 +48,9 @@ from constants import (
     WIKIDATA_KB, KNOWN_INTEGRATIONS, KNOWN_COMPLIANCE,
     KNOWN_PRICING, KNOWN_AUTOMATION, KNOWN_FEATURES, KNOWN_SEGMENTS,
     KNOWN_INDUSTRIES, KNOWN_DEPLOYMENT, KNOWN_CERTIFICATIONS, KNOWN_API_TYPES,
-    KNOWN_LOCALES, KNOWN_SLA, KNOWN_REPLACES, KNOWN_COMPETITORS,
+    KNOWN_LOCALES, KNOWN_SLA, KNOWN_REPLACES, KNOWN_COMPETITORS, KNOWN_CUSTOMERS,
     DEEP_CRAWL_PATHS, DEEP_CRAWL_MAX,
-    BLOCKED_IP_PREFIXES, BLOCKED_HOSTNAMES, resolve_vocabulary,
+    BLOCKED_IP_PREFIXES, BLOCKED_HOSTNAMES, resolve_vocabulary, resolve_surface_forms,
 )
 
 # ---------------------------------------------------------------------------
@@ -89,17 +90,106 @@ def _load_shared_gliner(model_name: str) -> Any:
         return _MODEL_REGISTRY.setdefault(model_name, model)
 
 
+def _resolve_overlapping_matches(triples: List[Any]) -> List[Any]:
+    """Longest-match-wins for vocabulary terms that contain one another.
+
+    The vertical vocabularies overlap by design: "Invoicing" is a real process and
+    "Automated Invoicing" is a real feature, and both legitimately belong in the
+    ontology. But a single phrase then matched both, so one marketing sentence
+    produced two claims:
+
+        "The platform provides Automated Invoicing"
+            -> hasFeature  Automated Invoicing
+            -> automates    Invoicing
+
+    The truth matrix then hunts for evidence of two claims where the page made one,
+    and a phrase with no docs backing generates two drift alerts instead of one -
+    inflating the alert count and depressing the grounding score.
+
+    Gazetteer matching has a standard answer: when two vocabulary terms match the
+    same span, the longer one is the more specific reading and wins. Applied per
+    evidence sentence, so the same short term still stands on its own elsewhere in
+    the document.
+
+    Triples sharing an identical object are untouched - SOC 2 Type II is correctly
+    both compliesWith and certifiedBy, and neither contains the other.
+
+    Scope differs by where a triple came from:
+
+      * Rule-derived triples carry an evidence sentence, so they are compared only
+        against others from that same sentence. A short term still stands on its own
+        wherever the document uses it alone.
+      * Entity- and seed-derived triples have no evidence sentence - the seed path is
+        how "Revenue Recognition Automation" also yielded `automates Revenue
+        Recognition` - so they are compared against every object in the document. An
+        unevidenced triple that merely restates a more specific evidenced one adds a
+        claim without adding information.
+    """
+    by_sentence: Dict[str, List[Any]] = {}
+    unevidenced: List[Any] = []
+    for t in triples:
+        if t.evidence_sentence:
+            by_sentence.setdefault(t.evidence_sentence, []).append(t)
+        else:
+            unevidenced.append(t)
+
+    def subsumed_by(t: Any, candidates: List[Any]) -> Optional[Any]:
+        t_obj = t.object.strip().lower()
+        for other in candidates:
+            if other is t:
+                continue
+            o_obj = other.object.strip().lower()
+            if t_obj == o_obj or len(t_obj) >= len(o_obj):
+                continue
+            # Word-bounded containment: "Invoicing" inside "Automated Invoicing" is a
+            # subsumed reading; "Sage" inside "Message" is not.
+            if re.search(rf'\b{re.escape(t_obj)}\b', o_obj):
+                return other
+        return None
+
+    dropped: Set[int] = set()
+    for group in by_sentence.values():
+        for t in group:
+            winner = subsumed_by(t, group)
+            if winner is not None:
+                dropped.add(id(t))
+                logger.debug("Overlap: %s '%s' subsumed by '%s' in the same sentence.",
+                             t.predicate, t.object, winner.object)
+
+    for t in unevidenced:
+        winner = subsumed_by(t, triples)
+        if winner is not None:
+            dropped.add(id(t))
+            logger.debug("Overlap: unevidenced %s '%s' subsumed by '%s'.",
+                         t.predicate, t.object, winner.object)
+
+    if dropped:
+        logger.info("Overlap resolution dropped %d subsumed triple(s).", len(dropped))
+
+    return [t for t in triples if id(t) not in dropped]
+
+
+# Canonical default vertical profile. verticals/ is what the API serves
+# (routers/deps.py resolves every vertical_id there), so benchmarks and demos must
+# read the same file or they measure a configuration nobody runs. Resolved against
+# this module's directory rather than the working directory, so a caller's cwd
+# cannot silently select a different profile.
+DEFAULT_VERTICAL_PROFILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "verticals", "b2b_saas_fintech.json"
+)
+
+
 class OntologyPipeline:
     def __init__(
         self,
         config: Optional[VerticalConfig] = None,
-        config_path: str = "vertical_config.json",
+        config_path: Optional[str] = None,
         gliner_model_name: str = "urchade/gliner_small-v2.1"
     ):
         if config:
             self.config = config
         else:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path or DEFAULT_VERTICAL_PROFILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 self.config = VerticalConfig(**data)
 
@@ -356,6 +446,12 @@ class OntologyPipeline:
         # healthcare site is read for HIPAA and Epic rather than for ASC 606 and
         # NetSuite. Verticals without their own lists fall back to the generic
         # B2B defaults, preserving previous behaviour exactly.
+        # Features and automation carry alt_labels: marketing writes "Renewal
+        # Management", the product's docs write "renewal". Both resolve to one canonical
+        # label so a claim raised from marketing copy can be verified against the docs.
+        forms_automation = resolve_surface_forms(self.config, 'known_automation', KNOWN_AUTOMATION)
+        forms_features = resolve_surface_forms(self.config, 'known_features', KNOWN_FEATURES)
+
         vocab_automation = resolve_vocabulary(self.config, 'known_automation', KNOWN_AUTOMATION)
         vocab_integrations = resolve_vocabulary(self.config, 'known_integrations', KNOWN_INTEGRATIONS)
         vocab_compliance = resolve_vocabulary(self.config, 'known_compliance', KNOWN_COMPLIANCE)
@@ -370,15 +466,31 @@ class OntologyPipeline:
         vocab_sla = resolve_vocabulary(self.config, 'known_sla', KNOWN_SLA)
         vocab_replaces = resolve_vocabulary(self.config, 'known_replaces', KNOWN_REPLACES)
         vocab_competitors = resolve_vocabulary(self.config, 'known_competitors', KNOWN_COMPETITORS)
+        vocab_customers = resolve_vocabulary(self.config, 'known_customers', KNOWN_CUSTOMERS)
 
         # 1. automates
+        #
+        # As with hasFeature, the cue word is a confidence signal rather than a gate -
+        # but here the asymmetry it created was worse. Marketing copy says "automates
+        # dunning"; documentation says "dunning rules are configured under Setup" and
+        # never uses an automation cue at all. So a claim raised from marketing could
+        # essentially never be verified against the docs, and `automates` became a
+        # structural drift generator rather than a measurement.
+        #
+        # The vocabulary is curated and corpus-grounded, so a bounded match on
+        # "Revenue Allocation" is evidence whether or not the sentence advertises it.
+        # Uncued matches sit above the 0.75 floor in semantic_seo.py but below the 0.88
+        # threshold that marks a high-signal capability there.
         auto_cues = ["automate", "automates", "automating", "automated", "streamline", "streamlines", "effortless", "liberate", "replaces spreadsheet"]
         for sent in sentences:
             s_lower = sent.lower()
-            if any(cue in s_lower for cue in auto_cues):
-                for item in vocab_automation:
-                    if item.lower() in s_lower:
-                        add_triple("automates", item, conf=0.90, ev=sent)
+            cued = any(cue in s_lower for cue in auto_cues)
+            for canonical, surface_forms in forms_automation:
+                # Longest form first, so the specific reading wins and we stop.
+                for form in surface_forms:
+                    if re.search(rf'\b{re.escape(form.lower())}\b', s_lower):
+                        add_triple("automates", canonical, conf=0.90 if cued else 0.80, ev=sent)
+                        break
 
         # 2. integratesWith
         int_cues = ["integrate", "integrates", "integration", "integrations", "connect", "connects", "sync", "syncs", "built for", "works with", "native"]
@@ -410,13 +522,30 @@ class OntologyPipeline:
                     add_triple("supportsPricingModel", pm, conf=0.90, ev=sent)
 
         # 5. hasFeature
+        #
+        # The cue word is a confidence signal, not a gate. It earned its keep when
+        # known_features held 18 generic strings ("Custom Reporting", "Data Export")
+        # where a bare match said little. Against a curated vertical taxonomy a match
+        # on "Standalone Selling Price Allocation" is strong evidence on its own, and
+        # requiring a cue in the same sentence mostly cost recall: real product copy
+        # writes "Ordway generates revenue schedules and issues credit notes", which
+        # names two features and contains no cue word at all.
+        #
+        # Uncued matches stay above the 0.75 floor in semantic_seo.py so they survive,
+        # but rank below cued ones wherever evidence is weighed.
+        #
+        # Matching is word-bounded: the vocabulary is long and contains short entries,
+        # and substring matching would read "Auto-Pay" out of "auto-payment" and
+        # "VAT Support" out of unrelated prose.
         feature_cues = ["feature", "features", "capability", "capabilities", "includes", "offers", "provides", "built-in", "native"]
         for sent in sentences:
             s_lower = sent.lower()
-            if any(cue in s_lower for cue in feature_cues):
-                for feat in vocab_features:
-                    if feat.lower() in s_lower:
-                        add_triple("hasFeature", feat, conf=0.85, ev=sent)
+            cued = any(cue in s_lower for cue in feature_cues)
+            for canonical, surface_forms in forms_features:
+                for form in surface_forms:
+                    if re.search(rf'\b{re.escape(form.lower())}\b', s_lower):
+                        add_triple("hasFeature", canonical, conf=0.85 if cued else 0.78, ev=sent)
+                        break
 
         # 6. replacesWorkflow
         replace_cues = ["replace", "replaces", "eliminate", "eliminates", "no more", "ditch", "stop using", "get rid of", "instead of", "without"]
@@ -508,36 +637,127 @@ class OntologyPipeline:
                     if re.search(rf'\b{re.escape(comp.lower())}\b', s_lower):
                         add_triple("competesAgainst", comp, conf=0.80, ev=sent)
 
-        # Augment with extracted entities and seed concepts
+        # 15. hasCustomer
+        #
+        # Customer names are vendor-specific, so vocab_customers is normally empty and
+        # this rule contributes nothing; the entity branch below does the work. The rule
+        # exists so a vertical CAN pin known customers, and so the predicate has a
+        # declared home in ontology_schema.
+        customer_cues = ["customer", "customers", "case study", "success story",
+                         "testimonial", "trusted by", "used by", "director of", "cfo of"]
+        for sent in sentences:
+            s_lower = sent.lower()
+            if any(cue in s_lower for cue in customer_cues):
+                for cust in vocab_customers:
+                    if re.search(rf'\b{re.escape(cust.lower())}\b', s_lower):
+                        add_triple("hasCustomer", cust, conf=0.85, ev=sent)
+
+        # Being a customer is a ROLE, not a kind of thing, and zero-shot NER only
+        # classifies kinds. Asked to label "Paubox" it answers Software Platform,
+        # because that is what Paubox is - it is a customer only by virtue of the
+        # sentence it appears in. So the role is read from the sentence shape instead:
+        # a job title attached to a company, or a named case study. Without this the
+        # company falls to whichever entity label sits nearest, and Ordway's own
+        # customer was reported as an unverifiable integration partner.
+        # The title words are matched case-insensitively via a scoped flag, but the
+        # captured company name must stay case-SENSITIVE: capitalisation is the only
+        # signal separating a company from ordinary prose after "at".
+        _TITLE_AT_COMPANY = re.compile(
+            r'(?i:\b(?:director|vp|vice president|head|chief|cfo|ceo|coo|cto|controller|'
+            r'manager|founder|owner)\b[^,.\n]{0,44}?\bat\s+)'
+            r'([A-Z][\w&.\-]*(?:\s+[A-Z][\w&.\-]*){0,3})')
+        _NAMED_CASE_STUDY = re.compile(
+            r'\b([A-Z][\w&.\-]*(?:\s+[A-Z][\w&.\-]*){0,2})\s+(?i:(?:video\s+)?case study)\b')
+        for sent in sentences:
+            for pattern, conf in ((_TITLE_AT_COMPANY, 0.86), (_NAMED_CASE_STUDY, 0.82)):
+                for match in pattern.finditer(sent):
+                    name = match.group(1).strip(" ,.")
+                    # The vendor naming itself is not its own customer.
+                    if name and name.lower() != subject.strip().lower():
+                        add_triple("hasCustomer", name, conf=conf, ev=sent)
+
+        # Augment with extracted entities and seed concepts.
+        #
+        # GLiNER is zero-shot: it assigns every entity to the closest label it was
+        # given, so a term that belongs to one relation is regularly also emitted
+        # under a neighbouring one. "mid-market" arrives as a Geographic Market and
+        # becomes supportsLocale, while the rule pass has already - correctly - read
+        # "Mid-Market" as targetsSegment from an explicit vocabulary match.
+        #
+        # The rule passes above ran first and matched against curated vocabulary, so
+        # where the two disagree the rule is the better answer. An entity-derived
+        # triple is therefore dropped when the rule pass already claimed that exact
+        # text for a different predicate.
+        #
+        # Scoped deliberately to entity-derived triples: a term legitimately holding
+        # two relations gets both from the rule passes and is untouched here. SOC 2
+        # is the case to protect - it is correctly compliesWith AND certifiedBy, and
+        # both come from vocabulary rules.
+        rule_claimed = {t.object.strip().lower(): t.predicate for t in triples}
+
+        # NER returns whatever the page wrote, so an entity arrives in the page's own
+        # register: "Automated Invoicing" and "Role-Based Access Control" rather than
+        # the canonical "Invoicing" and "Permissions". Emitting the raw span would put
+        # the marketing spelling and the documentation spelling into the graph as two
+        # unrelated concepts - exactly the split alt_labels exists to close - so an
+        # alternate is mapped back to its canonical before the triple is built.
+        # Normalising the label alone is not enough: the canonical may belong to a
+        # different bucket than the NER label implied. "Automated Invoicing" reads as a
+        # Product Feature, but its canonical "Invoicing" is a process the product runs,
+        # so the triple has to become `automates Invoicing` rather than `hasFeature
+        # Invoicing`. The predicate travels with the canonical, not with the span.
+        _alt_to_canonical = {}
+        for _canon, _alts in forms_automation:
+            for _alt in _alts:
+                _alt_to_canonical[_alt.strip().lower()] = (_canon, "automates")
+        for _canon, _alts in forms_features:
+            for _alt in _alts:
+                _alt_to_canonical[_alt.strip().lower()] = (_canon, "hasFeature")
+
+        def add_entity_triple(pred: str, obj: str, conf: float = 0.85):
+            canonical = _alt_to_canonical.get(obj.strip().lower())
+            if canonical is not None:
+                obj, pred = canonical
+            claimed_by = rule_claimed.get(obj.strip().lower())
+            if claimed_by is not None and claimed_by != pred:
+                logger.debug(
+                    "Dropping entity triple %s '%s': rule pass already read it as %s.",
+                    pred, obj, claimed_by,
+                )
+                return
+            add_triple(pred, obj, conf=conf)
+
         if entities:
             for ent in entities:
                 txt = ent.text.strip()
                 if ent.label == "Integration Partner":
-                    add_triple("integratesWith", txt, conf=0.88)
+                    add_entity_triple("integratesWith", txt, conf=0.88)
                 elif ent.label in ["Accounting Standard", "Security Standard"]:
-                    add_triple("compliesWith", txt, conf=0.92)
+                    add_entity_triple("compliesWith", txt, conf=0.92)
                 elif ent.label == "Pricing Model":
-                    add_triple("supportsPricingModel", txt, conf=0.88)
+                    add_entity_triple("supportsPricingModel", txt, conf=0.88)
                 elif ent.label == "Billing Feature" and any(w in txt.lower() for w in ["automate", "recognition", "invoicing", "dunning", "reconciliation"]):
-                    add_triple("automates", txt, conf=0.88)
+                    add_entity_triple("automates", txt, conf=0.88)
                 elif ent.label == "Product Feature":
-                    add_triple("hasFeature", txt, conf=0.88)
+                    add_entity_triple("hasFeature", txt, conf=0.88)
                 elif ent.label == "Customer Segment":
-                    add_triple("targetsSegment", txt, conf=0.88)
+                    add_entity_triple("targetsSegment", txt, conf=0.88)
                 elif ent.label == "Industry Vertical":
-                    add_triple("servesIndustry", txt, conf=0.88)
+                    add_entity_triple("servesIndustry", txt, conf=0.88)
                 elif ent.label == "Deployment Model":
-                    add_triple("deployedAs", txt, conf=0.88)
+                    add_entity_triple("deployedAs", txt, conf=0.88)
                 elif ent.label == "Trust Certification":
-                    add_triple("certifiedBy", txt, conf=0.92)
+                    add_entity_triple("certifiedBy", txt, conf=0.92)
                 elif ent.label == "API Standard":
-                    add_triple("hasAPI", txt, conf=0.88)
+                    add_entity_triple("hasAPI", txt, conf=0.88)
                 elif ent.label == "Geographic Market":
-                    add_triple("supportsLocale", txt, conf=0.82)
+                    add_entity_triple("supportsLocale", txt, conf=0.82)
                 elif ent.label == "SLA Commitment":
-                    add_triple("guarantees", txt, conf=0.88)
+                    add_entity_triple("guarantees", txt, conf=0.88)
                 elif ent.label == "Competitor":
-                    add_triple("competesAgainst", txt, conf=0.80)
+                    add_entity_triple("competesAgainst", txt, conf=0.80)
+                elif ent.label == "Customer":
+                    add_entity_triple("hasCustomer", txt, conf=0.85)
 
         if seed_concepts:
             for sc in seed_concepts:
@@ -552,7 +772,7 @@ class OntologyPipeline:
                     elif c_name in ["Revenue Recognition", "Billing Automation", "Accounts Receivable"]:
                         add_triple("automates", c_name, conf=0.88)
 
-        return triples
+        return _resolve_overlapping_matches(triples)
 
     def process(
         self,

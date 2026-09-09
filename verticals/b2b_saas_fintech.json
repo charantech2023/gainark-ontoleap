@@ -7,7 +7,18 @@
     "Accounting Standard",
     "Integration Partner",
     "Security Standard",
-    "Pricing Model"
+    "Pricing Model",
+    "Product Feature",
+    "Customer Segment",
+    "Industry Vertical",
+    "Deployment Model",
+    "Trust Certification",
+    "API Standard",
+    "Geographic Market",
+    "SLA Commitment",
+    "Competitor",
+    "Legacy Workflow",
+    "Customer"
   ],
   "mandatory_schema_types": [
     "SoftwareApplication",
@@ -49,39 +60,1843 @@
   ],
   "known_compliance": [
     "ASC 606",
+    "CCPA",
+    "GAAP",
+    "GDPR",
+    "HIPAA",
     "IFRS 15",
+    "ISO 27001",
+    "PCI-DSS",
     "SOC 1",
+    "SOC 1 Type II",
     "SOC 2",
     "SOC 2 Type II",
-    "SOC 1 Type II",
-    "GAAP",
-    "US GAAP",
-    "GDPR",
-    "PCI-DSS",
-    "ISO 27001",
-    "HIPAA",
-    "CCPA"
+    "US GAAP"
   ],
   "known_pricing": [
-    "Usage-Based Pricing",
-    "Subscription Pricing",
     "Consumption-Based Pricing",
-    "Transaction Pricing",
+    "Dynamic Pricing",
     "Hybrid Pricing",
-    "Tiered Pricing",
     "Per-Seat Pricing",
     "Recurring Billing",
-    "Dynamic Pricing"
+    "Subscription Pricing",
+    "Tiered Pricing",
+    "Transaction Pricing",
+    "Usage-Based Pricing"
   ],
   "concept_hierarchy": {
-    "Revenue Recognition": "Revenue Operations",
-    "ASC 606": "Revenue Recognition",
-    "IFRS 15": "Revenue Recognition",
-    "Dunning Automation": "Accounts Receivable",
-    "Payment Collection": "Accounts Receivable",
+    "Accounting Standards": "Compliance Standards",
+    "Billing Automation": "Revenue Operations",
+    "Compliance Standards": "Revenue Operations",
+    "Contract Lifecycle Management": "Revenue Operations",
+    "Financial Reporting": "Revenue Operations",
+    "Monetization Model": "Revenue Operations",
+    "Payment Processing": "Revenue Operations",
+    "Platform Capabilities": "Revenue Operations",
+    "Privacy Regulations": "Compliance Standards",
+    "Security Attestations": "Compliance Standards",
+    "Tax Management": "Revenue Operations",
+    "ACH Payments": "Payment Processing",
+    "ARR": "Financial Reporting",
+    "ASC 606": "Accounting Standards",
+    "Accounts Receivable": "Revenue Operations",
+    "Aging Report": "Accounts Receivable",
+    "Approval Workflows": "Platform Capabilities",
+    "Audit Trail": "Platform Capabilities",
+    "Auto-Pay": "Accounts Receivable",
+    "Billing Period": "Billing Automation",
+    "Billing Run": "Billing Automation",
+    "Billing Schedules": "Billing Automation",
+    "Bulk Operations": "Platform Capabilities",
+    "CCPA": "Privacy Regulations",
+    "Cancellation": "Contract Lifecycle Management",
+    "Cash Application": "Accounts Receivable",
+    "Churn": "Financial Reporting",
+    "Cohort Analysis": "Financial Reporting",
+    "Consolidated Invoice": "Billing Automation",
+    "Consumption-Based Pricing": "Monetization Model",
+    "Contract Management": "Contract Lifecycle Management",
+    "Contract Modification": "Contract Lifecycle Management",
+    "Credit Card Processing": "Payment Processing",
+    "Credit Notes": "Billing Automation",
+    "Custom Fields": "Platform Capabilities",
+    "Custom Object": "Platform Capabilities",
+    "Custom Report": "Financial Reporting",
+    "Customer Portal": "Accounts Receivable",
+    "Dashboard": "Financial Reporting",
+    "Data Export": "Platform Capabilities",
+    "Dunning": "Accounts Receivable",
+    "Dynamic Pricing": "Monetization Model",
+    "Exchange Rate": "Financial Reporting",
+    "Financial Period": "Financial Reporting",
+    "GAAP": "Accounting Standards",
+    "GDPR": "Privacy Regulations",
+    "GL Account": "Financial Reporting",
+    "HIPAA": "Privacy Regulations",
+    "Hybrid Pricing": "Monetization Model",
+    "IFRS 15": "Accounting Standards",
+    "ISO 27001": "Security Attestations",
+    "Invoice Delivery": "Billing Automation",
+    "Invoice Templates": "Billing Automation",
     "Invoicing": "Billing Automation",
-    "Subscription Management": "Billing Automation",
+    "Journal Entry": "Revenue Recognition",
+    "MRR": "Financial Reporting",
+    "Metered Billing": "Billing Automation",
+    "Minimum Commitments": "Billing Automation",
+    "Multi-Entity": "Billing Automation",
+    "Order Management": "Contract Lifecycle Management",
+    "Overage": "Billing Automation",
+    "PCI-DSS": "Security Attestations",
+    "Parent Customer": "Platform Capabilities",
+    "Payment Collection": "Accounts Receivable",
+    "Payment Gateway Integration": "Payment Processing",
+    "Payment Method": "Accounts Receivable",
+    "Payment Reminder": "Accounts Receivable",
+    "Payment Retry": "Accounts Receivable",
+    "Payment Run": "Accounts Receivable",
+    "Per-Seat Pricing": "Monetization Model",
+    "Performance Obligation": "Revenue Recognition",
+    "Permissions": "Platform Capabilities",
+    "Proration": "Billing Automation",
+    "Quote Management": "Contract Lifecycle Management",
+    "Quote-to-Cash": "Contract Lifecycle Management",
+    "Recurring Billing": "Monetization Model",
+    "Refund Processing": "Payment Processing",
+    "Renewal": "Contract Lifecycle Management",
+    "Revenue Allocation": "Revenue Recognition",
+    "Revenue Forecast": "Revenue Recognition",
+    "Revenue Recognition": "Revenue Operations",
+    "Revenue Report": "Financial Reporting",
+    "Revenue Schedules": "Revenue Recognition",
+    "Revenue Subledger": "Revenue Recognition",
+    "Revenue Waterfall": "Revenue Recognition",
+    "SOC 1": "Security Attestations",
+    "SOC 1 Type II": "Security Attestations",
+    "SOC 2": "Security Attestations",
+    "SOC 2 Type II": "Security Attestations",
+    "Sandbox Environment": "Platform Capabilities",
+    "Schedule Lines": "Revenue Recognition",
+    "Single Sign-On": "Platform Capabilities",
+    "Standalone Selling Price": "Revenue Recognition",
+    "Subscription Billing": "Billing Automation",
+    "Subscription Downgrades": "Contract Lifecycle Management",
+    "Subscription Management": "Contract Lifecycle Management",
+    "Subscription Pricing": "Monetization Model",
+    "Subscription Upgrades": "Contract Lifecycle Management",
+    "Tax Calculation": "Tax Management",
+    "Tax Nexus": "Tax Management",
+    "Tax Reporting": "Tax Management",
+    "Tiered Pricing": "Monetization Model",
+    "Tokenization": "Payment Processing",
+    "Transaction Pricing": "Monetization Model",
+    "Trial Management": "Contract Lifecycle Management",
+    "US GAAP": "Accounting Standards",
+    "Usage Rating": "Billing Automation",
     "Usage-Based Pricing": "Monetization Model",
-    "Tiered Pricing": "Monetization Model"
-  }
+    "VAT": "Tax Management",
+    "Write-Off": "Accounts Receivable"
+  },
+  "known_features": [
+    "ACH Payments",
+    "ARR",
+    "Aging Report",
+    "Approval Workflows",
+    "Audit Trail",
+    "Auto-Pay",
+    "Billing Period",
+    "Billing Schedules",
+    "Bulk Operations",
+    "Cancellation",
+    "Churn",
+    "Cohort Analysis",
+    "Consolidated Invoice",
+    "Contract Management",
+    "Credit Card Processing",
+    "Credit Notes",
+    "Custom Fields",
+    "Custom Object",
+    "Custom Report",
+    "Customer Portal",
+    "Dashboard",
+    "Data Export",
+    "Exchange Rate",
+    "Financial Period",
+    "GL Account",
+    "Invoice Delivery",
+    "Invoice Templates",
+    "MRR",
+    "Metered Billing",
+    "Minimum Commitments",
+    "Multi-Entity",
+    "Order Management",
+    "Overage",
+    "Parent Customer",
+    "Payment Gateway Integration",
+    "Payment Method",
+    "Payment Reminder",
+    "Payment Retry",
+    "Performance Obligation",
+    "Permissions",
+    "Quote Management",
+    "Refund Processing",
+    "Renewal",
+    "Revenue Forecast",
+    "Revenue Report",
+    "Revenue Schedules",
+    "Revenue Subledger",
+    "Revenue Waterfall",
+    "Sandbox Environment",
+    "Schedule Lines",
+    "Single Sign-On",
+    "Standalone Selling Price",
+    "Subscription Downgrades",
+    "Subscription Management",
+    "Subscription Upgrades",
+    "Tax Nexus",
+    "Tax Reporting",
+    "Tokenization",
+    "Trial Management",
+    "VAT",
+    "Write-Off"
+  ],
+  "known_automation": [
+    "Accounts Receivable",
+    "Billing Run",
+    "Cash Application",
+    "Contract Modification",
+    "Dunning",
+    "Invoicing",
+    "Journal Entry",
+    "Payment Collection",
+    "Payment Run",
+    "Proration",
+    "Quote-to-Cash",
+    "Revenue Allocation",
+    "Revenue Recognition",
+    "Subscription Billing",
+    "Tax Calculation",
+    "Usage Rating"
+  ],
+  "alt_labels": {
+    "ACH Payments": [
+      "ACH",
+      "ACH Payment",
+      "Bank Transfer"
+    ],
+    "ARR": [
+      "ARR Reporting",
+      "Annual Recurring Revenue"
+    ],
+    "Accounts Receivable": [
+      "AR Automation",
+      "Accounts Receivable Automation"
+    ],
+    "Aging Report": [
+      "AR Aging Report",
+      "Accounts Receivable Aging",
+      "Aging Summary"
+    ],
+    "Approval Workflows": [
+      "Approvals",
+      "Approval Workflow"
+    ],
+    "Audit Trail": [
+      "Audit Log",
+      "Change History"
+    ],
+    "Auto-Pay": [
+      "AutoPay",
+      "Auto Pay",
+      "Automatic Payments"
+    ],
+    "Billing Period": [
+      "Billing Periods",
+      "Billing Cycle"
+    ],
+    "Billing Run": [
+      "Billing Runs",
+      "Automated Billing Run"
+    ],
+    "Billing Schedules": [
+      "Billing Schedule"
+    ],
+    "Bulk Operations": [
+      "Bulk Update",
+      "Bulk Import"
+    ],
+    "Cancellation": [
+      "Cancellation Management",
+      "Subscription Cancellation"
+    ],
+    "Cash Application": [
+      "Automated Cash Application",
+      "Cash Matching"
+    ],
+    "Churn": [
+      "Churn Analytics",
+      "Churn Rate",
+      "Churn Reporting"
+    ],
+    "Cohort Analysis": [
+      "Cohort Reporting"
+    ],
+    "Consolidated Invoice": [
+      "Consolidated Invoicing",
+      "Consolidated Invoices"
+    ],
+    "Contract Management": [
+      "Contract Administration"
+    ],
+    "Contract Modification": [
+      "Contract Modifications",
+      "Contract Amendment",
+      "Contract Amendments",
+      "Amendment Processing",
+      "Amendments",
+      "Amendment"
+    ],
+    "Credit Card Processing": [
+      "Card Payments",
+      "Credit Card Payments"
+    ],
+    "Credit Notes": [
+      "Credit Note",
+      "Credit Memo",
+      "Credit Memos"
+    ],
+    "Custom Fields": [
+      "Custom Field",
+      "User-Defined Fields"
+    ],
+    "Custom Object": [
+      "Custom Objects"
+    ],
+    "Custom Report": [
+      "Custom Reporting",
+      "Custom Reports"
+    ],
+    "Customer Portal": [
+      "Customer Payment Portal",
+      "Self-Service Portal",
+      "Self-Serve Portal"
+    ],
+    "Dashboard": [
+      "Dashboards",
+      "Real-Time Analytics",
+      "SaaS Metrics Dashboard",
+      "Analytics Dashboard"
+    ],
+    "Data Export": [
+      "Export Data",
+      "Data Extract"
+    ],
+    "Dunning": [
+      "Dunning Management",
+      "Dunning Automation",
+      "Smart Dunning",
+      "Failed Payment Recovery"
+    ],
+    "Exchange Rate": [
+      "Exchange Rates",
+      "Multi-Currency Support",
+      "Currency Conversion"
+    ],
+    "Financial Period": [
+      "Financial Periods",
+      "Accounting Period"
+    ],
+    "GL Account": [
+      "GL Accounts",
+      "General Ledger Account",
+      "General Ledger Export"
+    ],
+    "Invoice Delivery": [
+      "Invoice Email Delivery"
+    ],
+    "Invoice Templates": [
+      "Invoice Template"
+    ],
+    "Invoicing": [
+      "Automated Invoicing",
+      "Invoice Automation",
+      "Touchless Invoicing",
+      "Invoice Calculations"
+    ],
+    "Journal Entry": [
+      "Journal Entries",
+      "Journal Entry Creation",
+      "Journal Entry Export",
+      "Journal Entry Automation"
+    ],
+    "MRR": [
+      "MRR Reporting",
+      "Monthly Recurring Revenue"
+    ],
+    "Metered Billing": [
+      "Usage-Based Billing",
+      "Metered Usage"
+    ],
+    "Minimum Commitments": [
+      "Minimum Commitment",
+      "Committed Spend"
+    ],
+    "Multi-Entity": [
+      "Multi-Entity Billing",
+      "Multiple Entities"
+    ],
+    "Order Management": [
+      "Order Entry",
+      "Orders"
+    ],
+    "Overage": [
+      "Overage Handling",
+      "Overage Billing",
+      "Overages"
+    ],
+    "Parent Customer": [
+      "Parent-Child Billing",
+      "Customer Hierarchy",
+      "Parent Account"
+    ],
+    "Payment Collection": [
+      "Collections",
+      "Automated Collections",
+      "Collections Workflow"
+    ],
+    "Payment Gateway Integration": [
+      "Payment Gateways",
+      "Gateway Integration"
+    ],
+    "Payment Method": [
+      "Payment Methods"
+    ],
+    "Payment Reminder": [
+      "Payment Reminders",
+      "Dunning Email",
+      "Invoice Reminder"
+    ],
+    "Payment Retry": [
+      "Payment Retries",
+      "Automated Payment Retries",
+      "Retry Schedule"
+    ],
+    "Payment Run": [
+      "Payment Runs",
+      "Automated Payment Run"
+    ],
+    "Performance Obligation": [
+      "Performance Obligation Tracking",
+      "Performance Obligations"
+    ],
+    "Permissions": [
+      "Role-Based Access Control",
+      "RBAC",
+      "User Permissions"
+    ],
+    "Proration": [
+      "Prorated Billing",
+      "Pro-Rata Billing"
+    ],
+    "Quote Management": [
+      "Quoting",
+      "Quotes"
+    ],
+    "Quote-to-Cash": [
+      "Order-to-Revenue Cycle",
+      "Order to Cash",
+      "Q2C"
+    ],
+    "Refund Processing": [
+      "Refunds",
+      "Refund"
+    ],
+    "Renewal": [
+      "Renewal Management",
+      "Automated Renewals",
+      "Subscription Renewal"
+    ],
+    "Revenue Allocation": [
+      "Allocation Engine",
+      "Revenue Allocations"
+    ],
+    "Revenue Forecast": [
+      "Revenue Forecasting",
+      "Revenue Projection"
+    ],
+    "Revenue Recognition": [
+      "Revenue Recognition Automation",
+      "Automated Revenue Recognition",
+      "Rev Rec"
+    ],
+    "Revenue Report": [
+      "Revenue Analytics",
+      "Revenue Reporting"
+    ],
+    "Revenue Schedules": [
+      "Revenue Schedule",
+      "Revenue Scheduling",
+      "Deferred Revenue Schedules",
+      "Deferred Revenue Management"
+    ],
+    "Revenue Subledger": [
+      "Subledger",
+      "Revenue Sub-Ledger"
+    ],
+    "Revenue Waterfall": [
+      "Revenue Waterfall Report"
+    ],
+    "Sandbox Environment": [
+      "Sandbox"
+    ],
+    "Schedule Lines": [
+      "Schedule Line",
+      "Revenue Schedule Lines"
+    ],
+    "Single Sign-On": [
+      "SSO",
+      "SAML SSO"
+    ],
+    "Standalone Selling Price": [
+      "SSP",
+      "SSP Allocation",
+      "Standalone Selling Price Allocation"
+    ],
+    "Subscription Billing": [
+      "Recurring Billing Automation"
+    ],
+    "Subscription Downgrades": [
+      "Downgrade",
+      "Plan Downgrade"
+    ],
+    "Subscription Management": [
+      "Subscription Administration"
+    ],
+    "Subscription Upgrades": [
+      "Upgrade",
+      "Plan Upgrade"
+    ],
+    "Tax Calculation": [
+      "Sales Tax Calculation",
+      "Automated Tax Calculation"
+    ],
+    "Tax Nexus": [
+      "Tax Nexus Tracking",
+      "Nexus"
+    ],
+    "Tax Reporting": [
+      "Tax Report",
+      "Tax Returns"
+    ],
+    "Tokenization": [
+      "Payment Tokenization",
+      "Card Tokenization"
+    ],
+    "Trial Management": [
+      "Free Trial",
+      "Trials"
+    ],
+    "Usage Rating": [
+      "Usage-Based Rating",
+      "Rating Engine"
+    ],
+    "VAT": [
+      "VAT Support",
+      "Value-Added Tax"
+    ],
+    "Write-Off": [
+      "Write-Off Management",
+      "Write Off",
+      "Bad Debt Write-Off"
+    ]
+  },
+  "concepts": [
+    {
+      "id": "accounting-standards",
+      "prefLabel": "Accounting Standards",
+      "kind": "domain",
+      "definition": "Rules governing how financial results must be prepared and reported.",
+      "altLabels": [],
+      "broader": "compliance-standards",
+      "governs": []
+    },
+    {
+      "id": "billing-automation",
+      "prefLabel": "Billing Automation",
+      "kind": "domain",
+      "definition": "Generating and issuing invoices for subscriptions and usage without manual intervention.",
+      "altLabels": [],
+      "broader": "revenue-operations",
+      "governs": []
+    },
+    {
+      "id": "compliance-standards",
+      "prefLabel": "Compliance Standards",
+      "kind": "domain",
+      "definition": "External rules and attestations a product is measured against.",
+      "altLabels": [],
+      "broader": "revenue-operations",
+      "governs": []
+    },
+    {
+      "id": "contract-lifecycle-management",
+      "prefLabel": "Contract Lifecycle Management",
+      "kind": "domain",
+      "definition": "Creating, amending, renewing and ending customer contracts.",
+      "altLabels": [],
+      "broader": "revenue-operations",
+      "governs": []
+    },
+    {
+      "id": "financial-reporting",
+      "prefLabel": "Financial Reporting",
+      "kind": "domain",
+      "definition": "Summarising billing and revenue data for finance and leadership.",
+      "altLabels": [],
+      "broader": "revenue-operations",
+      "governs": []
+    },
+    {
+      "id": "monetization-model",
+      "prefLabel": "Monetization Model",
+      "kind": "domain",
+      "definition": "The pricing structures a product can charge under.",
+      "altLabels": [],
+      "broader": "revenue-operations",
+      "governs": []
+    },
+    {
+      "id": "payment-processing",
+      "prefLabel": "Payment Processing",
+      "kind": "domain",
+      "definition": "Taking and settling customer payments through payment providers.",
+      "altLabels": [],
+      "broader": "revenue-operations",
+      "governs": []
+    },
+    {
+      "id": "platform-capabilities",
+      "prefLabel": "Platform Capabilities",
+      "kind": "domain",
+      "definition": "Configuration, access and data-handling facilities of the platform itself.",
+      "altLabels": [],
+      "broader": "revenue-operations",
+      "governs": []
+    },
+    {
+      "id": "privacy-regulations",
+      "prefLabel": "Privacy Regulations",
+      "kind": "domain",
+      "definition": "Laws governing how personal data may be collected and handled.",
+      "altLabels": [],
+      "broader": "compliance-standards",
+      "governs": []
+    },
+    {
+      "id": "revenue-operations",
+      "prefLabel": "Revenue Operations",
+      "kind": "domain",
+      "definition": "The end-to-end handling of customer contracts, billing, collections and revenue reporting.",
+      "altLabels": [],
+      "broader": null,
+      "governs": []
+    },
+    {
+      "id": "security-attestations",
+      "prefLabel": "Security Attestations",
+      "kind": "domain",
+      "definition": "Independent audits of a provider's security and control environment.",
+      "altLabels": [],
+      "broader": "compliance-standards",
+      "governs": []
+    },
+    {
+      "id": "tax-management",
+      "prefLabel": "Tax Management",
+      "kind": "domain",
+      "definition": "Calculating, reporting and filing transaction taxes.",
+      "altLabels": [],
+      "broader": "revenue-operations",
+      "governs": []
+    },
+    {
+      "id": "ach-payments",
+      "prefLabel": "ACH Payments",
+      "kind": "feature",
+      "definition": "Taking payment by direct transfer from a customer's bank account.",
+      "altLabels": [
+        "ACH",
+        "ACH Payment",
+        "Bank Transfer"
+      ],
+      "broader": "payment-processing",
+      "governs": []
+    },
+    {
+      "id": "arr",
+      "prefLabel": "ARR",
+      "kind": "feature",
+      "definition": "The annualised value of recurring subscription revenue.",
+      "altLabels": [
+        "ARR Reporting",
+        "Annual Recurring Revenue"
+      ],
+      "broader": "financial-reporting",
+      "governs": []
+    },
+    {
+      "id": "asc-606",
+      "prefLabel": "ASC 606",
+      "kind": "standard",
+      "definition": "The US accounting standard governing how revenue from customer contracts is recognised.",
+      "altLabels": [],
+      "broader": "accounting-standards",
+      "governs": [
+        "revenue-recognition",
+        "performance-obligation",
+        "revenue-allocation",
+        "standalone-selling-price",
+        "revenue-schedules"
+      ]
+    },
+    {
+      "id": "accounts-receivable",
+      "prefLabel": "Accounts Receivable",
+      "kind": "process",
+      "definition": "Tracking, collecting and applying the money customers owe.",
+      "altLabels": [
+        "AR Automation",
+        "Accounts Receivable Automation"
+      ],
+      "broader": "revenue-operations",
+      "governs": []
+    },
+    {
+      "id": "aging-report",
+      "prefLabel": "Aging Report",
+      "kind": "feature",
+      "definition": "A breakdown of outstanding customer balances grouped by how far overdue they are.",
+      "altLabels": [
+        "AR Aging Report",
+        "Accounts Receivable Aging",
+        "Aging Summary"
+      ],
+      "broader": "accounts-receivable",
+      "governs": []
+    },
+    {
+      "id": "approval-workflows",
+      "prefLabel": "Approval Workflows",
+      "kind": "feature",
+      "definition": "Requiring named people to authorise an action before it takes effect.",
+      "altLabels": [
+        "Approvals",
+        "Approval Workflow"
+      ],
+      "broader": "platform-capabilities",
+      "governs": []
+    },
+    {
+      "id": "audit-trail",
+      "prefLabel": "Audit Trail",
+      "kind": "feature",
+      "definition": "A durable record of who changed what, and when.",
+      "altLabels": [
+        "Audit Log",
+        "Change History"
+      ],
+      "broader": "platform-capabilities",
+      "governs": []
+    },
+    {
+      "id": "auto-pay",
+      "prefLabel": "Auto-Pay",
+      "kind": "feature",
+      "definition": "Automatically charging a customer's stored payment method when an invoice falls due.",
+      "altLabels": [
+        "AutoPay",
+        "Auto Pay",
+        "Automatic Payments"
+      ],
+      "broader": "accounts-receivable",
+      "governs": []
+    },
+    {
+      "id": "billing-period",
+      "prefLabel": "Billing Period",
+      "kind": "feature",
+      "definition": "The span of time an invoice covers.",
+      "altLabels": [
+        "Billing Periods",
+        "Billing Cycle"
+      ],
+      "broader": "billing-automation",
+      "governs": []
+    },
+    {
+      "id": "billing-run",
+      "prefLabel": "Billing Run",
+      "kind": "process",
+      "definition": "A scheduled batch that generates invoices for every customer due in a period.",
+      "altLabels": [
+        "Billing Runs",
+        "Automated Billing Run"
+      ],
+      "broader": "billing-automation",
+      "governs": []
+    },
+    {
+      "id": "billing-schedules",
+      "prefLabel": "Billing Schedules",
+      "kind": "feature",
+      "definition": "The dated plan setting out when a subscription will be invoiced.",
+      "altLabels": [
+        "Billing Schedule"
+      ],
+      "broader": "billing-automation",
+      "governs": []
+    },
+    {
+      "id": "bulk-operations",
+      "prefLabel": "Bulk Operations",
+      "kind": "feature",
+      "definition": "Applying a change across many records in a single action.",
+      "altLabels": [
+        "Bulk Update",
+        "Bulk Import"
+      ],
+      "broader": "platform-capabilities",
+      "governs": []
+    },
+    {
+      "id": "ccpa",
+      "prefLabel": "CCPA",
+      "kind": "standard",
+      "definition": "The California law granting state residents rights over their personal data.",
+      "altLabels": [],
+      "broader": "privacy-regulations",
+      "governs": []
+    },
+    {
+      "id": "cancellation",
+      "prefLabel": "Cancellation",
+      "kind": "feature",
+      "definition": "Ending a subscription before or at the end of its term.",
+      "altLabels": [
+        "Cancellation Management",
+        "Subscription Cancellation"
+      ],
+      "broader": "contract-lifecycle-management",
+      "governs": []
+    },
+    {
+      "id": "cash-application",
+      "prefLabel": "Cash Application",
+      "kind": "process",
+      "definition": "Matching received payments to the invoices they settle.",
+      "altLabels": [
+        "Automated Cash Application",
+        "Cash Matching"
+      ],
+      "broader": "accounts-receivable",
+      "governs": []
+    },
+    {
+      "id": "churn",
+      "prefLabel": "Churn",
+      "kind": "feature",
+      "definition": "The rate at which customers or recurring revenue are lost.",
+      "altLabels": [
+        "Churn Analytics",
+        "Churn Rate",
+        "Churn Reporting"
+      ],
+      "broader": "financial-reporting",
+      "governs": []
+    },
+    {
+      "id": "cohort-analysis",
+      "prefLabel": "Cohort Analysis",
+      "kind": "feature",
+      "definition": "Comparing groups of customers according to when they started.",
+      "altLabels": [
+        "Cohort Reporting"
+      ],
+      "broader": "financial-reporting",
+      "governs": []
+    },
+    {
+      "id": "consolidated-invoice",
+      "prefLabel": "Consolidated Invoice",
+      "kind": "feature",
+      "definition": "A single invoice combining charges from several subscriptions or child accounts.",
+      "altLabels": [
+        "Consolidated Invoicing",
+        "Consolidated Invoices"
+      ],
+      "broader": "billing-automation",
+      "governs": []
+    },
+    {
+      "id": "consumption-based-pricing",
+      "prefLabel": "Consumption-Based Pricing",
+      "kind": "pricing",
+      "definition": "Charging strictly in proportion to what the customer consumes.",
+      "altLabels": [],
+      "broader": "monetization-model",
+      "governs": []
+    },
+    {
+      "id": "contract-management",
+      "prefLabel": "Contract Management",
+      "kind": "feature",
+      "definition": "Holding the terms, charges and dates agreed with a customer.",
+      "altLabels": [
+        "Contract Administration"
+      ],
+      "broader": "contract-lifecycle-management",
+      "governs": []
+    },
+    {
+      "id": "contract-modification",
+      "prefLabel": "Contract Modification",
+      "kind": "process",
+      "definition": "Changing the terms of a live contract and carrying the accounting consequences through.",
+      "altLabels": [
+        "Contract Modifications",
+        "Contract Amendment",
+        "Contract Amendments",
+        "Amendment Processing",
+        "Amendments",
+        "Amendment"
+      ],
+      "broader": "contract-lifecycle-management",
+      "governs": []
+    },
+    {
+      "id": "credit-card-processing",
+      "prefLabel": "Credit Card Processing",
+      "kind": "feature",
+      "definition": "Taking payment by card through a payment gateway.",
+      "altLabels": [
+        "Card Payments",
+        "Credit Card Payments"
+      ],
+      "broader": "payment-processing",
+      "governs": []
+    },
+    {
+      "id": "credit-notes",
+      "prefLabel": "Credit Notes",
+      "kind": "feature",
+      "definition": "A document reducing or reversing an amount previously invoiced.",
+      "altLabels": [
+        "Credit Note",
+        "Credit Memo",
+        "Credit Memos"
+      ],
+      "broader": "billing-automation",
+      "governs": []
+    },
+    {
+      "id": "custom-fields",
+      "prefLabel": "Custom Fields",
+      "kind": "feature",
+      "definition": "Extra fields added to standard records to hold customer-specific data.",
+      "altLabels": [
+        "Custom Field",
+        "User-Defined Fields"
+      ],
+      "broader": "platform-capabilities",
+      "governs": []
+    },
+    {
+      "id": "custom-object",
+      "prefLabel": "Custom Object",
+      "kind": "feature",
+      "definition": "A customer-defined record type the platform stores and relates to others.",
+      "altLabels": [
+        "Custom Objects"
+      ],
+      "broader": "platform-capabilities",
+      "governs": []
+    },
+    {
+      "id": "custom-report",
+      "prefLabel": "Custom Report",
+      "kind": "feature",
+      "definition": "A report defined by the customer rather than supplied as standard.",
+      "altLabels": [
+        "Custom Reporting",
+        "Custom Reports"
+      ],
+      "broader": "financial-reporting",
+      "governs": []
+    },
+    {
+      "id": "customer-portal",
+      "prefLabel": "Customer Portal",
+      "kind": "feature",
+      "definition": "A self-service area where customers view invoices, pay, and manage their own details.",
+      "altLabels": [
+        "Customer Payment Portal",
+        "Self-Service Portal",
+        "Self-Serve Portal"
+      ],
+      "broader": "accounts-receivable",
+      "governs": []
+    },
+    {
+      "id": "dashboard",
+      "prefLabel": "Dashboard",
+      "kind": "feature",
+      "definition": "A screen summarising key billing and revenue figures at a glance.",
+      "altLabels": [
+        "Dashboards",
+        "Real-Time Analytics",
+        "SaaS Metrics Dashboard",
+        "Analytics Dashboard"
+      ],
+      "broader": "financial-reporting",
+      "governs": []
+    },
+    {
+      "id": "data-export",
+      "prefLabel": "Data Export",
+      "kind": "feature",
+      "definition": "Extracting platform data in a portable file format.",
+      "altLabels": [
+        "Export Data",
+        "Data Extract"
+      ],
+      "broader": "platform-capabilities",
+      "governs": []
+    },
+    {
+      "id": "dunning",
+      "prefLabel": "Dunning",
+      "kind": "process",
+      "definition": "Chasing failed or overdue payments through a scheduled sequence of retries and notices.",
+      "altLabels": [
+        "Dunning Management",
+        "Dunning Automation",
+        "Smart Dunning",
+        "Failed Payment Recovery"
+      ],
+      "broader": "accounts-receivable",
+      "governs": []
+    },
+    {
+      "id": "dynamic-pricing",
+      "prefLabel": "Dynamic Pricing",
+      "kind": "pricing",
+      "definition": "Charging rates that vary with conditions rather than following a fixed schedule.",
+      "altLabels": [],
+      "broader": "monetization-model",
+      "governs": []
+    },
+    {
+      "id": "exchange-rate",
+      "prefLabel": "Exchange Rate",
+      "kind": "feature",
+      "definition": "The rate used to convert amounts between currencies.",
+      "altLabels": [
+        "Exchange Rates",
+        "Multi-Currency Support",
+        "Currency Conversion"
+      ],
+      "broader": "financial-reporting",
+      "governs": []
+    },
+    {
+      "id": "financial-period",
+      "prefLabel": "Financial Period",
+      "kind": "feature",
+      "definition": "The accounting period transactions are recorded into and later closed.",
+      "altLabels": [
+        "Financial Periods",
+        "Accounting Period"
+      ],
+      "broader": "financial-reporting",
+      "governs": []
+    },
+    {
+      "id": "gaap",
+      "prefLabel": "GAAP",
+      "kind": "standard",
+      "definition": "The generally accepted accounting principles financial statements are prepared under.",
+      "altLabels": [],
+      "broader": "accounting-standards",
+      "governs": [
+        "revenue-recognition",
+        "financial-reporting"
+      ]
+    },
+    {
+      "id": "gdpr",
+      "prefLabel": "GDPR",
+      "kind": "standard",
+      "definition": "The EU regulation governing how the personal data of EU residents may be processed.",
+      "altLabels": [],
+      "broader": "privacy-regulations",
+      "governs": []
+    },
+    {
+      "id": "gl-account",
+      "prefLabel": "GL Account",
+      "kind": "feature",
+      "definition": "The general-ledger account a billing transaction is posted to.",
+      "altLabels": [
+        "GL Accounts",
+        "General Ledger Account",
+        "General Ledger Export"
+      ],
+      "broader": "financial-reporting",
+      "governs": []
+    },
+    {
+      "id": "hipaa",
+      "prefLabel": "HIPAA",
+      "kind": "standard",
+      "definition": "The US law governing the handling of protected health information.",
+      "altLabels": [],
+      "broader": "privacy-regulations",
+      "governs": []
+    },
+    {
+      "id": "hybrid-pricing",
+      "prefLabel": "Hybrid Pricing",
+      "kind": "pricing",
+      "definition": "Combining a recurring fee with usage-based charges.",
+      "altLabels": [],
+      "broader": "monetization-model",
+      "governs": []
+    },
+    {
+      "id": "ifrs-15",
+      "prefLabel": "IFRS 15",
+      "kind": "standard",
+      "definition": "The international accounting standard governing revenue from customer contracts.",
+      "altLabels": [],
+      "broader": "accounting-standards",
+      "governs": [
+        "revenue-recognition",
+        "performance-obligation",
+        "revenue-allocation",
+        "standalone-selling-price"
+      ]
+    },
+    {
+      "id": "iso-27001",
+      "prefLabel": "ISO 27001",
+      "kind": "standard",
+      "definition": "The international standard for running an information security management system.",
+      "altLabels": [],
+      "broader": "security-attestations",
+      "governs": [
+        "permissions",
+        "audit-trail"
+      ]
+    },
+    {
+      "id": "invoice-delivery",
+      "prefLabel": "Invoice Delivery",
+      "kind": "feature",
+      "definition": "Sending a finished invoice to the customer.",
+      "altLabels": [
+        "Invoice Email Delivery"
+      ],
+      "broader": "billing-automation",
+      "governs": []
+    },
+    {
+      "id": "invoice-templates",
+      "prefLabel": "Invoice Templates",
+      "kind": "feature",
+      "definition": "A reusable layout controlling how invoices are presented.",
+      "altLabels": [
+        "Invoice Template"
+      ],
+      "broader": "billing-automation",
+      "governs": []
+    },
+    {
+      "id": "invoicing",
+      "prefLabel": "Invoicing",
+      "kind": "process",
+      "definition": "Producing invoices from contracted charges and recorded usage.",
+      "altLabels": [
+        "Automated Invoicing",
+        "Invoice Automation",
+        "Touchless Invoicing",
+        "Invoice Calculations"
+      ],
+      "broader": "billing-automation",
+      "governs": []
+    },
+    {
+      "id": "journal-entry",
+      "prefLabel": "Journal Entry",
+      "kind": "process",
+      "definition": "Producing the ledger entries that record billing and revenue activity.",
+      "altLabels": [
+        "Journal Entries",
+        "Journal Entry Creation",
+        "Journal Entry Export",
+        "Journal Entry Automation"
+      ],
+      "broader": "revenue-recognition",
+      "governs": []
+    },
+    {
+      "id": "mrr",
+      "prefLabel": "MRR",
+      "kind": "feature",
+      "definition": "The monthly value of recurring subscription revenue.",
+      "altLabels": [
+        "MRR Reporting",
+        "Monthly Recurring Revenue"
+      ],
+      "broader": "financial-reporting",
+      "governs": []
+    },
+    {
+      "id": "metered-billing",
+      "prefLabel": "Metered Billing",
+      "kind": "feature",
+      "definition": "Charging based on measured consumption rather than a fixed fee.",
+      "altLabels": [
+        "Usage-Based Billing",
+        "Metered Usage"
+      ],
+      "broader": "billing-automation",
+      "governs": []
+    },
+    {
+      "id": "minimum-commitments",
+      "prefLabel": "Minimum Commitments",
+      "kind": "feature",
+      "definition": "A contracted floor a customer is billed for regardless of actual usage.",
+      "altLabels": [
+        "Minimum Commitment",
+        "Committed Spend"
+      ],
+      "broader": "billing-automation",
+      "governs": []
+    },
+    {
+      "id": "multi-entity",
+      "prefLabel": "Multi-Entity",
+      "kind": "feature",
+      "definition": "Billing on behalf of more than one legal entity from a single system.",
+      "altLabels": [
+        "Multi-Entity Billing",
+        "Multiple Entities"
+      ],
+      "broader": "billing-automation",
+      "governs": []
+    },
+    {
+      "id": "order-management",
+      "prefLabel": "Order Management",
+      "kind": "feature",
+      "definition": "Capturing and processing what a customer has agreed to buy.",
+      "altLabels": [
+        "Order Entry",
+        "Orders"
+      ],
+      "broader": "contract-lifecycle-management",
+      "governs": []
+    },
+    {
+      "id": "overage",
+      "prefLabel": "Overage",
+      "kind": "feature",
+      "definition": "Charges for consumption above a committed or included allowance.",
+      "altLabels": [
+        "Overage Handling",
+        "Overage Billing",
+        "Overages"
+      ],
+      "broader": "billing-automation",
+      "governs": []
+    },
+    {
+      "id": "pci-dss",
+      "prefLabel": "PCI-DSS",
+      "kind": "standard",
+      "definition": "The card-industry standard for handling, storing and transmitting cardholder data.",
+      "altLabels": [],
+      "broader": "security-attestations",
+      "governs": [
+        "credit-card-processing",
+        "tokenization",
+        "payment-method"
+      ]
+    },
+    {
+      "id": "parent-customer",
+      "prefLabel": "Parent Customer",
+      "kind": "feature",
+      "definition": "A customer account that other accounts roll up to for billing or reporting.",
+      "altLabels": [
+        "Parent-Child Billing",
+        "Customer Hierarchy",
+        "Parent Account"
+      ],
+      "broader": "platform-capabilities",
+      "governs": []
+    },
+    {
+      "id": "payment-collection",
+      "prefLabel": "Payment Collection",
+      "kind": "process",
+      "definition": "Obtaining payment from customers for invoices already issued.",
+      "altLabels": [
+        "Collections",
+        "Automated Collections",
+        "Collections Workflow"
+      ],
+      "broader": "accounts-receivable",
+      "governs": []
+    },
+    {
+      "id": "payment-gateway-integration",
+      "prefLabel": "Payment Gateway Integration",
+      "kind": "feature",
+      "definition": "Connecting to a third-party provider that authorises and captures payments.",
+      "altLabels": [
+        "Payment Gateways",
+        "Gateway Integration"
+      ],
+      "broader": "payment-processing",
+      "governs": []
+    },
+    {
+      "id": "payment-method",
+      "prefLabel": "Payment Method",
+      "kind": "feature",
+      "definition": "A stored means of payment held against a customer, such as a card or bank account.",
+      "altLabels": [
+        "Payment Methods"
+      ],
+      "broader": "accounts-receivable",
+      "governs": []
+    },
+    {
+      "id": "payment-reminder",
+      "prefLabel": "Payment Reminder",
+      "kind": "feature",
+      "definition": "A notice sent to a customer before or after an invoice becomes overdue.",
+      "altLabels": [
+        "Payment Reminders",
+        "Dunning Email",
+        "Invoice Reminder"
+      ],
+      "broader": "accounts-receivable",
+      "governs": []
+    },
+    {
+      "id": "payment-retry",
+      "prefLabel": "Payment Retry",
+      "kind": "feature",
+      "definition": "A further attempt to charge a payment method after an earlier attempt failed.",
+      "altLabels": [
+        "Payment Retries",
+        "Automated Payment Retries",
+        "Retry Schedule"
+      ],
+      "broader": "accounts-receivable",
+      "governs": []
+    },
+    {
+      "id": "payment-run",
+      "prefLabel": "Payment Run",
+      "kind": "process",
+      "definition": "A scheduled batch that charges stored payment methods across many customers at once.",
+      "altLabels": [
+        "Payment Runs",
+        "Automated Payment Run"
+      ],
+      "broader": "accounts-receivable",
+      "governs": []
+    },
+    {
+      "id": "per-seat-pricing",
+      "prefLabel": "Per-Seat Pricing",
+      "kind": "pricing",
+      "definition": "Charging per user who has access.",
+      "altLabels": [],
+      "broader": "monetization-model",
+      "governs": []
+    },
+    {
+      "id": "performance-obligation",
+      "prefLabel": "Performance Obligation",
+      "kind": "feature",
+      "definition": "A distinct promise within a contract that revenue is recognised against as it is satisfied.",
+      "altLabels": [
+        "Performance Obligation Tracking",
+        "Performance Obligations"
+      ],
+      "broader": "revenue-recognition",
+      "governs": []
+    },
+    {
+      "id": "permissions",
+      "prefLabel": "Permissions",
+      "kind": "feature",
+      "definition": "Controls determining what each user is allowed to see and do.",
+      "altLabels": [
+        "Role-Based Access Control",
+        "RBAC",
+        "User Permissions"
+      ],
+      "broader": "platform-capabilities",
+      "governs": []
+    },
+    {
+      "id": "proration",
+      "prefLabel": "Proration",
+      "kind": "process",
+      "definition": "Adjusting a charge to cover only the part of a period a change applies to.",
+      "altLabels": [
+        "Prorated Billing",
+        "Pro-Rata Billing"
+      ],
+      "broader": "billing-automation",
+      "governs": []
+    },
+    {
+      "id": "quote-management",
+      "prefLabel": "Quote Management",
+      "kind": "feature",
+      "definition": "Preparing and issuing priced proposals before a contract exists.",
+      "altLabels": [
+        "Quoting",
+        "Quotes"
+      ],
+      "broader": "contract-lifecycle-management",
+      "governs": []
+    },
+    {
+      "id": "quote-to-cash",
+      "prefLabel": "Quote-to-Cash",
+      "kind": "process",
+      "definition": "The whole path from quoting a customer to collecting the resulting cash.",
+      "altLabels": [
+        "Order-to-Revenue Cycle",
+        "Order to Cash",
+        "Q2C"
+      ],
+      "broader": "contract-lifecycle-management",
+      "governs": []
+    },
+    {
+      "id": "recurring-billing",
+      "prefLabel": "Recurring Billing",
+      "kind": "pricing",
+      "definition": "Charging a repeating fee on a fixed cycle.",
+      "altLabels": [],
+      "broader": "monetization-model",
+      "governs": []
+    },
+    {
+      "id": "refund-processing",
+      "prefLabel": "Refund Processing",
+      "kind": "feature",
+      "definition": "Returning money to a customer for a charge already taken.",
+      "altLabels": [
+        "Refunds",
+        "Refund"
+      ],
+      "broader": "payment-processing",
+      "governs": []
+    },
+    {
+      "id": "renewal",
+      "prefLabel": "Renewal",
+      "kind": "feature",
+      "definition": "Continuing a subscription into a further term.",
+      "altLabels": [
+        "Renewal Management",
+        "Automated Renewals",
+        "Subscription Renewal"
+      ],
+      "broader": "contract-lifecycle-management",
+      "governs": []
+    },
+    {
+      "id": "revenue-allocation",
+      "prefLabel": "Revenue Allocation",
+      "kind": "process",
+      "definition": "Spreading a contract's total price across the separate obligations it contains.",
+      "altLabels": [
+        "Allocation Engine",
+        "Revenue Allocations"
+      ],
+      "broader": "revenue-recognition",
+      "governs": []
+    },
+    {
+      "id": "revenue-forecast",
+      "prefLabel": "Revenue Forecast",
+      "kind": "feature",
+      "definition": "A projection of revenue expected from contracts already signed.",
+      "altLabels": [
+        "Revenue Forecasting",
+        "Revenue Projection"
+      ],
+      "broader": "revenue-recognition",
+      "governs": []
+    },
+    {
+      "id": "revenue-recognition",
+      "prefLabel": "Revenue Recognition",
+      "kind": "process",
+      "definition": "Determining when and how contracted revenue is recorded in the ledger.",
+      "altLabels": [
+        "Revenue Recognition Automation",
+        "Automated Revenue Recognition",
+        "Rev Rec"
+      ],
+      "broader": "revenue-operations",
+      "governs": []
+    },
+    {
+      "id": "revenue-report",
+      "prefLabel": "Revenue Report",
+      "kind": "feature",
+      "definition": "A summary of recognised and deferred revenue across a period.",
+      "altLabels": [
+        "Revenue Analytics",
+        "Revenue Reporting"
+      ],
+      "broader": "financial-reporting",
+      "governs": []
+    },
+    {
+      "id": "revenue-schedules",
+      "prefLabel": "Revenue Schedules",
+      "kind": "feature",
+      "definition": "The dated plan setting out when contracted revenue will be recognised.",
+      "altLabels": [
+        "Revenue Schedule",
+        "Revenue Scheduling",
+        "Deferred Revenue Schedules",
+        "Deferred Revenue Management"
+      ],
+      "broader": "revenue-recognition",
+      "governs": []
+    },
+    {
+      "id": "revenue-subledger",
+      "prefLabel": "Revenue Subledger",
+      "kind": "feature",
+      "definition": "A detailed revenue ledger that reconciles back to the general ledger.",
+      "altLabels": [
+        "Subledger",
+        "Revenue Sub-Ledger"
+      ],
+      "broader": "revenue-recognition",
+      "governs": []
+    },
+    {
+      "id": "revenue-waterfall",
+      "prefLabel": "Revenue Waterfall",
+      "kind": "feature",
+      "definition": "A view of how deferred revenue converts into recognised revenue over time.",
+      "altLabels": [
+        "Revenue Waterfall Report"
+      ],
+      "broader": "revenue-recognition",
+      "governs": []
+    },
+    {
+      "id": "soc-1",
+      "prefLabel": "SOC 1",
+      "kind": "standard",
+      "definition": "An audit report on controls relevant to a customer's financial reporting.",
+      "altLabels": [],
+      "broader": "security-attestations",
+      "governs": [
+        "audit-trail",
+        "gl-account"
+      ]
+    },
+    {
+      "id": "soc-1-type-ii",
+      "prefLabel": "SOC 1 Type II",
+      "kind": "standard",
+      "definition": "A SOC 1 report covering whether those controls operated effectively over a period.",
+      "altLabels": [],
+      "broader": "security-attestations",
+      "governs": [
+        "audit-trail",
+        "gl-account"
+      ]
+    },
+    {
+      "id": "soc-2",
+      "prefLabel": "SOC 2",
+      "kind": "standard",
+      "definition": "An audit report on controls for security, availability and confidentiality.",
+      "altLabels": [],
+      "broader": "security-attestations",
+      "governs": [
+        "permissions",
+        "audit-trail"
+      ]
+    },
+    {
+      "id": "soc-2-type-ii",
+      "prefLabel": "SOC 2 Type II",
+      "kind": "standard",
+      "definition": "A SOC 2 report covering whether those controls operated effectively over a period.",
+      "altLabels": [],
+      "broader": "security-attestations",
+      "governs": [
+        "permissions",
+        "audit-trail"
+      ]
+    },
+    {
+      "id": "sandbox-environment",
+      "prefLabel": "Sandbox Environment",
+      "kind": "feature",
+      "definition": "A separate non-production copy of the system for testing changes safely.",
+      "altLabels": [
+        "Sandbox"
+      ],
+      "broader": "platform-capabilities",
+      "governs": []
+    },
+    {
+      "id": "schedule-lines",
+      "prefLabel": "Schedule Lines",
+      "kind": "feature",
+      "definition": "The individual dated rows that make up a revenue or billing schedule.",
+      "altLabels": [
+        "Schedule Line",
+        "Revenue Schedule Lines"
+      ],
+      "broader": "revenue-recognition",
+      "governs": []
+    },
+    {
+      "id": "single-sign-on",
+      "prefLabel": "Single Sign-On",
+      "kind": "feature",
+      "definition": "Signing in through a central identity provider instead of a separate password.",
+      "altLabels": [
+        "SSO",
+        "SAML SSO"
+      ],
+      "broader": "platform-capabilities",
+      "governs": []
+    },
+    {
+      "id": "standalone-selling-price",
+      "prefLabel": "Standalone Selling Price",
+      "kind": "feature",
+      "definition": "The price an item would sell for on its own, used to allocate a contract's total.",
+      "altLabels": [
+        "SSP",
+        "SSP Allocation",
+        "Standalone Selling Price Allocation"
+      ],
+      "broader": "revenue-recognition",
+      "governs": []
+    },
+    {
+      "id": "subscription-billing",
+      "prefLabel": "Subscription Billing",
+      "kind": "process",
+      "definition": "Charging a customer repeatedly for an ongoing subscription.",
+      "altLabels": [
+        "Recurring Billing Automation"
+      ],
+      "broader": "billing-automation",
+      "governs": []
+    },
+    {
+      "id": "subscription-downgrades",
+      "prefLabel": "Subscription Downgrades",
+      "kind": "feature",
+      "definition": "Moving a customer to a smaller plan or quantity mid-term.",
+      "altLabels": [
+        "Downgrade",
+        "Plan Downgrade"
+      ],
+      "broader": "contract-lifecycle-management",
+      "governs": []
+    },
+    {
+      "id": "subscription-management",
+      "prefLabel": "Subscription Management",
+      "kind": "feature",
+      "definition": "Maintaining the plans, quantities and dates on a customer's active subscriptions.",
+      "altLabels": [
+        "Subscription Administration"
+      ],
+      "broader": "contract-lifecycle-management",
+      "governs": []
+    },
+    {
+      "id": "subscription-pricing",
+      "prefLabel": "Subscription Pricing",
+      "kind": "pricing",
+      "definition": "Charging a fixed fee for access across a term.",
+      "altLabels": [],
+      "broader": "monetization-model",
+      "governs": []
+    },
+    {
+      "id": "subscription-upgrades",
+      "prefLabel": "Subscription Upgrades",
+      "kind": "feature",
+      "definition": "Moving a customer to a larger plan or quantity mid-term.",
+      "altLabels": [
+        "Upgrade",
+        "Plan Upgrade"
+      ],
+      "broader": "contract-lifecycle-management",
+      "governs": []
+    },
+    {
+      "id": "tax-calculation",
+      "prefLabel": "Tax Calculation",
+      "kind": "process",
+      "definition": "Determining the tax due on a charge from its amount, type and jurisdiction.",
+      "altLabels": [
+        "Sales Tax Calculation",
+        "Automated Tax Calculation"
+      ],
+      "broader": "tax-management",
+      "governs": []
+    },
+    {
+      "id": "tax-nexus",
+      "prefLabel": "Tax Nexus",
+      "kind": "feature",
+      "definition": "The connection to a jurisdiction that creates an obligation to collect its tax.",
+      "altLabels": [
+        "Tax Nexus Tracking",
+        "Nexus"
+      ],
+      "broader": "tax-management",
+      "governs": []
+    },
+    {
+      "id": "tax-reporting",
+      "prefLabel": "Tax Reporting",
+      "kind": "feature",
+      "definition": "Producing the summaries needed to file transaction taxes.",
+      "altLabels": [
+        "Tax Report",
+        "Tax Returns"
+      ],
+      "broader": "tax-management",
+      "governs": []
+    },
+    {
+      "id": "tiered-pricing",
+      "prefLabel": "Tiered Pricing",
+      "kind": "pricing",
+      "definition": "Charging different unit rates across bands of quantity.",
+      "altLabels": [],
+      "broader": "monetization-model",
+      "governs": []
+    },
+    {
+      "id": "tokenization",
+      "prefLabel": "Tokenization",
+      "kind": "feature",
+      "definition": "Replacing card details with a substitute token so sensitive data is never stored.",
+      "altLabels": [
+        "Payment Tokenization",
+        "Card Tokenization"
+      ],
+      "broader": "payment-processing",
+      "governs": []
+    },
+    {
+      "id": "transaction-pricing",
+      "prefLabel": "Transaction Pricing",
+      "kind": "pricing",
+      "definition": "Charging a fee for each transaction processed.",
+      "altLabels": [],
+      "broader": "monetization-model",
+      "governs": []
+    },
+    {
+      "id": "trial-management",
+      "prefLabel": "Trial Management",
+      "kind": "feature",
+      "definition": "Running time-limited free access that can convert into a paid subscription.",
+      "altLabels": [
+        "Free Trial",
+        "Trials"
+      ],
+      "broader": "contract-lifecycle-management",
+      "governs": []
+    },
+    {
+      "id": "us-gaap",
+      "prefLabel": "US GAAP",
+      "kind": "standard",
+      "definition": "The accounting principles issued by the FASB and used in US financial reporting.",
+      "altLabels": [],
+      "broader": "accounting-standards",
+      "governs": [
+        "revenue-recognition",
+        "financial-reporting"
+      ]
+    },
+    {
+      "id": "usage-rating",
+      "prefLabel": "Usage Rating",
+      "kind": "process",
+      "definition": "Converting raw usage records into priced charges.",
+      "altLabels": [
+        "Usage-Based Rating",
+        "Rating Engine"
+      ],
+      "broader": "billing-automation",
+      "governs": []
+    },
+    {
+      "id": "usage-based-pricing",
+      "prefLabel": "Usage-Based Pricing",
+      "kind": "pricing",
+      "definition": "Charging according to measured usage.",
+      "altLabels": [],
+      "broader": "monetization-model",
+      "governs": []
+    },
+    {
+      "id": "vat",
+      "prefLabel": "VAT",
+      "kind": "feature",
+      "definition": "A consumption tax charged on sales in jurisdictions that operate value-added tax.",
+      "altLabels": [
+        "VAT Support",
+        "Value-Added Tax"
+      ],
+      "broader": "tax-management",
+      "governs": []
+    },
+    {
+      "id": "write-off",
+      "prefLabel": "Write-Off",
+      "kind": "feature",
+      "definition": "Clearing a balance judged uncollectable off the receivables ledger.",
+      "altLabels": [
+        "Write-Off Management",
+        "Write Off",
+        "Bad Debt Write-Off"
+      ],
+      "broader": "accounts-receivable",
+      "governs": []
+    }
+  ]
 }

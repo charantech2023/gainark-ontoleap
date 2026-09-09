@@ -17,7 +17,7 @@ logger = logging.getLogger("ontoleap.api.deps")
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VERTICALS_DIR = verticals_dir()
 CONFIGS_DIR = os.path.join(BASE_DIR, "configs")
-DEFAULT_CONFIG = os.path.join(BASE_DIR, "vertical_config.json")
+DEFAULT_CONFIG = os.path.join(BASE_DIR, "verticals", "b2b_saas_fintech.json")
 
 DEFAULT_VERTICAL_ID = "b2b_saas_fintech"
 

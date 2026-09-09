@@ -20,9 +20,73 @@ from urllib.parse import urlparse
 from rdflib import Graph, Literal, RDF, RDFS, URIRef, Namespace, OWL, XSD
 from models import SemanticTriple
 from constants import WIKIDATA_KB
+from ontology_schema import (
+    scheme_uri as onto_scheme_uri,
+    concept_uri as onto_concept_uri,
+    slug_for_label,
+)
 
 # Canonical Wikidata Knowledge Base for Zero-Latency Entity Grounding
 WIKIDATA_KNOWLEDGE_BASE: Dict[str, str] = WIKIDATA_KB
+
+
+
+# ---------------------------------------------------------------------------
+# Entity Alias Deduplication — owl:sameAs
+# Prevents "Salesforce" vs "Salesforce CRM" vs "Salesforce, Inc." being
+# treated as 3 different entities in the knowledge graph.
+# ---------------------------------------------------------------------------
+
+# Known entity aliases for B2B SaaS ecosystem
+_ENTITY_ALIASES: Dict[str, List[str]] = {
+    "salesforce": ["salesforce crm", "salesforce inc", "salesforce.com", "sfdc"],
+    "netsuite": ["oracle netsuite", "netsuite erp"],
+    "quickbooks": ["quickbooks online", "intuit quickbooks", "qbo"],
+    "hubspot": ["hubspot crm", "hubspot marketing"],
+    "microsoft dynamics": ["dynamics 365", "ms dynamics", "dynamics crm"],
+    "sage intacct": ["intacct", "sage intacct cloud"],
+    "stripe": ["stripe payments", "stripe billing"],
+    "workday": ["workday hcm", "workday financials"],
+    "oracle": ["oracle cloud", "oracle erp", "oracle financials"],
+    "sap": ["sap erp", "sap s/4hana", "sap business one"],
+    "xero": ["xero accounting"],
+    "avalara": ["avalara avatax"],
+}
+
+# Reverse lookup: alias → canonical name
+_ALIAS_TO_CANONICAL: Dict[str, str] = {}
+for _canonical, _aliases in _ENTITY_ALIASES.items():
+    for _alias in _aliases:
+        _ALIAS_TO_CANONICAL[_alias] = _canonical
+
+
+def link_entity_aliases(g: Graph, domain: str) -> int:
+    """
+    Asserts owl:sameAs links between known entity aliases and their canonical URIs.
+    Call this after building the RDF graph to stitch duplicate entity nodes together.
+    Returns the number of sameAs triples added.
+    """
+    added = 0
+    for canonical_name, aliases in _ENTITY_ALIASES.items():
+        canonical_clean = re.sub(r"[^a-zA-Z0-9]+", "", canonical_name.title())
+        canonical_uri = URIRef(f"https://{domain}/entity/{canonical_clean}")
+        for alias in aliases:
+            alias_clean = re.sub(r"[^a-zA-Z0-9]+", "", alias.title())
+            alias_uri = URIRef(f"https://{domain}/entity/{alias_clean}")
+            if alias_uri != canonical_uri:
+                g.add((alias_uri, OWL.sameAs, canonical_uri))
+                added += 1
+    return added
+
+
+def resolve_canonical_name(entity_name: str) -> str:
+    """
+    Returns the canonical form of an entity name if it's a known alias.
+    E.g. 'Salesforce CRM' → 'salesforce', 'Stripe Payments' → 'stripe'.
+    Returns the original (lowercased) if no alias match found.
+    """
+    normalized = entity_name.strip().lower()
+    return _ALIAS_TO_CANONICAL.get(normalized, normalized)
 
 
 def build_rdf_graph(
@@ -98,53 +162,103 @@ def build_rdf_graph(
     g.add((dataset_uri, PROV.wasGeneratedBy, activity_uri))
 
     # W3C SKOS: Category Taxonomy Concept Scheme & Hierarchy
+    #
+    # The scheme and its concepts belong to the VERTICAL, not to the site being
+    # audited. They used to be minted under the client's own domain, which made
+    # "Revenue Schedules" in an Ordway graph a different resource from the same
+    # concept in a Chargebee graph: the shared ontology existed only as a private
+    # copy per client, and no question could span companies. Instance data below
+    # (the product, its claims, the pages they came from) stays under `domain`,
+    # because that genuinely is client-specific.
     v_id = vertical_id or "b2b_saas_fintech"
-    scheme_uri = URIRef(f"https://{domain}/taxonomy/{v_id}")
+    scheme_uri = URIRef(onto_scheme_uri(v_id))
     g.add((scheme_uri, RDF.type, SKOS.ConceptScheme))
-    g.add((scheme_uri, SKOS.prefLabel, Literal(f"{domain} Category Taxonomy ({v_id})")))
+    g.add((scheme_uri, SKOS.prefLabel, Literal(f"OntoLeap Category Taxonomy ({v_id})")))
     g.add((scheme_uri, PROV.wasGeneratedBy, activity_uri))
     g.add((scheme_uri, PROV.wasAttributedTo, agent_uri))
 
-    # Load concept_hierarchy if not passed explicitly
-    if not concept_hierarchy:
-        try:
-            curr_dir = os.path.dirname(os.path.abspath(__file__))
-            v_specific = os.path.join(curr_dir, "verticals", f"{v_id}.json")
-            if os.path.exists(v_specific):
-                with open(v_specific, "r", encoding="utf-8") as vf:
-                    cdata = json.load(vf)
-                    concept_hierarchy = cdata.get("concept_hierarchy", {})
+    # Load the vertical profile for the hierarchy and, where the vertical has been
+    # promoted to identified concepts, the frozen ids and definitions.
+    # Loaded through VerticalConfig rather than raw JSON so the hierarchy comes from
+    # the same derivation the extractor uses. Reading the file's concept_hierarchy key
+    # directly gave a stale tree - it is a derived view, regenerated from `concepts`
+    # on load - and ASC 606 was emitted under Revenue Recognition after having been
+    # moved to the standards branch.
+    concept_records: Dict[str, dict] = {}
+    try:
+        from models import VerticalConfig
+        curr_dir = os.path.dirname(os.path.abspath(__file__))
+        v_specific = os.path.join(curr_dir, "verticals", f"{v_id}.json")
+        cfg_path = v_specific if os.path.exists(v_specific) else os.path.join(
+            curr_dir, "vertical_config.json")
+        cdata = {}
+        if os.path.exists(cfg_path):
+            with open(cfg_path, "r", encoding="utf-8") as vf:
+                cdata = json.load(vf)
+        cfg = VerticalConfig(**cdata) if cdata else None
+        if cfg is not None:
+            for rec in cfg.concepts:
+                d = rec.model_dump()
+                concept_records[rec.prefLabel.strip().lower()] = d
+                for alt in rec.altLabels:
+                    concept_records.setdefault(alt.strip().lower(), d)
             if not concept_hierarchy:
-                v_file = os.path.join(curr_dir, "vertical_config.json")
-                if os.path.exists(v_file):
-                    with open(v_file, "r", encoding="utf-8") as vf:
-                        cdata = json.load(vf)
-                        concept_hierarchy = cdata.get("concept_hierarchy", {})
-        except Exception:
-            concept_hierarchy = {}
+                concept_hierarchy = dict(cfg.concept_hierarchy or {})
+    except Exception:
+        # A missing or malformed profile must not stop a graph being emitted; concepts
+        # simply fall back to slugged labels and carry no definitions.
+        concept_hierarchy = concept_hierarchy or {}
 
     concept_hierarchy = concept_hierarchy or {}
     skos_concepts_created: Set[str] = set()
 
+    def _concept_record(c_name: str) -> Optional[dict]:
+        return concept_records.get((c_name or "").strip().lower())
+
     def _make_concept_uri(c_name: str) -> URIRef:
-        c_clean = re.sub(r'[^a-zA-Z0-9]+', '', c_name) or "Concept"
-        return URIRef(f"https://{domain}/concept/{c_clean}")
+        """URI of a concept, from its frozen id where the vertical defines one.
+
+        Falling back to a slug of the label keeps verticals that have not been promoted
+        to identified concepts working, but such a URI moves if the label is ever
+        reworded - which is the whole reason ids exist.
+        """
+        rec = _concept_record(c_name)
+        cid = rec["id"] if rec else slug_for_label(c_name)
+        return URIRef(onto_concept_uri(v_id, cid))
 
     for child_c, parent_c in concept_hierarchy.items():
         child_uri = _make_concept_uri(child_c)
         parent_uri = _make_concept_uri(parent_c)
 
-        if child_c not in skos_concepts_created:
-            g.add((child_uri, RDF.type, SKOS.Concept))
-            g.add((child_uri, SKOS.inScheme, scheme_uri))
-            g.add((child_uri, SKOS.prefLabel, Literal(child_c)))
-            skos_concepts_created.add(child_c)
+        def _declare_concept(label: str, uri: URIRef) -> None:
+            """Type a concept and attach everything the vertical knows about it.
 
-        if parent_c not in skos_concepts_created:
-            g.add((parent_uri, RDF.type, SKOS.Concept))
-            g.add((parent_uri, SKOS.inScheme, scheme_uri))
-            g.add((parent_uri, SKOS.prefLabel, Literal(parent_c)))
-            skos_concepts_created.add(parent_c)
+            The definition and alternate labels are the point of this: without
+            skos:definition nothing downstream - reviewer or model - can check whether
+            a match against a page was the right concept, and without skos:altLabel the
+            marketing spelling and the documentation spelling stay unlinked in the graph.
+            """
+            if label in skos_concepts_created:
+                return
+            g.add((uri, RDF.type, SKOS.Concept))
+            g.add((uri, SKOS.inScheme, scheme_uri))
+            g.add((uri, SKOS.prefLabel, Literal(label)))
+            rec = _concept_record(label)
+            if rec:
+                if rec.get("definition"):
+                    g.add((uri, SKOS.definition, Literal(rec["definition"])))
+                for alt in rec.get("altLabels") or []:
+                    g.add((uri, SKOS.altLabel, Literal(alt)))
+                if rec.get("kind"):
+                    g.add((uri, SKOS.notation, Literal(rec["kind"])))
+                # A standard does not subsume what it regulates, so the governing link
+                # is its own relation rather than another skos:broader edge.
+                for governed_id in rec.get("governs") or []:
+                    g.add((uri, LOCAL.governs, URIRef(onto_concept_uri(v_id, governed_id))))
+            skos_concepts_created.add(label)
+
+        _declare_concept(child_c, child_uri)
+        _declare_concept(parent_c, parent_uri)
 
         g.add((child_uri, SKOS.broader, parent_uri))
         g.add((parent_uri, SKOS.narrower, child_uri))

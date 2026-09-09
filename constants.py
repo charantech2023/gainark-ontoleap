@@ -238,6 +238,18 @@ KNOWN_COMPETITORS: List[str] = [
     "SAP Billing", "Oracle Subscription Management",
 ]
 
+# Named customers are specific to whoever is being audited, so there is no sensible
+# vertical-wide default and this stays empty on purpose - the entity extractor supplies
+# them from the page. It exists so the schema HAS somewhere to put a customer name.
+#
+# Without it, a company named in a testimonial had no correct bucket and zero-shot NER
+# put it in the nearest one: Ordway's marketing quotes a customer, Paubox, next to a
+# sentence about Salesforce, and Paubox was extracted as an integration partner and then
+# reported as integration drift because no connector for it exists in the docs. The same
+# failure put Chargebee under integrations and SSO under pricing, and the fix each time
+# was to give the model the right label rather than to tune a threshold.
+KNOWN_CUSTOMERS: List[str] = []
+
 # ---------------------------------------------------------------------------
 # Sub-paths that are high-value for product ontology signals (deep crawl)
 # ---------------------------------------------------------------------------
@@ -288,6 +300,32 @@ def resolve_vocabulary(config, field: str, default: list) -> list:
     if values:
         return list(values)
     return default
+
+
+def resolve_surface_forms(config, field: str, default: list) -> list:
+    """Return [(canonical, [surface forms])] for a vocabulary field.
+
+    A concept is written differently depending on who is writing. Marketing pages say
+    "Renewal Management"; the product's own documentation says "renewal". Matching only
+    the drafted label meant a claim raised from marketing copy could never be verified
+    against the docs, so the audit reported drift on capabilities that plainly exist.
+
+    Surface forms come from the vertical's alt_labels map. Every form maps back to one
+    canonical label, and callers emit the canonical, so both sides of the audit converge
+    on the same string regardless of which register the page was written in.
+
+    Forms are returned longest-first: when "Deferred Revenue Schedules" and "Revenue
+    Schedules" both match a sentence, the longer is the more specific reading and the
+    caller should stop at the first hit.
+    """
+    terms = resolve_vocabulary(config, field, default)
+    alt_map = (getattr(config, "alt_labels", None) or {}) if config is not None else {}
+    resolved = []
+    for term in terms:
+        forms = {term}
+        forms.update(alt_map.get(term, []) or [])
+        resolved.append((term, sorted(forms, key=lambda s: (-len(s), s))))
+    return resolved
 
 
 def concept_ancestors(concept: str, hierarchy: dict, _max_depth: int = 12) -> list:

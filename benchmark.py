@@ -16,7 +16,7 @@ def run_benchmark(urls: List[str] = None):
     print("STARTING ONTOLOGY PIPELINE COMPETITIVE BENCHMARK")
     print("=" * 80)
 
-    pipeline = OntologyPipeline(config_path="vertical_config.json")
+    pipeline = OntologyPipeline()
     all_seed_concepts = pipeline.config.core_seed_concepts
 
     results = []

@@ -9,7 +9,7 @@ def main():
     print(f"Running Ontology Pipeline against: {target_url}")
     print(f"==================================================")
 
-    pipeline = OntologyPipeline(config_path="vertical_config.json")
+    pipeline = OntologyPipeline()
     result = pipeline.process(url=target_url)
 
     print("\n" + "="*60)

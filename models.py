@@ -14,7 +14,70 @@ Changes:
 
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+
+class Concept(BaseModel):
+    """One concept in a vertical ontology, identified independently of its name.
+
+    Before this existed, a concept WAS its display string: the string was the key in
+    every vocabulary list, the key in concept_hierarchy, and - via a slugify of the
+    label - the thing a graph URI was built from. Three consequences:
+
+      * Renaming a concept silently created a different resource, orphaning every
+        triple previously emitted about it.
+      * Slugging the label is lossy and collides: "Auto-Pay" and "Auto Pay" produce
+        one URI, and a punctuation change produces a new one.
+      * Nothing could carry a definition, so no reviewer or model could check whether
+        two similar concepts were the same thing or a match was correct.
+
+    `id` is assigned once and then frozen. It is never re-derived from prefLabel, so
+    the label is free to change without breaking identity.
+    """
+    id: str = Field(
+        ...,
+        pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$",
+        description="Stable slug, assigned once and never regenerated from the label.",
+    )
+    prefLabel: str = Field(..., description="Canonical display label, in documentation register.")
+    kind: str = Field(
+        ...,
+        description=(
+            "Which vocabulary bucket this concept belongs to: feature, process, "
+            "pricing, standard, or domain. Determines the predicate it is extracted "
+            "under - see ontology_schema.RELATIONS."
+        ),
+    )
+    definition: str = Field(
+        default="",
+        description=(
+            "One sentence saying what the concept is, in the product's own terms. "
+            "This is what makes review possible: without it neither a person nor a "
+            "model can judge whether 'Revenue Schedules' and 'Schedule Lines' are the "
+            "same thing, or whether a match against a page was correct."
+        ),
+    )
+    altLabels: List[str] = Field(
+        default_factory=list,
+        description="Other surface forms meaning this concept, typically marketing register.",
+    )
+    broader: Optional[str] = Field(
+        default=None,
+        description="id of the parent concept. None for the scheme root.",
+    )
+    governs: List[str] = Field(
+        default_factory=list,
+        description=(
+            "ids of concepts this one sets requirements for, when it is a standard or "
+            "regulation.\n\n"
+            "This exists because `broader` was carrying two incompatible meanings. "
+            "ASC 606 used to sit under Revenue Recognition as though it were a narrower "
+            "kind of it; it is not, it is a rule that governs it. Coverage inference "
+            "walking `broader` therefore treated complying with a standard and shipping "
+            "a capability as the same class of evidence. Standards now live in their own "
+            "branch and point at what they govern through this relation instead."
+        ),
+    )
 
 
 class VerticalConfig(BaseModel):
@@ -98,6 +161,110 @@ class VerticalConfig(BaseModel):
         default_factory=list,
         description="Direct market competitors operating in this vertical (e.g. Zuora, Chargebee).",
     )
+    known_customers: List[str] = Field(
+        default_factory=list,
+        description=(
+            "Named customers of the product under audit. Normally empty and filled from "
+            "the page by entity extraction, since customers are specific to one vendor "
+            "rather than shared across the vertical. Its purpose is to give a company "
+            "named in a testimonial somewhere correct to go - without it, zero-shot NER "
+            "files it under the nearest available label and a customer becomes an "
+            "integration partner."
+        ),
+    )
+    alt_labels: Dict[str, List[str]] = Field(
+        default_factory=dict,
+        description=(
+            "Maps a canonical concept to the other surface forms that mean it, e.g. "
+            '{"Renewal": ["Renewal Management", "Automated Renewals"]}. The canonical '
+            "label is the one technical documentation actually uses; the alternates are "
+            "the compound phrasings marketing prefers.\n\n"
+            "Without this the two sides of an audit never meet. Validated against 818 "
+            "Ordway support articles, 28 of 29 drafted feature labels were absent from "
+            "the docs while their base concept was present in volume - 'Renewal "
+            "Management' nowhere, 'renewal' 335 times. Marketing copy then raised a "
+            "claim that documentation could not verify, and the tool reported drift "
+            "where the capability plainly exists.\n\n"
+            "Extraction matches any surface form and always emits the canonical, so "
+            "marketing and technical text converge on one string. Empty means every "
+            "concept has exactly one spelling, which is the previous behaviour."
+        ),
+    )
+    concepts: List[Concept] = Field(
+        default_factory=list,
+        description=(
+            "The vertical's ontology as identified concepts. When present this is the "
+            "single source of truth, and the flat vocabulary lists plus alt_labels and "
+            "concept_hierarchy are DERIVED from it (see derive_legacy_views) so existing "
+            "extraction code keeps working unchanged.\n\n"
+            "Empty means this vertical predates concept identity and is read straight "
+            "from its flat lists, exactly as before."
+        ),
+    )
+
+    # Which vocabulary list each Concept.kind feeds. 'domain' is deliberately absent:
+    # domains organise the tree but are not themselves extracted as claims.
+    _KIND_TO_FIELD = {
+        "feature": "known_features",
+        "process": "known_automation",
+        "pricing": "known_pricing",
+        "standard": "known_compliance",
+    }
+
+    @model_validator(mode="after")
+    def derive_legacy_views(self):
+        """Project `concepts` onto the flat fields the extractor already reads.
+
+        Keeping one authoritative record per concept while deriving the old shapes means
+        identity and definitions can land without touching pipeline.py, constants.py or
+        any consumer of concept_hierarchy. A vertical with no `concepts` is untouched.
+        """
+        if not self.concepts:
+            return self
+
+        by_id = {c.id: c for c in self.concepts}
+
+        buckets: Dict[str, List[str]] = {f: [] for f in set(self._KIND_TO_FIELD.values())}
+        alts: Dict[str, List[str]] = {}
+        hierarchy: Dict[str, str] = {}
+
+        for c in self.concepts:
+            field = self._KIND_TO_FIELD.get(c.kind)
+            if field:
+                buckets[field].append(c.prefLabel)
+            if c.altLabels:
+                alts[c.prefLabel] = list(c.altLabels)
+            if c.broader:
+                parent = by_id.get(c.broader)
+                if parent is None:
+                    raise ValueError(
+                        "Concept %r has broader=%r, which is not a concept id in this "
+                        "vertical. A dangling parent would silently drop the concept out "
+                        "of the hierarchy and out of ancestor inference." % (c.id, c.broader)
+                    )
+                # Consumers (concept_ancestors, knowledge_graph) key the hierarchy by
+                # label, so the derived view stays label-to-label.
+                hierarchy[c.prefLabel] = parent.prefLabel
+
+        for field, values in buckets.items():
+            if values:
+                setattr(self, field, values)
+        self.alt_labels = alts
+        self.concept_hierarchy = hierarchy
+        return self
+
+    def concept_by_label(self, label: str) -> Optional[Concept]:
+        """The concept whose prefLabel or any altLabel matches `label`, case-insensitively."""
+        target = (label or "").strip().lower()
+        if not target:
+            return None
+        for c in self.concepts:
+            if c.prefLabel.strip().lower() == target:
+                return c
+        for c in self.concepts:
+            if any(a.strip().lower() == target for a in c.altLabels):
+                return c
+        return None
 
 
 class EntityMatch(BaseModel):
@@ -565,6 +732,13 @@ class ProductTruthRequest(BaseModel):
     tech_docs_url: Optional[str] = Field(default=None, max_length=2048, description="Public documentation, developer portal, or OpenAPI URL")
     openapi_spec: Optional[Dict[str, Any]] = Field(default=None, description="Optional raw OpenAPI / Swagger JSON specification")
     tech_docs_text: Optional[str] = Field(default=None, max_length=1_000_000, description="Optional raw markdown or text documentation (max 1 MB)")
+    secondary_tech_urls: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Optional secondary tech evidence URLs (e.g. integrations page, security/trust page). "
+            "Auto-discovered from the marketing site if omitted."
+        ),
+    )
 
 
 class ProductTruthMatrixResponse(BaseModel):

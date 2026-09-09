@@ -93,7 +93,12 @@ class TestExtendedPredicates(unittest.TestCase):
         )
 
         extracted_pairs = {(t.predicate, t.object) for t in triples}
-        self.assertIn(("hasFeature", "Automated Invoicing"), extracted_pairs)
+        # "Automated Invoicing" is an alt_label of the canonical process "Invoicing",
+        # so the entity normalises to that canonical - and the predicate follows the
+        # canonical's bucket rather than the NER label, making this `automates` rather
+        # than `hasFeature`. Emitting the raw span would put the marketing spelling and
+        # the documentation spelling into the graph as two unrelated concepts.
+        self.assertIn(("automates", "Invoicing"), extracted_pairs)
         self.assertIn(("targetsSegment", "Mid-Market"), extracted_pairs)
         self.assertIn(("servesIndustry", "HealthTech"), extracted_pairs)
         self.assertIn(("deployedAs", "Cloud-Native"), extracted_pairs)

@@ -47,7 +47,7 @@ def measure_single_page_weights():
     from pipeline import OntologyPipeline
     from models import SeedConceptMatch, EntityMatch
 
-    pipeline = OntologyPipeline(config_path="vertical_config.json")
+    pipeline = OntologyPipeline()
     cfg = pipeline.config
     saturated = pipeline.calculate_readiness_score(
         mandatory_status={t: True for t in cfg.mandatory_schema_types},

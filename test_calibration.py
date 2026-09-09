@@ -70,7 +70,7 @@ def load_observations(live=False):
 
     if live:
         from pipeline import OntologyPipeline
-        pipeline = OntologyPipeline(config_path="vertical_config.json")
+        pipeline = OntologyPipeline()
         raw = []
         for url in calibration:
             result = pipeline.process(url=url)
