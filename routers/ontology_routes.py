@@ -239,3 +239,103 @@ def post_approve_synonym(req: ApproveSynonymRequest):
         "vertical_id": req.vertical_id,
         "message": f"Successfully mapped '{req.surface_form}' -> '{req.canonical_concept}' in {os.path.basename(config_path)}.",
     }
+
+
+class OntologySparqlRequest(BaseModel):
+    query: str = Field(..., min_length=5, max_length=10000, description="W3C SPARQL 1.1 SELECT query")
+    vertical_id: str = Field(default=DEFAULT_VERTICAL_ID, description="Target vertical identifier")
+
+
+@router.get("/export", summary="Export Ontology Knowledge Graph in W3C Standards")
+def get_ontology_export(
+    vertical_id: str = Query(DEFAULT_VERTICAL_ID, description="Target vertical identifier"),
+    format: str = Query("turtle", description="Serialization format: turtle, xml, nt, json-ld"),
+    download: bool = Query(False, description="Whether to trigger file download"),
+):
+    """
+    Exports the complete ontology knowledge graph in standard W3C Semantic Web formats:
+    - turtle (text/turtle)
+    - xml / owl (application/rdf+xml)
+    - nt / ntriples (application/n-triples)
+    - json-ld (application/ld+json)
+    """
+    config_path = _vertical_config_path(vertical_id)
+    if not config_path or not os.path.isfile(config_path):
+        raise HTTPException(status_code=404, detail=f"Vertical '{vertical_id}' not found.")
+
+    fmt_map = {
+        "turtle": ("turtle", "text/turtle", "ttl"),
+        "ttl": ("turtle", "text/turtle", "ttl"),
+        "xml": ("xml", "application/rdf+xml", "owl"),
+        "owl": ("xml", "application/rdf+xml", "owl"),
+        "nt": ("nt", "application/n-triples", "nt"),
+        "ntriples": ("nt", "application/n-triples", "nt"),
+        "json-ld": ("json-ld", "application/ld+json", "jsonld"),
+        "jsonld": ("json-ld", "application/ld+json", "jsonld"),
+    }
+    target = fmt_map.get(format.lower().strip())
+    if not target:
+        raise HTTPException(status_code=400, detail=f"Unsupported format '{format}'. Supported: turtle, xml, nt, json-ld")
+
+    rdflib_fmt, media_type, ext = target
+
+    try:
+        from linking import build_rdf_graph
+        g = build_rdf_graph(domain="gainark.com", triples=[], hubs={}, entities=[], vertical_id=vertical_id)
+        serialized = g.serialize(format=rdflib_fmt)
+    except Exception as e:
+        logger.error("Error exporting ontology in %s: %s", format, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to serialize ontology: {e}")
+
+    headers = {}
+    if download:
+        headers["Content-Disposition"] = f'attachment; filename="ontology_{vertical_id}.{ext}"'
+
+    from fastapi.responses import Response
+    return Response(content=serialized, media_type=media_type, headers=headers)
+
+
+@router.post("/sparql", summary="Execute SPARQL 1.1 Query on Vertical Ontology Knowledge Graph")
+def post_ontology_sparql(req: OntologySparqlRequest):
+    """
+    Executes a W3C SPARQL 1.1 query against the compiled vertical ontology RDF graph.
+    Supports queries across SKOS concepts, definitions, broader hierarchy, and governed standards.
+    """
+    config_path = _vertical_config_path(req.vertical_id)
+    if not config_path or not os.path.isfile(config_path):
+        raise HTTPException(status_code=404, detail=f"Vertical '{req.vertical_id}' not found.")
+
+    try:
+        from knowledge_graph import export_to_rdf_turtle, execute_sparql_query_on_ttl
+        ttl = export_to_rdf_turtle(domain="gainark.com", triples=[], hubs={}, entities=[], vertical_id=req.vertical_id)
+        res = execute_sparql_query_on_ttl(ttl, req.query)
+        return {
+            "query": req.query,
+            "vertical_id": req.vertical_id,
+            "columns": res.get("columns", []),
+            "rows": res.get("rows", []),
+            "row_count": res.get("row_count", 0),
+            "execution_status": "success",
+        }
+    except ValueError as val_err:
+        return {
+            "query": req.query,
+            "vertical_id": req.vertical_id,
+            "columns": [],
+            "rows": [],
+            "row_count": 0,
+            "execution_status": "failed",
+            "error": str(val_err),
+        }
+    except Exception as e:
+        logger.error("Ontology SPARQL query failed: %s", e, exc_info=True)
+        return {
+            "query": req.query,
+            "vertical_id": req.vertical_id,
+            "columns": [],
+            "rows": [],
+            "row_count": 0,
+            "execution_status": "failed",
+            "error": f"Query execution failed: {e}",
+        }
+

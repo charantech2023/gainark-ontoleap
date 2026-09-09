@@ -258,6 +258,84 @@
                     <div class="text-[10px] text-slate-400 mt-0.5" id="kpi-geo-subtitle">Readiness Index (0–100)</div>
                 </div>
             </div>
+            <!-- ========================================================= -->
+            <!-- SUBVIEW 5: SPARQL QUERY CONSOLE                          -->
+            <!-- ========================================================= -->
+            <div id="onto-subview-sparql" class="hidden space-y-6">
+                <!-- Header Banner -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-base font-bold text-slate-900">W3C SPARQL 1.1 In-Memory Semantic Engine</h3>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 uppercase">RDFLib Core</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-1">
+                                Execute read-only SPARQL queries across SKOS taxonomy concepts, regulatory standards (<code class="text-purple-700 font-mono">onto:governs</code>), and hierarchy (<code class="text-purple-700 font-mono">skos:broader</code>).
+                            </p>
+                        </div>
+                        <!-- Presets Selector -->
+                        <div class="flex items-center gap-2 self-start sm:self-center">
+                            <label for="sparql-query-preset" class="text-xs font-semibold text-slate-500 whitespace-nowrap">Presets:</label>
+                            <select id="sparql-query-preset" onchange="loadSparqlPreset(this.value)" class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                                <option value="concepts">Concepts with Definitions</option>
+                                <option value="governance">Standards &amp; Governed Capabilities</option>
+                                <option value="hierarchy">Hierarchy Inheritance (Broader Links)</option>
+                                <option value="alt_labels">Alternate Labels &amp; Synonyms</option>
+                                <option value="count_by_kind">Count Concepts by Kind</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Query Editor & Controls -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-700">SPARQL Query (SELECT only)</span>
+                        <div class="flex items-center gap-3 text-xs text-slate-400">
+                            <span>Default Namespaces: <code class="text-purple-600 font-mono">skos:</code>, <code class="text-purple-600 font-mono">onto:</code>, <code class="text-purple-600 font-mono">schema:</code></span>
+                        </div>
+                    </div>
+
+                    <textarea id="sparql-query-textarea" rows="8" class="w-full p-4 font-mono text-xs bg-slate-950 text-emerald-400 border border-slate-800 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none transition leading-relaxed"></textarea>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-[11px] text-slate-400">Limits to 1000 rows max. Read-only SELECT operations strictly enforced.</span>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="loadSparqlPreset('concepts')" class="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition">Reset</button>
+                            <button type="button" onclick="runOntologySparqlQuery()" id="sparql-exec-btn" class="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer">
+                                <span>⚡ Execute Query</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Query Results Box -->
+                <div id="sparql-results-container" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
+                    <div class="px-6 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span class="text-xs font-bold text-slate-900">Query Results</span>
+                            <span id="sparql-row-count-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">0 rows</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="downloadSparqlJson()" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-2xs">📥 JSON</button>
+                            <button type="button" onclick="downloadSparqlCsv()" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-2xs">📥 CSV</button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-96">
+                        <table class="min-w-full divide-y divide-slate-200 text-xs font-mono" id="sparql-results-table">
+                            <thead class="bg-slate-100/70 text-slate-600 font-bold text-left uppercase tracking-wider sticky top-0" id="sparql-thead">
+                                <!-- Dynamic columns -->
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-slate-800 bg-white" id="sparql-tbody">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <!-- ============================================================= -->
@@ -290,9 +368,15 @@
                             Formal concept taxonomy, single-root SKOS inheritance (<code class="text-purple-300 font-mono">broader</code>), regulatory governance (<code class="text-purple-300 font-mono">governs</code>), step-by-step compliance criteria, and candidate synonym review ledger for enterprise Billing &amp; RevOps.
                         </p>
                     </div>
-                    <div class="flex items-center gap-2.5 self-start lg:self-center flex-wrap">
-                        <a href="/api/ontology/schema" target="_blank" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/15 transition flex items-center gap-1.5 shadow-sm">
-                            <span>📐 Schema JSON</span>
+                    <div class="flex items-center gap-2 self-start lg:self-center flex-wrap">
+                        <a href="/api/ontology/export?format=turtle&download=true" target="_blank" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/15 transition flex items-center gap-1 shadow-sm" title="Download W3C Turtle (.ttl)">
+                            <span>📥 .TTL</span>
+                        </a>
+                        <a href="/api/ontology/export?format=json-ld&download=true" target="_blank" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/15 transition flex items-center gap-1 shadow-sm" title="Download JSON-LD">
+                            <span>📥 .JSONLD</span>
+                        </a>
+                        <a href="/api/ontology/export?format=owl&download=true" target="_blank" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/15 transition flex items-center gap-1 shadow-sm" title="Download OWL/XML">
+                            <span>📥 .OWL</span>
                         </a>
                         <a href="/api/ontology/concepts?vertical_id=b2b_saas_fintech" target="_blank" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white shadow-md transition flex items-center gap-1.5">
                             <span>🌳 Concepts API &rarr;</span>
@@ -316,6 +400,9 @@
                     <button type="button" id="subtab-onto-synonyms-btn" onclick="switchOntologySubView('synonyms')" class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition whitespace-nowrap flex items-center gap-1.5">
                         <span>🏷️ Synonym Review Ledger</span>
                         <span id="onto-synonym-count-badge" class="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500 text-white font-bold">0</span>
+                    </button>
+                    <button type="button" id="subtab-onto-sparql-btn" onclick="switchOntologySubView('sparql')" class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition whitespace-nowrap flex items-center gap-1.5">
+                        <span>⚡ SPARQL Query Console</span>
                     </button>
                 </div>
                 <div class="hidden sm:flex items-center gap-2 text-xs text-slate-500">
@@ -3418,7 +3505,7 @@ SELECT ?capability ?evidence WHERE {
 
         const ALL_DASHBOARD_TABS = ['ontology', 'truth', 'battlecards', 'search'];
         const SEARCH_SUBTABS = ['audit', 'linking', 'bench', 'alignment', 'industry', 'geo'];
-        const ONTOLOGY_SUBTABS = ['concepts', 'compliance', 'schema', 'synonyms'];
+        const ONTOLOGY_SUBTABS = ['concepts', 'compliance', 'schema', 'synonyms', 'sparql'];
         let currentSearchSubTab = 'audit';
         let currentOntologySubTab = 'concepts';
 
@@ -8008,6 +8095,7 @@ SELECT ?capability ?evidence WHERE {
                 loadOntologyConcepts();
             } else if (sub === 'compliance' && (!window._allComplianceFrameworks || window._allComplianceFrameworks.length === 0)) {
                 loadComplianceFrameworks();
+            loadSparqlPreset("concepts");
             } else if (sub === 'schema') {
                 loadOntologySchema();
             } else if (sub === 'synonyms') {
@@ -8910,6 +8998,158 @@ SELECT ?capability ?evidence WHERE {
         function resetGraphZoom() {
             if (!window._graphSvg || !window._graphZoom) return;
             window._graphSvg.transition().duration(300).call(window._graphZoom.transform, d3.zoomIdentity);
+        }
+
+        
+        /* ------------------------------------------------------------- */
+        /* SPARQL QUERY CONSOLE CONTROLLER                               */
+        /* ------------------------------------------------------------- */
+        window._lastSparqlResult = null;
+
+        const SPARQL_PRESETS = {
+            concepts: `PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX onto: <https://gainark.com/ontology/>
+
+SELECT ?concept ?prefLabel ?definition WHERE {
+    ?concept skos:prefLabel ?prefLabel .
+    ?concept skos:definition ?definition .
+}
+ORDER BY ?prefLabel
+LIMIT 20`,
+
+            governance: `PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX onto: <https://gainark.com/ontology/>
+
+SELECT ?standard ?standardLabel ?governedCapability WHERE {
+    ?standard skos:prefLabel ?standardLabel .
+    ?standard onto:governs ?governedCapability .
+}
+ORDER BY ?standardLabel
+LIMIT 50`,
+
+            hierarchy: `PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX onto: <https://gainark.com/ontology/>
+
+SELECT ?concept ?prefLabel ?parent WHERE {
+    ?concept skos:prefLabel ?prefLabel .
+    ?concept skos:broader ?parent .
+}
+ORDER BY ?parent
+LIMIT 50`,
+
+            alt_labels: `PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+SELECT ?concept ?canonical ?altLabel WHERE {
+    ?concept skos:prefLabel ?canonical .
+    ?concept skos:altLabel ?altLabel .
+}
+ORDER BY ?canonical
+LIMIT 50`,
+
+            count_by_kind: `PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?type (COUNT(?concept) AS ?count) WHERE {
+    ?concept rdf:type ?type .
+}
+GROUP BY ?type
+ORDER BY DESC(?count)`
+        };
+
+        function loadSparqlPreset(key) {
+            const textarea = document.getElementById('sparql-query-textarea');
+            if (textarea && SPARQL_PRESETS[key]) {
+                textarea.value = SPARQL_PRESETS[key];
+            }
+        }
+
+        async function runOntologySparqlQuery() {
+            const textarea = document.getElementById('sparql-query-textarea');
+            const btn = document.getElementById('sparql-exec-btn');
+            const container = document.getElementById('sparql-results-container');
+            const thead = document.getElementById('sparql-thead');
+            const tbody = document.getElementById('sparql-tbody');
+            const badge = document.getElementById('sparql-row-count-badge');
+
+            if (!textarea) return;
+            const query = textarea.value.trim();
+            if (!query) {
+                alert('Please enter a SPARQL SELECT query.');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="animate-spin mr-1">🔄</span> Querying...';
+
+            try {
+                const res = await fetch('/api/ontology/sparql', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        query: query,
+                        vertical_id: 'b2b_saas_fintech'
+                    })
+                });
+
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                window._lastSparqlResult = data;
+
+                if (data.execution_status === 'failed') {
+                    alert('SPARQL Query Error: ' + (data.error || 'Unknown evaluation error'));
+                    return;
+                }
+
+                const cols = data.columns || [];
+                const rows = data.rows || [];
+
+                badge.innerText = `${rows.length} rows`;
+
+                thead.innerHTML = `<tr>${cols.map(c => `<th class="px-4 py-2.5">${escapeHtml(c)}</th>`).join('')}</tr>`;
+
+                if (rows.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="${cols.length || 1}" class="px-4 py-6 text-center text-slate-400 font-sans">Query returned 0 rows.</td></tr>`;
+                } else {
+                    tbody.innerHTML = rows.map(r => `
+                        <tr class="hover:bg-slate-50 transition">
+                            ${r.map(val => `<td class="px-4 py-2 border-r border-slate-100 last:border-0 truncate max-w-xs" title="${escapeHtml(String(val))}">${escapeHtml(String(val))}</td>`).join('')}
+                        </tr>
+                    `).join('');
+                }
+
+                container.classList.remove('hidden');
+            } catch (err) {
+                alert('Execution failed: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>⚡ Execute Query</span>';
+            }
+        }
+
+        function downloadSparqlJson() {
+            if (!window._lastSparqlResult) return;
+            const blob = new Blob([JSON.stringify(window._lastSparqlResult, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sparql_query_results.json';
+            a.click();
+        }
+
+        function downloadSparqlCsv() {
+            if (!window._lastSparqlResult) return;
+            const cols = window._lastSparqlResult.columns || [];
+            const rows = window._lastSparqlResult.rows || [];
+            let csv = cols.map(c => `"${c.replace(/"/g, '""')}"`).join(',') + '\n';
+            rows.forEach(r => {
+                csv += r.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',') + '\n';
+            });
+            const blob = new Blob([csv], {type: 'text/csv'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sparql_query_results.csv';
+            a.click();
         }
 
         // Initialize Ontology Hub on DOMContentLoaded

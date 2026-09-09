@@ -123,6 +123,39 @@ class TestOntologyApi(unittest.TestCase):
         self.assertIn("pending_count", data)
         self.assertIsInstance(data["candidates"], list)
 
+    def test_export_ontology_formats(self):
+        """GET /api/ontology/export returns valid Turtle, JSON-LD, and OWL serializations."""
+        # Turtle
+        resp_ttl = client.get("/api/ontology/export?format=turtle")
+        self.assertEqual(resp_ttl.status_code, 200)
+        self.assertIn("@prefix skos:", resp_ttl.text)
+
+        # JSON-LD
+        resp_jld = client.get("/api/ontology/export?format=json-ld")
+        self.assertEqual(resp_jld.status_code, 200)
+        self.assertEqual(resp_jld.headers.get("content-type"), "application/ld+json")
+
+        # OWL
+        resp_owl = client.get("/api/ontology/export?format=owl")
+        self.assertEqual(resp_owl.status_code, 200)
+        self.assertEqual(resp_owl.headers.get("content-type"), "application/rdf+xml")
+
+    def test_sparql_query_execution(self):
+        """POST /api/ontology/sparql executes SPARQL SELECT query on vertical graph."""
+        query = """
+        PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+        SELECT ?concept ?prefLabel WHERE {
+            ?concept skos:prefLabel ?prefLabel .
+        } LIMIT 5
+        """
+        resp = client.post("/api/ontology/sparql", json={"query": query, "vertical_id": "b2b_saas_fintech"})
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["execution_status"], "success")
+        self.assertEqual(data["columns"], ["concept", "prefLabel"])
+        self.assertEqual(len(data["rows"]), 5)
+
 
 if __name__ == "__main__":
     unittest.main()
+
