@@ -1283,8 +1283,23 @@ def execute_product_truth_audit(
             dedup_tech.append(tt)
     technical_triples = dedup_tech
 
-    # SKOS synonym expansion: inject marketing-language clone-triples so buyer
-    # vocabulary ('Order-to-Revenue Cycle') matches tech-doc vocabulary ('order management').
+    # Generated synonyms are PROPOSED, never injected.
+    #
+    # This used to call expand_tech_triples(), which cloned every technical capability
+    # into marketing-worded copies of itself so buyer vocabulary would match. The
+    # vertical's curated alt_labels now solve the same problem the other way round -
+    # every surface form, marketing or technical, resolves to one canonical - and
+    # running both meant two systems claiming authority over the same question by
+    # opposite methods.
+    #
+    # They disagreed, and not harmlessly: of 114 generated pairs for Ordway exactly one
+    # agreed with the curated mapping, and the generator had "automated tax calculation"
+    # as a synonym of "avalara", which would let evidence about an integration partner
+    # verify a claim about a tax capability. Clone-triples also inflated the technical
+    # capability count, since one real capability became several.
+    #
+    # Generation still has value as a source of candidates the curated ontology has not
+    # seen; those go to a review queue instead of into the matrix.
     if _sector_ontology is not None:
         try:
             _tech_text_for_synonyms = locals().get('combined_doc_text', '') or ''
@@ -1301,11 +1316,11 @@ def execute_product_truth_audit(
                 cache_dir=os.path.dirname(os.path.abspath(__file__)),
                 tech_triple_objects=[t.object for t in technical_triples if t.object],
             )
-            technical_triples = _sector_ontology.expand_tech_triples(
-                technical_triples, _synonym_map
+            _sector_ontology.propose_alt_labels(
+                _synonym_map, getattr(pipeline, 'config', None), brand
             )
         except Exception as _syn_err:
-            logger.warning('Synonym expansion skipped: %s', _syn_err)
+            logger.warning('Synonym proposal skipped: %s', _syn_err)
 
     # Compliance ontology: inject supportsEvidenceFor triples so marketing claims like
     # 'compliesWith ASC 606' are verified by feature-level tech doc evidence.

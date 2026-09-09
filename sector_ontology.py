@@ -6,18 +6,38 @@ documentation language. This is the core fix for "capability drift" alerts that 
 when a marketing claim uses buyer vocabulary ("Order-to-Revenue Cycle") but the tech
 docs use API vocabulary ("order management", "revenue lifecycle").
 
+This module PROPOSES; it no longer decides. The vertical's curated alt_labels are
+authoritative, and generated pairs reach the ontology only once a person approves them.
+
+Why it was demoted
+------------------
+Generation and curation were both mapping surface forms to concepts, by opposite
+methods. alt_labels normalises: every spelling, marketing or technical, resolves to one
+canonical. expand_tech_triples() multiplied instead, cloning each technical capability
+into a marketing-worded copy so the matcher would find it.
+
+Running both was worse than either. Measured against the two Ordway caches, 1 of 114
+generated pairs agreed with the curated mapping. The disagreements were substantive:
+"automated tax calculation" was generated as a synonym of "avalara", which would let
+evidence about an integration partner verify a claim about a tax capability, and
+"failed payment recovery" was mapped to "manual dunning". The clones also inflated the
+technical capability count, because one real capability became several.
+
 Architecture
 ------------
-1. build_synonym_map()   — Gemini call at analysis time; result is JSON-cached per domain.
-2. expand_tech_triples() — Injects synonym clone-triples into technical_triples so the
-                          existing _match_concept_details() loop finds them naturally.
+1. build_synonym_map()      — Gemini call at analysis time; JSON-cached per brand.
+2. propose_alt_labels()     — files generated pairs as candidates for review, skipping
+                              any the curated ontology already places and recording
+                              which ones it contradicts.
+3. record_reviewer_synonym()— approval path: writes the surface form onto the concept's
+                              altLabels in the vertical itself, where extraction reads
+                              it and always resolves back to the canonical.
 
 Self-Building Ontology
 ----------------------
-When a human reviewer dismisses an alert as "false positive", the dismissed
-(marketing_term, tech_term) pair is written to the synonym cache via
-record_reviewer_synonym(). Future runs skip regenerating for those pairs and
-load them directly — the ontology grows without additional LLM cost.
+Unchanged in intent, corrected in destination. A reviewer dismissing an alert as a
+false positive still teaches the system a synonym - but the judgement now lands in the
+ontology rather than in a per-brand cache that only the generated path ever read.
 """
 
 import os
@@ -204,84 +224,175 @@ def build_synonym_map(
 
 def record_reviewer_synonym(
     marketing_term: str,
-    tech_term: str,
-    brand: str,
-    cache_dir: Optional[str] = None,
-) -> None:
+    canonical_label: str,
+    vertical_path: str,
+    queue_path: Optional[str] = None,
+) -> bool:
+    """Approve a surface form into the vertical's curated alt_labels.
+
+    Called when a reviewer decides a marketing phrase does mean an existing concept -
+    typically dismissing a drift alert as a false positive.
+
+    It used to append to a per-brand JSON cache that only the generated-synonym path
+    read, so a human decision landed in the weaker of the two systems and never reached
+    the ontology. The judgement now goes where the ontology actually lives: onto the
+    concept's altLabels, which extraction already matches and always resolves back to
+    the canonical.
+
+    Returns True when the vertical was changed.
     """
-    Called when a human reviewer dismisses an alert as a false positive.
-    Writes the (tech_term → marketing_term) synonym pair to the cache so future
-    runs suppress this alert without an LLM call.
-    """
-    if cache_dir is None:
-        cache_dir = os.path.dirname(os.path.abspath(__file__))
-    cache_file = _cache_path(brand, cache_dir)
-    current = _load_cache(cache_file) or {}
-    key = tech_term.strip().lower()
-    existing = current.get(key, [])
-    if marketing_term.strip() not in existing:
-        existing.append(marketing_term.strip())
-        current[key] = existing
-        _save_cache(cache_file, current)
-        logger.info("Reviewer synonym recorded: '%s' → '%s' for %s", tech_term, marketing_term, brand)
+    surface = (marketing_term or "").strip()
+    target = (canonical_label or "").strip()
+    if not surface or not target:
+        return False
+
+    with open(vertical_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    concepts = data.get("concepts") or []
+    concept = next((c for c in concepts
+                    if c.get("prefLabel", "").strip().lower() == target.lower()), None)
+    if concept is None:
+        logger.warning("Cannot record synonym: %r is not a concept in %s",
+                       target, os.path.basename(vertical_path))
+        return False
+
+    # Never let one surface form mean two concepts - the emitted canonical would then
+    # depend on iteration order.
+    for other in concepts:
+        if other is concept:
+            continue
+        if any(a.strip().lower() == surface.lower() for a in other.get("altLabels") or []):
+            logger.warning("Cannot record synonym: %r is already an alternate of %r",
+                           surface, other.get("prefLabel"))
+            return False
+
+    alts = concept.setdefault("altLabels", [])
+    if any(a.strip().lower() == surface.lower() for a in alts):
+        return False
+    alts.append(surface)
+    data.setdefault("alt_labels", {})[concept["prefLabel"]] = list(alts)
+
+    with open(vertical_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+    queue_path = queue_path or _candidates_path()
+    queue = _load_candidates(queue_path)
+    changed = False
+    for key, entry in queue.items():
+        if entry.get("surface_form", "").strip().lower() == surface.lower():
+            entry["status"] = "approved"
+            entry["approved_as"] = concept["prefLabel"]
+            changed = True
+    if changed:
+        _save_candidates(queue_path, queue)
+
+    logger.info("Recorded alternate %r -> %r in %s",
+                surface, concept["prefLabel"], os.path.basename(vertical_path))
+    return True
 
 
 # ---------------------------------------------------------------------------
 # Triple expansion
 # ---------------------------------------------------------------------------
 
-def expand_tech_triples(
-    technical_triples: list,
+def propose_alt_labels(
     synonym_map: Dict[str, List[str]],
-) -> list:
-    """
-    For each technical triple whose object matches a canonical key in synonym_map,
-    inject additional clone-triples with the marketing synonym as the object.
+    config: Any,
+    brand: str,
+    queue_path: Optional[str] = None,
+) -> Dict[str, int]:
+    """Turn a generated synonym map into candidate alt_labels awaiting human approval.
 
-    This lets the existing _match_concept_details() loop verify marketing claims
-    that use buyer vocabulary even when the docs use API vocabulary.
+    This replaces expand_tech_triples(), which injected the generated synonyms directly
+    into the technical triple list as clone-triples. Two systems were then claiming
+    authority over the same question, by opposite methods: the curated alt_labels in
+    the vertical converge on ONE canonical by normalising every surface form, while the
+    clones converged by multiplying each technical capability into a marketing-worded
+    copy of itself.
 
-    Returns a new list (original triples first, then clones).
+    They also disagreed. Measured against the Ordway caches, exactly 1 of 114 generated
+    pairs agreed with the curated mapping, and the disagreements were not cosmetic:
+    "automated tax calculation" was generated as a synonym of "avalara", so evidence
+    about an integration partner would have verified a marketing claim about a tax
+    capability. "failed payment recovery" was mapped to "manual dunning".
+
+    So generation is demoted to proposing. Curated alt_labels stay authoritative,
+    nothing reaches the graph unreviewed, and the remaining generated pairs - most of
+    which the ontology has never seen - are written somewhere a person can approve or
+    reject them. Approving one calls record_reviewer_synonym(), which writes it into
+    the vertical itself.
+
+    Returns counts of what happened to each proposed pair.
     """
     if not synonym_map:
-        return technical_triples
+        return {"proposed": 0, "already_known": 0, "conflicting": 0}
 
-    try:
-        from models import SemanticTriple  # local import to avoid circular imports
-    except ImportError:
-        return technical_triples
+    known: Dict[str, str] = {}
+    for canonical, alts in (getattr(config, "alt_labels", None) or {}).items():
+        known[canonical.strip().lower()] = canonical
+        for alt in alts:
+            known[alt.strip().lower()] = canonical
 
-    clones: list = []
-    seen_clone_keys: set = set()
+    queue_path = queue_path or _candidates_path()
+    queue = _load_candidates(queue_path)
+    stats = {"proposed": 0, "already_known": 0, "conflicting": 0}
 
-    for tt in technical_triples:
-        obj_lower = (tt.object or "").lower()
-
-        for canonical, marketing_synonyms in synonym_map.items():
-            # Match if the canonical term appears anywhere in the tech triple's object
-            if canonical not in obj_lower:
+    for generated_canonical, synonyms in synonym_map.items():
+        for synonym in synonyms:
+            key = synonym.strip().lower()
+            if not key:
                 continue
+            owner = known.get(key)
+            if owner is not None:
+                # The curated ontology already places this surface form. If it places it
+                # somewhere else, that is exactly the disagreement worth recording - but
+                # the curated answer stands.
+                stats["conflicting" if owner.strip().lower()
+                      != generated_canonical.strip().lower() else "already_known"] += 1
+                continue
+            entry_key = "%s|%s" % (generated_canonical.strip().lower(), key)
+            if entry_key in queue:
+                continue
+            queue[entry_key] = {
+                "surface_form": synonym.strip(),
+                "generated_canonical": generated_canonical.strip(),
+                "brand": brand,
+                "status": "pending",
+            }
+            stats["proposed"] += 1
 
-            for mkt_syn in marketing_synonyms:
-                clone_key = (tt.predicate.lower(), mkt_syn.lower())
-                if clone_key in seen_clone_keys:
-                    continue
-                seen_clone_keys.add(clone_key)
+    if stats["proposed"]:
+        _save_candidates(queue_path, queue)
+    logger.info(
+        "Synonym proposals for %s: %d new candidates, %d already known, %d conflict "
+        "with curated alt_labels (curated wins).",
+        brand, stats["proposed"], stats["already_known"], stats["conflicting"])
+    return stats
 
-                clones.append(SemanticTriple(
-                    subject=tt.subject,
-                    predicate=tt.predicate,
-                    object=mkt_syn,                        # marketing language
-                    confidence=tt.confidence,
-                    evidence_sentence=tt.evidence_sentence,
-                    source_type=tt.source_type,
-                    provenance=f"synonym:{tt.provenance or 'tech_docs'}",
-                ))
 
-    if clones:
-        logger.info(
-            "Synonym expansion: injected %d synonym clone-triples (from %d tech triples, %d canonical terms).",
-            len(clones), len(technical_triples), len(synonym_map),
-        )
+def _candidates_path() -> str:
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "truth_ledger", "alt_label_candidates.json")
 
-    return technical_triples + clones
+
+def _load_candidates(path: str) -> Dict[str, Any]:
+    try:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                return data
+    except Exception as e:
+        logger.debug("Candidate queue unreadable: %s", e)
+    return {}
+
+
+def _save_candidates(path: str, queue: Dict[str, Any]) -> None:
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(queue, f, indent=2, ensure_ascii=False, sort_keys=True)
+    except Exception as e:
+        logger.warning("Could not write candidate queue: %s", e)
