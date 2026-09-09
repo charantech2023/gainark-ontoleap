@@ -409,6 +409,35 @@ async def _warn_if_unauthenticated() -> None:
         )
 
 
+@app.on_event("startup")
+async def _restore_knowledge_graph() -> None:
+    """Index the durable archive into this instance's local store.
+
+    An instance boots with an empty SQLite file - a fresh container, or a new replica
+    scaled up alongside others - while the archive holds every run any instance has
+    written. Without this the service would answer "no history" with total confidence,
+    which is the failure worth avoiding: a store that has silently forgotten looks
+    exactly like one that is working.
+
+    Never fatal. Serving audits without history is degraded; refusing to boot is worse.
+    """
+    try:
+        import graph_archive
+        import graph_store
+
+        graph_archive.warn_if_ephemeral()
+        archive = graph_archive.open_archive()
+        if archive is None:
+            logger.info("Knowledge graph archive not configured; history is local only.")
+            return
+        result = graph_store.sync_from_archive(archive)
+        logger.info(
+            "Knowledge graph restored from %s: %d graph(s) pulled, %d already indexed.",
+            archive.describe(), result["pulled"], result["skipped"])
+    except Exception as err:
+        logger.error("Knowledge graph could not be restored from the archive: %s", err)
+
+
 # ---------------------------------------------------------------------------
 # Mount Decoupled Routers
 # ---------------------------------------------------------------------------

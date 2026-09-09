@@ -17,6 +17,9 @@ flatbuffers==25.12.19
 fsspec==2026.7.0
 gliner==0.2.28
 google-auth==2.57.1
+# Optional: only needed when ONTOLEAP_GRAPH_ARCHIVE is a gs:// URI. A mounted
+# volume path needs nothing extra, so this can be dropped if you archive to one.
+google-cloud-storage==2.19.0
 h11==0.16.0
 hf-xet==1.6.0
 html-text==0.7.1

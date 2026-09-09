@@ -28,14 +28,20 @@ Keeping runs as separate named graphs is what makes change-over-time free: a run
 already the unit of "when", so no triple needs a timestamp of its own to be placed in
 time, and nothing has to be deleted to record that a claim went away.
 
-Deployment note
----------------
-The default location is under the repo. Cloud Run gives each instance an ephemeral
-filesystem, so a container writing here keeps its graph only for the life of that
-instance. Point ONTOLEAP_GRAPH_STORE at a mounted volume, or move to Cloud SQL,
-before treating stored history as durable in a deployed environment.
+Durability
+----------
+SQLite here is a local INDEX, not the record. Cloud Run gives each instance an
+ephemeral filesystem, so a container writing only to this file keeps its history until
+the instance is recycled and never sees another instance's runs.
+
+graph_archive holds the record: every persisted graph is mirrored to an archive as an
+immutable object, and sync_from_archive() pulls anything a fresh instance has not
+indexed. Set ONTOLEAP_GRAPH_ARCHIVE to a mounted volume path or a gs:// bucket. Left
+unset in a container, warn_if_ephemeral() says so at startup rather than letting a
+store that quietly forgets look like one that works.
 """
 
+import json
 import os
 import sqlite3
 import logging
@@ -154,6 +160,7 @@ def persist_graph(
     vertical_id: Optional[str] = None,
     metadata: Optional[str] = None,
     path: Optional[str] = None,
+    archive_write: bool = True,
 ) -> int:
     """Store every triple of `graph` under `graph_id`. Returns quads written.
 
@@ -193,6 +200,11 @@ def persist_graph(
             " VALUES (?,?,?,?,?,?,?,?)", rows)
         after = conn.execute(
             "SELECT COUNT(*) FROM quads WHERE graph_id = ?", (graph_id,)).fetchone()[0]
+
+    # Mirror to the durable archive. The local index is a cache of it, not the record:
+    # on Cloud Run this file disappears with the instance.
+    if archive_write:
+        _mirror_to_archive(graph, graph_id, kind, domain, vertical_id, metadata)
 
     written = after - before
     logger.info("Persisted %d new quads to %s (%d submitted)", written, graph_id, len(rows))
@@ -370,6 +382,86 @@ def persist_audit(
 
     return {"run_graph": gid, "run_quads": run_quads,
             "ontology_graph": scheme_uri(vertical_id), "ontology_quads": onto_quads}
+
+
+def _mirror_to_archive(graph: Graph, graph_id: str, kind: str, domain: Optional[str],
+                       vertical_id: Optional[str], metadata: Optional[str],
+                       archive=None) -> bool:
+    """Write a graph to the durable archive, if one is configured.
+
+    Never raises into the caller. A failed archive write must not fail the audit that
+    produced the graph, and the local index still holds it - so the outcome is
+    degraded durability, which is logged, not lost work.
+    """
+    import graph_archive as ga
+    archive = archive if archive is not None else ga.open_archive()
+    if archive is None:
+        return False
+    try:
+        payload, meta = ga.encode(graph, {
+            "graph_id": graph_id, "kind": kind, "domain": domain,
+            "vertical_id": vertical_id, "metadata": metadata,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        key = ga.object_key(kind, graph_id)
+        archive.put(key, payload)
+        archive.put(key + ".meta.json", meta)
+        return True
+    except Exception as err:
+        logger.error("Graph archived locally but NOT durably (%s): %s",
+                     getattr(archive, "describe", lambda: "archive")(), err)
+        return False
+
+
+def sync_from_archive(archive=None, path: Optional[str] = None) -> Dict[str, int]:
+    """Index any archived graph this instance does not already hold.
+
+    An instance starts with an empty SQLite file - a fresh container, or a new replica -
+    while the archive holds everything every instance has ever written. Without this the
+    store would answer "no history" perfectly confidently.
+
+    Local graphs are never overwritten: run graphs are immutable, so if it is already
+    indexed there is nothing to learn from re-reading it.
+    """
+    import graph_archive as ga
+    archive = archive if archive is not None else ga.open_archive()
+    if archive is None:
+        return {"pulled": 0, "skipped": 0, "quads": 0}
+
+    with connect(path) as conn:
+        known = {r[0] for r in conn.execute("SELECT graph_id FROM graphs").fetchall()}
+
+    pulled = skipped = quads = 0
+    for key in archive.list():
+        if key.endswith(".meta.json"):
+            continue
+        raw_meta = archive.get(key + ".meta.json")
+        if raw_meta is None:
+            logger.warning("Archived object %r has no metadata; skipping.", key)
+            continue
+        try:
+            meta = json.loads(raw_meta.decode("utf-8"))
+            gid = meta["graph_id"]
+        except Exception as err:
+            logger.warning("Unreadable archive metadata for %r: %s", key, err)
+            continue
+        if gid in known:
+            skipped += 1
+            continue
+        payload = archive.get(key)
+        if payload is None:
+            continue
+        graph = ga.decode(payload)
+        quads += persist_graph(
+            graph, gid, kind=meta.get("kind", "run"), domain=meta.get("domain"),
+            vertical_id=meta.get("vertical_id"), metadata=meta.get("metadata"),
+            path=path, archive_write=False)
+        pulled += 1
+
+    if pulled:
+        logger.info("Pulled %d graph(s) from %s into the local index (%d quads).",
+                    pulled, archive.describe(), quads)
+    return {"pulled": pulled, "skipped": skipped, "quads": quads}
 
 
 def store_stats(path: Optional[str] = None) -> Dict:
