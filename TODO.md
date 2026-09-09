@@ -60,12 +60,30 @@ similarity. `torch` is already a dependency so the install is cheap, but it adds
 another model to memory — weigh against the shared-GLiNER work in
 `pipeline.py:_load_shared_gliner`.
 
-### T6 — PostgreSQL for the truth ledger
+### [DONE] T6 — Durable truth ledger
 
-`truth_ledger/history.jsonl` is **ephemeral on Cloud Run** — it reseeds from `log.md`
-on every revision. Competitor change-tracking over time cannot work reliably on that.
-Rotation and write-locking were added in the audit as a stopgap. Largest lift here,
-but the most architecturally real.
+Filed as "PostgreSQL for the truth ledger". Postgres turned out to be the wrong tool:
+`fc2aa27` built `graph_archive` for exactly this failure, and ledger snapshots are
+already immutable append-only records keyed by `(brand, recorded_at)`, which is the
+shape that archive serves. Reusing it needs no database, no VPC and no second piece
+of configuration - only IAM on a bucket, or a mounted volume.
+
+* `history.jsonl` is now a local **index**; the archive holds the record.
+* `record_snapshot()` mirrors each snapshot to `ledger/<recorded_at>__<brand>`.
+  Keying on the identity the module already dedupes by makes the write idempotent.
+* `sync_from_archive()` pulls anything an instance does not hold, called from FastAPI
+  startup, so a recycled or newly scaled replica recovers before serving.
+* Reads never touch the archive, so `brand_timeline()` costs one local file scan as
+  before rather than an object fetch per audit ever recorded.
+* `warn_if_ephemeral()` logs at error level when unconfigured in a container. This
+  ledger fails *quietly*: without it, a recycled instance reseeds from `log.md` (which
+  truncates verified claims at five) and answers confidently from the summary.
+* Verified with `test_ledger_archive.py` - write-through, cold start, two instances,
+  idempotent sync, reseed precedence, unreachable archive, and read cost.
+
+**Deploy requirement:** `ONTOLEAP_GRAPH_ARCHIVE` must be set on Cloud Run for any of
+this to take effect. One variable now backs both the graph and the ledger, so a
+deployment cannot end up half-durable.
 
 ---
 

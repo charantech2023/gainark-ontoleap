@@ -438,6 +438,35 @@ async def _restore_knowledge_graph() -> None:
         logger.error("Knowledge graph could not be restored from the archive: %s", err)
 
 
+@app.on_event("startup")
+async def _restore_truth_ledger() -> None:
+    """Index the durable archive into this instance's audit history.
+
+    The graph and the ledger share an archive but not a failure mode. A cold graph store
+    admits it has nothing; a cold ledger reseeds itself from log.md, which truncates
+    verified claims at five, and then answers competitor-change questions from that
+    summary as though it were the full record. Restoring first is what keeps the
+    complete snapshots authoritative.
+
+    Never fatal. Serving audits without history is degraded; refusing to boot is worse.
+    """
+    try:
+        import graph_archive
+        import truth_ledger.history as ledger_history
+
+        ledger_history.warn_if_ephemeral()
+        archive = graph_archive.open_archive()
+        if archive is None:
+            logger.info("Truth ledger archive not configured; history is local only.")
+            return
+        result = ledger_history.sync_from_archive(archive)
+        logger.info(
+            "Truth ledger restored from %s: %d snapshot(s) pulled, %d already held.",
+            archive.describe(), result["pulled"], result["skipped"])
+    except Exception as err:
+        logger.error("Truth ledger could not be restored from the archive: %s", err)
+
+
 # ---------------------------------------------------------------------------
 # Mount Decoupled Routers
 # ---------------------------------------------------------------------------

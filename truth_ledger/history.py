@@ -6,8 +6,15 @@ verified claims are truncated to the first five with "(+N more)" - so it cannot 
 "what did this brand start claiming". This module writes a complete snapshot per audit
 alongside it, one JSON object per line, and diffs consecutive snapshots for a brand.
 
-Deliberately append-only and dependency-free: an audit must never fail because history
-could not be written.
+Deliberately append-only: an audit must never fail because history could not be
+written.
+
+Durability
+----------
+history.jsonl is a local INDEX, not the record. See the Durability section at the foot
+of this module: snapshots are mirrored to graph_archive on write and pulled back once
+at startup, so a recycled container recovers what it recorded instead of quietly
+reseeding a lossy summary from log.md.
 """
 
 import io
@@ -119,6 +126,10 @@ def record_snapshot(matrix, source: str = "product_truth") -> bool:
             "hidden": _claim_set(matrix.hidden_capabilities),
         }
         _append_line(snapshot)
+        # Local file first, archive second. The local write is what makes the snapshot
+        # exist at all; the mirror is only what makes it outlive this container, and
+        # neither is allowed to be the reason an audit fails.
+        _mirror_to_archive(snapshot)
         return True
     except Exception as exc:
         logger.warning("[TruthLedger] Could not append history snapshot: %s", exc)
@@ -374,3 +385,160 @@ def backfill_from_markdown(log_path: Optional[str] = None) -> int:
         existing.add((brand, recorded_at))
         written += 1
     return written
+
+
+# ---------------------------------------------------------------------------
+# Durability
+# ---------------------------------------------------------------------------
+# history.jsonl is a local INDEX, not the record. Cloud Run gives every instance its own
+# ephemeral filesystem, so a container writing only to this file holds its snapshots
+# until the instance is recycled, and never sees an audit any other instance recorded.
+#
+# The silent version of that failure is the one worth engineering against. When the file
+# vanishes, _ensure_seeded() refills it from log.md - which truncates verified claims at
+# five - so the endpoint comes back populated and confident, having lost every complete
+# snapshot it ever held. Nothing in the response distinguishes that from working.
+#
+# graph_archive already holds the record for the knowledge graph. It holds this too,
+# under its own "ledger/" prefix, so a single ONTOLEAP_GRAPH_ARCHIVE covers both and a
+# deployment cannot end up half-durable by setting one and forgetting the other.
+#
+# Reads never touch the archive. Snapshots are mirrored on write and pulled once at
+# startup, so load_snapshots() stays a local file scan: a timeline request costs what it
+# always did, rather than one object fetch per audit ever recorded.
+
+ARCHIVE_KIND = "ledger"
+
+
+def _snapshot_key(snapshot: Dict[str, Any]) -> str:
+    """The archive object key for one snapshot.
+
+    (brand, recorded_at) is already this module's identity for a snapshot - it is what
+    backfill_from_markdown() dedupes on - so keying the object on it makes an archive
+    write idempotent for free: the same audit mirrored twice lands on the same object
+    instead of duplicating history.
+
+    Timestamp first, so a lexical sort of keys is chronological. That is what lets
+    sync_from_archive() take the newest snapshots under a cap without fetching every
+    object to discover which ones those are. Every writer here stamps UTC, so the
+    offsets are uniform and the ordering holds.
+    """
+    import graph_archive as ga
+    return ga.object_key(ARCHIVE_KIND, "%s__%s" % (
+        snapshot.get("recorded_at") or "", snapshot.get("brand") or "unknown"))
+
+
+def _mirror_to_archive(snapshot: Dict[str, Any], archive=None) -> bool:
+    """Mirror one snapshot to the durable archive. Never raises into the caller.
+
+    A failed archive write costs durability, not the audit. The snapshot is already in
+    the local file by the time this runs, and record_snapshot()'s standing contract is
+    that recording history can never be what makes an audit fail - so the outcome is
+    degraded and logged, not lost.
+    """
+    try:
+        import graph_archive as ga
+        archive = archive if archive is not None else ga.open_archive()
+        if archive is None:
+            return False
+        archive.put(
+            _snapshot_key(snapshot),
+            json.dumps(snapshot, ensure_ascii=False, sort_keys=True).encode("utf-8"),
+        )
+        return True
+    except Exception as exc:
+        logger.error(
+            "[TruthLedger] Snapshot recorded locally but NOT durably (%s): %s",
+            getattr(archive, "describe", lambda: "archive")(), exc)
+        return False
+
+
+def sync_from_archive(archive=None, limit: Optional[int] = None) -> Dict[str, int]:
+    """Append every archived snapshot this instance does not already hold.
+
+    A fresh container starts with no history.jsonl while the archive holds every audit
+    any instance ever recorded. Without this, competitor tracking answers "at least two
+    audits are needed before anything can be said to have changed" about a brand with a
+    year of history sitting in the bucket.
+
+    Local snapshots are never overwritten. A recorded audit is immutable, so an object
+    already present has nothing left to tell us; that also makes the whole operation
+    safe to repeat.
+    """
+    try:
+        import graph_archive as ga
+        archive = archive if archive is not None else ga.open_archive()
+    except Exception as exc:
+        logger.error("[TruthLedger] Could not open the history archive: %s", exc)
+        return {"pulled": 0, "skipped": 0, "unreadable": 0}
+    if archive is None:
+        return {"pulled": 0, "skipped": 0, "unreadable": 0}
+
+    known = {(s.get("brand"), s.get("recorded_at")) for s in load_snapshots()}
+    try:
+        keys = sorted(k for k in archive.list(ARCHIVE_KIND + "/")
+                      if not k.endswith(".partial"))
+    except Exception as exc:
+        # Opening an archive proves configuration, not access. A bucket the service
+        # account cannot list fails here, at startup, and must degrade to local-only
+        # history rather than propagate - a caller asking for a timeline should get the
+        # history this instance has, not an exception about object storage.
+        logger.error("[TruthLedger] Could not list the history archive (%s): %s",
+                     getattr(archive, "describe", lambda: "archive")(), exc)
+        return {"pulled": 0, "skipped": 0, "unreadable": 0}
+
+    # Bounded, newest last. The archive can hold more history than one instance should
+    # pull at boot, and load_snapshots() keeps only the recent window regardless. If the
+    # appends here do trip rotation, they trip it having written oldest first, so what
+    # stays live is the newest - which is the window a timeline is read from anyway.
+    cap = MAX_SNAPSHOTS_LOADED if limit is None else limit
+    if len(keys) > cap:
+        keys = keys[-cap:]
+
+    pulled = skipped = unreadable = 0
+    for key in keys:
+        try:
+            raw = archive.get(key)
+            if raw is None:
+                continue
+            snap = json.loads(raw.decode("utf-8"))
+        except Exception as exc:
+            logger.warning("[TruthLedger] Unreadable archived snapshot %r: %s", key, exc)
+            unreadable += 1
+            continue
+        identity = (snap.get("brand"), snap.get("recorded_at"))
+        if identity in known:
+            skipped += 1
+            continue
+        # Local append only. This came out of the archive; mirroring it back would be a
+        # write with nothing to say.
+        _append_line(snap)
+        known.add(identity)
+        pulled += 1
+
+    if pulled:
+        logger.info("[TruthLedger] Restored %d snapshot(s) from %s", pulled,
+                    getattr(archive, "describe", lambda: "archive")())
+    return {"pulled": pulled, "skipped": skipped, "unreadable": unreadable}
+
+
+def warn_if_ephemeral() -> Optional[str]:
+    """Say plainly when audit history will not survive this container.
+
+    Mirrors graph_archive.warn_if_ephemeral() for the ledger. Worth its own call rather
+    than leaning on that one: the graph and the ledger fail differently. A forgetful
+    graph store answers "no history"; a forgetful ledger answers from log.md and looks
+    fine, which is harder to notice and easier to believe.
+    """
+    import graph_archive as ga
+    if ga.ARCHIVE_URI:
+        return None
+    if os.environ.get("K_SERVICE") or os.environ.get("KUBERNETES_SERVICE_HOST"):
+        msg = ("Truth ledger has no durable archive: ONTOLEAP_GRAPH_ARCHIVE is unset "
+               "while running in a container. Complete audit snapshots will be lost "
+               "when this instance is recycled, and competitor change tracking will "
+               "silently fall back to the lossy log.md summary. Set it to a mounted "
+               "volume path or a gs:// bucket.")
+        logger.error(msg)
+        return msg
+    return None
