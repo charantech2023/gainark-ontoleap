@@ -488,6 +488,32 @@ async def audit_internal_links(
     llms_manifest = generate_llms_txt(domain, hubs, deduped_triples, list(collected_entities))
     robots_manifest = generate_robots_txt_ai(domain, hubs)
     rdf_turtle = export_to_rdf_turtle(domain, deduped_triples, hubs, list(collected_entities))
+
+    # Keep the graph rather than only serialising it. Until now every audit rebuilt a
+    # graph from a fresh crawl and dropped it on return, so the only answerable question
+    # was about the page in front of us; there was no earlier state to compare against
+    # and no accumulated subject to ask about. Concepts land in the vertical's shared
+    # graph and the claims in a run graph of their own, so history is additive.
+    #
+    # Persistence must never be able to fail an audit: the caller asked for an analysis,
+    # not for a write, and a locked or unwritable store is not their problem.
+    try:
+        from knowledge_graph import build_rdf_graph as _build_graph
+        import graph_store as _store
+        _persisted = _store.persist_audit(
+            _build_graph(domain, deduped_triples, hubs, list(collected_entities)),
+            domain=domain,
+            # `p`, not `pipeline` - the parameter is optional and resolved to the
+            # default pipeline above, so reading it here would tag runs with the wrong
+            # vertical whenever the caller passed none.
+            vertical_id=getattr(getattr(p, "config", None), "vertical_id", None)
+            or "b2b_saas_fintech",
+            metadata="pages=%d triples=%d" % (len(pages_data), len(deduped_triples)),
+        )
+        logger.info("Audit graph persisted: %s (%d new quads)",
+                    _persisted["run_graph"], _persisted["run_quads"])
+    except Exception as _store_err:
+        logger.warning("Audit graph not persisted: %s", _store_err)
     rdf_ntriples = export_to_rdf_ntriples(domain, deduped_triples, hubs, list(collected_entities))
     owl_xml = export_to_owl_xml(domain, deduped_triples, hubs, list(collected_entities))
     cluster_analysis = analyze_semantic_clusters(pages_data, hubs)

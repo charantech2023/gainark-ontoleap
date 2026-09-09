@@ -21,3 +21,7 @@ synonym_cache_*.json
 
 # Stale working copy of product_truth.py, kept locally, not part of the build.
 product_truth-1.py
+
+# Durable knowledge graph. Rebuilt by running audits; Cloud Run filesystems are
+# ephemeral, so a deployed instance keeps this only for its own lifetime.
+truth_ledger/graph.sqlite
