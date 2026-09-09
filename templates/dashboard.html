@@ -7974,6 +7974,9 @@ SELECT ?capability ?evidence WHERE {
                     </button>
                 </div>
             </div>
+        </div>
+    </div>
+
     <!-- W3C SHACL Validation Report Modal -->
     <div id="shacl-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[85vh]">
@@ -8190,6 +8193,7 @@ SELECT ?capability ?evidence WHERE {
         </div>
     </div>
 
+    <script>
         /* ------------------------------------------------------------- */
         /* ONTOLOGY FOUNDATION & KNOWLEDGE GRAPH HUB CONTROLLER         */
         /* ------------------------------------------------------------- */
@@ -8225,7 +8229,8 @@ SELECT ?capability ?evidence WHERE {
                 loadTriOntologyAlignment();
             } else if (sub === 'compliance' && (!window._allComplianceFrameworks || window._allComplianceFrameworks.length === 0)) {
                 loadComplianceFrameworks();
-            loadSparqlPreset("concepts");
+            } else if (sub === 'sparql') {
+                loadSparqlPreset("concepts");
             } else if (sub === 'schema') {
                 loadOntologySchema();
             } else if (sub === 'synonyms') {
@@ -9468,6 +9473,6 @@ ORDER BY DESC(?count)`
             loadOntologyConcepts();
             loadComplianceFrameworks();
         });
-
+    </script>
 </body>
 </html>
