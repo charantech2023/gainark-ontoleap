@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GainARK OntoLeap — Autonomous Ontology Intelligence & Semantic Graph</title>
@@ -342,6 +344,9 @@
                             <div class="bg-slate-100 p-1 rounded-xl flex items-center gap-1">
                                 <button type="button" id="onto-view-mode-grid-btn" onclick="setOntologyViewMode('grid')" class="px-3 py-1 text-xs font-bold rounded-lg bg-white text-slate-900 shadow-xs transition">Cards Grid</button>
                                 <button type="button" id="onto-view-mode-tree-btn" onclick="setOntologyViewMode('tree')" class="px-3 py-1 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition">SKOS Tree</button>
+                                <button type="button" id="onto-view-mode-graph-btn" onclick="setOntologyViewMode('graph')" class="px-3 py-1 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center gap-1">
+                                    <span>🕸️ Interactive Graph</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -384,6 +389,84 @@
                 <!-- View Mode: SKOS Tree (indented hierarchy) -->
                 <div id="onto-concepts-tree" class="hidden bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4 font-mono text-xs">
                     <!-- Tree dynamically populated via JS -->
+                </div>
+
+                <!-- View Mode: Interactive Force-Directed Graph -->
+                <div id="onto-concepts-graph-container" class="hidden bg-slate-950 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden h-[680px] w-full flex flex-col">
+                    <!-- Top Graph Control Bar -->
+                    <div class="px-5 py-3 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between text-xs text-slate-300 z-10 flex-wrap gap-2">
+                        <div class="flex items-center gap-3">
+                            <span class="font-bold text-white flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+                                <span>Topology Force Simulator</span>
+                            </span>
+                            <div class="flex items-center gap-2 pl-3 border-l border-slate-800 text-[11px]">
+                                <label class="flex items-center gap-1 cursor-pointer">
+                                    <input type="checkbox" id="graph-toggle-broader" checked onchange="updateGraphLinksVisibility()" class="rounded bg-slate-800 border-slate-700 text-purple-600 focus:ring-0">
+                                    <span class="text-slate-300">Hierarchy (<code class="text-purple-400 font-mono">broader</code>)</span>
+                                </label>
+                                <label class="flex items-center gap-1 cursor-pointer ml-2">
+                                    <input type="checkbox" id="graph-toggle-governs" checked onchange="updateGraphLinksVisibility()" class="rounded bg-slate-800 border-slate-700 text-rose-500 focus:ring-0">
+                                    <span class="text-slate-300">Governance (<code class="text-rose-400 font-mono">governs</code>)</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="highlightGraphBranch('asc-606')" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30 transition">Focus ASC 606</button>
+                            <button type="button" onclick="highlightGraphBranch('soc-2')" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30 transition">Focus SOC 2</button>
+                            <button type="button" onclick="resetGraphHighlight()" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition">Reset Focus</button>
+                            <div class="flex items-center gap-1 pl-2 border-l border-slate-800">
+                                <button type="button" onclick="zoomGraph(1.3)" class="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold transition" title="Zoom In">+</button>
+                                <button type="button" onclick="zoomGraph(0.7)" class="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold transition" title="Zoom Out">-</button>
+                                <button type="button" onclick="resetGraphZoom()" class="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-800 hover:bg-slate-700 text-white transition" title="Reset Zoom">⛶</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SVG Canvas Area -->
+                    <div class="relative flex-1 w-full h-full overflow-hidden" id="onto-graph-canvas-wrapper">
+                        <svg id="onto-graph-svg" class="w-full h-full cursor-grab active:cursor-grabbing"></svg>
+
+                        <!-- Floating Node Inspector Drawer -->
+                        <div id="onto-node-inspector" class="hidden absolute top-4 right-4 w-80 bg-slate-900/95 backdrop-blur-md rounded-xl p-4 border border-slate-700 shadow-2xl text-xs text-slate-300 space-y-3 pointer-events-auto">
+                            <div class="flex items-start justify-between gap-2 border-b border-slate-800 pb-2">
+                                <div>
+                                    <div class="text-[10px] uppercase font-bold tracking-wider text-purple-400" id="inspector-node-kind">DOMAIN</div>
+                                    <h4 class="text-sm font-bold text-white leading-tight" id="inspector-node-title">Revenue Operations</h4>
+                                </div>
+                                <button type="button" onclick="closeNodeInspector()" class="text-slate-400 hover:text-white text-sm font-bold p-1 cursor-pointer">&times;</button>
+                            </div>
+                            <div class="space-y-1.5 text-[11px]">
+                                <div><span class="text-slate-400">Slug:</span> <code class="text-purple-300 font-mono font-semibold" id="inspector-node-slug">revenue-operations</code></div>
+                                <div><span class="text-slate-400">Broader:</span> <span class="text-slate-200" id="inspector-node-broader">None (Root)</span></div>
+                                <p class="text-slate-300 italic pt-1 border-t border-slate-800/80 leading-relaxed" id="inspector-node-def">Formal definition...</p>
+                            </div>
+                            <div id="inspector-governs-section" class="hidden space-y-1 pt-2 border-t border-slate-800">
+                                <span class="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Governs:</span>
+                                <div id="inspector-governs-list" class="flex flex-wrap gap-1"></div>
+                            </div>
+                            <div id="inspector-alts-section" class="hidden space-y-1 pt-2 border-t border-slate-800">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Synonyms (altLabels):</span>
+                                <div id="inspector-alts-list" class="flex flex-wrap gap-1"></div>
+                            </div>
+                        </div>
+
+                        <!-- Graph Legend (Bottom-Left) -->
+                        <div class="absolute bottom-4 left-4 bg-slate-900/90 backdrop-blur-xs rounded-xl px-3.5 py-2.5 border border-slate-800 text-[11px] text-slate-400 space-y-1.5 pointer-events-none">
+                            <div class="font-bold text-slate-300 uppercase tracking-wider text-[10px]">Graph Legend</div>
+                            <div class="flex items-center gap-3 flex-wrap">
+                                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Domain (12)</span>
+                                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Feature (61)</span>
+                                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Pricing (9)</span>
+                                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span> Process (16)</span>
+                                <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Standard (13)</span>
+                            </div>
+                            <div class="flex items-center gap-4 text-[10px] pt-1 border-t border-slate-800 text-slate-500">
+                                <span><span class="inline-block w-4 h-0.5 bg-slate-600 mr-1"></span> Broader Link</span>
+                                <span><span class="inline-block w-4 h-0.5 bg-rose-500 mr-1"></span> Governs Link</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -8002,20 +8085,30 @@ SELECT ?capability ?evidence WHERE {
             window._ontologyViewMode = mode;
             const gridBtn = document.getElementById('onto-view-mode-grid-btn');
             const treeBtn = document.getElementById('onto-view-mode-tree-btn');
+            const graphBtn = document.getElementById('onto-view-mode-graph-btn');
             const grid = document.getElementById('onto-concepts-grid');
             const tree = document.getElementById('onto-concepts-tree');
+            const graph = document.getElementById('onto-concepts-graph-container');
+
+            [gridBtn, treeBtn, graphBtn].forEach(b => {
+                if (b) {
+                    b.classList.remove('bg-white', 'text-slate-900', 'shadow-xs', 'font-bold');
+                    b.classList.add('text-slate-600', 'font-semibold');
+                }
+            });
+            [grid, tree, graph].forEach(el => { if (el) el.classList.add('hidden'); });
 
             if (mode === 'grid') {
                 if (gridBtn) { gridBtn.classList.add('bg-white', 'text-slate-900', 'shadow-xs', 'font-bold'); gridBtn.classList.remove('text-slate-600', 'font-semibold'); }
-                if (treeBtn) { treeBtn.classList.remove('bg-white', 'text-slate-900', 'shadow-xs', 'font-bold'); treeBtn.classList.add('text-slate-600', 'font-semibold'); }
                 if (grid) grid.classList.remove('hidden');
-                if (tree) tree.classList.add('hidden');
-            } else {
+            } else if (mode === 'tree') {
                 if (treeBtn) { treeBtn.classList.add('bg-white', 'text-slate-900', 'shadow-xs', 'font-bold'); treeBtn.classList.remove('text-slate-600', 'font-semibold'); }
-                if (gridBtn) { gridBtn.classList.remove('bg-white', 'text-slate-900', 'shadow-xs', 'font-bold'); gridBtn.classList.add('text-slate-600', 'font-semibold'); }
-                if (grid) grid.classList.add('hidden');
                 if (tree) tree.classList.remove('hidden');
                 renderConceptTree(window._allOntologyConcepts);
+            } else if (mode === 'graph') {
+                if (graphBtn) { graphBtn.classList.add('bg-white', 'text-slate-900', 'shadow-xs', 'font-bold'); graphBtn.classList.remove('text-slate-600', 'font-semibold'); }
+                if (graph) graph.classList.remove('hidden');
+                initOntologyForceGraph(window._allOntologyConcepts);
             }
         }
 
@@ -8490,6 +8583,333 @@ SELECT ?capability ?evidence WHERE {
             } finally {
                 btn.disabled = false;
             }
+        }
+
+        
+        /* ------------------------------------------------------------- */
+        /* D3.JS FORCE-DIRECTED ONTOLOGY GRAPH ENGINE                   */
+        /* ------------------------------------------------------------- */
+        window._graphSimulation = null;
+        window._graphZoom = null;
+        window._graphSvg = null;
+        window._graphData = { nodes: [], links: [] };
+
+        function initOntologyForceGraph(concepts) {
+            const container = document.getElementById('onto-graph-canvas-wrapper');
+            const svgEl = document.getElementById('onto-graph-svg');
+            if (!container || !svgEl || typeof d3 === 'undefined') return;
+
+            const width = container.clientWidth || 900;
+            const height = container.clientHeight || 620;
+
+            const svg = d3.select(svgEl);
+            svg.selectAll('*').remove();
+            svg.attr('viewBox', [0, 0, width, height]);
+
+            // Defs for link markers (arrows)
+            const defs = svg.append('defs');
+            defs.append('marker')
+                .attr('id', 'arrow-broader')
+                .attr('viewBox', '0 -5 10 10')
+                .attr('refX', 22)
+                .attr('refY', 0)
+                .attr('markerWidth', 6)
+                .attr('markerHeight', 6)
+                .attr('orient', 'auto')
+                .append('path')
+                .attr('d', 'M0,-5L10,0L0,5')
+                .attr('fill', '#64748b');
+
+            defs.append('marker')
+                .attr('id', 'arrow-governs')
+                .attr('viewBox', '0 -5 10 10')
+                .attr('refX', 22)
+                .attr('refY', 0)
+                .attr('markerWidth', 6)
+                .attr('markerHeight', 6)
+                .attr('orient', 'auto')
+                .append('path')
+                .attr('d', 'M0,-5L10,0L0,5')
+                .attr('fill', '#f43f5e');
+
+            const all = concepts || window._allOntologyConcepts || [];
+            const nodesById = {};
+            const nodesBySlug = {};
+
+            const nodes = all.map(c => {
+                const node = {
+                    id: c.id,
+                    slug: c.id,
+                    label: c.prefLabel,
+                    kind: c.kind,
+                    broader: c.broader,
+                    governs: c.governs || [],
+                    altLabels: c.altLabels || [],
+                    definition: c.definition || '',
+                    radius: c.id === 'revenue-operations' ? 20 : (c.kind === 'domain' ? 14 : (c.kind === 'standard' ? 13 : (c.kind === 'process' ? 9 : (c.kind === 'pricing' ? 8 : 7))))
+                };
+                nodesById[c.id] = node;
+                nodesBySlug[c.prefLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')] = node;
+                return node;
+            });
+
+            const links = [];
+            nodes.forEach(n => {
+                // Broader hierarchy links
+                if (n.broader && nodesById[n.broader]) {
+                    links.push({
+                        source: n.id,
+                        target: n.broader,
+                        type: 'broader'
+                    });
+                }
+                // Governs compliance links
+                (n.governs || []).forEach(targetStr => {
+                    const targetSlug = targetStr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+                    const targetNode = nodesById[targetStr] || nodesById[targetSlug] || nodesBySlug[targetSlug];
+                    if (targetNode) {
+                        links.push({
+                            source: n.id,
+                            target: targetNode.id,
+                            type: 'governs'
+                        });
+                    }
+                });
+            });
+
+            window._graphData = { nodes, links };
+
+            const g = svg.append('g').attr('class', 'graph-main-g');
+
+            // Zoom and Pan
+            const zoom = d3.zoom()
+                .scaleExtent([0.2, 5])
+                .on('zoom', (event) => {
+                    g.attr('transform', event.transform);
+                });
+            svg.call(zoom);
+            window._graphZoom = zoom;
+            window._graphSvg = svg;
+
+            // Force Simulation
+            const simulation = d3.forceSimulation(nodes)
+                .force('link', d3.forceLink(links).id(d => d.id).distance(d => d.type === 'governs' ? 85 : 55))
+                .force('charge', d3.forceManyBody().strength(-120))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collide', d3.forceCollide().radius(d => d.radius + 6))
+                .alphaDecay(0.025);
+
+            window._graphSimulation = simulation;
+
+            // Render Links
+            const link = g.append('g')
+                .attr('class', 'links')
+                .selectAll('line')
+                .data(links)
+                .join('line')
+                .attr('stroke', d => d.type === 'governs' ? '#f43f5e' : '#475569')
+                .attr('stroke-width', d => d.type === 'governs' ? 2 : 1.2)
+                .attr('stroke-dasharray', d => d.type === 'governs' ? '4 3' : null)
+                .attr('stroke-opacity', d => d.type === 'governs' ? 0.85 : 0.45)
+                .attr('marker-end', d => d.type === 'governs' ? 'url(#arrow-governs)' : 'url(#arrow-broader)');
+
+            // Render Node Groups
+            const node = g.append('g')
+                .attr('class', 'nodes')
+                .selectAll('g')
+                .data(nodes)
+                .join('g')
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended)
+                )
+                .on('click', (event, d) => {
+                    event.stopPropagation();
+                    inspectOntologyNode(d);
+                })
+                .on('mouseover', (event, d) => {
+                    highlightNodeNeighbors(d);
+                })
+                .on('mouseout', () => {
+                    if (!window._pinnedNode) {
+                        resetGraphHighlight();
+                    }
+                });
+
+            const kindColors = {
+                domain: '#3b82f6',
+                feature: '#10b981',
+                pricing: '#f59e0b',
+                process: '#8b5cf6',
+                standard: '#f43f5e'
+            };
+
+            // Circles
+            node.append('circle')
+                .attr('r', d => d.radius)
+                .attr('fill', d => kindColors[d.kind] || '#64748b')
+                .attr('stroke', '#ffffff')
+                .attr('stroke-width', 1.5)
+                .attr('class', 'transition-all cursor-pointer');
+
+            // Text Labels for Domains and Standards
+            node.append('text')
+                .text(d => (d.kind === 'domain' || d.kind === 'standard' || d.id === 'revenue-operations') ? d.label : '')
+                .attr('x', d => d.radius + 4)
+                .attr('y', 3)
+                .attr('fill', '#e2e8f0')
+                .attr('font-size', d => d.id === 'revenue-operations' ? '12px' : '10px')
+                .attr('font-weight', d => (d.kind === 'domain' || d.kind === 'standard') ? 'bold' : 'normal')
+                .attr('pointer-events', 'none')
+                .attr('class', 'node-label');
+
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+
+                node.attr('transform', d => `translate(${d.x},${d.y})`);
+            });
+
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+
+            // Click canvas background to close inspector
+            svg.on('click', () => {
+                closeNodeInspector();
+            });
+        }
+
+        function updateGraphLinksVisibility() {
+            const showBroader = document.getElementById('graph-toggle-broader').checked;
+            const showGoverns = document.getElementById('graph-toggle-governs').checked;
+
+            if (typeof d3 === 'undefined') return;
+            d3.selectAll('.links line')
+                .style('display', d => {
+                    if (d.type === 'broader' && !showBroader) return 'none';
+                    if (d.type === 'governs' && !showGoverns) return 'none';
+                    return null;
+                });
+        }
+
+        function inspectOntologyNode(d) {
+            window._pinnedNode = d;
+            const drawer = document.getElementById('onto-node-inspector');
+            if (!drawer) return;
+
+            document.getElementById('inspector-node-kind').innerText = d.kind;
+            document.getElementById('inspector-node-title').innerText = d.label;
+            document.getElementById('inspector-node-slug').innerText = d.slug;
+            document.getElementById('inspector-node-def').innerText = d.definition || 'No definition.';
+
+            const byId = {};
+            (window._graphData.nodes || []).forEach(n => { byId[n.id] = n; });
+            const parent = d.broader ? byId[d.broader] : null;
+            document.getElementById('inspector-node-broader').innerText = parent ? parent.label : (d.broader || 'None (Root)');
+
+            // Governs list
+            const govSec = document.getElementById('inspector-governs-section');
+            const govList = document.getElementById('inspector-governs-list');
+            if (d.governs && d.governs.length > 0) {
+                govList.innerHTML = d.governs.map(g => `<span class="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[10px] font-mono">${escapeHtml(g)}</span>`).join(' ');
+                govSec.classList.remove('hidden');
+            } else {
+                govSec.classList.add('hidden');
+            }
+
+            // AltLabels list
+            const altSec = document.getElementById('inspector-alts-section');
+            const altList = document.getElementById('inspector-alts-list');
+            if (d.altLabels && d.altLabels.length > 0) {
+                altList.innerHTML = d.altLabels.map(a => `<span class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 text-[10px] font-mono">${escapeHtml(a)}</span>`).join(' ');
+                altSec.classList.remove('hidden');
+            } else {
+                altSec.classList.add('hidden');
+            }
+
+            drawer.classList.remove('hidden');
+            highlightNodeNeighbors(d);
+        }
+
+        function closeNodeInspector() {
+            window._pinnedNode = null;
+            const drawer = document.getElementById('onto-node-inspector');
+            if (drawer) drawer.classList.add('hidden');
+            resetGraphHighlight();
+        }
+
+        function highlightNodeNeighbors(targetNode) {
+            if (typeof d3 === 'undefined') return;
+
+            const connectedNodeIds = new Set([targetNode.id]);
+            (window._graphData.links || []).forEach(l => {
+                const sId = typeof l.source === 'object' ? l.source.id : l.source;
+                const tId = typeof l.target === 'object' ? l.target.id : l.target;
+                if (sId === targetNode.id) connectedNodeIds.add(tId);
+                if (tId === targetNode.id) connectedNodeIds.add(sId);
+            });
+
+            d3.selectAll('.nodes g')
+                .style('opacity', d => connectedNodeIds.has(d.id) ? 1 : 0.15)
+                .select('text')
+                .text(d => connectedNodeIds.has(d.id) ? d.label : ((d.kind === 'domain' || d.kind === 'standard' || d.id === 'revenue-operations') ? d.label : ''));
+
+            d3.selectAll('.links line')
+                .style('opacity', l => {
+                    const sId = typeof l.source === 'object' ? l.source.id : l.source;
+                    const tId = typeof l.target === 'object' ? l.target.id : l.target;
+                    return (connectedNodeIds.has(sId) && connectedNodeIds.has(tId)) ? 1 : 0.05;
+                });
+        }
+
+        function highlightGraphBranch(standardSlug) {
+            if (typeof d3 === 'undefined') return;
+            const stdNode = (window._graphData.nodes || []).find(n => n.id === standardSlug || n.slug === standardSlug);
+            if (!stdNode) {
+                alert(`Standard "${standardSlug}" not found in graph.`);
+                return;
+            }
+            inspectOntologyNode(stdNode);
+        }
+
+        function resetGraphHighlight() {
+            window._pinnedNode = null;
+            if (typeof d3 === 'undefined') return;
+            d3.selectAll('.nodes g')
+                .style('opacity', 1)
+                .select('text')
+                .text(d => (d.kind === 'domain' || d.kind === 'standard' || d.id === 'revenue-operations') ? d.label : '');
+
+            d3.selectAll('.links line')
+                .style('opacity', d => d.type === 'governs' ? 0.85 : 0.45);
+        }
+
+        function zoomGraph(factor) {
+            if (!window._graphSvg || !window._graphZoom) return;
+            window._graphSvg.transition().duration(300).call(window._graphZoom.scaleBy, factor);
+        }
+
+        function resetGraphZoom() {
+            if (!window._graphSvg || !window._graphZoom) return;
+            window._graphSvg.transition().duration(300).call(window._graphZoom.transform, d3.zoomIdentity);
         }
 
         // Initialize Ontology Hub on DOMContentLoaded
