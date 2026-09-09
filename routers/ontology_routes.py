@@ -339,3 +339,150 @@ def post_ontology_sparql(req: OntologySparqlRequest):
             "error": f"Query execution failed: {e}",
         }
 
+
+@router.get("/tri-alignment", summary="Get Tri-Ontology Alignment Matrix (Product vs Standards vs Wikidata)")
+def get_tri_ontology_alignment(
+    vertical_id: str = Query(DEFAULT_VERTICAL_ID, description="Target vertical identifier"),
+):
+    """
+    Returns the complete Tri-Ontology alignment matrix across all concepts in the vertical:
+    - Layer 1: Product Capability Ontology (features, processes, pricing, evidence requirements)
+    - Layer 2: Industry & Regulatory Governance (ASC 606, SOC 2, US GAAP, governing links and steps)
+    - Layer 3: External Knowledge Graph (Wikidata Q-IDs, URIs, and Schema.org semantic types)
+    """
+    config_path = _vertical_config_path(vertical_id)
+    if not config_path or not os.path.isfile(config_path):
+        raise HTTPException(status_code=404, detail=f"Vertical '{vertical_id}' not found.")
+
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not read vertical config: {e}")
+
+    concepts = data.get("concepts", [])
+
+    # Map standard governance links
+    governance_map: Dict[str, List[str]] = {}
+    for c in concepts:
+        for g in c.get("governs", []):
+            governance_map.setdefault(g.strip().lower(), []).append(c["prefLabel"])
+
+    # Map framework step requirements
+    framework_steps_map: Dict[str, List[Dict[str, Any]]] = {}
+    for fw_key, fw in comp_onto.COMPLIANCE_FRAMEWORKS.items():
+        for step in fw.get("steps", []):
+            step_name = step.get("name", f"Step {step.get('step_number')}")
+            step_num = step.get("step_number")
+            for cid in step.get("concept_ids", []):
+                framework_steps_map.setdefault(cid.strip().lower(), []).append({
+                    "standard": fw.get("standard"),
+                    "step": step_num,
+                    "name": step_name,
+                    "label": f"{fw.get('standard')} (Step {step_num}): {step_name}"
+                })
+
+    from entity_grounding import ground_url, ground_id
+
+    matrix = []
+    fully_aligned_count = 0
+    regulatory_count = 0
+    wikidata_count = 0
+
+    predicate_defaults = {
+        "feature": ["hasFeature"],
+        "process": ["automates"],
+        "pricing": ["hasPricingModel"],
+        "standard": ["compliesWith"],
+        "domain": ["hasFeature", "automates"]
+    }
+
+    schema_type_map = {
+        "feature": "SoftwareApplication",
+        "process": "Action",
+        "pricing": "UnitPriceSpecification",
+        "standard": "LegalRule",
+        "domain": "ComputerScience"
+    }
+
+    for c in concepts:
+        cid = c.get("id", "").strip().lower()
+        pref = c.get("prefLabel", "")
+        kind = c.get("kind", "feature")
+
+        # Layer 1: Product Capability
+        preds = predicate_defaults.get(kind, ["hasFeature"])
+        requires_evidence = kind in ("feature", "process", "standard")
+
+        # Layer 2: Regulatory Governance
+        gov_by = governance_map.get(cid, []) or governance_map.get(pref.lower(), [])
+        steps = framework_steps_map.get(cid, []) or framework_steps_map.get(pref.lower(), [])
+        has_regulatory = bool(gov_by or steps or kind == "standard")
+        if has_regulatory:
+            regulatory_count += 1
+
+        # Layer 3: External Knowledge Graph Grounding
+        w_url = ground_url(pref) or ground_url(cid)
+        w_id = ground_id(pref) or ground_id(cid) if w_url else None
+        has_wikidata = bool(w_url)
+        if has_wikidata:
+            wikidata_count += 1
+
+        # Calculate Tri-Ontology Tier
+        is_tier_1 = has_regulatory and has_wikidata
+        if is_tier_1:
+            fully_aligned_count += 1
+            tier_label = "Tier 1: Fully Grounded Across All 3 Ontologies"
+            tier_badge = "bg-emerald-100 text-emerald-800 border-emerald-300"
+        elif has_regulatory:
+            tier_label = "Tier 2: Regulatory & Capability Grounded"
+            tier_badge = "bg-purple-100 text-purple-800 border-purple-300"
+        elif has_wikidata:
+            tier_label = "Tier 2: External KG & Capability Grounded"
+            tier_badge = "bg-blue-100 text-blue-800 border-blue-300"
+        else:
+            tier_label = "Tier 3: Domain Capability (Internal)"
+            tier_badge = "bg-slate-100 text-slate-700 border-slate-300"
+
+        matrix.append({
+            "id": c.get("id"),
+            "prefLabel": pref,
+            "kind": kind,
+            "definition": c.get("definition", ""),
+            "broader": c.get("broader"),
+            "alt_labels_count": len(c.get("altLabels", [])),
+            "layer_1_capability": {
+                "predicates": preds,
+                "evidence_required": requires_evidence,
+                "skos_uri": f"https://gainark.com/ontoleap/ontology/{vertical_id}/concept/{c.get('id')}"
+            },
+            "layer_2_governance": {
+                "is_governed": has_regulatory,
+                "governed_by": sorted(list(set(gov_by))),
+                "regulatory_steps": [s["label"] for s in steps],
+                "governs": c.get("governs", []) if kind == "standard" else []
+            },
+            "layer_3_external_kg": {
+                "is_grounded": has_wikidata,
+                "wikidata_url": w_url,
+                "wikidata_qid": w_id,
+                "schema_org_type": schema_type_map.get(kind, "Thing")
+            },
+            "alignment": {
+                "tier": tier_label,
+                "tier_badge": tier_badge,
+                "is_fully_aligned": is_tier_1,
+                "score": 100 if is_tier_1 else (75 if (has_regulatory or has_wikidata) else 50)
+            }
+        })
+
+    return {
+        "vertical_id": vertical_id,
+        "total_concepts": len(concepts),
+        "fully_aligned_count": fully_aligned_count,
+        "regulatory_grounded_count": regulatory_count,
+        "wikidata_grounded_count": wikidata_count,
+        "matrix": matrix
+    }
+
+

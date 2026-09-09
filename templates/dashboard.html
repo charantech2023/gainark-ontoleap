@@ -391,6 +391,9 @@
                     <button type="button" id="subtab-onto-concepts-btn" onclick="switchOntologySubView('concepts')" class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-900 text-white shadow-sm transition whitespace-nowrap">
                         🌳 Concepts &amp; SKOS Taxonomy (<span id="onto-total-count">111</span>)
                     </button>
+                    <button type="button" id="subtab-onto-trialign-btn" onclick="switchOntologySubView('trialign')" class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition whitespace-nowrap flex items-center gap-1.5">
+                        <span>🔗 Tri-Ontology Alignment Matrix</span>
+                    </button>
                     <button type="button" id="subtab-onto-compliance-btn" onclick="switchOntologySubView('compliance')" class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition whitespace-nowrap">
                         📜 Multi-Step Compliance Matrix
                     </button>
@@ -553,6 +556,131 @@
                                 <span><span class="inline-block w-4 h-0.5 bg-rose-500 mr-1"></span> Governs Link</span>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================================= -->
+            <!-- SUBVIEW: TRI-ONTOLOGY ALIGNMENT MATRIX                   -->
+            <!-- ========================================================= -->
+            <div id="onto-subview-trialign" class="hidden space-y-6">
+                <!-- 3-Tier Architecture Flow Banner -->
+                <div class="bg-gradient-to-r from-slate-950 via-purple-950 to-indigo-950 rounded-2xl p-6 text-white shadow-md border border-purple-900/40 space-y-4">
+                    <div class="flex items-center justify-between flex-wrap gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-purple-500/30 text-purple-200 border border-purple-400/30">
+                                3-Tier Semantic Bridge
+                            </span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                                W3C &amp; Wikidata Certified
+                            </span>
+                        </div>
+                        <span class="text-xs text-slate-400 font-mono">gainark.com/ontology/v1#</span>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-black tracking-tight text-white">Tri-Ontology Alignment Matrix</h3>
+                        <p class="text-xs text-slate-300 mt-1 max-w-3xl leading-relaxed">
+                            Bridges internal product capabilities with deterministic regulatory compliance and global Semantic Web authorities. Every concept is cross-examined across all three distinct ontologies.
+                        </p>
+                    </div>
+
+                    <!-- 3-Tier Architecture Diagram -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                        <div class="bg-white/10 backdrop-blur-xs p-4 rounded-xl border border-white/15 space-y-1.5">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+                                <span>Layer 1: Product Capability</span>
+                            </div>
+                            <div class="text-sm font-bold text-white">Internal Ground Truth</div>
+                            <p class="text-[11px] text-slate-300 leading-normal">
+                                Technical capabilities mined from code, OpenAPI 3.0 specs, and API documentation with required evidence sentences.
+                            </p>
+                            <div class="text-[10px] font-mono text-sky-300 pt-1">Predicates: hasFeature, automates</div>
+                        </div>
+
+                        <div class="bg-white/10 backdrop-blur-xs p-4 rounded-xl border border-white/15 space-y-1.5">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+                                <span>Layer 2: Industry Standards</span>
+                            </div>
+                            <div class="text-sm font-bold text-white">Regulatory Governance</div>
+                            <p class="text-[11px] text-slate-300 leading-normal">
+                                Legal frameworks including FASB ASC 606 (5 steps), AICPA SOC 2 (5 Trust Criteria), US GAAP, and PCI-DSS.
+                            </p>
+                            <div class="text-[10px] font-mono text-purple-300 pt-1">Rules: onto:governs &amp; compliesWith</div>
+                        </div>
+
+                        <div class="bg-white/10 backdrop-blur-xs p-4 rounded-xl border border-white/15 space-y-1.5">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                <span>Layer 3: External Knowledge Graph</span>
+                            </div>
+                            <div class="text-sm font-bold text-white">Global Semantic Authority</div>
+                            <p class="text-[11px] text-slate-300 leading-normal">
+                                Grounded to canonical Wikidata Q-IDs, Wikipedia entities, and W3C Schema.org types for AI search readiness.
+                            </p>
+                            <div class="text-[10px] font-mono text-emerald-300 pt-1">Entities: schema:sameAs &amp; Q-IDs</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alignment Scorecard & Controls -->
+                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pb-4 border-b border-slate-100">
+                        <div class="space-y-0.5">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Concepts</div>
+                            <div class="text-xl font-black text-slate-900" id="trialign-total-count">111</div>
+                            <div class="text-[10px] text-slate-500">Domain Vocabulary</div>
+                        </div>
+                        <div class="space-y-0.5">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Tier 1: Fully Grounded</div>
+                            <div class="text-xl font-black text-emerald-600" id="trialign-fully-count">--</div>
+                            <div class="text-[10px] text-slate-500">All 3 Layers Verified</div>
+                        </div>
+                        <div class="space-y-0.5">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-purple-600">Regulatory Governed</div>
+                            <div class="text-xl font-black text-purple-600" id="trialign-reg-count">--</div>
+                            <div class="text-[10px] text-slate-500">ASC 606 / SOC 2 Steps</div>
+                        </div>
+                        <div class="space-y-0.5">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-blue-600">Wikidata Grounded</div>
+                            <div class="text-xl font-black text-blue-600" id="trialign-wiki-count">--</div>
+                            <div class="text-[10px] text-slate-500">Canonical Q-IDs</div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div class="relative flex-1">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">🔍</span>
+                            <input type="text" id="trialign-search-input" oninput="filterTriAlignmentMatrix()" placeholder="Filter matrix by concept name, regulatory standard, or Wikidata Q-ID..."
+                                class="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white focus:outline-none transition" />
+                        </div>
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <button type="button" onclick="setTriAlignmentFilter('all')" id="trialign-filter-all" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-white shadow-xs transition">All (<span id="trialign-btn-all-count">111</span>)</button>
+                            <button type="button" onclick="setTriAlignmentFilter('tier1')" id="trialign-filter-tier1" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition">⭐ Fully Grounded</button>
+                            <button type="button" onclick="setTriAlignmentFilter('regulatory')" id="trialign-filter-regulatory" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition">📜 Regulatory Governed</button>
+                            <button type="button" onclick="setTriAlignmentFilter('wikidata')" id="trialign-filter-wikidata" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition">🌐 Wikidata Grounded</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tri-Ontology Alignment Matrix Table -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 text-xs" id="trialign-matrix-table">
+                            <thead class="bg-slate-50 text-slate-600 font-bold text-left uppercase tracking-wider">
+                                <tr>
+                                    <th class="px-4 py-3.5">Layer 1: Product Capability</th>
+                                    <th class="px-4 py-3.5">Layer 2: Regulatory Governance</th>
+                                    <th class="px-4 py-3.5">Layer 3: External Knowledge Graph</th>
+                                    <th class="px-4 py-3.5 text-center">Alignment Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-slate-700" id="trialign-tbody">
+                                <!-- Dynamic rows -->
+                                <tr><td colspan="4" class="py-12 text-center text-slate-400">Loading Tri-Ontology Alignment Matrix...</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -3505,7 +3633,7 @@ SELECT ?capability ?evidence WHERE {
 
         const ALL_DASHBOARD_TABS = ['ontology', 'truth', 'battlecards', 'search'];
         const SEARCH_SUBTABS = ['audit', 'linking', 'bench', 'alignment', 'industry', 'geo'];
-        const ONTOLOGY_SUBTABS = ['concepts', 'compliance', 'schema', 'synonyms', 'sparql'];
+        const ONTOLOGY_SUBTABS = ['concepts', 'trialign', 'compliance', 'schema', 'synonyms', 'sparql'];
         let currentSearchSubTab = 'audit';
         let currentOntologySubTab = 'concepts';
 
@@ -8093,6 +8221,8 @@ SELECT ?capability ?evidence WHERE {
 
             if (sub === 'concepts' && (!window._allOntologyConcepts || window._allOntologyConcepts.length === 0)) {
                 loadOntologyConcepts();
+            } else if (sub === 'trialign') {
+                loadTriOntologyAlignment();
             } else if (sub === 'compliance' && (!window._allComplianceFrameworks || window._allComplianceFrameworks.length === 0)) {
                 loadComplianceFrameworks();
             loadSparqlPreset("concepts");
@@ -9150,6 +9280,187 @@ ORDER BY DESC(?count)`
             a.href = url;
             a.download = 'sparql_query_results.csv';
             a.click();
+        }
+
+        
+        /* ------------------------------------------------------------- */
+        /* TRI-ONTOLOGY ALIGNMENT CONTROLLER                             */
+        /* ------------------------------------------------------------- */
+        window._triAlignmentData = null;
+        window._triAlignmentFilter = 'all';
+
+        async function loadTriOntologyAlignment() {
+            const tbody = document.getElementById('trialign-tbody');
+            if (window._triAlignmentData) {
+                renderTriAlignmentTable(window._triAlignmentData.matrix || []);
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/ontology/tri-alignment?vertical_id=b2b_saas_fintech');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                window._triAlignmentData = data;
+
+                // Update scorecards
+                const fEl = document.getElementById('trialign-fully-count');
+                if (fEl) fEl.innerText = data.fully_aligned_count || 0;
+                const rEl = document.getElementById('trialign-reg-count');
+                if (rEl) rEl.innerText = data.regulatory_grounded_count || 0;
+                const wEl = document.getElementById('trialign-wiki-count');
+                if (wEl) wEl.innerText = data.wikidata_grounded_count || 0;
+                const tEl = document.getElementById('trialign-total-count');
+                if (tEl) tEl.innerText = data.total_concepts || 111;
+                const bEl = document.getElementById('trialign-btn-all-count');
+                if (bEl) bEl.innerText = data.total_concepts || 111;
+
+                filterTriAlignmentMatrix();
+            } catch (err) {
+                console.error('Failed to load Tri-Ontology alignment:', err);
+                if (tbody) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-rose-600">Failed to load alignment: ${err.message}</td></tr>`;
+                }
+            }
+        }
+
+        function setTriAlignmentFilter(filterKey) {
+            window._triAlignmentFilter = filterKey;
+            ['all', 'tier1', 'regulatory', 'wikidata'].forEach(k => {
+                const btn = document.getElementById(`trialign-filter-${k}`);
+                if (!btn) return;
+                if (k === filterKey) {
+                    btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-white shadow-xs transition';
+                } else {
+                    const styles = {
+                        tier1: 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100',
+                        regulatory: 'bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100',
+                        wikidata: 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100',
+                        all: 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    };
+                    btn.className = `px-3 py-1.5 rounded-lg text-xs font-semibold ${styles[k] || 'bg-slate-100'} transition`;
+                }
+            });
+            filterTriAlignmentMatrix();
+        }
+
+        function filterTriAlignmentMatrix() {
+            if (!window._triAlignmentData) return;
+            const q = (document.getElementById('trialign-search-input') ? document.getElementById('trialign-search-input').value : '').trim().toLowerCase();
+            const filterKey = window._triAlignmentFilter || 'all';
+
+            const filtered = (window._triAlignmentData.matrix || []).filter(item => {
+                if (filterKey === 'tier1' && !item.alignment.is_fully_aligned) return false;
+                if (filterKey === 'regulatory' && !item.layer_2_governance.is_governed) return false;
+                if (filterKey === 'wikidata' && !item.layer_3_external_kg.is_grounded) return false;
+
+                if (!q) return true;
+                const inLabel = (item.prefLabel || '').toLowerCase().includes(q);
+                const inId = (item.id || '').toLowerCase().includes(q);
+                const inDef = (item.definition || '').toLowerCase().includes(q);
+                const inReg = (item.layer_2_governance.governed_by || []).some(g => g.toLowerCase().includes(q)) ||
+                              (item.layer_2_governance.regulatory_steps || []).some(s => s.toLowerCase().includes(q));
+                const inWiki = (item.layer_3_external_kg.wikidata_qid || '').toLowerCase().includes(q);
+                return inLabel || inId || inDef || inReg || inWiki;
+            });
+
+            renderTriAlignmentTable(filtered);
+        }
+
+        function renderTriAlignmentTable(items) {
+            const tbody = document.getElementById('trialign-tbody');
+            if (!tbody) return;
+
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="py-12 text-center text-slate-400">No concepts match active filter criteria.</td></tr>';
+                return;
+            }
+
+            const kindBadges = {
+                domain: 'bg-blue-50 text-blue-700 border-blue-200',
+                feature: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                pricing: 'bg-amber-50 text-amber-700 border-amber-200',
+                process: 'bg-purple-50 text-purple-700 border-purple-200',
+                standard: 'bg-rose-50 text-rose-700 border-rose-200'
+            };
+
+            tbody.innerHTML = items.map(item => {
+                const badge = kindBadges[item.kind] || 'bg-slate-50 text-slate-700 border-slate-200';
+                const l1 = item.layer_1_capability;
+                const l2 = item.layer_2_governance;
+                const l3 = item.layer_3_external_kg;
+                const al = item.alignment;
+
+                // Governance markup
+                let govMarkup = '<span class="text-slate-400 italic text-[11px]">Domain Native (No Standard)</span>';
+                if (item.kind === 'standard') {
+                    govMarkup = `
+                        <div class="space-y-1">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 uppercase">Self-Governing Standard</span>
+                            <div class="text-[10px] text-slate-500 font-mono">Governs ${l2.governs.length} capabilities</div>
+                        </div>
+                    `;
+                } else if (l2.is_governed) {
+                    const standardsPills = (l2.governed_by || []).map(s => `<span class="px-2 py-0.5 rounded bg-purple-50 text-purple-700 font-bold text-[10px] border border-purple-200">${escapeHtml(s)}</span>`).join(' ');
+                    const stepsPills = (l2.regulatory_steps || []).map(step => `<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] border border-slate-200 block truncate max-w-xs" title="${escapeHtml(step)}">${escapeHtml(step)}</span>`).join('');
+                    govMarkup = `
+                        <div class="space-y-1.5">
+                            <div class="flex items-center gap-1 flex-wrap">${standardsPills}</div>
+                            <div class="space-y-0.5">${stepsPills}</div>
+                        </div>
+                    `;
+                }
+
+                // External KG markup
+                let kgMarkup = '<span class="text-slate-400 italic text-[11px]">No Wikidata Mapping</span>';
+                if (l3.is_grounded) {
+                    kgMarkup = `
+                        <div class="space-y-1">
+                            <a href="${l3.wikidata_url}" target="_blank" class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 font-mono font-bold text-[11px] border border-blue-200 transition">
+                                <span>🌐 ${l3.wikidata_qid}</span>
+                                <span class="text-[9px]">&nearr;</span>
+                            </a>
+                            <div class="text-[10px] text-slate-500 font-mono">schema:${l3.schema_org_type}</div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <!-- Layer 1 -->
+                        <td class="px-4 py-3.5 align-top">
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-slate-900">${escapeHtml(item.prefLabel)}</span>
+                                    <span class="px-1.5 py-0.2 rounded text-[10px] font-bold border uppercase tracking-wider ${badge}">${item.kind}</span>
+                                </div>
+                                <div class="text-[10px] font-mono text-purple-600">${escapeHtml(item.id)}</div>
+                                <p class="text-[11px] text-slate-500 italic line-clamp-2 max-w-sm">${escapeHtml(item.definition || '')}</p>
+                                <div class="text-[10px] text-slate-400 font-mono pt-0.5">Predicates: ${l1.predicates.join(', ')}</div>
+                            </div>
+                        </td>
+
+                        <!-- Layer 2 -->
+                        <td class="px-4 py-3.5 align-top">
+                            ${govMarkup}
+                        </td>
+
+                        <!-- Layer 3 -->
+                        <td class="px-4 py-3.5 align-top">
+                            ${kgMarkup}
+                        </td>
+
+                        <!-- Alignment Status -->
+                        <td class="px-4 py-3.5 align-top text-center">
+                            <div class="space-y-1 inline-flex flex-col items-center">
+                                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold border ${al.tier_badge} whitespace-nowrap">
+                                    ${al.is_fully_aligned ? '⭐ 3/3 Grounded' : (l2.is_governed ? '📜 Regulatory Grounded' : (l3.is_grounded ? '🌐 KG Grounded' : '📄 Domain Only'))}
+                                </span>
+                                <div class="text-[10px] font-bold text-slate-400 font-mono">${al.score}% Alignment</div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         // Initialize Ontology Hub on DOMContentLoaded

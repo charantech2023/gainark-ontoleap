@@ -155,7 +155,26 @@ class TestOntologyApi(unittest.TestCase):
         self.assertEqual(data["columns"], ["concept", "prefLabel"])
         self.assertEqual(len(data["rows"]), 5)
 
+    def test_tri_ontology_alignment(self):
+        """GET /api/ontology/tri-alignment returns 3-tier alignment matrix across all concepts."""
+        resp = client.get("/api/ontology/tri-alignment?vertical_id=b2b_saas_fintech")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["total_concepts"], 111)
+        self.assertGreater(data["fully_aligned_count"], 0)
+        self.assertGreater(data["regulatory_grounded_count"], 0)
+        self.assertGreater(data["wikidata_grounded_count"], 0)
+        self.assertEqual(len(data["matrix"]), 111)
+
+        # Check structure of a sample item
+        item = data["matrix"][0]
+        self.assertIn("layer_1_capability", item)
+        self.assertIn("layer_2_governance", item)
+        self.assertIn("layer_3_external_kg", item)
+        self.assertIn("alignment", item)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
