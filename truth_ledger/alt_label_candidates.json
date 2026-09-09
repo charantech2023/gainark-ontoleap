@@ -1,0 +1,296 @@
+{
+  "asc 606|contract revenue accounting": {
+    "brand": "Ordway",
+    "generated_canonical": "asc 606",
+    "status": "pending",
+    "surface_form": "Contract Revenue Accounting"
+  },
+  "asc 606|gaap revenue recognition": {
+    "brand": "Ordway",
+    "generated_canonical": "asc 606",
+    "status": "pending",
+    "surface_form": "GAAP Revenue Recognition"
+  },
+  "asc 606|ifrs 15 compliance": {
+    "brand": "Ordway",
+    "generated_canonical": "asc 606",
+    "status": "pending",
+    "surface_form": "IFRS 15 Compliance"
+  },
+  "asc 606|revenue standard compliance": {
+    "brand": "Ordway",
+    "generated_canonical": "asc 606",
+    "status": "pending",
+    "surface_form": "Revenue Standard Compliance"
+  },
+  "automation|operational efficiency": {
+    "brand": "Ordway",
+    "generated_canonical": "automation",
+    "status": "pending",
+    "surface_form": "Operational Efficiency"
+  },
+  "automation|process automation": {
+    "brand": "Ordway",
+    "generated_canonical": "automation",
+    "status": "pending",
+    "surface_form": "Process Automation"
+  },
+  "automation|workflow automation": {
+    "brand": "Ordway",
+    "generated_canonical": "automation",
+    "status": "pending",
+    "surface_form": "Workflow Automation"
+  },
+  "bearer token authentication|api credential management": {
+    "brand": "Ordway",
+    "generated_canonical": "bearer token authentication",
+    "status": "pending",
+    "surface_form": "API Credential Management"
+  },
+  "bearer token authentication|secure api handshake": {
+    "brand": "Ordway",
+    "generated_canonical": "bearer token authentication",
+    "status": "pending",
+    "surface_form": "Secure API Handshake"
+  },
+  "bearer token authentication|token-based security": {
+    "brand": "Ordway",
+    "generated_canonical": "bearer token authentication",
+    "status": "pending",
+    "surface_form": "Token-based Security"
+  },
+  "billing|customer billing": {
+    "brand": "Ordway",
+    "generated_canonical": "billing",
+    "status": "pending",
+    "surface_form": "Customer Billing"
+  },
+  "billing|invoice management": {
+    "brand": "Ordway",
+    "generated_canonical": "billing",
+    "status": "pending",
+    "surface_form": "Invoice Management"
+  },
+  "billing|payment processing": {
+    "brand": "Ordway",
+    "generated_canonical": "billing",
+    "status": "pending",
+    "surface_form": "Payment Processing"
+  },
+  "integration|api connectivity": {
+    "brand": "Ordway",
+    "generated_canonical": "integration",
+    "status": "pending",
+    "surface_form": "API Connectivity"
+  },
+  "integration|data exchange": {
+    "brand": "Ordway",
+    "generated_canonical": "integration",
+    "status": "pending",
+    "surface_form": "Data Exchange"
+  },
+  "integration|ecosystem integration": {
+    "brand": "Ordway",
+    "generated_canonical": "integration",
+    "status": "pending",
+    "surface_form": "Ecosystem Integration"
+  },
+  "integration|system connectivity": {
+    "brand": "Ordway",
+    "generated_canonical": "integration",
+    "status": "pending",
+    "surface_form": "System Connectivity"
+  },
+  "invoicing automation|automated billing": {
+    "brand": "Ordway",
+    "generated_canonical": "invoicing automation",
+    "status": "pending",
+    "surface_form": "Automated Billing"
+  },
+  "invoicing automation|invoice processing automation": {
+    "brand": "Ordway",
+    "generated_canonical": "invoicing automation",
+    "status": "pending",
+    "surface_form": "Invoice Processing Automation"
+  },
+  "invoicing automation|streamlined invoicing": {
+    "brand": "Ordway",
+    "generated_canonical": "invoicing automation",
+    "status": "pending",
+    "surface_form": "Streamlined Invoicing"
+  },
+  "netsuite erp sync|bi-directional netsuite sync": {
+    "brand": "Ordway",
+    "generated_canonical": "netsuite erp sync",
+    "status": "pending",
+    "surface_form": "Bi-directional NetSuite Sync"
+  },
+  "netsuite erp sync|erp integration with netsuite": {
+    "brand": "Ordway",
+    "generated_canonical": "netsuite erp sync",
+    "status": "pending",
+    "surface_form": "ERP Integration with NetSuite"
+  },
+  "netsuite erp sync|netsuite data synchronization": {
+    "brand": "Ordway",
+    "generated_canonical": "netsuite erp sync",
+    "status": "pending",
+    "surface_form": "NetSuite Data Synchronization"
+  },
+  "netsuite erp sync|netsuite financial integration": {
+    "brand": "Ordway",
+    "generated_canonical": "netsuite erp sync",
+    "status": "pending",
+    "surface_form": "NetSuite Financial Integration"
+  },
+  "netsuite|netsuite connector": {
+    "brand": "Ordway",
+    "generated_canonical": "netsuite",
+    "status": "pending",
+    "surface_form": "NetSuite Connector"
+  },
+  "netsuite|netsuite ecosystem integration": {
+    "brand": "Ordway",
+    "generated_canonical": "netsuite",
+    "status": "pending",
+    "surface_form": "NetSuite Ecosystem Integration"
+  },
+  "netsuite|netsuite erp integration": {
+    "brand": "Ordway",
+    "generated_canonical": "netsuite",
+    "status": "pending",
+    "surface_form": "NetSuite ERP Integration"
+  },
+  "oauth 2.0|api authentication protocol": {
+    "brand": "Ordway",
+    "generated_canonical": "oauth 2.0",
+    "status": "pending",
+    "surface_form": "API Authentication Protocol"
+  },
+  "oauth 2.0|open authorization standard": {
+    "brand": "Ordway",
+    "generated_canonical": "oauth 2.0",
+    "status": "pending",
+    "surface_form": "Open Authorization Standard"
+  },
+  "oauth 2.0|secure api access": {
+    "brand": "Ordway",
+    "generated_canonical": "oauth 2.0",
+    "status": "pending",
+    "surface_form": "Secure API Access"
+  },
+  "recurring billing|automated subscription payments": {
+    "brand": "Ordway",
+    "generated_canonical": "recurring billing",
+    "status": "pending",
+    "surface_form": "Automated Subscription Payments"
+  },
+  "recurring billing|continuous billing": {
+    "brand": "Ordway",
+    "generated_canonical": "recurring billing",
+    "status": "pending",
+    "surface_form": "Continuous Billing"
+  },
+  "revenue recognition|accurate revenue reporting": {
+    "brand": "Ordway",
+    "generated_canonical": "revenue recognition",
+    "status": "pending",
+    "surface_form": "Accurate Revenue Reporting"
+  },
+  "revenue recognition|financial reporting compliance": {
+    "brand": "Ordway",
+    "generated_canonical": "revenue recognition",
+    "status": "pending",
+    "surface_form": "Financial Reporting Compliance"
+  },
+  "revenue recognition|revenue accounting": {
+    "brand": "Ordway",
+    "generated_canonical": "revenue recognition",
+    "status": "pending",
+    "surface_form": "Revenue Accounting"
+  },
+  "revenue recognition|revenue realization": {
+    "brand": "Ordway",
+    "generated_canonical": "revenue recognition",
+    "status": "pending",
+    "surface_form": "Revenue Realization"
+  },
+  "revenue|financial performance tracking": {
+    "brand": "Ordway",
+    "generated_canonical": "revenue",
+    "status": "pending",
+    "surface_form": "Financial Performance Tracking"
+  },
+  "revenue|income management": {
+    "brand": "Ordway",
+    "generated_canonical": "revenue",
+    "status": "pending",
+    "surface_form": "Income Management"
+  },
+  "revenue|top-line growth management": {
+    "brand": "Ordway",
+    "generated_canonical": "revenue",
+    "status": "pending",
+    "surface_form": "Top-line Growth Management"
+  },
+  "salesforce integration|crm integration with salesforce": {
+    "brand": "Ordway",
+    "generated_canonical": "salesforce integration",
+    "status": "pending",
+    "surface_form": "CRM Integration with Salesforce"
+  },
+  "salesforce integration|salesforce connector": {
+    "brand": "Ordway",
+    "generated_canonical": "salesforce integration",
+    "status": "pending",
+    "surface_form": "Salesforce Connector"
+  },
+  "salesforce integration|salesforce data sync": {
+    "brand": "Ordway",
+    "generated_canonical": "salesforce integration",
+    "status": "pending",
+    "surface_form": "Salesforce Data Sync"
+  },
+  "salesforce integration|salesforce ecosystem integration": {
+    "brand": "Ordway",
+    "generated_canonical": "salesforce integration",
+    "status": "pending",
+    "surface_form": "Salesforce Ecosystem Integration"
+  },
+  "salesforce|salesforce crm connectivity": {
+    "brand": "Ordway",
+    "generated_canonical": "salesforce",
+    "status": "pending",
+    "surface_form": "Salesforce CRM Connectivity"
+  },
+  "salesforce|salesforce data exchange": {
+    "brand": "Ordway",
+    "generated_canonical": "salesforce",
+    "status": "pending",
+    "surface_form": "Salesforce Data Exchange"
+  },
+  "salesforce|salesforce ecosystem integration": {
+    "brand": "Ordway",
+    "generated_canonical": "salesforce",
+    "status": "pending",
+    "surface_form": "Salesforce Ecosystem Integration"
+  },
+  "sync|data synchronization": {
+    "brand": "Ordway",
+    "generated_canonical": "sync",
+    "status": "pending",
+    "surface_form": "Data Synchronization"
+  },
+  "sync|information alignment": {
+    "brand": "Ordway",
+    "generated_canonical": "sync",
+    "status": "pending",
+    "surface_form": "Information Alignment"
+  },
+  "sync|real-time data updates": {
+    "brand": "Ordway",
+    "generated_canonical": "sync",
+    "status": "pending",
+    "surface_form": "Real-time Data Updates"
+  }
+}

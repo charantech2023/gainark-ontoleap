@@ -138,7 +138,12 @@
     <div class="bg-white border-b border-slate-200 sticky top-16 z-40">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
             <div class="flex space-x-4 sm:space-x-8 overflow-x-auto py-1">
-                <button id="tab-truth-btn" onclick="switchTab('truth')" class="py-3 text-sm font-semibold text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-all tab-active flex items-center gap-2 whitespace-nowrap">
+                <button id="tab-ontology-btn" onclick="switchTab('ontology')" class="py-3 text-sm font-semibold text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-all tab-active flex items-center gap-2 whitespace-nowrap">
+                    <span class="text-base">🏛️</span>
+                    <span>Ontology Foundation &amp; Taxonomy</span>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 uppercase">SKOS · W3C Core</span>
+                </button>
+                <button id="tab-truth-btn" onclick="switchTab('truth')" class="py-3 text-sm font-semibold text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-all flex items-center gap-2 whitespace-nowrap">
                     <span class="text-base">⚖️</span>
                     <span>Product Truth &amp; Governance</span>
                     <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 uppercase">MGI Engine</span>
@@ -150,7 +155,7 @@
                 </button>
                 <button id="tab-search-btn" onclick="switchTab('search')" class="py-3 text-sm font-semibold text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-all flex items-center gap-2 whitespace-nowrap">
                     <span class="text-base">🌐</span>
-                    <span>AI Search (GEO) &amp; Knowledge Graph</span>
+                    <span>AI Search (GEO)</span>
                     <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 uppercase">Perplexity / LLMs</span>
                 </button>
             </div>
@@ -256,7 +261,325 @@
         <!-- ============================================================= -->
         <!-- WORKSPACE 1: PRODUCT TRUTH & GOVERNANCE                      -->
         <!-- ============================================================= -->
-        <section id="view-truth" class="space-y-8">
+                <!-- ============================================================= -->
+        <!-- WORKSPACE 0: ONTOLOGY FOUNDATION & KNOWLEDGE GRAPH           -->
+        <!-- ============================================================= -->
+        <section id="view-ontology" class="space-y-8">
+            <!-- Header Banner -->
+            <div class="bg-gradient-to-r from-purple-950 via-slate-900 to-indigo-950 rounded-2xl p-6 text-white shadow-md border border-purple-900/50">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-purple-500/20 text-purple-200 border border-purple-400/30">
+                                W3C SKOS &amp; OWL Knowledge Graph Core
+                            </span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30" id="onto-stat-concepts">
+                                111 Canonical Concepts
+                            </span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                                Single-Root Taxonomy
+                            </span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30">
+                                ASC 606 &amp; SOC 2 Multi-Step
+                            </span>
+                        </div>
+                        <h2 class="text-xl sm:text-2xl font-extrabold mt-2 tracking-tight">Ontology Foundation &amp; Semantic Knowledge Hub</h2>
+                        <p class="text-xs text-slate-300 mt-1 max-w-3xl leading-relaxed">
+                            Formal concept taxonomy, single-root SKOS inheritance (<code class="text-purple-300 font-mono">broader</code>), regulatory governance (<code class="text-purple-300 font-mono">governs</code>), step-by-step compliance criteria, and candidate synonym review ledger for enterprise Billing &amp; RevOps.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2.5 self-start lg:self-center flex-wrap">
+                        <a href="/api/ontology/schema" target="_blank" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-white border border-white/15 transition flex items-center gap-1.5 shadow-sm">
+                            <span>📐 Schema JSON</span>
+                        </a>
+                        <a href="/api/ontology/concepts?vertical_id=b2b_saas_fintech" target="_blank" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white shadow-md transition flex items-center gap-1.5">
+                            <span>🌳 Concepts API &rarr;</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Segmented Sub-View Navigation -->
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                <div class="flex items-center gap-2 overflow-x-auto">
+                    <button type="button" id="subtab-onto-concepts-btn" onclick="switchOntologySubView('concepts')" class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-900 text-white shadow-sm transition whitespace-nowrap">
+                        🌳 Concepts &amp; SKOS Taxonomy (<span id="onto-total-count">111</span>)
+                    </button>
+                    <button type="button" id="subtab-onto-compliance-btn" onclick="switchOntologySubView('compliance')" class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition whitespace-nowrap">
+                        📜 Multi-Step Compliance Matrix
+                    </button>
+                    <button type="button" id="subtab-onto-schema-btn" onclick="switchOntologySubView('schema')" class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition whitespace-nowrap">
+                        📐 Core Schema &amp; Relations (12)
+                    </button>
+                    <button type="button" id="subtab-onto-synonyms-btn" onclick="switchOntologySubView('synonyms')" class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition whitespace-nowrap flex items-center gap-1.5">
+                        <span>🏷️ Synonym Review Ledger</span>
+                        <span id="onto-synonym-count-badge" class="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500 text-white font-bold">0</span>
+                    </button>
+                </div>
+                <div class="hidden sm:flex items-center gap-2 text-xs text-slate-500">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span id="onto-active-vertical-label">Vertical: FinTech &amp; Billing</span>
+                </div>
+            </div>
+
+            <!-- ========================================================= -->
+            <!-- SUBVIEW 1: CONCEPT TAXONOMY & HIERARCHY                   -->
+            <!-- ========================================================= -->
+            <div id="onto-subview-concepts" class="space-y-6">
+                <!-- Filter & Search Controls Bar -->
+                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <!-- Search Box -->
+                        <div class="relative flex-1">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">🔍</span>
+                            <input type="text" id="onto-concept-search" oninput="filterOntologyConcepts()" placeholder="Search concepts, slugs, definitions, or synonyms (altLabels)..."
+                                class="w-full pl-8 pr-8 py-2 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white focus:outline-none transition" />
+                            <button type="button" onclick="document.getElementById('onto-concept-search').value=''; filterOntologyConcepts();" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 text-xs cursor-pointer">✕</button>
+                        </div>
+                        <!-- View Toggle -->
+                        <div class="flex items-center gap-2 self-end md:self-center">
+                            <span class="text-xs font-semibold text-slate-500">Layout:</span>
+                            <div class="bg-slate-100 p-1 rounded-xl flex items-center gap-1">
+                                <button type="button" id="onto-view-mode-grid-btn" onclick="setOntologyViewMode('grid')" class="px-3 py-1 text-xs font-bold rounded-lg bg-white text-slate-900 shadow-xs transition">Cards Grid</button>
+                                <button type="button" id="onto-view-mode-tree-btn" onclick="setOntologyViewMode('tree')" class="px-3 py-1 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition">SKOS Tree</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kind Filter Pills -->
+                    <div class="flex items-center gap-2 flex-wrap pt-1 border-t border-slate-100">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider mr-1">Kind:</span>
+                        <button type="button" onclick="setOntologyKindFilter('all')" id="onto-filter-all" class="px-3 py-1 rounded-lg text-xs font-bold bg-slate-900 text-white shadow-xs transition">All (<span id="count-all">111</span>)</button>
+                        <button type="button" onclick="setOntologyKindFilter('domain')" id="onto-filter-domain" class="px-3 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition">Domains (<span id="count-domain">12</span>)</button>
+                        <button type="button" onclick="setOntologyKindFilter('feature')" id="onto-filter-feature" class="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition">Features (<span id="count-feature">61</span>)</button>
+                        <button type="button" onclick="setOntologyKindFilter('pricing')" id="onto-filter-pricing" class="px-3 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition">Pricing (<span id="count-pricing">9</span>)</button>
+                        <button type="button" onclick="setOntologyKindFilter('process')" id="onto-filter-process" class="px-3 py-1 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition">Processes (<span id="count-process">16</span>)</button>
+                        <button type="button" onclick="setOntologyKindFilter('standard')" id="onto-filter-standard" class="px-3 py-1 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition">Standards (<span id="count-standard">13</span>)</button>
+                    </div>
+                </div>
+
+                <!-- Active Filter Summary -->
+                <div class="flex items-center justify-between text-xs text-slate-500 px-1">
+                    <div>
+                        Showing <strong class="text-slate-900 font-bold" id="onto-visible-count">111</strong> concepts matching active filters
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Domain</span>
+                        <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Feature</span>
+                        <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Pricing</span>
+                        <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-purple-500"></span> Process</span>
+                        <span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Standard</span>
+                    </div>
+                </div>
+
+                <!-- View Mode: Cards Grid -->
+                <div id="onto-concepts-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Cards dynamically populated via JS -->
+                    <div class="col-span-full py-12 text-center text-slate-400">
+                        <div class="animate-spin inline-block w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full mb-2"></div>
+                        <p class="text-xs">Loading concept ontology...</p>
+                    </div>
+                </div>
+
+                <!-- View Mode: SKOS Tree (indented hierarchy) -->
+                <div id="onto-concepts-tree" class="hidden bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4 font-mono text-xs">
+                    <!-- Tree dynamically populated via JS -->
+                </div>
+            </div>
+
+            <!-- ========================================================= -->
+            <!-- SUBVIEW 2: MULTI-STEP COMPLIANCE MATRIX                   -->
+            <!-- ========================================================= -->
+            <div id="onto-subview-compliance" class="hidden space-y-6">
+                <!-- Framework Selector Tabs -->
+                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900">Regulatory Framework Grounding Checklists</h3>
+                            <p class="text-xs text-slate-500">Step-by-step regulatory governance mapped directly against technical capability triples.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" id="framework-tab-asc606-btn" onclick="selectComplianceFramework('ASC 606')" class="px-4 py-2 text-xs font-bold rounded-xl bg-purple-600 text-white shadow-sm transition">
+                                📊 FASB ASC 606 (5 Steps)
+                            </button>
+                            <button type="button" id="framework-tab-soc2-btn" onclick="selectComplianceFramework('SOC 2')" class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition">
+                                🛡️ AICPA SOC 2 (5 Criteria)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Framework Specification Card -->
+                <div class="bg-gradient-to-r from-slate-900 to-purple-950 rounded-2xl p-6 text-white shadow-md space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-purple-500/30 text-purple-200 border border-purple-400/30" id="cf-governing-body">FASB / IASB</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30" id="cf-step-count">5 Core Steps</span>
+                        </div>
+                        <span class="text-xs text-slate-400">Deterministic Evaluation Engine</span>
+                    </div>
+                    <h3 class="text-xl font-bold tracking-tight" id="cf-title">FASB ASC 606 / IFRS 15 Revenue Recognition</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed max-w-3xl" id="cf-desc">
+                        Five-step revenue recognition standard governing how contracts with customers are recognized, allocated, and scheduled.
+                    </p>
+                </div>
+
+                <!-- Steps Timeline / Grid -->
+                <div class="space-y-3" id="cf-steps-container">
+                    <!-- Populated dynamically -->
+                </div>
+
+                <!-- Live Compliance Testing Simulator -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-900">Interactive Compliance Triple Evaluator</h4>
+                            <p class="text-xs text-slate-500">Test how technical capability claims ground against this standard's steps.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="loadComplianceSimulatorPreset('full')" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition">⚡ Load 100% Compliant Claims</button>
+                            <button type="button" onclick="loadComplianceSimulatorPreset('partial')" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition">⚠️ Load Partial Claims</button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label for="compliance-test-input" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Technical Triples (JSON Array)</label>
+                        <textarea id="compliance-test-input" rows="6" class="w-full p-3 font-mono text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white focus:outline-none transition"></textarea>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2">
+                        <span class="text-xs text-slate-400">Evaluates against <code>/api/ontology/evaluate-compliance</code></span>
+                        <button type="button" onclick="runComplianceSimulation()" id="compliance-eval-btn" class="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-2">
+                            <span>⚡ Evaluate Grounding</span>
+                        </button>
+                    </div>
+
+                    <!-- Results Output Box -->
+                    <div id="compliance-eval-results" class="hidden mt-4 pt-4 border-t border-slate-100 space-y-4">
+                        <!-- Populated by evaluation -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================================= -->
+            <!-- SUBVIEW 3: CORE SCHEMA & RELATIONS                        -->
+            <!-- ========================================================= -->
+            <div id="onto-subview-schema" class="hidden space-y-6">
+                <!-- Schema Overview Banner -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900">Ontology Schema &amp; Predicate Hierarchy</h3>
+                            <p class="text-xs text-slate-500">Formal definitions for all semantic relationships connecting products to capabilities and standards.</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs font-mono text-slate-400 block">Base URI:</span>
+                            <span class="text-xs font-mono font-bold text-purple-700" id="schema-base-uri">https://gainark.com/ontology/v1#</span>
+                        </div>
+                    </div>
+
+                    <!-- Entity Types Pills -->
+                    <div class="pt-3 border-t border-slate-100">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-2">Canonical Entity Classes (13):</span>
+                        <div class="flex items-center gap-1.5 flex-wrap" id="schema-entity-types-container">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Relations Table -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+                        <h4 class="text-sm font-bold text-slate-900">Core Relation Predicates (12)</h4>
+                        <span class="text-xs text-slate-500">Evidence Required &amp; NER Grounded</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200 text-xs">
+                            <thead class="bg-slate-50 text-slate-600 font-bold text-left uppercase tracking-wider">
+                                <tr>
+                                    <th class="px-6 py-3">Predicate</th>
+                                    <th class="px-6 py-3">Domain &rarr; Range</th>
+                                    <th class="px-6 py-3">Semantic Purpose</th>
+                                    <th class="px-6 py-3">GLiNER NER Tags</th>
+                                    <th class="px-6 py-3">Evidence</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-slate-700" id="schema-relations-table-body">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================================= -->
+            <!-- SUBVIEW 4: SYNONYM REVIEW LEDGER (TRUTH CANDIDATES)       -->
+            <!-- ========================================================= -->
+            <div id="onto-subview-synonyms" class="hidden space-y-6">
+                <!-- Header Card -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-base font-bold text-slate-900">Synonym &amp; Surface Form Review Ledger</h3>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 uppercase">One Authority</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-1">
+                                Automated audits propose marketing phrases that deviate from technical docs. Once approved, the surface form is written into the vertical's curated <code class="text-purple-700 font-mono">altLabels</code> map.
+                            </p>
+                        </div>
+                        <button type="button" onclick="loadSynonymCandidates()" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1.5 self-start sm:self-center">
+                            <span>🔄 Refresh Queue</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Left 2 Cols: Candidate Queue -->
+                    <div class="lg:col-span-2 space-y-4">
+                        <div class="flex items-center justify-between px-1">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-600">Pending Review Queue (<span id="synonym-queue-count">0</span>)</h4>
+                            <span class="text-xs text-slate-400">Awaiting reviewer promotion</span>
+                        </div>
+                        <div id="synonym-candidates-container" class="space-y-3">
+                            <!-- Populated dynamically -->
+                            <div class="bg-white rounded-xl p-8 border border-slate-200 text-center text-slate-400 text-xs">
+                                <p>No pending synonym candidates in the ledger queue.</p>
+                                <p class="text-[11px] text-slate-400 mt-1">Proposals are generated during audits when high-frequency surface forms appear in marketing copy.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right 1 Col: Manual Proposal Form -->
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4 h-fit">
+                        <div class="border-b border-slate-100 pb-3">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-900">Approve New Synonym</h4>
+                            <p class="text-[11px] text-slate-500">Map a surface form directly into the curated ontology.</p>
+                        </div>
+                        <form onsubmit="handleManualSynonymSubmit(event)" class="space-y-3 text-xs">
+                            <div>
+                                <label for="manual-syn-surface" class="block font-semibold text-slate-700 mb-1">Marketing Surface Form</label>
+                                <input type="text" id="manual-syn-surface" required placeholder="e.g. Smart Collections"
+                                    class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 focus:bg-white focus:outline-none" />
+                            </div>
+                            <div>
+                                <label for="manual-syn-concept" class="block font-semibold text-slate-700 mb-1">Target Canonical Concept</label>
+                                <select id="manual-syn-concept" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-purple-500 focus:bg-white focus:outline-none">
+                                    <option value="">Select a concept...</option>
+                                    <!-- Populated dynamically -->
+                                </select>
+                            </div>
+                            <div id="manual-syn-feedback" class="hidden p-2.5 rounded-lg text-xs font-medium"></div>
+                            <button type="submit" id="manual-syn-btn" class="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition shadow-xs">
+                                ✅ Approve into Vertical
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+<section id="view-truth" class="hidden space-y-8">
             <!-- Header Banner -->
             <div class="bg-gradient-to-r from-slate-900 via-sky-950 to-brand-900 rounded-2xl p-6 text-white shadow-md">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -3010,9 +3333,11 @@ SELECT ?capability ?evidence WHERE {
             }
         }
 
-        const ALL_DASHBOARD_TABS = ['truth', 'battlecards', 'search'];
+        const ALL_DASHBOARD_TABS = ['ontology', 'truth', 'battlecards', 'search'];
         const SEARCH_SUBTABS = ['audit', 'linking', 'bench', 'alignment', 'industry', 'geo'];
+        const ONTOLOGY_SUBTABS = ['concepts', 'compliance', 'schema', 'synonyms'];
         let currentSearchSubTab = 'audit';
+        let currentOntologySubTab = 'concepts';
 
         function switchSearchSubView(sub) {
             currentSearchSubTab = sub;
@@ -3052,6 +3377,11 @@ SELECT ?capability ?evidence WHERE {
                 targetSubTab = tab;
             } else if (tab === 'search') {
                 targetSubTab = currentSearchSubTab || 'audit';
+            } else if (ONTOLOGY_SUBTABS.includes(tab)) {
+                targetTab = 'ontology';
+                targetSubTab = tab;
+            } else if (tab === 'ontology') {
+                targetSubTab = currentOntologySubTab || 'concepts';
             }
 
             ALL_DASHBOARD_TABS.forEach(t => {
@@ -3068,6 +3398,8 @@ SELECT ?capability ?evidence WHERE {
 
             if (targetTab === 'search' && targetSubTab) {
                 switchSearchSubView(targetSubTab);
+            } else if (targetTab === 'ontology' && targetSubTab) {
+                switchOntologySubView(targetSubTab);
             }
         }
 
@@ -7559,5 +7891,612 @@ SELECT ?capability ?evidence WHERE {
             </div>
         </div>
     </div>
+
+        /* ------------------------------------------------------------- */
+        /* ONTOLOGY FOUNDATION & KNOWLEDGE GRAPH HUB CONTROLLER         */
+        /* ------------------------------------------------------------- */
+        window._allOntologyConcepts = [];
+        window._allComplianceFrameworks = [];
+        window._activeComplianceFramework = 'ASC 606';
+        window._currentConceptKind = 'all';
+        window._ontologyViewMode = 'grid';
+
+        function switchOntologySubView(sub) {
+            currentOntologySubTab = sub;
+            ONTOLOGY_SUBTABS.forEach(s => {
+                const btn = document.getElementById(`subtab-onto-${s}-btn`);
+                const view = document.getElementById(`onto-subview-${s}`);
+                if (btn) {
+                    btn.classList.remove('bg-slate-900', 'text-white');
+                    btn.classList.add('bg-slate-100', 'text-slate-700');
+                }
+                if (view) view.classList.add('hidden');
+            });
+
+            const activeBtn = document.getElementById(`subtab-onto-${sub}-btn`);
+            const activeView = document.getElementById(`onto-subview-${sub}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-slate-100', 'text-slate-700');
+                activeBtn.classList.add('bg-slate-900', 'text-white');
+            }
+            if (activeView) activeView.classList.remove('hidden');
+
+            if (sub === 'concepts' && (!window._allOntologyConcepts || window._allOntologyConcepts.length === 0)) {
+                loadOntologyConcepts();
+            } else if (sub === 'compliance' && (!window._allComplianceFrameworks || window._allComplianceFrameworks.length === 0)) {
+                loadComplianceFrameworks();
+            } else if (sub === 'schema') {
+                loadOntologySchema();
+            } else if (sub === 'synonyms') {
+                loadSynonymCandidates();
+            }
+        }
+
+        async function loadOntologyConcepts(verticalId) {
+            const vId = verticalId || (document.getElementById('vertical-select') ? document.getElementById('vertical-select').value : 'b2b_saas_fintech');
+            const grid = document.getElementById('onto-concepts-grid');
+            try {
+                const res = await fetch(`/api/ontology/concepts?vertical_id=${vId}`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                window._allOntologyConcepts = data.concepts || [];
+
+                // Update breakdown counts
+                const b = data.breakdown_by_kind || {};
+                const total = data.total_concepts || window._allOntologyConcepts.length;
+                const totalEl = document.getElementById('onto-total-count');
+                if (totalEl) totalEl.innerText = total;
+                const statEl = document.getElementById('onto-stat-concepts');
+                if (statEl) statEl.innerText = `${total} Canonical Concepts`;
+                
+                ['all', 'domain', 'feature', 'pricing', 'process', 'standard'].forEach(k => {
+                    const el = document.getElementById(`count-${k}`);
+                    if (el) el.innerText = k === 'all' ? total : (b[k] || 0);
+                });
+
+                // Populate concept dropdown in synonym proposal form
+                const selectEl = document.getElementById('manual-syn-concept');
+                if (selectEl) {
+                    selectEl.innerHTML = '<option value="">Select a concept...</option>';
+                    const sorted = [...window._allOntologyConcepts].sort((a, b) => a.prefLabel.localeCompare(b.prefLabel));
+                    sorted.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.prefLabel;
+                        opt.innerText = `${c.prefLabel} (${c.kind})`;
+                        selectEl.appendChild(opt);
+                    });
+                }
+
+                filterOntologyConcepts();
+            } catch (err) {
+                console.error('Failed to load concepts:', err);
+                if (grid) {
+                    grid.innerHTML = `<div class="col-span-full p-6 bg-rose-50 text-rose-700 rounded-xl text-xs">Failed to load ontology concepts: ${err.message}</div>`;
+                }
+            }
+        }
+
+        function setOntologyKindFilter(kind) {
+            window._currentConceptKind = kind;
+            ['all', 'domain', 'feature', 'pricing', 'process', 'standard'].forEach(k => {
+                const btn = document.getElementById(`onto-filter-${k}`);
+                if (!btn) return;
+                if (k === kind) {
+                    btn.className = 'px-3 py-1 rounded-lg text-xs font-bold bg-slate-900 text-white shadow-xs transition';
+                } else {
+                    const colors = {
+                        domain: 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100',
+                        feature: 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100',
+                        pricing: 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100',
+                        process: 'bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100',
+                        standard: 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100',
+                        all: 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    };
+                    btn.className = `px-3 py-1 rounded-lg text-xs font-semibold ${colors[k] || 'bg-slate-100'} transition`;
+                }
+            });
+            filterOntologyConcepts();
+        }
+
+        function setOntologyViewMode(mode) {
+            window._ontologyViewMode = mode;
+            const gridBtn = document.getElementById('onto-view-mode-grid-btn');
+            const treeBtn = document.getElementById('onto-view-mode-tree-btn');
+            const grid = document.getElementById('onto-concepts-grid');
+            const tree = document.getElementById('onto-concepts-tree');
+
+            if (mode === 'grid') {
+                if (gridBtn) { gridBtn.classList.add('bg-white', 'text-slate-900', 'shadow-xs', 'font-bold'); gridBtn.classList.remove('text-slate-600', 'font-semibold'); }
+                if (treeBtn) { treeBtn.classList.remove('bg-white', 'text-slate-900', 'shadow-xs', 'font-bold'); treeBtn.classList.add('text-slate-600', 'font-semibold'); }
+                if (grid) grid.classList.remove('hidden');
+                if (tree) tree.classList.add('hidden');
+            } else {
+                if (treeBtn) { treeBtn.classList.add('bg-white', 'text-slate-900', 'shadow-xs', 'font-bold'); treeBtn.classList.remove('text-slate-600', 'font-semibold'); }
+                if (gridBtn) { gridBtn.classList.remove('bg-white', 'text-slate-900', 'shadow-xs', 'font-bold'); gridBtn.classList.add('text-slate-600', 'font-semibold'); }
+                if (grid) grid.classList.add('hidden');
+                if (tree) tree.classList.remove('hidden');
+                renderConceptTree(window._allOntologyConcepts);
+            }
+        }
+
+        function filterOntologyConcepts() {
+            const searchInput = document.getElementById('onto-concept-search');
+            const q = (searchInput ? searchInput.value : '').trim().toLowerCase();
+            const kind = window._currentConceptKind || 'all';
+
+            const filtered = (window._allOntologyConcepts || []).filter(c => {
+                if (kind !== 'all' && c.kind !== kind) return false;
+                if (!q) return true;
+                const inLabel = (c.prefLabel || '').toLowerCase().includes(q);
+                const inId = (c.id || '').toLowerCase().includes(q);
+                const inDef = (c.definition || '').toLowerCase().includes(q);
+                const inAlts = (c.altLabels || []).some(a => a.toLowerCase().includes(q));
+                return inLabel || inId || inDef || inAlts;
+            });
+
+            const countEl = document.getElementById('onto-visible-count');
+            if (countEl) countEl.innerText = filtered.length;
+
+            renderConceptCards(filtered);
+            if (window._ontologyViewMode === 'tree') {
+                renderConceptTree(filtered);
+            }
+        }
+
+        function renderConceptCards(concepts) {
+            const grid = document.getElementById('onto-concepts-grid');
+            if (!grid) return;
+            if (concepts.length === 0) {
+                grid.innerHTML = '<div class="col-span-full py-12 text-center text-slate-400 text-xs">No concepts match the active filter or query.</div>';
+                return;
+            }
+
+            const kindBadges = {
+                domain: 'bg-blue-50 text-blue-700 border-blue-200',
+                feature: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                pricing: 'bg-amber-50 text-amber-700 border-amber-200',
+                process: 'bg-purple-50 text-purple-700 border-purple-200',
+                standard: 'bg-rose-50 text-rose-700 border-rose-200'
+            };
+
+            const byId = {};
+            (window._allOntologyConcepts || []).forEach(c => { byId[c.id] = c; });
+
+            grid.innerHTML = concepts.map(c => {
+                const badge = kindBadges[c.kind] || 'bg-slate-50 text-slate-700 border-slate-200';
+                const parentConcept = c.broader ? byId[c.broader] : null;
+                const parentName = parentConcept ? parentConcept.prefLabel : (c.broader || 'Root');
+                const alts = (c.altLabels || []).map(a => `<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-mono border border-slate-200">${escapeHtml(a)}</span>`).join(' ');
+                const governs = (c.governs || []).map(g => `<span class="px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 text-[10px] font-mono border border-rose-200">${escapeHtml(g)}</span>`).join(' ');
+
+                return `
+                <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-xs hover:shadow-md transition space-y-2.5 flex flex-col justify-between">
+                    <div class="space-y-1.5">
+                        <div class="flex items-start justify-between gap-2">
+                            <h4 class="text-sm font-bold text-slate-900 leading-tight">${escapeHtml(c.prefLabel)}</h4>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider ${badge}">${escapeHtml(c.kind)}</span>
+                        </div>
+                        <div class="text-[10px] font-mono text-slate-400">id: <span class="text-purple-700 font-semibold">${escapeHtml(c.id)}</span></div>
+                        <p class="text-xs text-slate-600 leading-relaxed italic">${escapeHtml(c.definition || 'No definition.')}</p>
+                    </div>
+                    <div class="pt-2 border-t border-slate-100 space-y-1.5 text-[11px]">
+                        <div class="flex items-center gap-1.5 text-slate-500">
+                            <span class="font-semibold text-slate-400">Broader:</span>
+                            ${c.broader ? `<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">${escapeHtml(parentName)}</span>` : '<span class="text-slate-400 italic">None (Root)</span>'}
+                        </div>
+                        ${governs ? `
+                        <div class="space-y-1">
+                            <span class="font-semibold text-rose-600 text-[10px] uppercase tracking-wider">Governs (${c.governs.length}):</span>
+                            <div class="flex items-center gap-1 flex-wrap">${governs}</div>
+                        </div>` : ''}
+                        ${alts ? `
+                        <div class="space-y-1">
+                            <span class="font-semibold text-slate-400 text-[10px] uppercase tracking-wider">Synonyms (${c.altLabels.length}):</span>
+                            <div class="flex items-center gap-1 flex-wrap">${alts}</div>
+                        </div>` : ''}
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function renderConceptTree(concepts) {
+            const treeEl = document.getElementById('onto-concepts-tree');
+            if (!treeEl) return;
+
+            const all = window._allOntologyConcepts || [];
+            const childrenMap = {};
+            let root = null;
+
+            all.forEach(c => {
+                if (!c.broader) {
+                    root = c;
+                } else {
+                    childrenMap[c.broader] = childrenMap[c.broader] || [];
+                    childrenMap[c.broader].push(c);
+                }
+            });
+
+            if (!root) {
+                treeEl.innerHTML = '<div class="text-slate-400">No single root identified.</div>';
+                return;
+            }
+
+            function buildNodeHtml(c, depth = 0) {
+                const children = childrenMap[c.id] || [];
+                const indent = depth * 24;
+                const kindColor = {
+                    domain: 'text-blue-600 font-bold',
+                    feature: 'text-emerald-600',
+                    pricing: 'text-amber-600',
+                    process: 'text-purple-600',
+                    standard: 'text-rose-600 font-bold'
+                }[c.kind] || 'text-slate-700';
+
+                let html = `
+                <div class="py-1 hover:bg-slate-50 rounded px-1.5 transition flex items-center justify-between" style="padding-left: ${indent + 6}px;">
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-400 text-xs">${children.length > 0 ? '📁' : '📄'}</span>
+                        <span class="${kindColor}">${escapeHtml(c.prefLabel)}</span>
+                        <span class="text-[10px] text-slate-400 font-mono">(${c.id})</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] uppercase tracking-wider px-1.5 py-0.2 rounded border bg-slate-50 text-slate-500">${c.kind}</span>
+                        ${c.altLabels && c.altLabels.length > 0 ? `<span class="text-[10px] text-slate-400">${c.altLabels.length} alts</span>` : ''}
+                    </div>
+                </div>
+                `;
+
+                children.forEach(child => {
+                    html += buildNodeHtml(child, depth + 1);
+                });
+                return html;
+            }
+
+            treeEl.innerHTML = `
+                <div class="border-b border-slate-200 pb-2 mb-3 flex items-center justify-between text-slate-500 text-xs">
+                    <span>Taxonomy Root: <strong class="text-slate-900 font-bold font-mono">${root.prefLabel}</strong></span>
+                    <span>Single-Root Directed Acyclic Graph (DAG)</span>
+                </div>
+                ${buildNodeHtml(root, 0)}
+            `;
+        }
+
+        async function loadComplianceFrameworks() {
+            try {
+                const res = await fetch('/api/ontology/compliance-frameworks');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                window._allComplianceFrameworks = data.frameworks || [];
+                selectComplianceFramework(window._activeComplianceFramework || 'ASC 606');
+            } catch (err) {
+                console.error('Failed to load compliance frameworks:', err);
+            }
+        }
+
+        function selectComplianceFramework(standard) {
+            window._activeComplianceFramework = standard;
+            const ascBtn = document.getElementById('framework-tab-asc606-btn');
+            const socBtn = document.getElementById('framework-tab-soc2-btn');
+
+            if (standard === 'ASC 606') {
+                if (ascBtn) { ascBtn.className = 'px-4 py-2 text-xs font-bold rounded-xl bg-purple-600 text-white shadow-sm transition'; }
+                if (socBtn) { socBtn.className = 'px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition'; }
+            } else {
+                if (socBtn) { socBtn.className = 'px-4 py-2 text-xs font-bold rounded-xl bg-purple-600 text-white shadow-sm transition'; }
+                if (ascBtn) { ascBtn.className = 'px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition'; }
+            }
+
+            const fw = (window._allComplianceFrameworks || []).find(f => f.standard === standard);
+            if (!fw) return;
+
+            const titleEl = document.getElementById('cf-title');
+            if (titleEl) titleEl.innerText = fw.name || standard;
+            const bodyEl = document.getElementById('cf-governing-body');
+            if (bodyEl) bodyEl.innerText = fw.governing_body || 'Regulatory Authority';
+            const stepCountEl = document.getElementById('cf-step-count');
+            if (stepCountEl) stepCountEl.innerText = `${fw.total_steps || (fw.steps || []).length} Core Steps / Criteria`;
+            const descEl = document.getElementById('cf-desc');
+            if (descEl) descEl.innerText = fw.description || '';
+
+            const stepsContainer = document.getElementById('cf-steps-container');
+            if (!stepsContainer) return;
+
+            stepsContainer.innerHTML = (fw.steps || []).map(s => {
+                const governsPills = (s.governs || []).map(g => `<span class="px-2 py-0.5 rounded bg-purple-50 text-purple-700 font-mono text-[10px] border border-purple-200">${escapeHtml(g)}</span>`).join(' ');
+                return `
+                <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="space-y-1 max-w-2xl">
+                        <div class="flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-full bg-purple-600 text-white text-xs font-bold flex items-center justify-center">${s.step}</span>
+                            <h5 class="text-sm font-bold text-slate-900">${escapeHtml(s.name)}</h5>
+                        </div>
+                        <p class="text-xs text-slate-600 ml-8">${escapeHtml(s.description)}</p>
+                    </div>
+                    <div class="ml-8 sm:ml-0 flex flex-col items-start sm:items-end gap-1">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Required Concepts</span>
+                        <div class="flex items-center gap-1 flex-wrap">${governsPills}</div>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            loadComplianceSimulatorPreset('full');
+        }
+
+        function loadComplianceSimulatorPreset(type) {
+            const input = document.getElementById('compliance-test-input');
+            if (!input) return;
+
+            const isAsc = window._activeComplianceFramework === 'ASC 606';
+
+            if (isAsc) {
+                if (type === 'full') {
+                    input.value = JSON.stringify([
+                        {"predicate": "hasFeature", "object": "Contract Management", "confidence": 0.95, "evidence": "Ordway manages customer contracts with enforceable terms."},
+                        {"predicate": "hasFeature", "object": "Performance Obligation", "confidence": 0.93, "evidence": "System identifies distinct performance obligations per deliverable."},
+                        {"predicate": "automates", "object": "Usage Rating", "confidence": 0.96, "evidence": "Rates meter events to calculate total transaction price."},
+                        {"predicate": "automates", "object": "Standalone Selling Price", "confidence": 0.92, "evidence": "Allocates revenue based on standalone selling prices across bundles."},
+                        {"predicate": "automates", "object": "Revenue Recognition", "confidence": 0.98, "evidence": "Automates revenue schedules according to ASC 606 timing criteria."}
+                    ], null, 2);
+                } else {
+                    input.value = JSON.stringify([
+                        {"predicate": "hasFeature", "object": "Contract Management", "confidence": 0.90, "evidence": "Stores customer agreements."},
+                        {"predicate": "hasFeature", "object": "Usage Rating", "confidence": 0.88, "evidence": "Computes transaction rates."}
+                    ], null, 2);
+                }
+            } else {
+                if (type === 'full') {
+                    input.value = JSON.stringify([
+                        {"predicate": "hasFeature", "object": "Single Sign-On", "confidence": 0.98, "evidence": "SAML 2.0 SSO enforced across all tenants."},
+                        {"predicate": "hasFeature", "object": "Audit Trail", "confidence": 0.95, "evidence": "Immutable audit logs record all user transactions."},
+                        {"predicate": "hasFeature", "object": "Disaster Recovery", "confidence": 0.94, "evidence": "Multi-region backup with 99.99% availability SLA."},
+                        {"predicate": "hasFeature", "object": "Data Retention", "confidence": 0.92, "evidence": "AES-256 encrypted at rest with automated retention limits."}
+                    ], null, 2);
+                } else {
+                    input.value = JSON.stringify([
+                        {"predicate": "hasFeature", "object": "Single Sign-On", "confidence": 0.98, "evidence": "SAML 2.0 SSO enabled."}
+                    ], null, 2);
+                }
+            }
+        }
+
+        async function runComplianceSimulation() {
+            const input = document.getElementById('compliance-test-input');
+            const resContainer = document.getElementById('compliance-eval-results');
+            const btn = document.getElementById('compliance-eval-btn');
+            if (!input || !resContainer) return;
+
+            let triples = [];
+            try {
+                triples = JSON.parse(input.value.trim());
+            } catch (err) {
+                alert('Invalid JSON in technical triples input: ' + err.message);
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="animate-spin mr-1">🔄</span> Evaluating...';
+
+            try {
+                const res = await fetch('/api/ontology/evaluate-compliance', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        standard: window._activeComplianceFramework,
+                        technical_triples: triples
+                    })
+                });
+
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                const evalResult = (data.evaluations || [])[0];
+
+                if (!evalResult) {
+                    resContainer.innerHTML = '<p class="text-xs text-slate-500">No evaluation returned.</p>';
+                    resContainer.classList.remove('hidden');
+                    return;
+                }
+
+                const ratioPct = Math.round((evalResult.satisfaction_ratio || 0) * 100);
+                const statusColor = evalResult.status === 'compliant' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' :
+                                    evalResult.status === 'partial' ? 'text-amber-700 bg-amber-50 border-amber-200' :
+                                    'text-rose-700 bg-rose-50 border-rose-200';
+
+                resContainer.innerHTML = `
+                <div class="p-4 rounded-xl border ${statusColor} space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider">Compliance Grounding Verdict</span>
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold border uppercase tracking-wider ${statusColor}">${evalResult.status}</span>
+                    </div>
+                    <div class="text-sm font-bold">${evalResult.name}</div>
+                    <div class="text-xs font-medium">Steps Satisfied: ${evalResult.steps_satisfied.length} of ${(evalResult.steps_satisfied.length + evalResult.steps_missing.length)} (${ratioPct}%)</div>
+                    <div class="w-full bg-slate-200 rounded-full h-2 mt-1 overflow-hidden">
+                        <div class="bg-purple-600 h-2 rounded-full" style="width: ${ratioPct}%;"></div>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <h5 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Step-by-Step Proof Breakdown</h5>
+                    <div class="space-y-2">
+                        ${(evalResult.step_evaluations || []).map(se => {
+                            const isSat = se.satisfied;
+                            return `
+                            <div class="p-3 rounded-xl border ${isSat ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-slate-50/50'} text-xs space-y-1">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-1.5 font-bold ${isSat ? 'text-emerald-900' : 'text-slate-700'}">
+                                        <span>${isSat ? '✅' : '⏳'}</span>
+                                        <span>Step ${se.step}: ${escapeHtml(se.name)}</span>
+                                    </div>
+                                    <span class="text-[10px] font-bold ${isSat ? 'text-emerald-700' : 'text-slate-400'} uppercase">${isSat ? 'Satisfied' : 'Evidence Missing'}</span>
+                                </div>
+                                <p class="text-[11px] text-slate-500">${escapeHtml(se.description)}</p>
+                                ${se.evidence_matches && se.evidence_matches.length > 0 ? `
+                                <div class="mt-1 pt-1 border-t border-emerald-100 text-[11px] text-emerald-800">
+                                    <strong class="font-semibold">Grounding Evidence:</strong> ${se.evidence_matches.map(em => `<span class="italic">"${escapeHtml(em.evidence || em.matched_concept)}"</span>`).join(', ')}
+                                </div>` : ''}
+                            </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+                `;
+
+                resContainer.classList.remove('hidden');
+            } catch (err) {
+                alert('Evaluation error: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>⚡ Evaluate Grounding</span>';
+            }
+        }
+
+        async function loadOntologySchema() {
+            try {
+                const res = await fetch('/api/ontology/schema');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+
+                const uriEl = document.getElementById('schema-base-uri');
+                if (uriEl) uriEl.innerText = data.ontology_base_uri || 'https://gainark.com/ontology/v1#';
+
+                const entContainer = document.getElementById('schema-entity-types-container');
+                if (entContainer) {
+                    entContainer.innerHTML = (data.entity_types || []).map(et => 
+                        `<span class="px-2 py-0.5 rounded bg-purple-50 text-purple-700 font-mono text-[11px] border border-purple-200">${escapeHtml(et)}</span>`
+                    ).join(' ');
+                }
+
+                const tbody = document.getElementById('schema-relations-table-body');
+                if (tbody) {
+                    tbody.innerHTML = (data.relations || []).map(r => `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-6 py-3 font-mono font-bold text-purple-700">${escapeHtml(r.predicate)}</td>
+                        <td class="px-6 py-3 font-mono text-slate-500">${escapeHtml(r.subject_type)} &rarr; <span class="text-slate-800 font-semibold">${escapeHtml(r.object_type)}</span></td>
+                        <td class="px-6 py-3 text-slate-600">${escapeHtml(r.description)}</td>
+                        <td class="px-6 py-3 font-mono text-[11px] text-slate-500">${(r.gliner_labels || []).join(', ') || '—'}</td>
+                        <td class="px-6 py-3">${r.evidence_required ? '<span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold text-[10px] border border-emerald-200">REQUIRED</span>' : '<span class="text-slate-400 text-[10px]">Optional</span>'}</td>
+                    </tr>
+                    `).join('');
+                }
+            } catch (err) {
+                console.error('Failed to load schema:', err);
+            }
+        }
+
+        async function loadSynonymCandidates() {
+            try {
+                const res = await fetch('/api/ontology/candidates');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+
+                const countBadge = document.getElementById('onto-synonym-count-badge');
+                if (countBadge) countBadge.innerText = data.pending_count || 0;
+                const queueCount = document.getElementById('synonym-queue-count');
+                if (queueCount) queueCount.innerText = data.pending_count || 0;
+
+                const container = document.getElementById('synonym-candidates-container');
+                if (!container) return;
+
+                const candidates = (data.candidates || []).filter(c => c.status === 'pending');
+                if (candidates.length === 0) {
+                    container.innerHTML = `
+                    <div class="bg-white rounded-xl p-8 border border-slate-200 text-center text-slate-400 text-xs">
+                        <p class="font-semibold text-slate-600">No pending synonym candidates in the ledger queue.</p>
+                        <p class="text-[11px] text-slate-400 mt-1">Proposals are generated during audits when high-frequency surface forms appear in marketing copy.</p>
+                    </div>`;
+                    return;
+                }
+
+                container.innerHTML = candidates.map(c => `
+                <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-xs flex items-center justify-between gap-4">
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-slate-900">"${escapeHtml(c.key)}"</span>
+                            <span class="text-slate-400 text-xs">&rarr;</span>
+                            <span class="px-2 py-0.5 rounded bg-purple-50 text-purple-700 font-mono text-xs font-semibold">${escapeHtml(c.suggested_canonical || c.canonical)}</span>
+                        </div>
+                        <div class="text-[10px] text-slate-400">
+                            Occurrences: <strong class="text-slate-700">${c.occurrences || 1}</strong> · Discovered: ${c.discovered_at ? new Date(c.discovered_at).toLocaleDateString() : 'Recent'}
+                        </div>
+                    </div>
+                    <button type="button" onclick="approveCandidateSynonym('${escapeHtml(c.key)}', '${escapeHtml(c.suggested_canonical || c.canonical)}')" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition shadow-xs whitespace-nowrap">
+                        ✅ Approve
+                    </button>
+                </div>
+                `).join('');
+            } catch (err) {
+                console.error('Failed to load candidate synonyms:', err);
+            }
+        }
+
+        async function approveCandidateSynonym(surface, canonical) {
+            try {
+                const res = await fetch('/api/ontology/approve-synonym', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        surface_form: surface,
+                        canonical_concept: canonical,
+                        vertical_id: 'b2b_saas_fintech'
+                    })
+                });
+                if (!res.ok) {
+                    const errData = await res.json();
+                    throw new Error(errData.detail || `HTTP ${res.status}`);
+                }
+                alert(`Approved "${surface}" -> "${canonical}" into vertical ontology!`);
+                loadSynonymCandidates();
+                loadOntologyConcepts();
+            } catch (err) {
+                alert('Approval failed: ' + err.message);
+            }
+        }
+
+        async function handleManualSynonymSubmit(event) {
+            event.preventDefault();
+            const surface = document.getElementById('manual-syn-surface').value.trim();
+            const canonical = document.getElementById('manual-syn-concept').value.trim();
+            const feedback = document.getElementById('manual-syn-feedback');
+            const btn = document.getElementById('manual-syn-btn');
+
+            if (!surface || !canonical) return;
+
+            btn.disabled = true;
+            try {
+                const res = await fetch('/api/ontology/approve-synonym', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        surface_form: surface,
+                        canonical_concept: canonical,
+                        vertical_id: 'b2b_saas_fintech'
+                    })
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json();
+                    throw new Error(errData.detail || `HTTP ${res.status}`);
+                }
+
+                feedback.className = 'p-2.5 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 block';
+                feedback.innerText = `Successfully approved "${surface}" -> "${canonical}" in vertical ontology!`;
+                document.getElementById('manual-syn-surface').value = '';
+                loadOntologyConcepts();
+                loadSynonymCandidates();
+            } catch (err) {
+                feedback.className = 'p-2.5 rounded-lg text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200 block';
+                feedback.innerText = 'Error: ' + err.message;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // Initialize Ontology Hub on DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', () => {
+            loadOntologyConcepts();
+            loadComplianceFrameworks();
+        });
+
 </body>
 </html>

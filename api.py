@@ -66,6 +66,7 @@ from routers.kg_routes import (
     api_semantic_clusters,
     api_export_graph_html
 )
+from routers.ontology_routes import router as ontology_router
 from routers.seo_routes import (
     router as seo_router,
     InternalLinkAuditRequest,
@@ -471,6 +472,7 @@ async def _restore_truth_ledger() -> None:
 # Mount Decoupled Routers
 # ---------------------------------------------------------------------------
 app.include_router(system_router)
+app.include_router(ontology_router)
 app.include_router(governance_router)
 app.include_router(kg_router)
 app.include_router(seo_router)

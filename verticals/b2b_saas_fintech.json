@@ -287,6 +287,12 @@
       "ARR Reporting",
       "Annual Recurring Revenue"
     ],
+    "ASC 606": [
+      "ASC606",
+      "ASC 606 Compliance",
+      "Revenue Standard ASC 606",
+      "Contract Revenue Accounting"
+    ],
     "Accounts Receivable": [
       "AR Automation",
       "Accounts Receivable Automation"
@@ -545,6 +551,17 @@
     "Revenue Waterfall": [
       "Revenue Waterfall Report"
     ],
+    "SOC 2": [
+      "SOC2",
+      "SOC 2 Type 2",
+      "SOC 2 Compliance",
+      "Service Organization Control 2"
+    ],
+    "SOC 2 Type II": [
+      "SOC 2 Type 2 Certification",
+      "SOC2 Type II",
+      "SOC2 Type 2"
+    ],
     "Sandbox Environment": [
       "Sandbox"
     ],
@@ -571,6 +588,12 @@
     "Subscription Management": [
       "Subscription Administration"
     ],
+    "Subscription Pricing": [
+      "Fixed Recurring Pricing",
+      "Subscription Fee",
+      "Flat Fee Pricing",
+      "Recurring Subscription"
+    ],
     "Subscription Upgrades": [
       "Upgrade",
       "Plan Upgrade"
@@ -587,17 +610,37 @@
       "Tax Report",
       "Tax Returns"
     ],
+    "Tiered Pricing": [
+      "Volume-Tiered Pricing",
+      "Tiered Rates",
+      "Graduated Pricing",
+      "Volume Tiering"
+    ],
     "Tokenization": [
       "Payment Tokenization",
       "Card Tokenization"
+    ],
+    "Transaction Pricing": [
+      "Per-Transaction Pricing",
+      "Transaction Fee",
+      "Per-Transaction Fee"
     ],
     "Trial Management": [
       "Free Trial",
       "Trials"
     ],
+    "US GAAP": [
+      "US GAAP Compliance",
+      "Generally Accepted Accounting Principles"
+    ],
     "Usage Rating": [
       "Usage-Based Rating",
       "Rating Engine"
+    ],
+    "Usage-Based Pricing": [
+      "Pay-as-You-Go",
+      "Metered Pricing",
+      "Pay As You Go"
     ],
     "VAT": [
       "VAT Support",
@@ -748,14 +791,21 @@
       "prefLabel": "ASC 606",
       "kind": "standard",
       "definition": "The US accounting standard governing how revenue from customer contracts is recognised.",
-      "altLabels": [],
+      "altLabels": [
+        "ASC606",
+        "ASC 606 Compliance",
+        "Revenue Standard ASC 606",
+        "Contract Revenue Accounting"
+      ],
       "broader": "accounting-standards",
       "governs": [
         "revenue-recognition",
         "performance-obligation",
         "revenue-allocation",
         "standalone-selling-price",
-        "revenue-schedules"
+        "revenue-schedules",
+        "contract-modification",
+        "revenue-waterfall"
       ]
     },
     {
@@ -1640,11 +1690,17 @@
       "prefLabel": "SOC 2",
       "kind": "standard",
       "definition": "An audit report on controls for security, availability and confidentiality.",
-      "altLabels": [],
+      "altLabels": [
+        "SOC2",
+        "SOC 2 Type 2",
+        "SOC 2 Compliance",
+        "Service Organization Control 2"
+      ],
       "broader": "security-attestations",
       "governs": [
         "permissions",
-        "audit-trail"
+        "audit-trail",
+        "single-sign-on"
       ]
     },
     {
@@ -1652,11 +1708,16 @@
       "prefLabel": "SOC 2 Type II",
       "kind": "standard",
       "definition": "A SOC 2 report covering whether those controls operated effectively over a period.",
-      "altLabels": [],
+      "altLabels": [
+        "SOC 2 Type 2 Certification",
+        "SOC2 Type II",
+        "SOC2 Type 2"
+      ],
       "broader": "security-attestations",
       "governs": [
         "permissions",
-        "audit-trail"
+        "audit-trail",
+        "single-sign-on"
       ]
     },
     {
@@ -1746,7 +1807,12 @@
       "prefLabel": "Subscription Pricing",
       "kind": "pricing",
       "definition": "Charging a fixed fee for access across a term.",
-      "altLabels": [],
+      "altLabels": [
+        "Fixed Recurring Pricing",
+        "Subscription Fee",
+        "Flat Fee Pricing",
+        "Recurring Subscription"
+      ],
       "broader": "monetization-model",
       "governs": []
     },
@@ -1803,7 +1869,12 @@
       "prefLabel": "Tiered Pricing",
       "kind": "pricing",
       "definition": "Charging different unit rates across bands of quantity.",
-      "altLabels": [],
+      "altLabels": [
+        "Volume-Tiered Pricing",
+        "Tiered Rates",
+        "Graduated Pricing",
+        "Volume Tiering"
+      ],
       "broader": "monetization-model",
       "governs": []
     },
@@ -1824,7 +1895,11 @@
       "prefLabel": "Transaction Pricing",
       "kind": "pricing",
       "definition": "Charging a fee for each transaction processed.",
-      "altLabels": [],
+      "altLabels": [
+        "Per-Transaction Pricing",
+        "Transaction Fee",
+        "Per-Transaction Fee"
+      ],
       "broader": "monetization-model",
       "governs": []
     },
@@ -1845,7 +1920,10 @@
       "prefLabel": "US GAAP",
       "kind": "standard",
       "definition": "The accounting principles issued by the FASB and used in US financial reporting.",
-      "altLabels": [],
+      "altLabels": [
+        "US GAAP Compliance",
+        "Generally Accepted Accounting Principles"
+      ],
       "broader": "accounting-standards",
       "governs": [
         "revenue-recognition",
@@ -1869,7 +1947,11 @@
       "prefLabel": "Usage-Based Pricing",
       "kind": "pricing",
       "definition": "Charging according to measured usage.",
-      "altLabels": [],
+      "altLabels": [
+        "Pay-as-You-Go",
+        "Metered Pricing",
+        "Pay As You Go"
+      ],
       "broader": "monetization-model",
       "governs": []
     },
