@@ -407,6 +407,10 @@
                     <button type="button" id="subtab-onto-sparql-btn" onclick="switchOntologySubView('sparql')" class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition whitespace-nowrap flex items-center gap-1.5">
                         <span>⚡ SPARQL Query Console</span>
                     </button>
+                    <button type="button" id="subtab-onto-pagekg-btn" onclick="switchOntologySubView('pagekg')" class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 transition whitespace-nowrap flex items-center gap-1.5">
+                        <span>📄 Page Knowledge Graph</span>
+                        <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-purple-600 text-white font-bold">W3C</span>
+                    </button>
                 </div>
                 <div class="hidden sm:flex items-center gap-2 text-xs text-slate-500">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -872,6 +876,177 @@
                                 ✅ Approve into Vertical
                             </button>
                         </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================================= -->
+            <!-- SUBVIEW 7: UNIVERSAL PAGE-LEVEL KNOWLEDGE GRAPH           -->
+            <!-- ========================================================= -->
+            <div id="onto-subview-pagekg" class="hidden space-y-6">
+                <!-- Header Banner -->
+                <div class="bg-gradient-to-r from-slate-900 via-purple-950 to-indigo-950 rounded-2xl p-6 text-white shadow-md border border-purple-900/30">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-purple-500/20 text-purple-200 border border-purple-400/30">
+                                    W3C RDF · PROV-O · SKOS Dynamic Taxonomy
+                                </span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                                    100% Provenance Retention
+                                </span>
+                            </div>
+                            <h3 class="text-xl font-black text-white mt-1">Universal B2B Page Knowledge Graph Engine</h3>
+                            <p class="text-xs text-slate-300 mt-1 max-w-3xl leading-relaxed">
+                                Transform any arbitrary B2B marketing page or technical text into an atomic W3C RDF graph. Automatically extracts relational triples with verbatim sentence provenance (<code class="text-purple-300 font-mono">prov:wasQuotedFrom</code>), dynamically induces a SKOS Concept Scheme with Universal B2B Facets, grounds entities against live Wikidata, and serializes to Turtle and JSON-LD.
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2 self-start sm:self-center">
+                            <button type="button" onclick="loadPageKgPreset('snyk')" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-purple-900/60 hover:bg-purple-800 text-purple-200 border border-purple-700/50 transition">
+                                🛡️ Snyk (AppSec)
+                            </button>
+                            <button type="button" onclick="loadPageKgPreset('datadog')" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-900/60 hover:bg-indigo-800 text-indigo-200 border border-indigo-700/50 transition">
+                                📊 Datadog (Infra)
+                            </button>
+                            <button type="button" onclick="loadPageKgPreset('drata')" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-sky-900/60 hover:bg-sky-800 text-sky-200 border border-sky-700/50 transition">
+                                📜 Drata (Compliance)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Formulation Card -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <span>📥 Ingestion Parameters</span>
+                        <span class="text-xs font-normal text-slate-500">(Provide either a live URL or paste raw text copy)</span>
+                    </h4>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="md:col-span-2">
+                            <label for="pagekg-input-url" class="block text-xs font-bold text-slate-700 uppercase mb-1">Webpage URL (Optional)</label>
+                            <input type="url" id="pagekg-input-url" placeholder="https://snyk.io/platform"
+                                class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-purple-500 focus:bg-white focus:outline-none transition" />
+                        </div>
+                        <div>
+                            <label for="pagekg-input-subject" class="block text-xs font-bold text-slate-700 uppercase mb-1">Subject / Brand Name</label>
+                            <input type="text" id="pagekg-input-subject" placeholder="Snyk"
+                                class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-purple-500 focus:bg-white focus:outline-none transition" />
+                        </div>
+                        <div>
+                            <label for="pagekg-input-title" class="block text-xs font-bold text-slate-700 uppercase mb-1">Document / Page Title</label>
+                            <input type="text" id="pagekg-input-title" placeholder="Snyk Developer Security Platform"
+                                class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-purple-500 focus:bg-white focus:outline-none transition" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label for="pagekg-input-text" class="block text-xs font-bold text-slate-700 uppercase">Page Content / Copy Snippet</label>
+                            <span class="text-[11px] text-slate-400">Zero-shot entity extraction &amp; open relation induction</span>
+                        </div>
+                        <textarea id="pagekg-input-text" rows="5" placeholder="Paste marketing copy, product overview, technical feature docs, or compliance claims..."
+                            class="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:ring-2 focus:ring-purple-500 focus:bg-white focus:outline-none transition"></textarea>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2">
+                        <div class="text-xs text-slate-500 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                            <span>Universal B2B Ontological Facets active</span>
+                        </div>
+                        <button type="button" onclick="generatePageKnowledgeGraph()" id="pagekg-generate-btn"
+                            class="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer">
+                            <span id="pagekg-btn-icon">⚡</span>
+                            <span id="pagekg-btn-text">Generate W3C Page Graph</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Results Section (Hidden until generated) -->
+                <div id="pagekg-results" class="hidden space-y-6">
+                    <!-- Metrics Summary Banner -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Root Subject</div>
+                            <div class="text-xl font-extrabold text-slate-900 mt-1" id="pagekg-stat-subject">--</div>
+                            <div class="text-[10px] text-slate-500 mt-0.5" id="pagekg-stat-domain">platform.com</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-purple-600">RDF Nodes &amp; Edges</div>
+                            <div class="text-xl font-extrabold text-purple-700 mt-1" id="pagekg-stat-nodes-edges">0 / 0</div>
+                            <div class="text-[10px] text-slate-500 mt-0.5">W3C RDFLib in-memory graph</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-sky-600">Evidenced Triples</div>
+                            <div class="text-xl font-extrabold text-sky-700 mt-1" id="pagekg-stat-triples">0</div>
+                            <div class="text-[10px] text-slate-500 mt-0.5">100% PROV-O sentence lineage</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-600">SKOS Concepts Minted</div>
+                            <div class="text-xl font-extrabold text-emerald-700 mt-1" id="pagekg-stat-concepts">0</div>
+                            <div class="text-[10px] text-slate-500 mt-0.5">Universal B2B Facet taxonomy</div>
+                        </div>
+                    </div>
+
+                    <!-- Dual Inspection View: Triples with Evidence & Dynamic SKOS Hierarchy -->
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <!-- Left: Evidenced Triples (7 cols) -->
+                        <div class="lg:col-span-7 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                    <span>⚖️ Relational Triples &amp; Provenance Quotes</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800" id="pagekg-triples-badge">0</span>
+                                </h4>
+                                <span class="text-[11px] text-slate-400">W3C PROV-O: prov:wasQuotedFrom</span>
+                            </div>
+                            <div class="overflow-y-auto max-h-[480px] space-y-2 pr-1" id="pagekg-triples-list">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Right: Dynamic SKOS Concepts (5 cols) -->
+                        <div class="lg:col-span-5 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                    <span>🌳 Dynamic SKOS Concept Scheme</span>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800" id="pagekg-concepts-badge">0</span>
+                                </h4>
+                                <span class="text-[11px] text-slate-400">skos:broader Facets</span>
+                            </div>
+                            <div class="overflow-y-auto max-h-[480px] space-y-2 pr-1" id="pagekg-concepts-list">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Serialization & SPARQL Console Card -->
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-3">
+                            <div>
+                                <h4 class="text-sm font-bold text-slate-900">W3C Semantic Serializations &amp; SPARQL Console</h4>
+                                <p class="text-xs text-slate-500">Inspect raw Turtle (.ttl), JSON-LD, or query this page graph directly using SPARQL 1.1.</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="copyPageKgTurtle()" class="px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition flex items-center gap-1">
+                                    <span>📋 Copy Turtle</span>
+                                </button>
+                                <button type="button" onclick="copyPageKgJsonLd()" class="px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition flex items-center gap-1">
+                                    <span>📋 Copy JSON-LD</span>
+                                </button>
+                                <button type="button" onclick="openPageKgInSparql()" class="px-3.5 py-1.5 text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition shadow-xs flex items-center gap-1.5">
+                                    <span>⚡ Query in SPARQL Console &rarr;</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Turtle serialization code view -->
+                        <div>
+                            <div class="text-xs font-bold text-slate-700 uppercase mb-1 flex items-center justify-between">
+                                <span>W3C Turtle (.ttl) Output</span>
+                                <span class="text-[11px] text-slate-400 font-mono" id="pagekg-turtle-size">--</span>
+                            </div>
+                            <pre id="pagekg-turtle-pre" class="p-3.5 bg-slate-900 text-purple-300 font-mono text-[11px] rounded-xl overflow-x-auto max-h-64"></pre>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3633,7 +3808,7 @@ SELECT ?capability ?evidence WHERE {
 
         const ALL_DASHBOARD_TABS = ['ontology', 'truth', 'battlecards', 'search'];
         const SEARCH_SUBTABS = ['audit', 'linking', 'bench', 'alignment', 'industry', 'geo'];
-        const ONTOLOGY_SUBTABS = ['concepts', 'trialign', 'compliance', 'schema', 'synonyms', 'sparql'];
+        const ONTOLOGY_SUBTABS = ['concepts', 'trialign', 'compliance', 'schema', 'synonyms', 'sparql', 'pagekg'];
         let currentSearchSubTab = 'audit';
         let currentOntologySubTab = 'concepts';
 
@@ -8235,6 +8410,12 @@ SELECT ?capability ?evidence WHERE {
                 loadOntologySchema();
             } else if (sub === 'synonyms') {
                 loadSynonymCandidates();
+            } else if (sub === 'pagekg') {
+                const txt = document.getElementById('pagekg-input-text');
+                const url = document.getElementById('pagekg-input-url');
+                if ((!txt || !txt.value.trim()) && (!url || !url.value.trim())) {
+                    loadPageKgPreset('snyk');
+                }
             }
         }
 
@@ -9466,6 +9647,237 @@ ORDER BY DESC(?count)`
                     </tr>
                 `;
             }).join('');
+        }
+
+        /* ------------------------------------------------------------- */
+        /* UNIVERSAL PAGE-LEVEL KNOWLEDGE GRAPH CONTROLLER               */
+        /* ------------------------------------------------------------- */
+        window._currentPageKgData = null;
+        window._currentPageKgTurtle = '';
+        window._currentPageKgJsonLd = null;
+
+        const PAGEKG_PRESETS = {
+            snyk: {
+                url: 'https://snyk.io/platform',
+                subject: 'Snyk',
+                title: 'Snyk Developer Security Platform',
+                text: 'Snyk automates container vulnerability scanning and source code security for cloud-native engineering teams. The platform integrates with GitHub, GitLab, and Jira. Snyk is SOC 2 Type II compliant and ISO 27001 certified. We offer developers programmatic access through our REST API and GraphQL API. Snyk eliminates manual security reviews across developer pull requests.'
+            },
+            datadog: {
+                url: 'https://www.datadoghq.com/product',
+                subject: 'Datadog',
+                title: 'Datadog Cloud Monitoring',
+                text: 'Datadog automates log aggregation and provides real-time infrastructure monitoring for modern engineering. The platform integrates with Kubernetes and AWS. Datadog guarantees 99.99% uptime reliability. Available as a Multi-Tenant SaaS deployment model for global engineering teams.'
+            },
+            drata: {
+                url: 'https://drata.com',
+                subject: 'Drata',
+                title: 'Drata Continuous Compliance',
+                text: 'Drata automates continuous compliance monitoring and audit readiness for high-growth tech companies. Drata complies with SOC 2 Type II, HIPAA, and ISO 27001. Integrates with AWS, Google Cloud, and GitHub. Offers webhooks and REST API endpoints.'
+            }
+        };
+
+        function loadPageKgPreset(presetKey) {
+            const p = PAGEKG_PRESETS[presetKey];
+            if (!p) return;
+            const urlEl = document.getElementById('pagekg-input-url');
+            const subEl = document.getElementById('pagekg-input-subject');
+            const titleEl = document.getElementById('pagekg-input-title');
+            const textEl = document.getElementById('pagekg-input-text');
+            if (urlEl) urlEl.value = p.url || '';
+            if (subEl) subEl.value = p.subject || '';
+            if (titleEl) titleEl.value = p.title || '';
+            if (textEl) textEl.value = p.text || '';
+        }
+
+        async function generatePageKnowledgeGraph() {
+            const url = document.getElementById('pagekg-input-url')?.value.trim() || null;
+            const subject = document.getElementById('pagekg-input-subject')?.value.trim() || 'Platform';
+            const title = document.getElementById('pagekg-input-title')?.value.trim() || null;
+            const text = document.getElementById('pagekg-input-text')?.value.trim() || null;
+            const vSelect = document.getElementById('vertical-select');
+            const verticalId = vSelect ? vSelect.value : null;
+
+            if (!url && !text) {
+                alert('Please provide either a Webpage URL or paste content in the copy snippet box.');
+                return;
+            }
+
+            const btn = document.getElementById('pagekg-generate-btn');
+            const btnIcon = document.getElementById('pagekg-btn-icon');
+            const btnText = document.getElementById('pagekg-btn-text');
+            if (btn) btn.disabled = true;
+            if (btnIcon) btnIcon.textContent = '🔄';
+            if (btnText) btnText.textContent = 'Inducing W3C Graph...';
+
+            try {
+                const res = await fetch('/api/page-knowledge-graph', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        url: url,
+                        text: text,
+                        subject: subject,
+                        title: title,
+                        vertical_id: verticalId
+                    })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || `HTTP ${res.status}`);
+                }
+
+                const data = await res.json();
+                window._currentPageKgData = data;
+                window._currentPageKgTurtle = data.turtle || '';
+                window._currentPageKgJsonLd = data.json_ld || null;
+
+                renderPageKnowledgeGraphResults(data);
+            } catch (err) {
+                console.error('Page Knowledge Graph induction failed:', err);
+                alert('Failed to generate page knowledge graph: ' + err.message);
+            } finally {
+                if (btn) btn.disabled = false;
+                if (btnIcon) btnIcon.textContent = '⚡';
+                if (btnText) btnText.textContent = 'Generate W3C Page Graph';
+            }
+        }
+
+        function renderPageKnowledgeGraphResults(data) {
+            const resultsCard = document.getElementById('pagekg-results');
+            if (!resultsCard) return;
+
+            // Update KPI cards
+            const statSub = document.getElementById('pagekg-stat-subject');
+            const statDom = document.getElementById('pagekg-stat-domain');
+            const statNodesEdges = document.getElementById('pagekg-stat-nodes-edges');
+            const statTriples = document.getElementById('pagekg-stat-triples');
+            const statConcepts = document.getElementById('pagekg-stat-concepts');
+
+            if (statSub) statSub.textContent = data.subject || 'Platform';
+            if (statDom) statDom.textContent = data.url ? new URL(data.url).hostname : (data.subject.toLowerCase() + '.com');
+            if (statNodesEdges) statNodesEdges.textContent = `${data.node_count || 0} / ${data.edge_count || 0}`;
+            if (statTriples) statTriples.textContent = (data.triples || []).length;
+            if (statConcepts) statConcepts.textContent = (data.concepts || []).length;
+
+            const tBadge = document.getElementById('pagekg-triples-badge');
+            const cBadge = document.getElementById('pagekg-concepts-badge');
+            if (tBadge) tBadge.textContent = `${(data.triples || []).length} Extracted`;
+            if (cBadge) cBadge.textContent = `${(data.concepts || []).length} Minted`;
+
+            // Render triples list with W3C PROV-O sentence quotes
+            const tList = document.getElementById('pagekg-triples-list');
+            if (tList) {
+                const triples = data.triples || [];
+                if (triples.length === 0) {
+                    tList.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">No relational triples detected in this content.</div>`;
+                } else {
+                    const predColors = {
+                        automates: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+                        integratesWith: 'bg-sky-50 text-sky-800 border-sky-200',
+                        compliesWith: 'bg-purple-50 text-purple-800 border-purple-200',
+                        guarantees: 'bg-amber-50 text-amber-800 border-amber-200',
+                        hasAPI: 'bg-cyan-50 text-cyan-800 border-cyan-200',
+                        supportsPricingModel: 'bg-indigo-50 text-indigo-800 border-indigo-200',
+                        replacesWorkflow: 'bg-rose-50 text-rose-800 border-rose-200'
+                    };
+                    tList.innerHTML = triples.map(t => {
+                        const colClass = predColors[t.predicate] || 'bg-slate-50 text-slate-800 border-slate-200';
+                        const confPct = Math.round((t.confidence || 0.85) * 100);
+                        const evSentence = t.evidence_sentence ? escapeHtml(t.evidence_sentence) : 'Verbatim document claim';
+                        return `
+                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5 text-xs">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="font-bold text-slate-900">${escapeHtml(t.subject)}</span>
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border font-mono ${colClass}">${escapeHtml(t.predicate)}</span>
+                                        <span class="font-extrabold text-slate-900">${escapeHtml(t.object)}</span>
+                                    </div>
+                                    <span class="text-[10px] font-bold text-slate-400 font-mono">${confPct}% conf</span>
+                                </div>
+                                <blockquote class="pl-2.5 border-l-2 border-purple-400 text-[11px] text-slate-600 italic">
+                                    &ldquo;${evSentence}&rdquo;
+                                </blockquote>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
+
+            // Render SKOS concepts grouped by Universal Facet
+            const cList = document.getElementById('pagekg-concepts-list');
+            if (cList) {
+                const concepts = data.concepts || [];
+                if (concepts.length === 0) {
+                    cList.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">No SKOS concepts minted.</div>`;
+                } else {
+                    const grouped = {};
+                    concepts.forEach(c => {
+                        const facet = c.broader || 'universal-b2b';
+                        if (!grouped[facet]) grouped[facet] = [];
+                        grouped[facet].push(c);
+                    });
+                    cList.innerHTML = Object.entries(grouped).map(([facet, items]) => {
+                        const facetTitle = facet.replace('facet-', '').replace('-', ' ').toUpperCase();
+                        return `
+                            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                                <div class="text-[10px] font-bold uppercase tracking-wider text-purple-700 flex items-center gap-1.5">
+                                    <span>📁</span>
+                                    <span>Facet: ${escapeHtml(facetTitle)}</span>
+                                    <span class="text-slate-400">(${items.length})</span>
+                                </div>
+                                <div class="flex flex-wrap gap-1.5">
+                                    ${items.map(it => `
+                                        <span class="px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 shadow-2xs" title="${escapeHtml(it.evidence_sentence || '')}">
+                                            ${escapeHtml(it.prefLabel)}
+                                        </span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+            }
+
+            // Render Turtle
+            const turtlePre = document.getElementById('pagekg-turtle-pre');
+            const turtleSize = document.getElementById('pagekg-turtle-size');
+            if (turtlePre) turtlePre.textContent = data.turtle || '# No Turtle output';
+            if (turtleSize) turtleSize.textContent = `${(data.turtle || '').length.toLocaleString()} bytes`;
+
+            resultsCard.classList.remove('hidden');
+            resultsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function copyPageKgTurtle() {
+            if (!window._currentPageKgTurtle) {
+                alert('No Turtle graph generated yet.');
+                return;
+            }
+            navigator.clipboard.writeText(window._currentPageKgTurtle);
+            alert('W3C Turtle (.ttl) copied to clipboard!');
+        }
+
+        function copyPageKgJsonLd() {
+            if (!window._currentPageKgJsonLd) {
+                alert('No JSON-LD generated yet.');
+                return;
+            }
+            navigator.clipboard.writeText(JSON.stringify(window._currentPageKgJsonLd, null, 2));
+            alert('W3C JSON-LD copied to clipboard!');
+        }
+
+        function openPageKgInSparql() {
+            if (!window._currentPageKgTurtle) {
+                alert('Generate a page knowledge graph first.');
+                return;
+            }
+            switchOntologySubView('sparql');
+            const textarea = document.getElementById('sparql-query-textarea');
+            if (textarea) {
+                textarea.value = `PREFIX schema: <https://schema.org/>\nPREFIX prov: <http://www.w3.org/ns/prov#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n\nSELECT ?claim ?evidence\nWHERE {\n    ?entity prov:wasQuotedFrom ?evidence ;\n            rdfs:label ?claim .\n}\nLIMIT 50`;
+            }
         }
 
         // Initialize Ontology Hub on DOMContentLoaded

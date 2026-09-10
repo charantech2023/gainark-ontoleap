@@ -12,7 +12,7 @@ Changes:
            prevent memory-bomb payloads from crashing the container.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field, model_validator
 
@@ -351,6 +351,43 @@ class ExtractionResult(BaseModel):
     @property
     def extraction(self) -> "ExtractionResult":
         return self
+
+
+class PageKnowledgeGraphRequest(BaseModel):
+    """
+    Request model for extracting a page-level or text-level W3C knowledge graph.
+    """
+    url: Optional[str] = Field(default=None, max_length=2048, description="URL of the web page to extract from")
+    text: Optional[str] = Field(default=None, max_length=500_000, description="Raw text or copy to extract from")
+    title: Optional[str] = Field(default=None, max_length=500, description="Page title or document name")
+    subject: Optional[str] = Field(default="Platform", max_length=200, description="Primary subject / entity name")
+    vertical_id: Optional[str] = Field(default=None, max_length=100, description="Optional vertical profile ID")
+
+    @model_validator(mode="after")
+    def validate_input_present(self) -> "PageKnowledgeGraphRequest":
+        if not (self.url and self.url.strip()) and not (self.text and self.text.strip()):
+            raise ValueError("Must provide either 'url' or 'text' to generate a knowledge graph.")
+        return self
+
+
+class PageKnowledgeGraphResult(BaseModel):
+    """
+    Formal data contract for a Page-Level / Document-Level Knowledge Graph.
+    Contains W3C RDFLib graph serializations, extracted semantic triples with sentence
+    provenance, dynamic SKOS concept scheme definitions, and graph topology metrics.
+    """
+    url: Optional[str] = Field(default=None, description="Source page URL")
+    title: Optional[str] = Field(default=None, description="Page title or document name")
+    subject: str = Field(default="Platform", description="Primary subject / entity name")
+    vertical_id: Optional[str] = Field(default=None, description="Vertical ID if bound to a profile")
+    triples: List[SemanticTriple] = Field(default_factory=list, description="Extracted relational triples with evidence")
+    concepts: List[Dict[str, Any]] = Field(default_factory=list, description="Minted SKOS concepts and hierarchy")
+    turtle: str = Field(default="", description="W3C Turtle (.ttl) serialization")
+    json_ld: Union[Dict[str, Any], List[Any]] = Field(default_factory=dict, description="W3C JSON-LD structure")
+    node_count: int = Field(default=0, description="Total distinct RDF nodes in the page graph")
+    edge_count: int = Field(default=0, description="Total RDF triples / edges asserted")
+    predicate_counts: Dict[str, int] = Field(default_factory=dict, description="Count of assertions per ontology predicate")
+    entities: List[EntityMatch] = Field(default_factory=list, description="Extracted NER entity mentions")
 
 
 class KeywordGapItem(BaseModel):

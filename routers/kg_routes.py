@@ -17,13 +17,17 @@ from linking import (
 from link_prediction import predict_kg_links
 from graph_export import generate_standalone_graph_html
 from pipeline import validate_url_for_fetch
+from knowledge_graph import build_page_knowledge_graph
+from routers.deps import get_pipeline
 from models import (
     SemanticTriple,
     SparqlQueryRequest,
     SparqlQueryResponse,
     LinkPredictionRequest,
     LinkPredictionResponse,
-    ExportGraphHtmlRequest
+    ExportGraphHtmlRequest,
+    PageKnowledgeGraphRequest,
+    PageKnowledgeGraphResult
 )
 
 logger = logging.getLogger("ontoleap.api.kg")
@@ -187,3 +191,66 @@ def api_export_graph_html(req: ExportGraphHtmlRequest):
     except Exception as e:
         logger.error("Failed to generate graph HTML: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to generate interactive graph HTML. Check server logs.")
+
+
+@router.post("/api/page-knowledge-graph", response_model=PageKnowledgeGraphResult, summary="Extract Page-Level Knowledge Graph & W3C RDF Ontology")
+def api_extract_page_knowledge_graph(req: PageKnowledgeGraphRequest):
+    """
+    Constructs an atomic, W3C-compliant Page-Level / Document-Level Knowledge Graph.
+    Accepts arbitrary B2B text or URL, extracts entities and open relational triples with
+    verbatim sentence provenance, dynamically organizes concepts into a W3C SKOS
+    concept scheme using Universal B2B Facets (or an optional vertical profile),
+    grounds entities against Wikidata, asserts W3C PROV-O evidentiary lineage, and
+    serializes to Turtle (.ttl) and JSON-LD.
+    """
+    url = req.url
+    text = req.text
+    title = req.title
+    subject = req.subject or "Platform"
+    entities = None
+    triples = None
+
+    if url and not text:
+        try:
+            validate_url_for_fetch(url)
+        except ValueError as val_err:
+            raise HTTPException(status_code=400, detail=str(val_err))
+        try:
+            pipeline = get_pipeline(req.vertical_id)
+            proc_res = pipeline.process(url=url, deep_crawl=False)
+            text = proc_res.raw_text or proc_res.clean_text or ""
+            if not text.strip():
+                raise HTTPException(status_code=400, detail="Could not extract readable text from the provided URL.")
+            entities = proc_res.entities
+            triples = proc_res.triples
+            title = title or proc_res.title
+            if subject == "Platform":
+                from urllib.parse import urlparse
+                netloc = urlparse(url).netloc.replace("www.", "")
+                domain_part = netloc.split(".")[0].capitalize() if netloc else "Platform"
+                if domain_part:
+                    subject = domain_part
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error("Failed to fetch or process URL %s for page knowledge graph: %s", url, e, exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Failed to process URL: {e}")
+
+    if not text or not text.strip():
+        raise HTTPException(status_code=400, detail="No text available to build knowledge graph. Provide either 'text' or a valid 'url'.")
+
+    try:
+        res = build_page_knowledge_graph(
+            text=text,
+            url=url,
+            title=title,
+            subject=subject,
+            vertical_id=req.vertical_id,
+            entities=entities,
+            triples=triples
+        )
+        return res
+    except Exception as e:
+        logger.error("Page knowledge graph generation failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Knowledge graph generation failed: {e}")
+

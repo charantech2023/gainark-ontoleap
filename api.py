@@ -59,12 +59,15 @@ from routers.kg_routes import (
     NTriplesExportRequest,
     OwlExportRequest,
     SemanticClustersRequest,
+    PageKnowledgeGraphRequest,
+    PageKnowledgeGraphResult,
     api_execute_sparql,
     api_export_ntriples,
     api_export_owl,
     api_predict_links,
     api_semantic_clusters,
-    api_export_graph_html
+    api_export_graph_html,
+    api_extract_page_knowledge_graph
 )
 from routers.ontology_routes import router as ontology_router
 from routers.seo_routes import (

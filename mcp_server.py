@@ -227,6 +227,73 @@ async def ontoleap_export_w3c_ontology(
         return json.dumps({"error": type(e).__name__, "status": "failed"})
 
 
+@app.tool(
+    name="ontoleap_build_page_knowledge_graph",
+    description="Builds an atomic, W3C-compliant Page-Level / Document-Level Knowledge Graph from arbitrary B2B copy or URL. Retains 100% evidentiary sentence quotes (W3C PROV-O), dynamically mints SKOS concept scheme hierarchy under Universal B2B Facets, grounds entities to Wikidata, and produces valid Turtle (.ttl) and JSON-LD."
+)
+async def ontoleap_build_page_knowledge_graph(
+    text: Optional[str] = None,
+    url: Optional[str] = None,
+    title: Optional[str] = None,
+    subject: Optional[str] = "Platform",
+    vertical_id: Optional[str] = None
+) -> str:
+    """
+    Constructs an atomic W3C knowledge graph from text or web URL.
+
+    Args:
+        text: Raw text/markdown content to extract from.
+        url: Web page URL to analyze (if text is omitted).
+        title: Optional document or page title.
+        subject: Optional primary brand / platform subject name (defaults to 'Platform').
+        vertical_id: Optional vertical profile ID (e.g. 'b2b_saas_fintech', 'cybersecurity').
+    """
+    try:
+        from knowledge_graph import build_page_knowledge_graph
+        raw_text = text
+        if url and not raw_text:
+            from pipeline import validate_url_for_fetch
+            from routers.deps import get_pipeline
+            validate_url_for_fetch(url)
+            p = get_pipeline(vertical_id)
+            res = p.process(url=url, deep_crawl=False)
+            raw_text = res.raw_text or res.clean_text or ""
+            title = title or res.title
+            if subject == "Platform":
+                from urllib.parse import urlparse
+                domain_part = urlparse(url).netloc.replace("www.", "").split(".")[0].capitalize()
+                if domain_part:
+                    subject = domain_part
+
+        if not raw_text or not raw_text.strip():
+            return json.dumps({"error": "No text provided or extracted from URL", "status": "failed"})
+
+        kg_res = build_page_knowledge_graph(
+            text=raw_text,
+            url=url,
+            title=title,
+            subject=subject,
+            vertical_id=vertical_id
+        )
+
+        return json.dumps({
+            "subject": kg_res.subject,
+            "url": kg_res.url,
+            "node_count": kg_res.node_count,
+            "edge_count": kg_res.edge_count,
+            "predicate_counts": kg_res.predicate_counts,
+            "triples_count": len(kg_res.triples),
+            "concepts_count": len(kg_res.concepts),
+            "triples": [t.model_dump() for t in kg_res.triples],
+            "concepts": kg_res.concepts,
+            "turtle": kg_res.turtle,
+            "json_ld": kg_res.json_ld
+        }, indent=2)
+    except Exception as e:
+        logger.error("ontoleap_build_page_knowledge_graph failed: %s", e, exc_info=True)
+        return json.dumps({"error": type(e).__name__, "message": str(e), "status": "failed"})
+
+
 if __name__ == "__main__":
     # Start the server using stdio transport (compatible with Claude Desktop, Cursor, etc.)
     logger.info("Starting OntoLeap MCP Server on stdio transport...")

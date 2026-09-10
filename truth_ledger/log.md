@@ -639,3 +639,10 @@
 - **Verified Truth**: Quote-to-Cash (automates), Subscription Billing (automates), Accounts Receivable (automates), Dunning (automates), Payment Collection (automates) (+100 more)
 - **Drift Findings**: 13 critical drift alerts
 - **Unmarketed Engineering Gold**: 47 capabilities
+
+### 2026-09-09 12:05:56 UTC — [PRODUCT TRUTH AUDIT]
+- **Target**: `Ordwaylabs` (https://www.ordwaylabs.com)
+- **Grounding Index**: **48.0%** | Marketing Claims: 248 | Technical Capabilities: 139
+- **Verified Truth**: Quote-to-Cash (automates), Subscription Billing (automates), Accounts Receivable (automates), Dunning (automates), Payment Collection (automates) (+114 more)
+- **Drift Findings**: 14 critical drift alerts
+- **Unmarketed Engineering Gold**: 65 capabilities

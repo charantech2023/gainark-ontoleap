@@ -18,7 +18,7 @@ from typing import List, Dict, Any, Optional, Set, Tuple
 from urllib.parse import urlparse
 
 from rdflib import Graph, Literal, RDF, RDFS, URIRef, Namespace, OWL, XSD
-from models import SemanticTriple
+from models import SemanticTriple, PageKnowledgeGraphResult, EntityMatch
 from constants import WIKIDATA_KB
 from entity_grounding import ground_url, prefetch as prefetch_grounding
 from ontology_schema import (
@@ -761,3 +761,345 @@ def export_to_owl_xml(
     """
     g = build_owl_ontology(domain, triples, hubs, entities)
     return g.serialize(format="xml")
+
+
+# ---------------------------------------------------------------------------
+# Universal B2B Ontology Facets for Dynamic Concept Induction
+# ---------------------------------------------------------------------------
+
+UNIVERSAL_B2B_FACETS: Dict[str, Dict[str, str]] = {
+    "automates": {
+        "id": "automation-workflows",
+        "prefLabel": "Automation & Process Workflows",
+        "definition": "Automated operational workflows, background batch processing, and rule-driven tasks executed without manual intervention."
+    },
+    "hasFeature": {
+        "id": "platform-capabilities",
+        "prefLabel": "Platform Capabilities & Features",
+        "definition": "Discrete technical capabilities, product modules, and functional tools provided by the platform."
+    },
+    "integratesWith": {
+        "id": "ecosystem-integrations",
+        "prefLabel": "Ecosystem & Partner Integrations",
+        "definition": "Direct connectors, third-party software integrations, and synchronisation bridges."
+    },
+    "compliesWith": {
+        "id": "compliance-standards",
+        "prefLabel": "Regulatory & Compliance Standards",
+        "definition": "Regulatory frameworks, accounting mandates, security requirements, and statutory governance rules."
+    },
+    "certifiedBy": {
+        "id": "trust-certifications",
+        "prefLabel": "Security & Trust Certifications",
+        "definition": "Formal independent audit attestations, accreditation seals, and verifiable trust badges."
+    },
+    "supportsPricingModel": {
+        "id": "pricing-models",
+        "prefLabel": "Pricing & Monetization Models",
+        "definition": "Contractual billing structures, monetization tiers, and commercial packaging options."
+    },
+    "deployedAs": {
+        "id": "deployment-models",
+        "prefLabel": "Deployment & Architecture Models",
+        "definition": "Infrastructure hosting patterns, cloud tenancies, and delivery mechanisms."
+    },
+    "hasAPI": {
+        "id": "developer-interfaces",
+        "prefLabel": "Developer & API Interfaces",
+        "definition": "Programmatic endpoints, developer protocols, SDK libraries, and event webhook interfaces."
+    },
+    "replacesWorkflow": {
+        "id": "legacy-workflows",
+        "prefLabel": "Legacy Workflows Replaced",
+        "definition": "Manual, paper-based, or obsolete operational patterns eliminated by modern software."
+    },
+    "targetsSegment": {
+        "id": "market-segments",
+        "prefLabel": "Target Market Segments",
+        "definition": "Commercial customer sizes, buyer personas, and organizational maturity tiers targeted."
+    },
+    "servesIndustry": {
+        "id": "industry-verticals",
+        "prefLabel": "Target Industry Verticals",
+        "definition": "Industry domains, business sectors, and operational verticals served."
+    },
+    "guarantees": {
+        "id": "service-level-commitments",
+        "prefLabel": "Service Level Commitments",
+        "definition": "Contractual uptime guarantees, performance SLAs, and reliability commitments."
+    },
+    "competesAgainst": {
+        "id": "market-alternatives",
+        "prefLabel": "Market Alternatives & Competitors",
+        "definition": "Alternative platforms and competitive solutions in the commercial ecosystem."
+    },
+    "hasCustomer": {
+        "id": "customer-references",
+        "prefLabel": "Customer & Proof References",
+        "definition": "Verified customer organizations, public case studies, and brand testimonials."
+    },
+}
+
+
+def export_to_jsonld(g: Graph) -> Any:
+    """
+    Serializes an RDFLib Graph to standard W3C JSON-LD structure.
+    """
+    raw = g.serialize(format="json-ld")
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, (dict, list)):
+            return parsed
+        return {"@graph": []}
+    except Exception:
+        return {"@graph": []}
+
+
+def build_page_knowledge_graph(
+    text: str,
+    url: Optional[str] = None,
+    title: Optional[str] = None,
+    subject: Optional[str] = None,
+    vertical_id: Optional[str] = None,
+    triples: Optional[List[SemanticTriple]] = None,
+    entities: Optional[List[EntityMatch]] = None
+) -> PageKnowledgeGraphResult:
+    """
+    Constructs an atomic, W3C-compliant Page-Level / Document-Level Knowledge Graph.
+    
+    Accepts arbitrary B2B text, extracts entities and open relational triples with
+    verbatim sentence provenance, dynamically organizes concepts into a W3C SKOS
+    concept scheme using Universal B2B Facets (or an optional vertical profile),
+    grounds entities against Wikidata, asserts W3C PROV-O evidentiary lineage, and
+    exports to Turtle and JSON-LD.
+    """
+    # 1. Run extraction pipeline if triples are not provided
+    if triples is None or entities is None:
+        from pipeline import OntologyPipeline
+        from models import VerticalConfig
+        cfg = None
+        if vertical_id:
+            curr_dir = os.path.dirname(os.path.abspath(__file__))
+            v_path = os.path.join(curr_dir, "verticals", f"{vertical_id}.json")
+            if os.path.exists(v_path):
+                with open(v_path, "r", encoding="utf-8") as vf:
+                    cfg = VerticalConfig(**json.load(vf))
+        if cfg is None:
+            cfg = VerticalConfig(
+                vertical_id="open_b2b",
+                display_name="Universal B2B Domain",
+                gliner_labels=[
+                    "Integration Partner", "Ecosystem Integration", "Product Feature",
+                    "Billing Feature", "Automation Workflow", "Compliance Regulation",
+                    "Security Standard", "Accounting Standard", "Trust Certification",
+                    "API Standard", "Deployment Model", "Customer Segment",
+                    "Industry Vertical", "Pricing Model", "SLA Commitment",
+                    "Competitor", "Customer", "Legacy Workflow"
+                ],
+                mandatory_schema_types=["SoftwareApplication", "Organization"],
+                core_seed_concepts=[]
+            )
+        pipeline = OntologyPipeline(config=cfg)
+        if entities is None:
+            entities = pipeline.extract_entities(text)
+        if not subject:
+            subject = pipeline.resolve_target_subject(url=url, title=title, entities=entities)
+        if triples is None:
+            triples = pipeline.extract_semantic_triples(text=text, subject=subject, entities=entities)
+
+    subject = (subject or "Platform").strip()
+    brand_clean = re.sub(r'[^a-zA-Z0-9]+', '', subject) or "Platform"
+
+    # 2. Determine domain and identifiers
+    domain = None
+    if url:
+        parsed = urlparse(url)
+        netloc = parsed.netloc.replace("www.", "")
+        if netloc:
+            domain = netloc
+    if not domain:
+        domain = f"{slug_for_label(subject)}.com"
+
+    # 3. Initialize W3C Graph and Namespaces
+    g = Graph()
+    SCHEMA = Namespace("https://schema.org/")
+    LOCAL = Namespace(f"https://{domain}/ontology/")
+    PROV = Namespace("http://www.w3.org/ns/prov#")
+    SKOS = Namespace("http://www.w3.org/2004/02/skos/core#")
+    DCTERMS = Namespace("http://purl.org/dc/terms/")
+    DCAT = Namespace("http://www.w3.org/ns/dcat#")
+
+    g.bind("schema", SCHEMA)
+    g.bind("onto", LOCAL)
+    g.bind("rdfs", RDFS)
+    g.bind("rdf", RDF)
+    g.bind("prov", PROV)
+    g.bind("skos", SKOS)
+    g.bind("dcterms", DCTERMS)
+    g.bind("dcat", DCAT)
+
+    # 4. W3C PROV-O Agent & Activity Lineage
+    now_utc = datetime.now(timezone.utc)
+    now_iso = now_utc.isoformat()
+    now_tag = now_utc.strftime("%Y%m%d%H%M%S")
+
+    agent_uri = URIRef(f"https://{domain}/#ontoleap-agent")
+    g.add((agent_uri, RDF.type, PROV.SoftwareAgent))
+    g.add((agent_uri, RDFS.label, Literal("GainARK OntoLeap Engine")))
+    g.add((agent_uri, SCHEMA.name, Literal("OntoLeap Page Knowledge Graph Engine")))
+
+    page_slug = slug_for_label(title or "document")
+    activity_uri = URIRef(f"https://{domain}/activity/page-extraction-{now_tag}")
+    g.add((activity_uri, RDF.type, PROV.Activity))
+    g.add((activity_uri, PROV.wasAssociatedWith, agent_uri))
+    g.add((activity_uri, PROV.startedAtTime, Literal(now_iso, datatype=XSD.dateTime)))
+    g.add((activity_uri, PROV.endedAtTime, Literal(now_iso, datatype=XSD.dateTime)))
+
+    # 5. Root Page & Subject Nodes
+    page_uri = URIRef(url) if url and url.startswith("http") else URIRef(f"https://{domain}/page/{page_slug}")
+    subject_uri = URIRef(f"https://{domain}/#{brand_clean}")
+
+    g.add((page_uri, RDF.type, SCHEMA.WebPage))
+    g.add((page_uri, SCHEMA.name, Literal(title or f"{subject} Overview")))
+    g.add((page_uri, SCHEMA.url, page_uri))
+    g.add((page_uri, SCHEMA.about, subject_uri))
+    g.add((page_uri, PROV.hadPrimarySource, page_uri))
+
+    g.add((subject_uri, RDF.type, SCHEMA.SoftwareApplication))
+    g.add((subject_uri, RDF.type, SCHEMA.Organization))
+    g.add((subject_uri, SCHEMA.name, Literal(subject)))
+    g.add((subject_uri, SCHEMA.url, URIRef(f"https://{domain}/")))
+
+    # Ground subject against Wikidata
+    sub_ground = ground_url(subject)
+    if sub_ground:
+        g.add((subject_uri, SCHEMA.sameAs, URIRef(sub_ground)))
+
+    # 6. W3C SKOS Concept Scheme and Universal B2B Facet Taxonomy
+    scheme_id = vertical_id or f"{slug_for_label(subject)}-taxonomy"
+    scheme_uri = URIRef(f"https://{domain}/ontology/{scheme_id}")
+    g.add((scheme_uri, RDF.type, SKOS.ConceptScheme))
+    g.add((scheme_uri, SKOS.prefLabel, Literal(f"{subject} Knowledge & Capability Taxonomy")))
+    g.add((scheme_uri, PROV.wasGeneratedBy, activity_uri))
+    g.add((scheme_uri, PROV.wasAttributedTo, agent_uri))
+
+    facet_uris: Dict[str, URIRef] = {}
+    for pred, f_info in UNIVERSAL_B2B_FACETS.items():
+        f_uri = URIRef(f"https://{domain}/ontology/facet/{f_info['id']}")
+        facet_uris[pred] = f_uri
+        g.add((f_uri, RDF.type, SKOS.Concept))
+        g.add((f_uri, SKOS.inScheme, scheme_uri))
+        g.add((f_uri, SKOS.prefLabel, Literal(f_info["prefLabel"])))
+        g.add((f_uri, SKOS.definition, Literal(f_info["definition"])))
+        g.add((scheme_uri, SKOS.hasTopConcept, f_uri))
+
+    # 7. Triples, Evidence Provenance, and Dynamic Concept Induction
+    pred_map = {
+        "automates": SCHEMA.potentialAction,
+        "integratesWith": SCHEMA.isRelatedTo,
+        "compliesWith": SCHEMA.legislationApplies,
+        "supportsPricingModel": SCHEMA.priceSpecification,
+        "hasFeature": SCHEMA.featureList,
+        "replacesWorkflow": SCHEMA.actionOption,
+        "targetsSegment": SCHEMA.audience,
+        "servesIndustry": SCHEMA.industry,
+        "deployedAs": SCHEMA.deliveryLeadTime,
+        "certifiedBy": SCHEMA.award,
+        "hasAPI": SCHEMA.interface,
+        "supportsLocale": SCHEMA.availableLanguage,
+        "guarantees": SCHEMA.serviceOutput,
+        "competesAgainst": SCHEMA.isSimilarTo,
+        "hasCustomer": SCHEMA.customer,
+    }
+
+    # Prefetch Wikidata grounding in one concurrent batch
+    prefetch_grounding([subject] + [t.object for t in triples])
+
+    seen_triples = set()
+    predicate_counts: Dict[str, int] = {}
+    minted_concepts: List[Dict[str, Any]] = []
+    created_concept_ids: Set[str] = set()
+
+    for t in triples:
+        tk = (t.subject.lower(), t.predicate, t.object.lower())
+        if tk in seen_triples:
+            continue
+        seen_triples.add(tk)
+        predicate_counts[t.predicate] = predicate_counts.get(t.predicate, 0) + 1
+
+        obj_slug = slug_for_label(t.object)
+        obj_clean = re.sub(r'[^a-zA-Z0-9]+', '', t.object.title()) or "Entity"
+        obj_uri = URIRef(f"https://{domain}/entity/{obj_clean}")
+
+        rel = pred_map.get(t.predicate, SCHEMA.knowsAbout)
+        g.add((subject_uri, rel, obj_uri))
+        g.add((obj_uri, RDFS.label, Literal(t.object)))
+        g.add((obj_uri, RDF.type, LOCAL[t.predicate.capitalize()]))
+
+        # W3C PROV-O Lineage
+        g.add((obj_uri, RDF.type, PROV.Entity))
+        g.add((obj_uri, PROV.wasDerivedFrom, page_uri))
+        g.add((obj_uri, PROV.wasGeneratedBy, activity_uri))
+        g.add((obj_uri, PROV.generatedAtTime, Literal(now_iso, datatype=XSD.dateTime)))
+
+        if t.evidence_sentence:
+            g.add((obj_uri, SCHEMA.description, Literal(t.evidence_sentence)))
+            g.add((obj_uri, PROV.wasQuotedFrom, Literal(t.evidence_sentence)))
+
+        # Wikidata Grounding
+        obj_url = ground_url(t.object)
+        if obj_url:
+            g.add((obj_uri, SCHEMA.sameAs, URIRef(obj_url)))
+
+        # Dynamic SKOS Concept Induction
+        c_id = f"concept-{obj_slug}"
+        c_uri = URIRef(f"https://{domain}/ontology/concept/{obj_slug}")
+        if c_id not in created_concept_ids:
+            created_concept_ids.add(c_id)
+            g.add((c_uri, RDF.type, SKOS.Concept))
+            g.add((c_uri, SKOS.inScheme, scheme_uri))
+            g.add((c_uri, SKOS.prefLabel, Literal(t.object)))
+            if t.evidence_sentence:
+                g.add((c_uri, SKOS.definition, Literal(t.evidence_sentence)))
+
+            facet_uri = facet_uris.get(t.predicate)
+            broader_id = None
+            if facet_uri:
+                g.add((c_uri, SKOS.broader, facet_uri))
+                g.add((facet_uri, SKOS.narrower, c_uri))
+                broader_id = UNIVERSAL_B2B_FACETS.get(t.predicate, {}).get("id")
+
+            minted_concepts.append({
+                "id": c_id,
+                "prefLabel": t.object,
+                "uri": str(c_uri),
+                "broader": broader_id,
+                "predicate": t.predicate,
+                "evidence_sentence": t.evidence_sentence
+            })
+
+        # Connect instance individual to its formal concept
+        g.add((obj_uri, SKOS.related, c_uri))
+
+    # Link Entity Aliases (owl:sameAs)
+    link_entity_aliases(g, domain)
+
+    # 8. Serialize and package
+    turtle_str = g.serialize(format="turtle")
+    jsonld_dict = export_to_jsonld(g)
+    distinct_nodes = set(g.subjects()) | set(g.objects())
+
+    return PageKnowledgeGraphResult(
+        url=url,
+        title=title,
+        subject=subject,
+        vertical_id=vertical_id,
+        triples=triples,
+        concepts=minted_concepts,
+        turtle=turtle_str,
+        json_ld=jsonld_dict,
+        node_count=len(distinct_nodes),
+        edge_count=len(g),
+        predicate_counts=predicate_counts,
+        entities=entities or []
+    )

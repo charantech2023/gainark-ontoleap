@@ -715,7 +715,19 @@ class OntologyPipeline:
             for _alt in _alts:
                 _alt_to_canonical[_alt.strip().lower()] = (_canon, "hasFeature")
 
-        def add_entity_triple(pred: str, obj: str, conf: float = 0.85):
+        def _find_enclosing_sentence(target_text: str) -> str:
+            t_low = target_text.strip().lower()
+            if not t_low:
+                return ""
+            for s in sentences:
+                if t_low in s.lower():
+                    return s
+            return ""
+
+        has_custom_int = bool(getattr(self.config, 'known_integrations', None))
+        has_custom_compliance = bool(getattr(self.config, 'known_compliance', None))
+
+        def add_entity_triple(pred: str, obj: str, conf: float = 0.85, ev: str = ""):
             canonical = _alt_to_canonical.get(obj.strip().lower())
             if canonical is not None:
                 obj, pred = canonical
@@ -726,52 +738,107 @@ class OntologyPipeline:
                     pred, obj, claimed_by,
                 )
                 return
-            add_triple(pred, obj, conf=conf)
+
+            # If the vertical explicitly defines a closed vocabulary for integrations or
+            # compliance, do not let uncurated zero-shot entities leak cross-domain.
+            if pred == "integratesWith" and has_custom_int:
+                obj_low = obj.strip().lower()
+                if not any(p.lower() in obj_low or obj_low in p.lower() for p in vocab_integrations):
+                    return
+
+            if pred == "compliesWith" and has_custom_compliance:
+                obj_low = obj.strip().lower()
+                if not any(s.lower() in obj_low or obj_low in s.lower() for s in vocab_compliance):
+                    return
+
+            add_triple(pred, obj, conf=conf, ev=ev)
+
+        # Open capability & automation induction for unconstrained/domain-agnostic text
+        auto_open_re = re.compile(
+            r'(?i)\b(?:automates?|automating|streamlines?)\s+([a-zA-Z0-9\-\s]{4,40}?)(?:\s+(?:for|across|in|with|to|and\s+eliminates|\.|\,|$))'
+        )
+        for sent in sentences:
+            s_lower = sent.lower()
+            if any(cue in s_lower for cue in ["automate", "automates", "automating", "streamline", "streamlines"]):
+                for match in auto_open_re.finditer(sent):
+                    cand = match.group(1).strip()
+                    words = [w for w in cand.split() if w.lower() not in ["the", "all", "your", "our", "their", "and", "or", "a", "an"]]
+                    if 1 <= len(words) <= 4:
+                        clean_cap = " ".join(words).title()
+                        if len(clean_cap) >= 4 and clean_cap.lower() != subject.lower() and not any(c in clean_cap.lower() for c in ["http", "www", "cookie"]):
+                            add_triple("automates", clean_cap, conf=0.80, ev=sent)
+
+        # Open integration partner induction when vertical does not constrain integrations
+        has_custom_int = bool(getattr(self.config, 'known_integrations', None))
+        if not has_custom_int:
+            int_open_re = re.compile(
+                r'(?i)\b(?:integrates?\s+with|native\s+integration\s+with|connects?\s+to)\s+([A-Z][\w\.\-]+(?:\s+[A-Z][\w\.\-]+)?(?:\s*,\s*[A-Z][\w\.\-]+(?:\s+[A-Z][\w\.\-]+)?)*(?:\s+and\s+[A-Z][\w\.\-]+(?:\s+[A-Z][\w\.\-]+)?)?)'
+            )
+            for sent in sentences:
+                for match in int_open_re.finditer(sent):
+                    cand_span = match.group(1)
+                    items = re.split(r',\s*|\s+and\s+', cand_span)
+                    for item in items:
+                        item_clean = item.strip(" ,.")
+                        if len(item_clean) >= 2 and item_clean.lower() not in ["the", "all", "your", "our", "seamlessly", "easily"] and item_clean.lower() != subject.lower():
+                            add_triple("integratesWith", item_clean, conf=0.82, ev=sent)
 
         if entities:
             for ent in entities:
                 txt = ent.text.strip()
-                if ent.label == "Integration Partner":
-                    add_entity_triple("integratesWith", txt, conf=0.88)
-                elif ent.label in ["Accounting Standard", "Security Standard"]:
-                    add_entity_triple("compliesWith", txt, conf=0.92)
-                elif ent.label == "Pricing Model":
-                    add_entity_triple("supportsPricingModel", txt, conf=0.88)
-                elif ent.label == "Billing Feature" and any(w in txt.lower() for w in ["automate", "recognition", "invoicing", "dunning", "reconciliation"]):
-                    add_entity_triple("automates", txt, conf=0.88)
-                elif ent.label == "Product Feature":
-                    add_entity_triple("hasFeature", txt, conf=0.88)
+                ev_sent = _find_enclosing_sentence(txt)
+                if ent.label in ["Integration Partner", "Ecosystem Integration", "Healthcare Integration", "HR Integration"]:
+                    add_entity_triple("integratesWith", txt, conf=0.88, ev=ev_sent)
+                elif ent.label in ["Accounting Standard", "Security Standard", "Compliance Regulation", "Financial Standard", "Medical Standard", "HR Compliance"]:
+                    add_entity_triple("compliesWith", txt, conf=0.92, ev=ev_sent)
+                elif ent.label in ["Pricing Model", "Pricing Structure", "Billing Model"]:
+                    add_entity_triple("supportsPricingModel", txt, conf=0.88, ev=ev_sent)
+                elif ent.label in ["Billing Feature", "Automation Workflow"] and any(w in txt.lower() for w in ["automate", "recognition", "invoicing", "dunning", "reconciliation", "workflow", "process", "management", "provisioning", "orchestration", "detection", "monitoring"]):
+                    add_entity_triple("automates", txt, conf=0.88, ev=ev_sent)
+                elif ent.label == "Automation Workflow":
+                    add_entity_triple("automates", txt, conf=0.88, ev=ev_sent)
+                elif ent.label in ["Product Feature", "Benefits Administration", "Employee Benefit", "Payroll Service", "Tax Filing", "Tax Filing Service", "Time Tracking Feature", "Time Tracking Solution", "Vulnerability Management", "Threat Intelligence"]:
+                    add_entity_triple("hasFeature", txt, conf=0.88, ev=ev_sent)
+                elif ent.label == "Legacy Workflow":
+                    add_entity_triple("replacesWorkflow", txt, conf=0.85, ev=ev_sent)
                 elif ent.label == "Customer Segment":
-                    add_entity_triple("targetsSegment", txt, conf=0.88)
+                    add_entity_triple("targetsSegment", txt, conf=0.88, ev=ev_sent)
                 elif ent.label == "Industry Vertical":
-                    add_entity_triple("servesIndustry", txt, conf=0.88)
+                    add_entity_triple("servesIndustry", txt, conf=0.88, ev=ev_sent)
                 elif ent.label == "Deployment Model":
-                    add_entity_triple("deployedAs", txt, conf=0.88)
+                    add_entity_triple("deployedAs", txt, conf=0.88, ev=ev_sent)
                 elif ent.label == "Trust Certification":
-                    add_entity_triple("certifiedBy", txt, conf=0.92)
+                    add_entity_triple("certifiedBy", txt, conf=0.92, ev=ev_sent)
                 elif ent.label == "API Standard":
-                    add_entity_triple("hasAPI", txt, conf=0.88)
+                    add_entity_triple("hasAPI", txt, conf=0.88, ev=ev_sent)
                 elif ent.label == "Geographic Market":
-                    add_entity_triple("supportsLocale", txt, conf=0.82)
+                    add_entity_triple("supportsLocale", txt, conf=0.82, ev=ev_sent)
                 elif ent.label == "SLA Commitment":
-                    add_entity_triple("guarantees", txt, conf=0.88)
+                    add_entity_triple("guarantees", txt, conf=0.88, ev=ev_sent)
                 elif ent.label == "Competitor":
-                    add_entity_triple("competesAgainst", txt, conf=0.80)
+                    add_entity_triple("competesAgainst", txt, conf=0.80, ev=ev_sent)
                 elif ent.label == "Customer":
-                    add_entity_triple("hasCustomer", txt, conf=0.85)
+                    add_entity_triple("hasCustomer", txt, conf=0.85, ev=ev_sent)
+                else:
+                    from ontology_schema import relation_for_gliner_label
+                    rel_spec = relation_for_gliner_label(ent.label)
+                    if rel_spec:
+                        add_entity_triple(rel_spec.predicate, txt, conf=0.85, ev=ev_sent)
 
         if seed_concepts:
             for sc in seed_concepts:
                 if sc.count > 0:
                     c_name = sc.concept
+                    ev_seed = _find_enclosing_sentence(c_name)
                     if c_name in ["ASC 606", "SOC 1", "SOC 2"]:
-                        add_triple("compliesWith", c_name, conf=0.90)
+                        if not has_custom_compliance or any(s.lower() in c_name.lower() or c_name.lower() in s.lower() for s in vocab_compliance):
+                            add_triple("compliesWith", c_name, conf=0.90, ev=ev_seed)
                     elif c_name == "ERP Integration":
-                        add_triple("integratesWith", "ERP Systems", conf=0.85)
+                        add_triple("integratesWith", "ERP Systems", conf=0.85, ev=ev_seed)
                     elif c_name == "Payment Gateway":
-                        add_triple("integratesWith", "Payment Gateways", conf=0.85)
+                        add_triple("integratesWith", "Payment Gateways", conf=0.85, ev=ev_seed)
                     elif c_name in ["Revenue Recognition", "Billing Automation", "Accounts Receivable"]:
-                        add_triple("automates", c_name, conf=0.88)
+                        add_triple("automates", c_name, conf=0.88, ev=ev_seed)
 
         return _resolve_overlapping_matches(triples)
 

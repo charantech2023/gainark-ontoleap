@@ -25,3 +25,7 @@ product_truth-1.py
 # Durable knowledge graph. Rebuilt by running audits; Cloud Run filesystems are
 # ephemeral, so a deployed instance keeps this only for its own lifetime.
 truth_ledger/graph.sqlite
+
+# Temporary test screenshots and artifacts
+scratch/
+
