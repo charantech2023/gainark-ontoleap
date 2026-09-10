@@ -16,7 +16,7 @@ import time
 import hashlib
 import logging
 import threading
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any
 
 logger = logging.getLogger("gainark.cache")
 

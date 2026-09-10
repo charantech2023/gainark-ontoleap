@@ -7,7 +7,21 @@
     "Threat Vector",
     "Integration Partner",
     "Security Architecture",
-    "Deployment Model"
+    "Deployment Model",
+    "Automation Workflow",
+    "Pricing Model",
+    "Product Feature",
+    "Threat Intelligence",
+    "Vulnerability Management",
+    "Legacy Workflow",
+    "Customer Segment",
+    "Industry Vertical",
+    "Trust Certification",
+    "API Standard",
+    "Geographic Market",
+    "SLA Commitment",
+    "Competitor",
+    "Customer"
   ],
   "mandatory_schema_types": [
     "SoftwareApplication",
@@ -27,13 +41,1552 @@
     "Identity and Access Management"
   ],
   "known_integrations": [
-    "CrowdStrike", "SentinelOne", "Splunk", "Okta", "Palo Alto Networks",
-    "Zscaler", "Microsoft Defender", "AWS Security Hub", "Datadog", "ServiceNow"
+    "CrowdStrike",
+    "SentinelOne",
+    "Splunk",
+    "Okta",
+    "Palo Alto Networks",
+    "Zscaler",
+    "Microsoft Defender",
+    "AWS Security Hub",
+    "Datadog",
+    "ServiceNow"
   ],
   "known_compliance": [
-    "SOC 2", "ISO 27001", "NIST CSF", "HIPAA", "PCI-DSS", "FedRAMP", "GDPR", "CMMC"
+    "SOC 2",
+    "ISO 27001",
+    "NIST CSF",
+    "HIPAA",
+    "PCI-DSS",
+    "FedRAMP",
+    "GDPR",
+    "CMMC"
   ],
   "known_pricing": [
-    "Per-Endpoint Pricing", "Per-User Pricing", "Tiered Enterprise", "Usage-Based Ingestion"
-  ]
+    "Per-Endpoint Pricing",
+    "Per-User Pricing",
+    "Tiered Enterprise",
+    "Usage-Based Ingestion"
+  ],
+  "known_automation": [
+    "Threat Detection",
+    "Incident Response",
+    "Vulnerability Scanning",
+    "Patch Management",
+    "Alert Triage",
+    "Log Correlation",
+    "Compliance Evidence Collection",
+    "Access Review",
+    "Policy Enforcement",
+    "Threat Hunting",
+    "Attack Surface Discovery",
+    "Security Awareness Training"
+  ],
+  "known_features": [
+    "SIEM",
+    "SOAR",
+    "Endpoint Detection and Response",
+    "Extended Detection and Response",
+    "Next-Generation Antivirus",
+    "Threat Intelligence",
+    "Attack Surface Management",
+    "Vulnerability Scanning",
+    "Penetration Testing",
+    "Data Loss Prevention",
+    "Encryption",
+    "Secrets Management",
+    "Single Sign-On",
+    "Multi-Factor Authentication",
+    "Privileged Access Management",
+    "Identity Governance",
+    "Static Application Security Testing",
+    "Dynamic Application Security Testing",
+    "Software Composition Analysis",
+    "Container Security",
+    "Software Bill of Materials",
+    "Cloud Security Posture Management",
+    "Cloud Workload Protection",
+    "Kubernetes Security",
+    "Firewall",
+    "Intrusion Detection and Prevention",
+    "Secure Web Gateway",
+    "Zero Trust Network Access",
+    "DDoS Protection",
+    "Email Security",
+    "Phishing Protection",
+    "Audit Logging",
+    "Role-Based Access Control",
+    "Compliance Automation",
+    "Backup and Recovery"
+  ],
+  "known_replaces": [
+    "Manual Log Review",
+    "Spreadsheet-Based Risk Registers",
+    "Manual Evidence Collection",
+    "Point-in-Time Audits",
+    "Manual Access Reviews",
+    "Legacy Antivirus",
+    "Perimeter-Only Security"
+  ],
+  "known_segments": [
+    "Enterprise",
+    "Mid-Market",
+    "SMB",
+    "Public Sector",
+    "Regulated Industries",
+    "MSSP"
+  ],
+  "known_industries": [
+    "Financial Services",
+    "Healthcare",
+    "Government",
+    "Technology",
+    "Manufacturing",
+    "Retail",
+    "Education",
+    "Critical Infrastructure"
+  ],
+  "known_deployment": [
+    "Cloud-Native",
+    "Multi-Tenant SaaS",
+    "Private Cloud",
+    "On-Premise",
+    "Hybrid",
+    "Agent-Based"
+  ],
+  "known_certifications": [
+    "SOC 2 Type II",
+    "ISO 27001 Certified",
+    "FedRAMP Authorised",
+    "CSA STAR",
+    "Common Criteria"
+  ],
+  "known_api_types": [
+    "REST API",
+    "GraphQL API",
+    "Webhooks",
+    "SDK",
+    "OpenAPI Specification",
+    "SCIM"
+  ],
+  "known_locales": [
+    "North America",
+    "EMEA",
+    "APAC",
+    "United Kingdom",
+    "European Union",
+    "Australia"
+  ],
+  "known_sla": [
+    "99.9% Uptime",
+    "99.99% Uptime",
+    "24/7 Support",
+    "15-Minute Response"
+  ],
+  "known_competitors": [
+    "CrowdStrike",
+    "SentinelOne",
+    "Palo Alto Networks",
+    "Microsoft Defender",
+    "Wiz",
+    "Rapid7",
+    "Tenable",
+    "Qualys",
+    "Splunk",
+    "Arctic Wolf"
+  ],
+  "concepts": [
+    {
+      "id": "enterprise-security",
+      "prefLabel": "Enterprise Security",
+      "kind": "domain",
+      "definition": "Protecting an organisation's systems, data and people from attack and misuse.",
+      "altLabels": [],
+      "broader": null,
+      "governs": []
+    },
+    {
+      "id": "security-operations",
+      "prefLabel": "Security Operations",
+      "kind": "domain",
+      "definition": "Running the day-to-day detection, investigation and response work that keeps an organisation secure.",
+      "altLabels": [
+        "SecOps",
+        "Security Operations Centre"
+      ],
+      "broader": "enterprise-security",
+      "governs": []
+    },
+    {
+      "id": "siem",
+      "prefLabel": "SIEM",
+      "kind": "feature",
+      "definition": "Collecting log and event data from across the estate and correlating it to surface attacks.",
+      "altLabels": [
+        "Security Information and Event Management",
+        "Log Correlation",
+        "Security Analytics"
+      ],
+      "broader": "security-operations",
+      "governs": []
+    },
+    {
+      "id": "soar",
+      "prefLabel": "SOAR",
+      "kind": "feature",
+      "definition": "Automating repeatable response steps so analysts do not run them by hand.",
+      "altLabels": [
+        "Security Orchestration",
+        "Automated Response",
+        "Security Automation"
+      ],
+      "broader": "security-operations",
+      "governs": []
+    },
+    {
+      "id": "log-management",
+      "prefLabel": "Log Management",
+      "kind": "feature",
+      "definition": "Gathering, storing and searching the log data security investigations depend on.",
+      "altLabels": [
+        "Log Ingestion",
+        "Log Retention"
+      ],
+      "broader": "security-operations",
+      "governs": []
+    },
+    {
+      "id": "continuous-monitoring",
+      "prefLabel": "Continuous Monitoring",
+      "kind": "process",
+      "definition": "Watching systems and controls without interruption rather than at audit time.",
+      "altLabels": [
+        "Ongoing Monitoring",
+        "24/7 Monitoring"
+      ],
+      "broader": "security-operations",
+      "governs": []
+    },
+    {
+      "id": "alert-triage",
+      "prefLabel": "Alert Triage",
+      "kind": "process",
+      "definition": "Deciding which alerts are real and which matter most, before investigation begins.",
+      "altLabels": [
+        "Alert Prioritisation",
+        "Alert Enrichment"
+      ],
+      "broader": "security-operations",
+      "governs": []
+    },
+    {
+      "id": "incident-response",
+      "prefLabel": "Incident Response",
+      "kind": "process",
+      "definition": "Containing, eradicating and recovering from a confirmed security incident.",
+      "altLabels": [
+        "IR",
+        "Breach Response",
+        "Incident Management"
+      ],
+      "broader": "security-operations",
+      "governs": []
+    },
+    {
+      "id": "digital-forensics",
+      "prefLabel": "Digital Forensics",
+      "kind": "process",
+      "definition": "Reconstructing what an attacker did from the evidence left behind.",
+      "altLabels": [
+        "Forensics",
+        "Forensic Investigation"
+      ],
+      "broader": "security-operations",
+      "governs": []
+    },
+    {
+      "id": "threat-hunting",
+      "prefLabel": "Threat Hunting",
+      "kind": "process",
+      "definition": "Proactively searching for attackers who have evaded existing detections.",
+      "altLabels": [
+        "Proactive Hunting",
+        "Hunt Team"
+      ],
+      "broader": "security-operations",
+      "governs": []
+    },
+    {
+      "id": "managed-detection-and-response",
+      "prefLabel": "Managed Detection and Response",
+      "kind": "feature",
+      "definition": "Outsourcing detection and response work to an external team operating your tools.",
+      "altLabels": [
+        "MDR",
+        "Managed SOC",
+        "SOC as a Service"
+      ],
+      "broader": "security-operations",
+      "governs": []
+    },
+    {
+      "id": "threat-and-vulnerability-management",
+      "prefLabel": "Threat and Vulnerability Management",
+      "kind": "domain",
+      "definition": "Finding, prioritising and closing the weaknesses an attacker could use.",
+      "altLabels": [
+        "Threat Management"
+      ],
+      "broader": "enterprise-security",
+      "governs": []
+    },
+    {
+      "id": "vulnerability-management",
+      "prefLabel": "Vulnerability Management",
+      "kind": "process",
+      "definition": "Running the full cycle of discovering, ranking, fixing and verifying weaknesses.",
+      "altLabels": [
+        "Vuln Management",
+        "VM"
+      ],
+      "broader": "threat-and-vulnerability-management",
+      "governs": []
+    },
+    {
+      "id": "vulnerability-scanning",
+      "prefLabel": "Vulnerability Scanning",
+      "kind": "feature",
+      "definition": "Automatically inspecting systems for known weaknesses.",
+      "altLabels": [
+        "Vulnerability Assessment",
+        "Security Scanning"
+      ],
+      "broader": "vulnerability-management",
+      "governs": []
+    },
+    {
+      "id": "patch-management",
+      "prefLabel": "Patch Management",
+      "kind": "process",
+      "definition": "Tracking and applying the fixes that close known weaknesses.",
+      "altLabels": [
+        "Patching",
+        "Remediation Management"
+      ],
+      "broader": "vulnerability-management",
+      "governs": []
+    },
+    {
+      "id": "vulnerability-prioritisation",
+      "prefLabel": "Vulnerability Prioritisation",
+      "kind": "feature",
+      "definition": "Ranking findings by real exploitability and business impact rather than raw severity.",
+      "altLabels": [
+        "Risk-Based Prioritisation",
+        "Risk Scoring"
+      ],
+      "broader": "vulnerability-management",
+      "governs": []
+    },
+    {
+      "id": "penetration-testing",
+      "prefLabel": "Penetration Testing",
+      "kind": "process",
+      "definition": "Having skilled testers attack a system deliberately to find what scanners miss.",
+      "altLabels": [
+        "Pen Testing",
+        "Ethical Hacking",
+        "Offensive Testing"
+      ],
+      "broader": "threat-and-vulnerability-management",
+      "governs": []
+    },
+    {
+      "id": "threat-intelligence",
+      "prefLabel": "Threat Intelligence",
+      "kind": "feature",
+      "definition": "Using external knowledge of attackers and their methods to inform defence.",
+      "altLabels": [
+        "Threat Intel",
+        "CTI",
+        "Threat Feeds"
+      ],
+      "broader": "threat-and-vulnerability-management",
+      "governs": []
+    },
+    {
+      "id": "attack-surface-management",
+      "prefLabel": "Attack Surface Management",
+      "kind": "feature",
+      "definition": "Discovering and tracking every internet-facing asset an attacker could reach.",
+      "altLabels": [
+        "ASM",
+        "External Attack Surface Management",
+        "EASM"
+      ],
+      "broader": "threat-and-vulnerability-management",
+      "governs": []
+    },
+    {
+      "id": "breach-and-attack-simulation",
+      "prefLabel": "Breach and Attack Simulation",
+      "kind": "feature",
+      "definition": "Safely replaying real attack techniques to test whether defences actually fire.",
+      "altLabels": [
+        "BAS",
+        "Attack Simulation",
+        "Control Validation"
+      ],
+      "broader": "threat-and-vulnerability-management",
+      "governs": []
+    },
+    {
+      "id": "endpoint-security",
+      "prefLabel": "Endpoint Security",
+      "kind": "domain",
+      "definition": "Protecting laptops, servers and mobile devices where users and workloads sit.",
+      "altLabels": [
+        "Device Security"
+      ],
+      "broader": "enterprise-security",
+      "governs": []
+    },
+    {
+      "id": "endpoint-detection-and-response",
+      "prefLabel": "Endpoint Detection and Response",
+      "kind": "feature",
+      "definition": "Recording endpoint activity and giving analysts the means to investigate and contain it.",
+      "altLabels": [
+        "EDR",
+        "Endpoint Detection",
+        "Endpoint Response"
+      ],
+      "broader": "endpoint-security",
+      "governs": []
+    },
+    {
+      "id": "extended-detection-and-response",
+      "prefLabel": "Extended Detection and Response",
+      "kind": "feature",
+      "definition": "Correlating signals across endpoint, network, identity and cloud in one detection layer.",
+      "altLabels": [
+        "XDR",
+        "Unified Detection"
+      ],
+      "broader": "endpoint-security",
+      "governs": []
+    },
+    {
+      "id": "next-generation-antivirus",
+      "prefLabel": "Next-Generation Antivirus",
+      "kind": "feature",
+      "definition": "Blocking malicious software by behaviour rather than only by known signature.",
+      "altLabels": [
+        "NGAV",
+        "Antivirus",
+        "Malware Protection"
+      ],
+      "broader": "endpoint-security",
+      "governs": []
+    },
+    {
+      "id": "device-control",
+      "prefLabel": "Device Control",
+      "kind": "feature",
+      "definition": "Governing which peripherals and removable media may connect to a managed device.",
+      "altLabels": [
+        "USB Control",
+        "Peripheral Control"
+      ],
+      "broader": "endpoint-security",
+      "governs": []
+    },
+    {
+      "id": "ransomware-protection",
+      "prefLabel": "Ransomware Protection",
+      "kind": "feature",
+      "definition": "Detecting and stopping encryption-based extortion attacks before data is lost.",
+      "altLabels": [
+        "Anti-Ransomware",
+        "Ransomware Defence"
+      ],
+      "broader": "endpoint-security",
+      "governs": []
+    },
+    {
+      "id": "identity-and-access",
+      "prefLabel": "Identity and Access",
+      "kind": "domain",
+      "definition": "Establishing who a user or machine is and controlling what they may reach.",
+      "altLabels": [
+        "Identity Security"
+      ],
+      "broader": "enterprise-security",
+      "governs": []
+    },
+    {
+      "id": "identity-and-access-management",
+      "prefLabel": "Identity and Access Management",
+      "kind": "feature",
+      "definition": "Managing user identities and their entitlements across systems centrally.",
+      "altLabels": [
+        "IAM",
+        "Access Management"
+      ],
+      "broader": "identity-and-access",
+      "governs": []
+    },
+    {
+      "id": "single-sign-on",
+      "prefLabel": "Single Sign-On",
+      "kind": "feature",
+      "definition": "Letting a user authenticate once and reach many applications.",
+      "altLabels": [
+        "SSO",
+        "Federated Login"
+      ],
+      "broader": "identity-and-access",
+      "governs": []
+    },
+    {
+      "id": "multi-factor-authentication",
+      "prefLabel": "Multi-Factor Authentication",
+      "kind": "feature",
+      "definition": "Requiring more than a password before access is granted.",
+      "altLabels": [
+        "MFA",
+        "2FA",
+        "Two-Factor Authentication"
+      ],
+      "broader": "identity-and-access",
+      "governs": []
+    },
+    {
+      "id": "privileged-access-management",
+      "prefLabel": "Privileged Access Management",
+      "kind": "feature",
+      "definition": "Controlling and recording the use of high-powered administrative accounts.",
+      "altLabels": [
+        "PAM",
+        "Privileged Account Management"
+      ],
+      "broader": "identity-and-access",
+      "governs": []
+    },
+    {
+      "id": "identity-governance",
+      "prefLabel": "Identity Governance",
+      "kind": "process",
+      "definition": "Reviewing and certifying that people hold only the access they should.",
+      "altLabels": [
+        "IGA",
+        "Access Review",
+        "Access Certification"
+      ],
+      "broader": "identity-and-access",
+      "governs": []
+    },
+    {
+      "id": "passwordless-authentication",
+      "prefLabel": "Passwordless Authentication",
+      "kind": "feature",
+      "definition": "Verifying users by device, biometric or key instead of a shared secret.",
+      "altLabels": [
+        "Passwordless",
+        "FIDO2",
+        "Passkeys"
+      ],
+      "broader": "identity-and-access",
+      "governs": []
+    },
+    {
+      "id": "zero-trust",
+      "prefLabel": "Zero Trust",
+      "kind": "domain",
+      "definition": "Treating no user or device as trusted by default, and verifying every request.",
+      "altLabels": [
+        "Zero Trust Architecture",
+        "ZTA",
+        "Never Trust Always Verify"
+      ],
+      "broader": "identity-and-access",
+      "governs": []
+    },
+    {
+      "id": "data-protection",
+      "prefLabel": "Data Protection",
+      "kind": "domain",
+      "definition": "Preventing sensitive information from being exposed, stolen or lost.",
+      "altLabels": [
+        "Data Security"
+      ],
+      "broader": "enterprise-security",
+      "governs": []
+    },
+    {
+      "id": "data-loss-prevention",
+      "prefLabel": "Data Loss Prevention",
+      "kind": "feature",
+      "definition": "Detecting and blocking sensitive data as it tries to leave the organisation.",
+      "altLabels": [
+        "DLP",
+        "Data Leak Prevention"
+      ],
+      "broader": "data-protection",
+      "governs": []
+    },
+    {
+      "id": "encryption",
+      "prefLabel": "Encryption",
+      "kind": "feature",
+      "definition": "Rendering data unreadable to anyone without the key.",
+      "altLabels": [
+        "Data Encryption",
+        "Encryption at Rest",
+        "Encryption in Transit"
+      ],
+      "broader": "data-protection",
+      "governs": []
+    },
+    {
+      "id": "key-management",
+      "prefLabel": "Key Management",
+      "kind": "feature",
+      "definition": "Generating, storing and rotating the keys that encryption depends on.",
+      "altLabels": [
+        "KMS",
+        "Key Rotation"
+      ],
+      "broader": "data-protection",
+      "governs": []
+    },
+    {
+      "id": "data-classification",
+      "prefLabel": "Data Classification",
+      "kind": "process",
+      "definition": "Labelling data by sensitivity so controls can be applied proportionately.",
+      "altLabels": [
+        "Data Labelling",
+        "Data Discovery"
+      ],
+      "broader": "data-protection",
+      "governs": []
+    },
+    {
+      "id": "backup-and-recovery",
+      "prefLabel": "Backup and Recovery",
+      "kind": "feature",
+      "definition": "Keeping restorable copies of data so an incident does not become permanent loss.",
+      "altLabels": [
+        "Backup",
+        "Disaster Recovery",
+        "Data Resilience"
+      ],
+      "broader": "data-protection",
+      "governs": []
+    },
+    {
+      "id": "secrets-management",
+      "prefLabel": "Secrets Management",
+      "kind": "feature",
+      "definition": "Storing and issuing credentials and API keys without embedding them in code.",
+      "altLabels": [
+        "Secrets Vault",
+        "Credential Management"
+      ],
+      "broader": "data-protection",
+      "governs": []
+    },
+    {
+      "id": "application-security",
+      "prefLabel": "Application Security",
+      "kind": "domain",
+      "definition": "Finding and fixing weaknesses in software before and after it ships.",
+      "altLabels": [
+        "AppSec"
+      ],
+      "broader": "enterprise-security",
+      "governs": []
+    },
+    {
+      "id": "static-application-security-testing",
+      "prefLabel": "Static Application Security Testing",
+      "kind": "feature",
+      "definition": "Analysing source code for weaknesses without running it.",
+      "altLabels": [
+        "SAST",
+        "Static Analysis",
+        "Code Scanning"
+      ],
+      "broader": "application-security",
+      "governs": []
+    },
+    {
+      "id": "dynamic-application-security-testing",
+      "prefLabel": "Dynamic Application Security Testing",
+      "kind": "feature",
+      "definition": "Testing a running application by attacking it from the outside.",
+      "altLabels": [
+        "DAST",
+        "Dynamic Scanning"
+      ],
+      "broader": "application-security",
+      "governs": []
+    },
+    {
+      "id": "software-composition-analysis",
+      "prefLabel": "Software Composition Analysis",
+      "kind": "feature",
+      "definition": "Identifying vulnerable or non-compliant open-source components in a build.",
+      "altLabels": [
+        "SCA",
+        "Dependency Scanning",
+        "Open Source Security"
+      ],
+      "broader": "application-security",
+      "governs": []
+    },
+    {
+      "id": "secrets-detection",
+      "prefLabel": "Secrets Detection",
+      "kind": "feature",
+      "definition": "Catching credentials accidentally committed into source code.",
+      "altLabels": [
+        "Secret Scanning",
+        "Credential Leak Detection"
+      ],
+      "broader": "application-security",
+      "governs": []
+    },
+    {
+      "id": "api-security",
+      "prefLabel": "API Security",
+      "kind": "feature",
+      "definition": "Protecting the interfaces applications expose to each other.",
+      "altLabels": [
+        "API Protection",
+        "API Threat Protection"
+      ],
+      "broader": "application-security",
+      "governs": []
+    },
+    {
+      "id": "container-security",
+      "prefLabel": "Container Security",
+      "kind": "feature",
+      "definition": "Securing container images and the runtimes that execute them.",
+      "altLabels": [
+        "Image Scanning",
+        "Container Scanning"
+      ],
+      "broader": "application-security",
+      "governs": []
+    },
+    {
+      "id": "software-bill-of-materials",
+      "prefLabel": "Software Bill of Materials",
+      "kind": "feature",
+      "definition": "Producing a verifiable inventory of every component inside a piece of software.",
+      "altLabels": [
+        "SBOM",
+        "Component Inventory"
+      ],
+      "broader": "application-security",
+      "governs": []
+    },
+    {
+      "id": "devsecops",
+      "prefLabel": "DevSecOps",
+      "kind": "process",
+      "definition": "Embedding security checks into the development pipeline rather than after it.",
+      "altLabels": [
+        "Shift Left",
+        "Secure SDLC",
+        "Pipeline Security"
+      ],
+      "broader": "application-security",
+      "governs": []
+    },
+    {
+      "id": "cloud-security",
+      "prefLabel": "Cloud Security",
+      "kind": "domain",
+      "definition": "Securing workloads, configuration and identity across cloud infrastructure.",
+      "altLabels": [],
+      "broader": "enterprise-security",
+      "governs": []
+    },
+    {
+      "id": "cloud-security-posture-management",
+      "prefLabel": "Cloud Security Posture Management",
+      "kind": "feature",
+      "definition": "Continuously checking cloud configuration against secure baselines.",
+      "altLabels": [
+        "CSPM",
+        "Cloud Posture",
+        "Misconfiguration Detection"
+      ],
+      "broader": "cloud-security",
+      "governs": []
+    },
+    {
+      "id": "cloud-workload-protection",
+      "prefLabel": "Cloud Workload Protection",
+      "kind": "feature",
+      "definition": "Defending the running workloads inside cloud environments.",
+      "altLabels": [
+        "CWPP",
+        "Workload Security"
+      ],
+      "broader": "cloud-security",
+      "governs": []
+    },
+    {
+      "id": "cloud-infrastructure-entitlement-management",
+      "prefLabel": "Cloud Infrastructure Entitlement Management",
+      "kind": "feature",
+      "definition": "Controlling the sprawl of permissions granted inside cloud accounts.",
+      "altLabels": [
+        "CIEM",
+        "Cloud Entitlements",
+        "Least Privilege"
+      ],
+      "broader": "cloud-security",
+      "governs": []
+    },
+    {
+      "id": "kubernetes-security",
+      "prefLabel": "Kubernetes Security",
+      "kind": "feature",
+      "definition": "Securing container orchestration clusters and the workloads they schedule.",
+      "altLabels": [
+        "K8s Security",
+        "Cluster Security"
+      ],
+      "broader": "cloud-security",
+      "governs": []
+    },
+    {
+      "id": "infrastructure-as-code-scanning",
+      "prefLabel": "Infrastructure as Code Scanning",
+      "kind": "feature",
+      "definition": "Catching insecure infrastructure before it is ever provisioned.",
+      "altLabels": [
+        "IaC Scanning",
+        "Terraform Scanning"
+      ],
+      "broader": "cloud-security",
+      "governs": []
+    },
+    {
+      "id": "network-security",
+      "prefLabel": "Network Security",
+      "kind": "domain",
+      "definition": "Controlling and inspecting traffic moving between users, systems and the internet.",
+      "altLabels": [],
+      "broader": "enterprise-security",
+      "governs": []
+    },
+    {
+      "id": "firewall",
+      "prefLabel": "Firewall",
+      "kind": "feature",
+      "definition": "Allowing or denying network traffic against a defined policy.",
+      "altLabels": [
+        "Network Firewall",
+        "NGFW",
+        "Next-Generation Firewall"
+      ],
+      "broader": "network-security",
+      "governs": []
+    },
+    {
+      "id": "intrusion-detection-and-prevention",
+      "prefLabel": "Intrusion Detection and Prevention",
+      "kind": "feature",
+      "definition": "Spotting and blocking malicious traffic patterns in transit.",
+      "altLabels": [
+        "IDS",
+        "IPS",
+        "IDPS"
+      ],
+      "broader": "network-security",
+      "governs": []
+    },
+    {
+      "id": "secure-web-gateway",
+      "prefLabel": "Secure Web Gateway",
+      "kind": "feature",
+      "definition": "Filtering outbound web traffic to block malicious or disallowed destinations.",
+      "altLabels": [
+        "SWG",
+        "Web Filtering"
+      ],
+      "broader": "network-security",
+      "governs": []
+    },
+    {
+      "id": "zero-trust-network-access",
+      "prefLabel": "Zero Trust Network Access",
+      "kind": "feature",
+      "definition": "Granting access to individual applications rather than to the whole network.",
+      "altLabels": [
+        "ZTNA",
+        "Software Defined Perimeter"
+      ],
+      "broader": "network-security",
+      "governs": []
+    },
+    {
+      "id": "network-segmentation",
+      "prefLabel": "Network Segmentation",
+      "kind": "process",
+      "definition": "Dividing a network so a breach in one part cannot spread across all of it.",
+      "altLabels": [
+        "Microsegmentation",
+        "Lateral Movement Prevention"
+      ],
+      "broader": "network-security",
+      "governs": []
+    },
+    {
+      "id": "ddos-protection",
+      "prefLabel": "DDoS Protection",
+      "kind": "feature",
+      "definition": "Absorbing or filtering traffic floods intended to take a service offline.",
+      "altLabels": [
+        "DDoS Mitigation",
+        "Volumetric Attack Protection"
+      ],
+      "broader": "network-security",
+      "governs": []
+    },
+    {
+      "id": "email-security",
+      "prefLabel": "Email Security",
+      "kind": "feature",
+      "definition": "Blocking malicious mail before it reaches a user's inbox.",
+      "altLabels": [
+        "Email Protection",
+        "Mail Filtering"
+      ],
+      "broader": "network-security",
+      "governs": []
+    },
+    {
+      "id": "phishing-protection",
+      "prefLabel": "Phishing Protection",
+      "kind": "feature",
+      "definition": "Detecting messages that try to trick users into surrendering access.",
+      "altLabels": [
+        "Anti-Phishing",
+        "Business Email Compromise Protection"
+      ],
+      "broader": "email-security",
+      "governs": []
+    },
+    {
+      "id": "governance-risk-and-compliance",
+      "prefLabel": "Governance, Risk and Compliance",
+      "kind": "domain",
+      "definition": "Demonstrating that security controls exist, work, and satisfy external obligations.",
+      "altLabels": [
+        "GRC"
+      ],
+      "broader": "enterprise-security",
+      "governs": []
+    },
+    {
+      "id": "compliance-automation",
+      "prefLabel": "Compliance Automation",
+      "kind": "feature",
+      "definition": "Collecting control evidence continuously instead of scrambling before an audit.",
+      "altLabels": [
+        "Continuous Compliance",
+        "Automated Evidence Collection"
+      ],
+      "broader": "governance-risk-and-compliance",
+      "governs": []
+    },
+    {
+      "id": "audit-readiness",
+      "prefLabel": "Audit Readiness",
+      "kind": "process",
+      "definition": "Keeping evidence in the state an auditor will ask for it.",
+      "altLabels": [
+        "Audit Preparation",
+        "Evidence Management"
+      ],
+      "broader": "governance-risk-and-compliance",
+      "governs": []
+    },
+    {
+      "id": "policy-management",
+      "prefLabel": "Policy Management",
+      "kind": "feature",
+      "definition": "Authoring, distributing and attesting to security policies.",
+      "altLabels": [
+        "Policy Administration"
+      ],
+      "broader": "governance-risk-and-compliance",
+      "governs": []
+    },
+    {
+      "id": "risk-assessment",
+      "prefLabel": "Risk Assessment",
+      "kind": "process",
+      "definition": "Judging which risks an organisation faces and which it will accept.",
+      "altLabels": [
+        "Risk Analysis",
+        "Risk Register"
+      ],
+      "broader": "governance-risk-and-compliance",
+      "governs": []
+    },
+    {
+      "id": "third-party-risk-management",
+      "prefLabel": "Third-Party Risk Management",
+      "kind": "process",
+      "definition": "Assessing the security of vendors and partners with access to your data.",
+      "altLabels": [
+        "TPRM",
+        "Vendor Risk Management",
+        "Supply Chain Risk"
+      ],
+      "broader": "governance-risk-and-compliance",
+      "governs": []
+    },
+    {
+      "id": "security-awareness-training",
+      "prefLabel": "Security Awareness Training",
+      "kind": "feature",
+      "definition": "Teaching staff to recognise and resist attacks aimed at them.",
+      "altLabels": [
+        "Awareness Training",
+        "Phishing Simulation"
+      ],
+      "broader": "governance-risk-and-compliance",
+      "governs": []
+    },
+    {
+      "id": "compliance-standards",
+      "prefLabel": "Compliance Standards",
+      "kind": "domain",
+      "definition": "External rules and attestations a security product is measured against.",
+      "altLabels": [],
+      "broader": "enterprise-security",
+      "governs": []
+    },
+    {
+      "id": "soc-2",
+      "prefLabel": "SOC 2",
+      "kind": "standard",
+      "definition": "AICPA attestation covering security, availability, confidentiality, processing integrity and privacy.",
+      "altLabels": [
+        "SOC2",
+        "SOC 2 Type II",
+        "SOC 2 Compliance"
+      ],
+      "broader": "compliance-standards",
+      "governs": []
+    },
+    {
+      "id": "iso-27001",
+      "prefLabel": "ISO 27001",
+      "kind": "standard",
+      "definition": "International standard for running a certified information security management system.",
+      "altLabels": [
+        "ISO27001",
+        "ISO/IEC 27001",
+        "ISMS"
+      ],
+      "broader": "compliance-standards",
+      "governs": []
+    },
+    {
+      "id": "nist-csf",
+      "prefLabel": "NIST CSF",
+      "kind": "standard",
+      "definition": "US framework organising security work into identify, protect, detect, respond and recover.",
+      "altLabels": [
+        "NIST Cybersecurity Framework",
+        "NIST Framework"
+      ],
+      "broader": "compliance-standards",
+      "governs": []
+    },
+    {
+      "id": "pci-dss",
+      "prefLabel": "PCI-DSS",
+      "kind": "standard",
+      "definition": "Payment card industry rules for handling cardholder data.",
+      "altLabels": [
+        "PCI",
+        "PCI DSS",
+        "PCI Compliance"
+      ],
+      "broader": "compliance-standards",
+      "governs": []
+    },
+    {
+      "id": "hipaa",
+      "prefLabel": "HIPAA",
+      "kind": "standard",
+      "definition": "US rules protecting the privacy and security of health information.",
+      "altLabels": [
+        "HIPAA Compliance",
+        "HIPAA Security Rule"
+      ],
+      "broader": "compliance-standards",
+      "governs": []
+    },
+    {
+      "id": "gdpr",
+      "prefLabel": "GDPR",
+      "kind": "standard",
+      "definition": "EU regulation governing the processing of personal data.",
+      "altLabels": [
+        "GDPR Compliance",
+        "General Data Protection Regulation"
+      ],
+      "broader": "compliance-standards",
+      "governs": []
+    },
+    {
+      "id": "fedramp",
+      "prefLabel": "FedRAMP",
+      "kind": "standard",
+      "definition": "US programme authorising cloud services for federal government use.",
+      "altLabels": [
+        "FedRAMP Authorised",
+        "FedRAMP Moderate"
+      ],
+      "broader": "compliance-standards",
+      "governs": []
+    },
+    {
+      "id": "cmmc",
+      "prefLabel": "CMMC",
+      "kind": "standard",
+      "definition": "US Department of Defense maturity certification for defence contractors.",
+      "altLabels": [
+        "CMMC 2.0",
+        "Cybersecurity Maturity Model Certification"
+      ],
+      "broader": "compliance-standards",
+      "governs": []
+    }
+  ],
+  "alt_labels": {
+    "Security Operations": [
+      "SecOps",
+      "Security Operations Centre"
+    ],
+    "SIEM": [
+      "Security Information and Event Management",
+      "Log Correlation",
+      "Security Analytics"
+    ],
+    "SOAR": [
+      "Security Orchestration",
+      "Automated Response",
+      "Security Automation"
+    ],
+    "Log Management": [
+      "Log Ingestion",
+      "Log Retention"
+    ],
+    "Continuous Monitoring": [
+      "Ongoing Monitoring",
+      "24/7 Monitoring"
+    ],
+    "Alert Triage": [
+      "Alert Prioritisation",
+      "Alert Enrichment"
+    ],
+    "Incident Response": [
+      "IR",
+      "Breach Response",
+      "Incident Management"
+    ],
+    "Digital Forensics": [
+      "Forensics",
+      "Forensic Investigation"
+    ],
+    "Threat Hunting": [
+      "Proactive Hunting",
+      "Hunt Team"
+    ],
+    "Managed Detection and Response": [
+      "MDR",
+      "Managed SOC",
+      "SOC as a Service"
+    ],
+    "Threat and Vulnerability Management": [
+      "Threat Management"
+    ],
+    "Vulnerability Management": [
+      "Vuln Management",
+      "VM"
+    ],
+    "Vulnerability Scanning": [
+      "Vulnerability Assessment",
+      "Security Scanning"
+    ],
+    "Patch Management": [
+      "Patching",
+      "Remediation Management"
+    ],
+    "Vulnerability Prioritisation": [
+      "Risk-Based Prioritisation",
+      "Risk Scoring"
+    ],
+    "Penetration Testing": [
+      "Pen Testing",
+      "Ethical Hacking",
+      "Offensive Testing"
+    ],
+    "Threat Intelligence": [
+      "Threat Intel",
+      "CTI",
+      "Threat Feeds"
+    ],
+    "Attack Surface Management": [
+      "ASM",
+      "External Attack Surface Management",
+      "EASM"
+    ],
+    "Breach and Attack Simulation": [
+      "BAS",
+      "Attack Simulation",
+      "Control Validation"
+    ],
+    "Endpoint Security": [
+      "Device Security"
+    ],
+    "Endpoint Detection and Response": [
+      "EDR",
+      "Endpoint Detection",
+      "Endpoint Response"
+    ],
+    "Extended Detection and Response": [
+      "XDR",
+      "Unified Detection"
+    ],
+    "Next-Generation Antivirus": [
+      "NGAV",
+      "Antivirus",
+      "Malware Protection"
+    ],
+    "Device Control": [
+      "USB Control",
+      "Peripheral Control"
+    ],
+    "Ransomware Protection": [
+      "Anti-Ransomware",
+      "Ransomware Defence"
+    ],
+    "Identity and Access": [
+      "Identity Security"
+    ],
+    "Identity and Access Management": [
+      "IAM",
+      "Access Management"
+    ],
+    "Single Sign-On": [
+      "SSO",
+      "Federated Login"
+    ],
+    "Multi-Factor Authentication": [
+      "MFA",
+      "2FA",
+      "Two-Factor Authentication"
+    ],
+    "Privileged Access Management": [
+      "PAM",
+      "Privileged Account Management"
+    ],
+    "Identity Governance": [
+      "IGA",
+      "Access Review",
+      "Access Certification"
+    ],
+    "Passwordless Authentication": [
+      "Passwordless",
+      "FIDO2",
+      "Passkeys"
+    ],
+    "Zero Trust": [
+      "Zero Trust Architecture",
+      "ZTA",
+      "Never Trust Always Verify"
+    ],
+    "Data Protection": [
+      "Data Security"
+    ],
+    "Data Loss Prevention": [
+      "DLP",
+      "Data Leak Prevention"
+    ],
+    "Encryption": [
+      "Data Encryption",
+      "Encryption at Rest",
+      "Encryption in Transit"
+    ],
+    "Key Management": [
+      "KMS",
+      "Key Rotation"
+    ],
+    "Data Classification": [
+      "Data Labelling",
+      "Data Discovery"
+    ],
+    "Backup and Recovery": [
+      "Backup",
+      "Disaster Recovery",
+      "Data Resilience"
+    ],
+    "Secrets Management": [
+      "Secrets Vault",
+      "Credential Management"
+    ],
+    "Application Security": [
+      "AppSec"
+    ],
+    "Static Application Security Testing": [
+      "SAST",
+      "Static Analysis",
+      "Code Scanning"
+    ],
+    "Dynamic Application Security Testing": [
+      "DAST",
+      "Dynamic Scanning"
+    ],
+    "Software Composition Analysis": [
+      "SCA",
+      "Dependency Scanning",
+      "Open Source Security"
+    ],
+    "Secrets Detection": [
+      "Secret Scanning",
+      "Credential Leak Detection"
+    ],
+    "API Security": [
+      "API Protection",
+      "API Threat Protection"
+    ],
+    "Container Security": [
+      "Image Scanning",
+      "Container Scanning"
+    ],
+    "Software Bill of Materials": [
+      "SBOM",
+      "Component Inventory"
+    ],
+    "DevSecOps": [
+      "Shift Left",
+      "Secure SDLC",
+      "Pipeline Security"
+    ],
+    "Cloud Security Posture Management": [
+      "CSPM",
+      "Cloud Posture",
+      "Misconfiguration Detection"
+    ],
+    "Cloud Workload Protection": [
+      "CWPP",
+      "Workload Security"
+    ],
+    "Cloud Infrastructure Entitlement Management": [
+      "CIEM",
+      "Cloud Entitlements",
+      "Least Privilege"
+    ],
+    "Kubernetes Security": [
+      "K8s Security",
+      "Cluster Security"
+    ],
+    "Infrastructure as Code Scanning": [
+      "IaC Scanning",
+      "Terraform Scanning"
+    ],
+    "Firewall": [
+      "Network Firewall",
+      "NGFW",
+      "Next-Generation Firewall"
+    ],
+    "Intrusion Detection and Prevention": [
+      "IDS",
+      "IPS",
+      "IDPS"
+    ],
+    "Secure Web Gateway": [
+      "SWG",
+      "Web Filtering"
+    ],
+    "Zero Trust Network Access": [
+      "ZTNA",
+      "Software Defined Perimeter"
+    ],
+    "Network Segmentation": [
+      "Microsegmentation",
+      "Lateral Movement Prevention"
+    ],
+    "DDoS Protection": [
+      "DDoS Mitigation",
+      "Volumetric Attack Protection"
+    ],
+    "Email Security": [
+      "Email Protection",
+      "Mail Filtering"
+    ],
+    "Phishing Protection": [
+      "Anti-Phishing",
+      "Business Email Compromise Protection"
+    ],
+    "Governance, Risk and Compliance": [
+      "GRC"
+    ],
+    "Compliance Automation": [
+      "Continuous Compliance",
+      "Automated Evidence Collection"
+    ],
+    "Audit Readiness": [
+      "Audit Preparation",
+      "Evidence Management"
+    ],
+    "Policy Management": [
+      "Policy Administration"
+    ],
+    "Risk Assessment": [
+      "Risk Analysis",
+      "Risk Register"
+    ],
+    "Third-Party Risk Management": [
+      "TPRM",
+      "Vendor Risk Management",
+      "Supply Chain Risk"
+    ],
+    "Security Awareness Training": [
+      "Awareness Training",
+      "Phishing Simulation"
+    ],
+    "SOC 2": [
+      "SOC2",
+      "SOC 2 Type II",
+      "SOC 2 Compliance"
+    ],
+    "ISO 27001": [
+      "ISO27001",
+      "ISO/IEC 27001",
+      "ISMS"
+    ],
+    "NIST CSF": [
+      "NIST Cybersecurity Framework",
+      "NIST Framework"
+    ],
+    "PCI-DSS": [
+      "PCI",
+      "PCI DSS",
+      "PCI Compliance"
+    ],
+    "HIPAA": [
+      "HIPAA Compliance",
+      "HIPAA Security Rule"
+    ],
+    "GDPR": [
+      "GDPR Compliance",
+      "General Data Protection Regulation"
+    ],
+    "FedRAMP": [
+      "FedRAMP Authorised",
+      "FedRAMP Moderate"
+    ],
+    "CMMC": [
+      "CMMC 2.0",
+      "Cybersecurity Maturity Model Certification"
+    ]
+  },
+  "concept_hierarchy": {
+    "Security Operations": "Enterprise Security",
+    "SIEM": "Security Operations",
+    "SOAR": "Security Operations",
+    "Log Management": "Security Operations",
+    "Continuous Monitoring": "Security Operations",
+    "Alert Triage": "Security Operations",
+    "Incident Response": "Security Operations",
+    "Digital Forensics": "Security Operations",
+    "Threat Hunting": "Security Operations",
+    "Managed Detection and Response": "Security Operations",
+    "Threat and Vulnerability Management": "Enterprise Security",
+    "Vulnerability Management": "Threat and Vulnerability Management",
+    "Vulnerability Scanning": "Vulnerability Management",
+    "Patch Management": "Vulnerability Management",
+    "Vulnerability Prioritisation": "Vulnerability Management",
+    "Penetration Testing": "Threat and Vulnerability Management",
+    "Threat Intelligence": "Threat and Vulnerability Management",
+    "Attack Surface Management": "Threat and Vulnerability Management",
+    "Breach and Attack Simulation": "Threat and Vulnerability Management",
+    "Endpoint Security": "Enterprise Security",
+    "Endpoint Detection and Response": "Endpoint Security",
+    "Extended Detection and Response": "Endpoint Security",
+    "Next-Generation Antivirus": "Endpoint Security",
+    "Device Control": "Endpoint Security",
+    "Ransomware Protection": "Endpoint Security",
+    "Identity and Access": "Enterprise Security",
+    "Identity and Access Management": "Identity and Access",
+    "Single Sign-On": "Identity and Access",
+    "Multi-Factor Authentication": "Identity and Access",
+    "Privileged Access Management": "Identity and Access",
+    "Identity Governance": "Identity and Access",
+    "Passwordless Authentication": "Identity and Access",
+    "Zero Trust": "Identity and Access",
+    "Data Protection": "Enterprise Security",
+    "Data Loss Prevention": "Data Protection",
+    "Encryption": "Data Protection",
+    "Key Management": "Data Protection",
+    "Data Classification": "Data Protection",
+    "Backup and Recovery": "Data Protection",
+    "Secrets Management": "Data Protection",
+    "Application Security": "Enterprise Security",
+    "Static Application Security Testing": "Application Security",
+    "Dynamic Application Security Testing": "Application Security",
+    "Software Composition Analysis": "Application Security",
+    "Secrets Detection": "Application Security",
+    "API Security": "Application Security",
+    "Container Security": "Application Security",
+    "Software Bill of Materials": "Application Security",
+    "DevSecOps": "Application Security",
+    "Cloud Security": "Enterprise Security",
+    "Cloud Security Posture Management": "Cloud Security",
+    "Cloud Workload Protection": "Cloud Security",
+    "Cloud Infrastructure Entitlement Management": "Cloud Security",
+    "Kubernetes Security": "Cloud Security",
+    "Infrastructure as Code Scanning": "Cloud Security",
+    "Network Security": "Enterprise Security",
+    "Firewall": "Network Security",
+    "Intrusion Detection and Prevention": "Network Security",
+    "Secure Web Gateway": "Network Security",
+    "Zero Trust Network Access": "Network Security",
+    "Network Segmentation": "Network Security",
+    "DDoS Protection": "Network Security",
+    "Email Security": "Network Security",
+    "Phishing Protection": "Email Security",
+    "Governance, Risk and Compliance": "Enterprise Security",
+    "Compliance Automation": "Governance, Risk and Compliance",
+    "Audit Readiness": "Governance, Risk and Compliance",
+    "Policy Management": "Governance, Risk and Compliance",
+    "Risk Assessment": "Governance, Risk and Compliance",
+    "Third-Party Risk Management": "Governance, Risk and Compliance",
+    "Security Awareness Training": "Governance, Risk and Compliance",
+    "Compliance Standards": "Enterprise Security",
+    "SOC 2": "Compliance Standards",
+    "ISO 27001": "Compliance Standards",
+    "NIST CSF": "Compliance Standards",
+    "PCI-DSS": "Compliance Standards",
+    "HIPAA": "Compliance Standards",
+    "GDPR": "Compliance Standards",
+    "FedRAMP": "Compliance Standards",
+    "CMMC": "Compliance Standards"
+  }
 }

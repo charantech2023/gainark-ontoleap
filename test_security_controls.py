@@ -207,7 +207,6 @@ def test_http_surface():
         ("/api/audit", {"url": "http://169.254.169.254/"}),
         ("/api/batch-crawl", {"sitemap_url": "http://169.254.169.254/sitemap.xml"}),
         ("/api/internal-links", {"urls": ["http://127.0.0.1/"]}),
-        ("/api/semantic-clusters", {"urls": ["http://169.254.169.254/"]}),
     ]:
         r = client.post(path, json=payload)
         check(f"{path} refuses internal target", r.status_code, 400)

@@ -43,7 +43,6 @@ ontology rather than in a per-brand cache that only the generated path ever read
 import os
 import re
 import json
-import hashlib
 import logging
 from typing import Dict, List, Optional, Any
 
@@ -125,7 +124,7 @@ def build_synonym_map(
     brand: str,
     cache_dir: Optional[str] = None,
     force_refresh: bool = False,
-    tech_triple_objects: Optional[List[str]] = None,
+    tech_triple_objects: Optional[List[str]] = None
 ) -> Dict[str, List[str]]:
     """
     Returns a synonym map {canonical_tech_term: [marketing_synonym, ...]} for the given
@@ -177,7 +176,7 @@ def build_synonym_map(
         temperature=0.1,
         max_output_tokens=2048,
         thinking_budget=0,
-        timeout=25,
+        timeout=25
     )
 
     if not raw:
@@ -226,7 +225,7 @@ def record_reviewer_synonym(
     marketing_term: str,
     canonical_label: str,
     vertical_path: str,
-    queue_path: Optional[str] = None,
+    queue_path: Optional[str] = None
 ) -> bool:
     """Approve a surface form into the vertical's curated alt_labels.
 
@@ -301,7 +300,7 @@ def propose_alt_labels(
     synonym_map: Dict[str, List[str]],
     config: Any,
     brand: str,
-    queue_path: Optional[str] = None,
+    queue_path: Optional[str] = None
 ) -> Dict[str, int]:
     """Turn a generated synonym map into candidate alt_labels awaiting human approval.
 

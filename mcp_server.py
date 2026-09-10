@@ -1,27 +1,23 @@
 """
 GainARK OntoLeap — Official Model Context Protocol (MCP) Server
 
-Exposes the OntoLeap Knowledge Graph & Graph-Diff Engine directly to AI assistants
+Exposes the pure Knowledge Graph & Domain Ontology Engine directly to AI assistants
 including Claude Desktop, Cursor, Antigravity, and autonomous agents.
 
 Tools provided:
-1. ontoleap_extract_facts: Mines relational semantic triples <S, P, O> from any URL or text.
-2. ontoleap_cross_examine_diff: Computes the exact set diff (A ∩ B, A \\ B, B \\ A) between two sources.
-3. ontoleap_probe_ai_sov: Probes live AI answer engines to measure Share of Voice and audit hallucinations.
-4. ontoleap_map_site_topology: Calculates PageRank authority hubs and internal linking silos across a site.
+1. ontoleap_build_page_kg: Extracts entities, Wikidata QIDs, semantic triples, and JSON-LD/Turtle from a page.
+2. ontoleap_build_site_kg: Crawls a domain, canonicalizes entities, and induces domain ontology schema.
+3. ontoleap_align_industry_ontology: Ground page or site KG against industry reference taxonomy.
+4. ontoleap_list_industry_ontologies: Enumerates all supported industry reference models.
 """
 
-import os
 import sys
 import json
 import logging
-from typing import Optional, List, Dict, Any
+from typing import Optional
 
 from mcp.server.mcpserver import MCPServer
 from graph_engine import get_graph_engine
-import truth_ledger.history as ledger_history
-from knowledge_graph import export_to_rdf_turtle, export_to_owl_xml
-from models import SemanticTriple
 
 # Set up logging to stderr so stdout remains clean for MCP stdio protocol
 logging.basicConfig(
@@ -29,272 +25,108 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     stream=sys.stderr
 )
-logger = logging.getLogger("ontoleap.mcp")
+logger = logging.getLogger("gainark.mcp")
 
 # Initialize MCP Server
 app = MCPServer(
-    name="OntoLeap Ground Truth & Knowledge Graph Engine",
-    version="1.0.0",
-    description="Deterministic Knowledge Graph Extraction, Cross-Examination Graph-Diff, and AI Citation Probing Engine."
+    name="OntoLeap Knowledge Graph & Domain Ontology Engine",
+    version="2.0.0",
+    description="Deterministic Knowledge Graph Extraction, Multi-Page Domain Synthesis, and Industry Ontology Grounding Engine."
 )
 
 
 @app.tool(
-    name="ontoleap_extract_facts",
-    description="Extracts verified semantic triples <Subject, Predicate, Object>, named entities, and Schema.org types from a web URL or raw text snippet."
+    name="ontoleap_build_page_kg",
+    description="Extracts a rich Knowledge Graph from a URL or HTML: Named Entities with Wikidata QIDs, semantic triples with exact sentence quotes, Schema.org nodes, and W3C JSON-LD / Turtle formats."
 )
-async def ontoleap_extract_facts(
+async def ontoleap_build_page_kg(
     source: str,
-    vertical_id: str = "b2b_saas_fintech"
-) -> str:
-    """
-    Extracts structured knowledge graph facts from a URL or raw text.
-
-    Args:
-        source: Web URL (e.g. 'https://www.ordwaylabs.com') or raw text/markdown copy.
-        vertical_id: Category vertical (e.g. 'b2b_saas_fintech', 'cybersecurity', 'healthtech').
-    """
-    try:
-        engine = get_graph_engine()
-        result = await engine.extract_knowledge_graph(source=source, vertical_id=vertical_id)
-        return json.dumps(result, indent=2)
-    except Exception as e:
-        logger.error("ontoleap_extract_facts failed: %s", e, exc_info=True)
-        return json.dumps({"error": type(e).__name__, "status": "failed"})
-
-
-@app.tool(
-    name="ontoleap_cross_examine_diff",
-    description="Calculates the deterministic graph difference between Source A (claims/marketing) and Source B (evidence/API spec/competitor). Identifies grounded facts (A ∩ B), unbacked claims/hallucinations (A \\ B), and omitted features (B \\ A)."
-)
-async def ontoleap_cross_examine_diff(
-    source_a: str,
-    source_b: str,
-    vertical_id: str = "b2b_saas_fintech"
-) -> str:
-    """
-    Cross-examines two sources using set-theoretic graph diffing.
-
-    Args:
-        source_a: Claim source — landing page URL, blog draft, or marketing copy.
-        source_b: Truth source — OpenAPI spec JSON, technical documentation URL, codebase docs, or competitor URL.
-        vertical_id: Domain vertical ID.
-    """
-    try:
-        engine = get_graph_engine()
-        result = await engine.diff_knowledge_graphs(source_a=source_a, source_b=source_b, vertical_id=vertical_id)
-        return json.dumps(result, indent=2)
-    except Exception as e:
-        logger.error("ontoleap_cross_examine_diff failed: %s", e, exc_info=True)
-        return json.dumps({"error": type(e).__name__, "status": "failed"})
-
-
-@app.tool(
-    name="ontoleap_probe_ai_sov",
-    description="Probes live AI search engines (Google Gemini, Perplexity simulation, open web snippets) with unbranded buyer queries to calculate Share of Voice (SOV %), analyze competitor citations, and audit AI hallucinations."
-)
-async def ontoleap_probe_ai_sov(
-    brand_name: str,
-    domain: str,
-    competitor_names: Optional[List[str]] = None,
-    vertical_id: str = "b2b_saas_fintech",
-    custom_queries: Optional[List[str]] = None
-) -> str:
-    """
-    Probes AI search engines to audit brand presence and hallucinations.
-
-    Args:
-        brand_name: Primary brand name (e.g. 'Ordway').
-        domain: Primary domain name (e.g. 'ordwaylabs.com').
-        competitor_names: List of competitor brands (e.g. ['Chargebee', 'Stripe', 'Maxio']).
-        vertical_id: Industry vertical ID.
-        custom_queries: Optional list of custom evaluation queries to probe.
-    """
-    try:
-        engine = get_graph_engine()
-        result = await engine.probe_ai_search_sov(
-            brand_name=brand_name,
-            domain=domain,
-            competitor_names=competitor_names,
-            vertical_id=vertical_id,
-            custom_queries=custom_queries
-        )
-        return json.dumps(result, indent=2)
-    except Exception as e:
-        logger.error("ontoleap_probe_ai_sov failed: %s", e, exc_info=True)
-        return json.dumps({"error": type(e).__name__, "status": "failed"})
-
-
-@app.tool(
-    name="ontoleap_map_site_topology",
-    description="Crawls a site's XML sitemap or URL list, calculates NetworkX PageRank authority hubs, maps topic cluster silos, and generates in-context internal link insertion opportunities with suggested anchor texts."
-)
-async def ontoleap_map_site_topology(
-    sitemap_url: Optional[str] = None,
-    urls: Optional[List[str]] = None,
-    max_pages: int = 10
-) -> str:
-    """
-    Constructs a site-wide knowledge graph and identifies internal linking opportunities.
-
-    Args:
-        sitemap_url: Target XML sitemap URL (e.g. 'https://www.ordwaylabs.com/sitemap_index.xml').
-        urls: Optional explicit list of target URLs to analyze.
-        max_pages: Maximum pages to crawl and analyze (default: 10).
-    """
-    try:
-        engine = get_graph_engine()
-        result = await engine.analyze_site_topology(
-            sitemap_url=sitemap_url,
-            urls=urls,
-            max_pages=max_pages
-        )
-        return json.dumps(result, indent=2)
-    except Exception as e:
-        logger.error("ontoleap_map_site_topology failed: %s", e, exc_info=True)
-        return json.dumps({"error": type(e).__name__, "status": "failed"})
-
-
-@app.tool(
-    name="ontoleap_track_competitor_changes",
-    description="Tracks historical claim movement and grounding changes for a competitor brand using the immutable Product Truth ledger. Identifies newly added claims, dropped capabilities, and grounding drift."
-)
-async def ontoleap_track_competitor_changes(
-    brand_name: str
-) -> str:
-    """
-    Retrieves the competitor change history timeline for a brand.
-
-    Args:
-        brand_name: Competitor brand name (e.g. 'Chargebee', 'Ordway').
-    """
-    try:
-        timeline = ledger_history.brand_timeline(brand_name)
-        return json.dumps(timeline, indent=2)
-    except Exception as e:
-        logger.error("ontoleap_track_competitor_changes failed: %s", e, exc_info=True)
-        return json.dumps({"error": type(e).__name__, "status": "failed"})
-
-
-@app.tool(
-    name="ontoleap_export_w3c_ontology",
-    description="Exports an extracted knowledge graph into formal W3C RDF Turtle (.ttl) or OWL 2 DL RDF/XML (.owl) format with Dublin Core, DCAT cataloging, SKOS taxonomies, and owl:inverseOf axioms."
-)
-async def ontoleap_export_w3c_ontology(
-    source: str,
-    domain: Optional[str] = None,
-    export_format: str = "turtle",
-    vertical_id: str = "b2b_saas_fintech"
-) -> str:
-    """
-    Exports a domain's knowledge graph to standard W3C RDF or OWL.
-
-    Args:
-        source: Web URL or raw text to extract from.
-        domain: Domain name (e.g. 'ordwaylabs.com'). If omitted, extracted from source URL or defaults to 'platform.local'.
-        export_format: 'turtle' (.ttl) or 'owl_xml' (.owl).
-        vertical_id: Domain vertical ID.
-    """
-    try:
-        engine = get_graph_engine()
-        kg = await engine.extract_knowledge_graph(source=source, vertical_id=vertical_id)
-        triples = [
-            SemanticTriple(
-                subject=t["subject"],
-                predicate=t["predicate"],
-                object=t["object"],
-                confidence=t.get("confidence", 0.9),
-                evidence_sentence=t.get("evidence", "")
-            )
-            for t in kg.get("triples", [])
-        ]
-        resolved_domain = domain or (source.split("://")[1].split("/")[0] if source.startswith("http") else "platform.local")
-        entities = [e["text"] for e in kg.get("entities", [])]
-
-        if export_format.lower() == "owl_xml":
-            output = export_to_owl_xml(resolved_domain, triples, hubs={}, entities=entities)
-        else:
-            output = export_to_rdf_turtle(resolved_domain, triples, hubs={}, entities=entities, vertical_id=vertical_id)
-
-        return json.dumps({
-            "domain": resolved_domain,
-            "format": export_format,
-            "triples_count": len(triples),
-            "serialized_ontology": output
-        }, indent=2)
-    except Exception as e:
-        logger.error("ontoleap_export_w3c_ontology failed: %s", e, exc_info=True)
-        return json.dumps({"error": type(e).__name__, "status": "failed"})
-
-
-@app.tool(
-    name="ontoleap_build_page_knowledge_graph",
-    description="Builds an atomic, W3C-compliant Page-Level / Document-Level Knowledge Graph from arbitrary B2B copy or URL. Retains 100% evidentiary sentence quotes (W3C PROV-O), dynamically mints SKOS concept scheme hierarchy under Universal B2B Facets, grounds entities to Wikidata, and produces valid Turtle (.ttl) and JSON-LD."
-)
-async def ontoleap_build_page_knowledge_graph(
-    text: Optional[str] = None,
     url: Optional[str] = None,
-    title: Optional[str] = None,
-    subject: Optional[str] = "Platform",
-    vertical_id: Optional[str] = None
+    vertical_id: str = "b2b_saas_fintech"
 ) -> str:
     """
-    Constructs an atomic W3C knowledge graph from text or web URL.
+    Extracts a page-level Knowledge Graph.
 
     Args:
-        text: Raw text/markdown content to extract from.
-        url: Web page URL to analyze (if text is omitted).
-        title: Optional document or page title.
-        subject: Optional primary brand / platform subject name (defaults to 'Platform').
-        vertical_id: Optional vertical profile ID (e.g. 'b2b_saas_fintech', 'cybersecurity').
+        source: Web page URL (e.g. 'https://www.ordwaylabs.com') or raw HTML content.
+        url: Canonical page URL if source contains raw HTML.
+        vertical_id: Vertical ontology domain ID (default: 'b2b_saas_fintech').
     """
     try:
-        from knowledge_graph import build_page_knowledge_graph
-        raw_text = text
-        if url and not raw_text:
-            from pipeline import validate_url_for_fetch
-            from routers.deps import get_pipeline
-            validate_url_for_fetch(url)
-            p = get_pipeline(vertical_id)
-            res = p.process(url=url, deep_crawl=False)
-            raw_text = res.raw_text or res.clean_text or ""
-            title = title or res.title
-            if subject == "Platform":
-                from urllib.parse import urlparse
-                domain_part = urlparse(url).netloc.replace("www.", "").split(".")[0].capitalize()
-                if domain_part:
-                    subject = domain_part
-
-        if not raw_text or not raw_text.strip():
-            return json.dumps({"error": "No text provided or extracted from URL", "status": "failed"})
-
-        kg_res = build_page_knowledge_graph(
-            text=raw_text,
-            url=url,
-            title=title,
-            subject=subject,
-            vertical_id=vertical_id
-        )
-
-        return json.dumps({
-            "subject": kg_res.subject,
-            "url": kg_res.url,
-            "node_count": kg_res.node_count,
-            "edge_count": kg_res.edge_count,
-            "predicate_counts": kg_res.predicate_counts,
-            "triples_count": len(kg_res.triples),
-            "concepts_count": len(kg_res.concepts),
-            "triples": [t.model_dump() for t in kg_res.triples],
-            "concepts": kg_res.concepts,
-            "turtle": kg_res.turtle,
-            "json_ld": kg_res.json_ld
-        }, indent=2)
+        engine = get_graph_engine()
+        result = await engine.extract_page_knowledge_graph(source=source, url=url, vertical_id=vertical_id)
+        return json.dumps(result.model_dump(), indent=2)
     except Exception as e:
-        logger.error("ontoleap_build_page_knowledge_graph failed: %s", e, exc_info=True)
+        logger.error("ontoleap_build_page_kg failed: %s", e, exc_info=True)
+        return json.dumps({"error": type(e).__name__, "message": str(e), "status": "failed"})
+
+
+@app.tool(
+    name="ontoleap_build_site_kg",
+    description="Crawls a website, aggregates pages, canonicalizes entities across aliases, induces the domain ontology schema, and computes PageRank authority hubs."
+)
+async def ontoleap_build_site_kg(
+    start_url: str,
+    max_pages: int = 10,
+    vertical_id: str = "b2b_saas_fintech"
+) -> str:
+    """
+    Synthesizes a site-wide Knowledge Graph and induces domain ontology schema.
+
+    Args:
+        start_url: Target domain homepage URL (e.g. 'https://www.ordwaylabs.com').
+        max_pages: Maximum pages to crawl (1-30, default: 10).
+        vertical_id: Vertical ontology domain ID (default: 'b2b_saas_fintech').
+    """
+    try:
+        engine = get_graph_engine()
+        result = await engine.build_site_knowledge_graph(start_url=start_url, max_pages=max_pages, vertical_id=vertical_id)
+        return json.dumps(result.model_dump(), indent=2)
+    except Exception as e:
+        logger.error("ontoleap_build_site_kg failed: %s", e, exc_info=True)
+        return json.dumps({"error": type(e).__name__, "message": str(e), "status": "failed"})
+
+
+@app.tool(
+    name="ontoleap_align_industry_ontology",
+    description="Aligns a Page Knowledge Graph or Site Knowledge Graph against an industry reference taxonomy to identify Covered Concepts, Category Whitespace, and Standards Compliance."
+)
+async def ontoleap_align_industry_ontology(
+    source_url: str,
+    vertical_id: str = "b2b_saas_fintech"
+) -> str:
+    """
+    Extracts page graph and aligns it against the specified industry reference taxonomy.
+
+    Args:
+        source_url: Target web page URL to extract and align.
+        vertical_id: Industry vertical ID (e.g. 'b2b_saas_fintech', 'cybersecurity', 'healthtech').
+    """
+    try:
+        engine = get_graph_engine()
+        kg = await engine.extract_page_knowledge_graph(source=source_url, vertical_id=vertical_id)
+        alignment = await engine.align_with_industry(kg=kg, vertical_id=vertical_id)
+        return json.dumps(alignment.model_dump(), indent=2)
+    except Exception as e:
+        logger.error("ontoleap_align_industry_ontology failed: %s", e, exc_info=True)
+        return json.dumps({"error": type(e).__name__, "message": str(e), "status": "failed"})
+
+
+@app.tool(
+    name="ontoleap_list_industry_ontologies",
+    description="Lists all available industry reference ontologies with their display names and IDs."
+)
+async def ontoleap_list_industry_ontologies() -> str:
+    """Lists all available industry reference ontologies."""
+    try:
+        engine = get_graph_engine()
+        industries = engine.list_industries()
+        return json.dumps({"industries": industries}, indent=2)
+    except Exception as e:
+        logger.error("ontoleap_list_industry_ontologies failed: %s", e, exc_info=True)
         return json.dumps({"error": type(e).__name__, "message": str(e), "status": "failed"})
 
 
 if __name__ == "__main__":
-    # Start the server using stdio transport (compatible with Claude Desktop, Cursor, etc.)
     logger.info("Starting OntoLeap MCP Server on stdio transport...")
     app.run(transport="stdio")

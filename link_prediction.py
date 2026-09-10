@@ -9,14 +9,12 @@ entities and topic hubs already extracted from a site, this module:
 4. Recommend concrete internal linking and Schema.org remediation actions to maximize AI search attribution.
 """
 
-from typing import List, Dict, Any, Optional, Set, Tuple
+from typing import List, Dict, Any, Set, Tuple
 import re
-from urllib.parse import urlparse
 
 from models import (
     SemanticTriple,
     PredictedLink,
-    LinkPredictionRequest,
     LinkPredictionResponse
 )
 

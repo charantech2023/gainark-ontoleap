@@ -1,0 +1,283 @@
+"""
+industry_ontology.py — Industry Reference Ontology & Semantic Alignment Engine
+
+Manages standard vertical reference models and aligns Page/Site Knowledge Graphs
+against industry taxonomies:
+1. Loads SKOS / OWL vertical reference models from `verticals/*.json`.
+2. Computes Covered Concepts: Domain capabilities grounded in industry standards.
+3. Computes Category Whitespace: Industry expectations that are unclaimed in the graph.
+4. Identifies Proprietary Concepts: Unique company innovations outside the standard taxonomy.
+5. Evaluates standards compliance coverage and integration density.
+"""
+
+import os
+import re
+import json
+import logging
+from typing import Optional, List, Dict, Union
+
+from models import (
+    IndustryOntologyModel, IndustryConcept, GraphAlignmentResult,
+    PageKnowledgeGraph, SiteKnowledgeGraph
+)
+
+logger = logging.getLogger("gainark.industry_ontology")
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+VERTICALS_DIR = os.path.join(BASE_DIR, "verticals")
+
+
+# A concept is written differently depending on who is writing: a vendor page says
+# "EDR" where the ontology says "Endpoint Detection and Response". Matching only the
+# prefLabel meant a page using the industry's own abbreviations scored as if it had
+# never mentioned the capability, so altLabels are matched here too.
+#
+# Forms shorter than this are matched on word boundaries rather than as raw
+# substrings. "IR" is inside "firewall" and "CTI" is inside "detection", so a plain
+# substring test would turn every short abbreviation into a false positive.
+_MIN_SUBSTRING_FORM = 6
+
+
+def _alias_index(industry: IndustryOntologyModel) -> Dict[str, List[str]]:
+    """Map each concept's canonical label to every lowercase surface form it may appear as.
+
+    Longest form first, so a caller that stops at the first hit reads the most specific.
+    """
+    index: Dict[str, List[str]] = {}
+    for c in industry.concepts:
+        if not c.pref_label:
+            continue
+        forms = {c.pref_label}
+        forms.update(a for a in (c.alt_labels or []) if a)
+        index[c.pref_label] = sorted(
+            {f.strip().lower() for f in forms if f and f.strip()},
+            key=lambda f: (-len(f), f),
+        )
+    return index
+
+
+def _surface_forms(label: str, index: Dict[str, List[str]]) -> List[str]:
+    """Every form `label` may be written as. Falls back to the label itself."""
+    return index.get(label) or [label.strip().lower()]
+
+
+def _canonical_matches(label_lower: str, graph_terms: set, allow_reverse: bool) -> bool:
+    """Match a canonical label exactly as this module always has.
+
+    `allow_reverse` preserves the difference between the call sites: concept coverage
+    tested containment both ways, while compliance and integrations tested only whether
+    the known name appears inside a graph term. Widening the latter lets a graph term
+    claim any longer name it is a substring of - "Sentinel" matching "SentinelOne".
+    """
+    if label_lower in graph_terms:
+        return True
+    if any(label_lower in term for term in graph_terms):
+        return True
+    if not allow_reverse:
+        return False
+    # The reverse reading - a graph term sitting inside the concept label - is a raw
+    # substring test, which for a short term is almost always an accident: "EDR" is
+    # inside "FedRAMP", "CTI" inside "Data Protection", "BAS" inside "Usage-Based
+    # Pricing". Requiring a word boundary keeps the readings that are real, such as
+    # "API" inside "REST API".
+    for term in graph_terms:
+        if not term:
+            continue
+        if len(term) >= _MIN_SUBSTRING_FORM:
+            if term in label_lower:
+                return True
+        elif re.search(r"\b" + re.escape(term) + r"\b", label_lower):
+            return True
+    return False
+
+
+def _alias_matches(form: str, graph_terms: set) -> bool:
+    """Match one alternate label. Forward-only, so an alias can never widen a call site.
+
+    Short forms are matched on word boundaries: "IR" is inside "firewall" and "CTI" is
+    inside "detection", so a raw substring test would make every abbreviation a hit.
+    """
+    if not form:
+        return False
+    if form in graph_terms:
+        return True
+    if len(form) >= _MIN_SUBSTRING_FORM:
+        return any(form in term for term in graph_terms)
+    pattern = re.compile(r"\b" + re.escape(form) + r"\b")
+    return any(pattern.search(term) for term in graph_terms)
+
+
+def _label_matches(
+    label: str,
+    index: Dict[str, List[str]],
+    graph_terms: set,
+    allow_reverse: bool = True,
+) -> bool:
+    """Whether the graph claims this concept under its own name or any alternate label."""
+    canonical = label.strip().lower()
+    if _canonical_matches(canonical, graph_terms, allow_reverse):
+        return True
+    return any(
+        _alias_matches(form, graph_terms)
+        for form in _surface_forms(label, index)
+        if form != canonical
+    )
+
+
+def list_available_industries() -> List[Dict[str, str]]:
+    """List all available industry ontologies with display names."""
+    industries = []
+    if not os.path.isdir(VERTICALS_DIR):
+        return industries
+
+    for f in sorted(os.listdir(VERTICALS_DIR)):
+        if f.endswith(".json"):
+            vid = f[:-5]
+            fpath = os.path.join(VERTICALS_DIR, f)
+            try:
+                with open(fpath, "r", encoding="utf-8") as jf:
+                    data = json.load(jf)
+                    name = data.get("display_name", vid.replace("_", " ").title())
+                    industries.append({"vertical_id": vid, "display_name": name})
+            except Exception:
+                industries.append({"vertical_id": vid, "display_name": vid.replace("_", " ").title()})
+
+    return industries
+
+
+def load_industry_ontology(vertical_id: str = "b2b_saas_fintech") -> IndustryOntologyModel:
+    """
+    Load an Industry Reference Ontology from the verticals definition files.
+    """
+    fpath = os.path.join(VERTICALS_DIR, f"{vertical_id}.json")
+    if not os.path.isfile(fpath):
+        # Fallback to default
+        fpath = os.path.join(VERTICALS_DIR, "b2b_saas_fintech.json")
+        vertical_id = "b2b_saas_fintech"
+
+    with open(fpath, "r", encoding="utf-8") as f:
+        raw = json.load(f)
+
+    # Parse SKOS concepts
+    concepts_list: List[IndustryConcept] = []
+    for c in raw.get("concepts", []):
+        concepts_list.append(IndustryConcept(
+            id=c.get("id", ""),
+            pref_label=c.get("prefLabel", ""),
+            kind=c.get("kind", "concept"),
+            definition=c.get("definition"),
+            alt_labels=c.get("altLabels", []),
+            broader=c.get("broader")
+        ))
+
+    return IndustryOntologyModel(
+        vertical_id=raw.get("vertical_id", vertical_id),
+        display_name=raw.get("display_name", vertical_id.replace("_", " ").title()),
+        classes=raw.get("gliner_labels", []),
+        core_seed_concepts=raw.get("core_seed_concepts", []),
+        concepts=concepts_list,
+        known_integrations=raw.get("known_integrations", []),
+        known_compliance=raw.get("known_compliance", []),
+        standard_predicates=raw.get("standard_predicates", [
+            "automates", "integratesWith", "compliesWith", "supportsPricingModel", "subClassOf", "partOf"
+        ])
+    )
+
+
+def align_graph_with_industry(
+    kg: Union[PageKnowledgeGraph, SiteKnowledgeGraph],
+    industry: Optional[IndustryOntologyModel] = None,
+    vertical_id: Optional[str] = None
+) -> GraphAlignmentResult:
+    """
+    Aligns a PageKnowledgeGraph or SiteKnowledgeGraph against an Industry Reference Ontology.
+    """
+    if industry is None:
+        ind_id = vertical_id or "b2b_saas_fintech"
+        industry = load_industry_ontology(ind_id)
+
+    # Identify subject
+    subject_id = getattr(kg, "domain", None) or getattr(kg, "url", "Subject")
+
+    # Build lookup of concepts and aliases present in the Knowledge Graph
+    graph_terms = set()
+
+    for node in kg.nodes:
+        graph_terms.add(node.canonical_name.strip().lower())
+        for alias in node.aliases:
+            graph_terms.add(alias.strip().lower())
+
+    for edge in kg.edges:
+        graph_terms.add(edge.target.strip().lower())
+        graph_terms.add(edge.source.strip().lower())
+
+    alias_index = _alias_index(industry)
+
+    # 1. Covered Concepts
+    covered_concepts = []
+    category_whitespace = []
+
+    # Check industry concepts hierarchy
+    all_industry_concepts = list(industry.core_seed_concepts)
+    for c in industry.concepts:
+        if c.pref_label not in all_industry_concepts:
+            all_industry_concepts.append(c.pref_label)
+
+    for item in all_industry_concepts:
+        matched = _label_matches(item, alias_index, graph_terms)
+
+        if matched:
+            covered_concepts.append(item)
+        else:
+            category_whitespace.append(item)
+
+    # 2. Compliance standards covered
+    compliance_covered = []
+    for std in industry.known_compliance:
+        if _label_matches(std, alias_index, graph_terms, allow_reverse=False):
+            compliance_covered.append(std)
+
+    # 3. Integrations covered
+    integrations_covered = []
+    for int_p in industry.known_integrations:
+        if _label_matches(int_p, alias_index, graph_terms, allow_reverse=False):
+            integrations_covered.append(int_p)
+
+    # 4. Proprietary Concepts (nodes in graph not found in industry standard list)
+    industry_lower_set = set()
+    for known in all_industry_concepts + industry.known_compliance + industry.known_integrations:
+        industry_lower_set.update(_surface_forms(known, alias_index))
+    proprietary = []
+    for node in kg.nodes:
+        name_lower = node.canonical_name.lower()
+        if not any(name_lower in std or std in name_lower for std in industry_lower_set):
+            if node.canonical_name not in proprietary and len(node.canonical_name) > 3:
+                proprietary.append(node.canonical_name)
+
+    # Coverage is the share of the reference ontology the graph actually claims, so it
+    # agrees with the covered/whitespace lists returned beside it. Scoring the ten seed
+    # concepts alone ignored the concept layer: a graph covering eight concepts scored
+    # 0% when none of them were seeds, and every score was a multiple of ten.
+    total_concepts = max(len(all_industry_concepts), 1)
+    coverage_score = round(min((len(covered_concepts) / total_concepts) * 100.0, 100.0), 1)
+
+    # The seed list is a deliberate statement of the few concepts that define a category,
+    # which a whole-ontology percentage cannot express. Kept as its own reading.
+    total_seeds = max(len(industry.core_seed_concepts), 1)
+    seed_hits = sum(1 for s in industry.core_seed_concepts
+                    if _label_matches(s, alias_index, graph_terms, allow_reverse=False))
+    seed_coverage_score = round(min((seed_hits / total_seeds) * 100.0, 100.0), 1)
+
+    return GraphAlignmentResult(
+        subject_identifier=subject_id,
+        vertical_id=industry.vertical_id,
+        industry_name=industry.display_name,
+        total_industry_concepts=len(all_industry_concepts),
+        covered_concepts=covered_concepts,
+        category_whitespace=category_whitespace,
+        proprietary_concepts=proprietary[:20],
+        coverage_score=coverage_score,
+        seed_coverage_score=seed_coverage_score,
+        compliance_standards_covered=compliance_covered,
+        integrations_covered=integrations_covered
+    )

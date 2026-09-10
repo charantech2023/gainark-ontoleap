@@ -5,7 +5,6 @@ GainARK OntoLeap — System, Health, Info, Cache, and Discovery Endpoints
 import os
 import json
 import logging
-from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse
 
@@ -42,58 +41,38 @@ def api_info():
     """Returns platform capability manifest and feature flags."""
     return {
         "status": "online",
-        "name": "GainARK OntoLeap Platform",
+        "name": "GainARK OntoLeap — Knowledge Graph & Industry Ontology Engine",
         "service": "GainARK OntoLeap Platform",
-        "version": "2.2.0",
+        "version": "3.0.0",
         "features": {
-            "llms_txt_manifest": True,
-            "google_rich_results_validation": True,
-            "perplexity_searchgpt_simulator": True,
-            "topic_silo_canvas": True,
-            "visual_diff_modal": True,
-            "wordpress_cms_hook": True,
+            "page_knowledge_graph_extraction": True,
+            "site_wide_knowledge_graph_synthesis": True,
+            "industry_ontology_alignment": True,
+            "wikidata_entity_grounding": True,
+            "zero_shot_gliner_ner": True,
             "sparql_query_engine": True,
             "w3c_rdf_turtle_export": True,
-            "w3c_ntriples_export": True,
-            "wikidata_entity_grounding": True,
+            "w3c_jsonld_export": True,
             "owl_2_dl_export": True,
-            "semantic_clustering": True,
-            "benchmark_csv_export": True,
-            "kg_link_prediction": True,
-            "pyvis_graph_html_export": True,
-            "google_gemini_2_5_flash_hybrid": True,
-            "google_knowledge_graph_search_api": True,
             "multi_vertical_expansion": True,
-            "product_truth_draft_alignment_pas": True,
-            "executive_pdf_export": True,
-            "autonomous_industry_discovery": True,
-            "product_truth_matrix": True,
-            "tri_ontology_alignment": True,
-            "battlecards_pdf_export": True
+            "semantic_clustering": True,
+            "kg_link_prediction": True
         },
         "endpoints": {
             "dashboard": "GET /dashboard",
-            "audit": "POST /api/audit",
-            "benchmark": "POST /api/benchmark",
-            "batch-crawl": "POST /api/batch-crawl",
-            "internal-links": "POST /api/internal-links",
-            "simulate-search": "POST /api/simulate-search",
+            "page_kg": "POST /api/kg/page",
+            "site_kg": "POST /api/kg/site",
+            "align_kg": "POST /api/kg/align",
+            "industries": "GET /api/kg/industries",
+            "industry_detail": "GET /api/kg/industry/{vertical_id}",
+            "ontology_schema": "GET /api/ontology/schema",
+            "ontology_concepts": "GET /api/ontology/concepts",
             "sparql": "POST /api/sparql",
-            "export-ntriples": "POST /api/export-ntriples",
-            "export-owl": "POST /api/export-owl",
-            "semantic-clusters": "POST /api/semantic-clusters",
-            "benchmark-export-csv": "POST /api/benchmark/export-csv",
-            "predict-links": "POST /api/predict-links",
-            "export-graph-html": "POST /api/export-graph-html",
-            "check-draft": "POST /api/check-draft",
-            "content-brief": "POST /api/content-brief",
-            "export-pdf": "POST /api/export-pdf",
-            "export-battlecards-pdf": "POST /api/export-battlecards-pdf",
+            "export_ntriples": "POST /api/export-ntriples",
+            "export_owl": "POST /api/export-owl",
+            "predict_links": "POST /api/predict-links",
+            "export_graph_html": "POST /api/export-graph-html",
             "verticals": "GET /api/verticals",
-            "google-kg": "POST /api/google-kg",
-            "discover-industry": "POST /api/discover-industry",
-            "product-truth": "POST /api/product-truth",
-            "tri-ontology-align": "POST /api/tri-ontology-align",
             "health": "GET /api/health"
         }
     }

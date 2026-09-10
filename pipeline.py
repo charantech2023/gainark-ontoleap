@@ -25,15 +25,12 @@ Changes:
 import json
 import os
 import re
-import socket
 import logging
 import xml.etree.ElementTree as ET
 import asyncio
 import threading
 from typing import Optional, List, Dict, Any, Set
-from urllib.parse import urlparse, urljoin
-import requests
-import httpx
+from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 import extruct
 import trafilatura
@@ -51,7 +48,7 @@ from constants import (
     KNOWN_INDUSTRIES, KNOWN_DEPLOYMENT, KNOWN_CERTIFICATIONS, KNOWN_API_TYPES,
     KNOWN_LOCALES, KNOWN_SLA, KNOWN_REPLACES, KNOWN_COMPETITORS, KNOWN_CUSTOMERS,
     DEEP_CRAWL_PATHS, DEEP_CRAWL_MAX,
-    BLOCKED_IP_PREFIXES, BLOCKED_HOSTNAMES, resolve_vocabulary, resolve_surface_forms,
+      resolve_vocabulary, resolve_surface_forms
 )
 
 # ---------------------------------------------------------------------------
@@ -61,9 +58,6 @@ logger = logging.getLogger(__name__)
 
 
 # validate_url_for_fetch is imported from scraper.py (single source of truth for SSRF protection)
-
-
-from remediation import generate_schema_patch
 
 
 # ---------------------------------------------------------------------------
@@ -735,7 +729,7 @@ class OntologyPipeline:
             if claimed_by is not None and claimed_by != pred:
                 logger.debug(
                     "Dropping entity triple %s '%s': rule pass already read it as %s.",
-                    pred, obj, claimed_by,
+                    pred, obj, claimed_by
                 )
                 return
 
@@ -996,7 +990,6 @@ class OntologyPipeline:
         except Exception as kg_err:
             logger.warning("Google Knowledge Graph lookup error: %s", kg_err)
 
-        result.recommended_patch = generate_schema_patch(result)
         return result
 
     def calculate_readiness_score(
@@ -1098,9 +1091,6 @@ class OntologyPipeline:
 
         keyword_gaps.sort(key=lambda x: (x.competitor_count, x.priority == "High"), reverse=True)
 
-        # 4. Generate Leapfrog Remediation Patch specifically for primary
-        leapfrog_patch = generate_schema_patch(primary_result)
-
         # 5. Strategic Action Plan
         top_keyword_names = [k.concept for k in keyword_gaps[:3]]
         keywords_phrase = f" ({', '.join(top_keyword_names)})" if top_keyword_names else ""
@@ -1120,8 +1110,7 @@ class OntologyPipeline:
             score_gap=score_gap,
             schema_gaps=schema_gaps,
             keyword_gaps=keyword_gaps,
-            action_plan=action_plan,
-            leapfrog_patch=leapfrog_patch
+            action_plan=action_plan
         )
 
 

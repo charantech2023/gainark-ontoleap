@@ -14,15 +14,12 @@ import asyncio
 import logging
 from typing import Dict, Any, List, Optional
 from urllib.parse import urlparse
-import requests
 from bs4 import BeautifulSoup
 
 import vertex_ai_client
-import google_kg_client
-from remediation import resolve_wikidata
+from entity_grounding import resolve_wikidata
 from scraper import smart_fetch
 from models import (
-    IndustryDiscoveryRequest,
     IndustryDiscoveryResponse,
     GroundedConcept
 )

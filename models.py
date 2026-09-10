@@ -328,10 +328,6 @@ class ExtractionResult(BaseModel):
         default=None,
         description="Detailed scoring breakdown across schemas, concepts, and entities"
     )
-    recommended_patch: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Tailored Schema.org remediation patch addressing missing mandatory schemas"
-    )
     crawled_subpages: List[str] = Field(
         default_factory=list,
         description="Sub-page URLs fetched during deep crawl"
@@ -406,7 +402,6 @@ class CompetitiveGapAnalysis(BaseModel):
     schema_gaps: List[str] = Field(default_factory=list)
     keyword_gaps: List[KeywordGapItem] = Field(default_factory=list)
     action_plan: List[str] = Field(default_factory=list)
-    leapfrog_patch: Optional[Dict[str, Any]] = None
 
 
 class PageCrawlSummary(BaseModel):
@@ -439,14 +434,6 @@ class InternalLinkOpportunity(BaseModel):
     priority: str = Field(default="High", description="Priority level: High, Medium, or Standard")
 
 
-class AICitationReadiness(BaseModel):
-    total_score: float = Field(..., description="Overall GenAI search citation readiness score out of 100")
-    entity_grounding_score: float = Field(..., description="Score out of 25 for entity grounding depth")
-    relational_density_score: float = Field(..., description="Score out of 25 for relational semantic triple density")
-    silo_integrity_score: float = Field(..., description="Score out of 25 for topic cluster siloing & link coverage")
-    schema_coverage_score: float = Field(..., description="Score out of 25 for structured schema.org coverage")
-    verdict: str = Field(..., description="Readiness summary verdict")
-    recommendations: List[str] = Field(default_factory=list, description="Actionable GenAI optimization recommendations")
 
 
 class GraphNode(BaseModel):
@@ -470,31 +457,6 @@ class ClusterTopology(BaseModel):
     edges: List[GraphEdge] = Field(default_factory=list)
 
 
-class SchemaValidationReport(BaseModel):
-    is_valid: bool = True
-    google_rich_results_eligible: bool = True
-    validated_types: List[str] = Field(default_factory=list)
-    errors: List[str] = Field(default_factory=list)
-    warnings: List[str] = Field(default_factory=list)
-    compliance_percentage: float = 100.0
-
-
-class TopicHubMetadata(BaseModel):
-    concept: str
-    canonical_url: str
-    taxonomy_role: str
-    pagerank_score: float = 0.0
-    betweenness_centrality: float = 0.0
-    inbound_internal_links: int = 0
-
-
-class CannibalizationRiskItem(BaseModel):
-    concept: str
-    competing_urls: List[str]
-    recommended_canonical_hub: str
-    recommendation: str
-
-
 class PredictedLink(BaseModel):
     """
     AI Knowledge Graph Link Prediction item derived from rule-based ontological priors.
@@ -508,60 +470,6 @@ class PredictedLink(BaseModel):
     wikidata_id: Optional[str] = Field(default=None, description="Wikidata Q-ID if entity is grounded")
     wikidata_url: Optional[str] = Field(default=None, description="Direct URL to Wikidata resource")
     recommended_action: str = Field(default="", description="Recommended schema/linking action")
-
-
-class SiteAuditAndLinkResult(BaseModel):
-    root_domain: str
-    pages_analyzed: int
-    opportunities_count: int
-    opportunities: List[InternalLinkOpportunity] = Field(default_factory=list)
-    topic_hubs: Dict[str, str] = Field(default_factory=dict, description="Map of entity/topic -> canonical URL")
-    topic_hubs_detailed: List[TopicHubMetadata] = Field(default_factory=list)
-    orphan_pages: List[str] = Field(default_factory=list)
-    cannibalization_risks: List[CannibalizationRiskItem] = Field(default_factory=list)
-    unified_site_graph: Optional[UnifiedSiteGraph] = None
-    ai_citation_readiness: Optional[AICitationReadiness] = None
-    cluster_topology: Optional[ClusterTopology] = None
-    wordpress_php_hook: Optional[str] = None
-    llms_txt: Optional[str] = None
-    robots_txt_ai: Optional[str] = None
-    rdf_turtle: Optional[str] = None
-    rdf_ntriples: Optional[str] = Field(default=None, description="Serialized W3C N-Triples (.nt) triple store dump")
-    owl_xml: Optional[str] = Field(default=None, description="Serialized W3C OWL 2 DL Ontology in RDF/XML format")
-    semantic_clustering: Optional[Dict[str, Any]] = Field(default=None, description="TF-IDF cosine similarity clusters and cannibalization matrix")
-    predicted_links: List[PredictedLink] = Field(default_factory=list, description="AI-predicted high-confidence missing KG relations")
-    graph_completeness_score: Optional[float] = Field(default=None, description="Knowledge graph completeness score against vertical benchmark")
-    validation_report: Optional[SchemaValidationReport] = None
-
-
-class CitationSource(BaseModel):
-    index: int
-    entity: str
-    target_url: str
-    evidence: str
-
-
-class SearchSimulationRequest(BaseModel):
-    """
-    Request model for simulating Perplexity / SearchGPT generative query answering.
-    """
-    query: str = Field(..., max_length=2000, description="User search query, e.g., 'What accounting standards does the platform comply with?'")
-    root_domain: str = Field(..., max_length=2048, description="The audited domain")
-    triples: List[SemanticTriple] = Field(default_factory=list, max_length=5000, description="Extracted domain triples")
-    topic_hubs: Dict[str, str] = Field(default_factory=dict, description="Canonical topic hubs map")
-    entities: List[str] = Field(default_factory=list, max_length=5000, description="Extracted key entities")
-
-
-class SearchSimulationResponse(BaseModel):
-    """
-    Simulated AI engine generative response grounded in domain ontology triples.
-    """
-    query: str
-    synthesized_answer: str
-    citations: List[CitationSource] = Field(default_factory=list)
-    grounding_confidence: float = 0.95
-    hallucination_risk: str = "Zero Hallucination Risk (100% Schema & Triple Grounded)"
-    attributed_capabilities: List[str] = Field(default_factory=list)
 
 
 class SparqlQueryRequest(BaseModel):
@@ -639,72 +547,6 @@ class NTriplesExportRequest(BaseModel):
     )
 
 
-class DraftAlignmentRequest(BaseModel):
-    """
-    Request model for analyzing draft content against canonical Product Knowledge Graph.
-    """
-    draft_text: str = Field(..., max_length=20_000, description="Draft blog post, landing page, or PR copy")
-    brand_name: str = Field(default="The Platform", max_length=200, description="Brand under evaluation")
-    site_url: Optional[str] = Field(default="https://example.com")
-    vertical_id: str = Field(default="b2b_saas_fintech")
-    triples: List[SemanticTriple] = Field(default_factory=list)
-    entities: List[str] = Field(default_factory=list)
-
-
-class DraftAlignmentResponse(BaseModel):
-    """
-    Scored alignment report with LLM-as-judge claims verification and fluff analysis.
-    """
-    product_alignment_score: float = Field(..., description="0-100 Product Alignment Score (PAS)")
-    verdict: str
-    breakdown: Dict[str, Any]
-    fluff_analysis: Dict[str, Any]
-    grounded_triples_count: int
-    grounded_triples: List[Dict[str, Any]]
-    missing_triples_count: int
-    missing_triples: List[Dict[str, Any]]
-    contradictions: List[str]
-    recommendations: List[str]
-    llm_judge: Optional[Dict[str, Any]] = None
-
-
-class ProductBriefRequest(BaseModel):
-    """
-    Request model for generating a Product Truth Content Brief.
-    """
-    topic: str = Field(..., max_length=500, description="Content topic or target keyword")
-    brand_name: str = Field(default="The Platform")
-    vertical_id: str = Field(default="b2b_saas_fintech")
-    triples: List[SemanticTriple] = Field(default_factory=list)
-    gaps: List[str] = Field(default_factory=list)
-
-
-class ProductBriefResponse(BaseModel):
-    """
-    Structured Product Truth Content Brief for writers and AI generation.
-    """
-    topic: str
-    target_alignment_score: int
-    must_include_entities: List[str]
-    required_relational_triples: List[str]
-    prohibited_claims: List[str]
-    suggested_outline: List[str]
-    differentiation_angles: List[str]
-
-
-class ExportPdfRequest(BaseModel):
-    """
-    Request model for 1-Click Executive PDF report generation.
-    """
-    url: str = Field(..., max_length=2048)
-    vertical_id: str = Field(default="b2b_saas_fintech")
-    readiness_score: Optional[float] = 0.0
-    mandatory_schema_status: Optional[Dict[str, bool]] = Field(default_factory=dict)
-    triples: Optional[List[Dict[str, Any]]] = Field(default_factory=list, max_length=5000)
-    benchmark_table: Optional[List[Dict[str, Any]]] = Field(default_factory=list, max_length=500)
-    google_kg_presence: Optional[Dict[str, Any]] = Field(default=None, description="Google Knowledge Graph verification data")
-
-
 class GoogleKgRequest(BaseModel):
     """
     Request model for Google Knowledge Graph search.
@@ -758,236 +600,154 @@ class IndustryDiscoveryResponse(BaseModel):
     domain_scope_description: Optional[str] = None
 
 
-class ProductTruthRequest(BaseModel):
+# ==============================================================================
+# PURE KNOWLEDGE GRAPH & ONTOLOGY MODELS
+# ==============================================================================
+
+class KGNode(BaseModel):
     """
-    Request model for generating the Company Product Truth Matrix.
+    An entity or concept node in the Knowledge Graph.
     """
-    marketing_url: str = Field(..., max_length=2048, description="Brand marketing website or landing page")
-    brand_name: Optional[str] = Field(default=None, max_length=200, description="Brand name (optional, will auto-detect if omitted)")
-    company_name: Optional[str] = Field(default=None, max_length=200, description="Company name alias for brand_name")
-    vertical_id: Optional[str] = Field(default=None, description="Industry vertical ID (optional)")
-    tech_docs_url: Optional[str] = Field(default=None, max_length=2048, description="Public documentation, developer portal, or OpenAPI URL")
-    openapi_spec: Optional[Dict[str, Any]] = Field(default=None, description="Optional raw OpenAPI / Swagger JSON specification")
-    tech_docs_text: Optional[str] = Field(default=None, max_length=1_000_000, description="Optional raw markdown or text documentation (max 1 MB)")
-    secondary_tech_urls: Optional[List[str]] = Field(
-        default=None,
-        description=(
-            "Optional secondary tech evidence URLs (e.g. integrations page, security/trust page). "
-            "Auto-discovered from the marketing site if omitted."
-        ),
-    )
+    id: str = Field(..., description="Unique node URI or slug, e.g. 'entity:stripe'")
+    canonical_name: str = Field(..., description="Canonical display name, e.g. 'Stripe'")
+    entity_type: str = Field(default="Entity", description="Ontological class/label, e.g. 'IntegrationPartner', 'BillingFeature', 'Standard'")
+    aliases: List[str] = Field(default_factory=list, description="Observed surface forms / synonyms")
+    wikidata_id: Optional[str] = Field(default=None, description="Wikidata identity if grounded: a Q-ID or a full Wikidata URL. Render it with entity_grounding.wikidata_uri()")
+    description: Optional[str] = Field(default=None, description="Discovered or linked entity definition")
+    mentions_count: int = Field(default=1, description="Number of times this node was observed")
+    source_urls: List[str] = Field(default_factory=list, description="URLs where this entity was found")
 
 
-class ProductTruthMatrixResponse(BaseModel):
+class KGEdge(BaseModel):
     """
-    Structured Product Truth Matrix comparing Marketing Claims vs. Technical Ground Truth.
+    A semantic relation (triple edge) connecting two KGNode entities.
     """
-    brand_name: str
-    marketing_url: str
-    tech_docs_url: Optional[str] = None
-    marketing_grounding_index: Optional[float] = Field(
-        default=None,
-        description=(
-            "Percentage of marketing claims backed by verified technical truth (0-100). "
-            "None when the technical documentation could not be read: with no evidence to "
-            "compare against, an unverified claim is unknown, not disproven. Check "
-            "evidence_status before presenting this number."
-        ),
-    )
-    evidence_status: str = Field(
-        default="conclusive",
-        description=(
-            "'conclusive' - enough technical evidence to judge claims. "
-            "'low_confidence' - some evidence, too little to rely on; score is provisional. "
-            "'inconclusive' - no technical capabilities extracted; no score, no drift alerts."
-        ),
-    )
-    evidence_note: Optional[str] = Field(
-        default=None,
-        description="Plain-language explanation when evidence is insufficient to judge claims.",
-    )
-    tech_docs_discovered: bool = Field(
-        default=False,
-        description=(
-            "True when tech_docs_url was found automatically rather than supplied by the "
-            "caller. A discovered source may not be the brand's primary documentation, so "
-            "results carry more uncertainty than an explicitly provided spec."
-        ),
-    )
-    total_marketing_claims: int
-    total_technical_capabilities: int
-    verified_claims_count: int
-    unbacked_claims_count: int
-    hidden_capabilities_count: int
-    verified_claims_breakdown: Dict[str, int] = Field(default_factory=dict, description="Counts of verified claims grouped by match strength ('exact', 'substring', 'multi_token', 'head_token')")
-    verified_triples: List[SemanticTriple] = Field(default_factory=list, description="Claims proven in both marketing and technical documentation")
-    unbacked_claims: List[SemanticTriple] = Field(default_factory=list, description="Marketing claims with no technical backing (Product Drift / Fluff)")
-    hidden_capabilities: List[SemanticTriple] = Field(default_factory=list, description="Real technical capabilities omitted from marketing copy")
-    drift_alerts: List[str] = Field(default_factory=list, description="Actionable governance risk alerts")
-    growth_recommendations: List[str] = Field(default_factory=list, description="Recommendations to market hidden technical gems")
-    executive_summary: str
-    rdf_turtle: Optional[str] = Field(default=None, description="W3C PROV-O and SKOS compliant RDF Turtle serialization of the Product Truth Graph")
-    proof_sources: List[Dict[str, Any]] = Field(default_factory=list, description="Autonomous technical proof sources evaluated (e.g. Trust Centers, Public SDKs, Changelog, Specs)")
+    id: str = Field(..., description="Unique edge identifier, e.g. 'edge:ordway-integrateswith-stripe'")
+    source: str = Field(..., description="Source node ID or canonical name (Subject)")
+    target: str = Field(..., description="Target node ID or canonical name (Object)")
+    predicate: str = Field(..., description="Relationship type, e.g. 'integratesWith', 'compliesWith', 'automates', 'subClassOf'")
+    source_type: Optional[str] = Field(default=None, description="Subject entity class")
+    target_type: Optional[str] = Field(default=None, description="Object entity class")
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="Extraction confidence")
+    provenance_sentence: Optional[str] = Field(default=None, description="Exact text context proving the relationship")
+    source_url: Optional[str] = Field(default=None, description="URL where relation was discovered")
 
 
-class ComparativeCapability(BaseModel):
+class PageKnowledgeGraph(BaseModel):
     """
-    Detailed comparison of a capability between Company and Competitor.
+    Complete semantic graph extracted from a single web page.
     """
-    concept: str
-    predicate: str
-    company_status: str = Field(..., description="'verified', 'unbacked_claim', or 'missing'")
-    competitor_status: str = Field(..., description="'verified', 'unbacked_claim', or 'missing'")
-    competitor_name: str
-    insight: str
-    company_evidence: Optional[str] = None
-    competitor_evidence: Optional[str] = None
-
-
-class CounterPositioningAngle(BaseModel):
-    """
-    Strategic sales & marketing battlecard angle exploiting verified capability gaps.
-    """
-    target_competitor: str = Field(default="Competitor")
-    angle_title: str = Field(default="Competitive Battlecard")
-    capability: str = Field(default="Verified Capability", description="Key capability or feature differentiator")
-    comparative_status: str = Field(default="company_advantage", description="'company_advantage', 'competitor_fluff_vulnerability', or 'industry_table_stakes'")
-    predicate: str = Field(default="automates", description="Predicate relation")
-    attack_angle: str = Field(default="", description="High-impact attack angle and messaging")
-    discovery_question: str = Field(default="", description="Killer discovery question for RFP / demo")
-    fud_counter_defense: str = Field(default="", description="FUD counter-defense backed by technical truth")
-    core_narrative: str = Field(default="", description="2-3 sentence strategic executive narrative")
-    company_differentiator: str = Field(default="", description="Verified technical truth")
-    competitor_vulnerability: str = Field(default="", description="Competitor limitation or fluff")
-    suggested_campaign_topics: List[str] = Field(default_factory=list)
-
-
-class CategoryWhitespace(BaseModel):
-    """A concept the category expects that nobody in the analysed set is claiming.
-
-    Derived from the industry ontology rather than from any competitor, so unlike the
-    other outputs it can surface an opportunity no rival has named yet.
-    """
-    concept: str = Field(..., description="The industry concept nobody markets")
-    source: str = Field(
-        ...,
-        description="Which part of the industry ontology expects it: 'seed_concept' or 'automation'",
-    )
-    company_markets_it: bool = Field(
-        default=False,
-        description="Always False for whitespace; kept explicit so the claim is auditable.",
-    )
-    competitors_marketing_it: List[str] = Field(
-        default_factory=list,
-        description="Always empty for whitespace; present so a near-miss can be reported later.",
-    )
-    insight: str = Field(..., description="What a marketer should do with it")
-
-
-class TriOntologyAlignmentRequest(BaseModel):
-    """
-    Request model for full Tri-Ontology alignment across Company, Competitors, and Industry standards.
-    """
-    company: ProductTruthRequest
-    competitors: List[ProductTruthRequest] = Field(..., min_length=1, max_length=5)
-    vertical_id: Optional[str] = Field(default="b2b_saas_fintech")
-
-
-class TriOntologyAlignmentResponse(BaseModel):
-    """
-    Structured Tri-Ontology alignment report revealing competitive advantages and marketing angles.
-    """
-    company_name: str
-    competitor_names: List[str]
-    vertical_id: str
-    industry_category: str
-    company_advantages: List[ComparativeCapability] = Field(default_factory=list, description="Capabilities verified in Company where competitor is unbacked or missing")
-    competitor_vulnerabilities: List[ComparativeCapability] = Field(default_factory=list, description="Competitor marketing claims unbacked by technical docs")
-    competitor_advantages: List[ComparativeCapability] = Field(default_factory=list, description="Real technical capabilities verified in competitor that company lacks")
-    table_stakes: List[str] = Field(default_factory=list, description="Baseline capabilities expected by industry ontology and shared by all")
-    category_whitespace: List[CategoryWhitespace] = Field(
-        default_factory=list,
-        description=(
-            "Concepts the industry ontology expects of this category that neither the "
-            "company nor any analysed competitor markets. Unclaimed positioning: the only "
-            "output here derived from the industry layer rather than from a rival."
-        ),
-    )
-    counter_positioning_briefs: List[CounterPositioningAngle] = Field(default_factory=list, description="Actionable sales and marketing battlecard angles")
-    executive_summary: str
-
-
-class CompetitorOntologyRequest(BaseModel):
-    """
-    Request model to crawl and extract the ontology of a competitor website.
-    """
-    url: str = Field(..., max_length=2048, description="Competitor homepage or product URL")
-    brand_name: Optional[str] = Field(default=None, max_length=200, description="Competitor brand name (optional)")
-    crawl_subpages: bool = Field(default=True, description="Whether to discover and crawl /pricing, /features, /integrations")
-    max_subpages: int = Field(default=3, ge=1, le=10, description="Max subpages to crawl")
-
-
-class CompetitorOntologyResponse(BaseModel):
-    """
-    Structured ontology of a competitor extracted from their public digital presence.
-    """
-    brand_name: str
     url: str
-    pages_analyzed: int
-    total_claims: int
-    capabilities_automated: List[str] = Field(default_factory=list)
-    integrations_claimed: List[str] = Field(default_factory=list)
-    compliance_claimed: List[str] = Field(default_factory=list)
-    pricing_models: List[str] = Field(default_factory=list)
-    triples: List[SemanticTriple] = Field(default_factory=list)
-    schema_org_types: List[str] = Field(default_factory=list)
-    google_kg_grounded: bool = False
-    wikidata_grounded: bool = False
-    ontology_summary: str
+    title: Optional[str] = None
+    nodes: List[KGNode] = Field(default_factory=list, description="Extracted entity nodes")
+    edges: List[KGEdge] = Field(default_factory=list, description="Extracted semantic relations")
+    classes_discovered: List[str] = Field(default_factory=list, description="Unique ontological classes present on page")
+    predicates_discovered: List[str] = Field(default_factory=list, description="Unique predicates present on page")
+    embedded_schemas: List[str] = Field(default_factory=list, description="Existing Schema.org types found in page markup")
+    export_jsonld: Optional[Dict[str, Any]] = Field(default=None, description="Standard W3C Schema.org / JSON-LD @graph payload")
+    export_turtle: Optional[str] = Field(default=None, description="W3C RDF Turtle serialization")
 
 
-class GeoQueryItem(BaseModel):
-    """A synthesized or user-supplied high-intent buyer query."""
-    query_text: str = Field(..., description="High-intent buyer query, e.g. 'Which billing software supports ASC 606?'")
-    category: str = Field(default="Feature & Compliance", description="Intent category (Compliance, Integration, Automation, Shortlist)")
-    intent_stage: str = Field(default="Evaluation", description="Buyer journey stage (Discovery, Evaluation, Vendor Selection)")
-    targeted_capabilities: List[str] = Field(default_factory=list, description="Targeted ontology concepts/capabilities")
+class InducedClassRelation(BaseModel):
+    """
+    A discovered structural relationship between ontological classes in a domain.
+    """
+    source_class: str
+    predicate: str
+    target_class: str
+    count: int = 1
 
 
-class GeoProbeResult(BaseModel):
-    """Audit result for a single buyer query probed against an AI search engine."""
-    query: str
-    category: str = "Evaluation"
-    synthesized_answer: str = Field(..., description="Answer text from the AI search engine")
-    engine_used: str = Field(default="Google Gemini 2.5 Flash", description="AI search engine or fallback tier used")
-    brand_cited: bool = Field(..., description="Whether the evaluated brand was cited/recommended")
-    brand_rank: Optional[int] = Field(default=None, description="Rank/position of the brand if mentioned (1 = top recommendation)")
-    competitors_cited: List[str] = Field(default_factory=list, description="Competitor brands cited in the response")
-    verified_claims: List[str] = Field(default_factory=list, description="Claims about the brand backed by the ontology truth graph")
-    hallucinated_claims: List[str] = Field(default_factory=list, description="Claims about the brand that lack ontology backing")
-    citation_urls: List[str] = Field(default_factory=list, description="URLs cited or referenced by the engine")
+class TopicCluster(BaseModel):
+    """
+    A semantic topic cluster discovered across the website.
+    """
+    cluster_id: str
+    cluster_label: str
+    representative_entities: List[str] = Field(default_factory=list)
+    page_urls: List[str] = Field(default_factory=list)
 
 
-class GeoAuditRequest(BaseModel):
-    """Request payload for executing a multi-query GEO citation audit."""
-    brand_name: str = Field(..., max_length=200, description="Target brand to evaluate, e.g. 'Ordway'")
-    domain: str = Field(..., max_length=2048, description="Target brand website domain, e.g. 'ordwaylabs.com'")
-    competitor_names: List[str] = Field(default_factory=list, max_length=25, description="Competitors to track, e.g. ['Chargebee', 'Stripe']")
-    triples: List[SemanticTriple] = Field(default_factory=list, max_length=5000, description="Verified ontology triples for grounding check")
-    vertical_id: Optional[str] = Field(default="b2b_saas_fintech", description="Industry vertical ID")
-    custom_queries: Optional[List[str]] = Field(default=None, max_length=10, description="Optional custom buyer queries to probe (max 10 outbound probes)")
+class SiteKnowledgeGraph(BaseModel):
+    """
+    Unified, canonicalized Knowledge Graph synthesized across an entire domain.
+    """
+    domain: str
+    pages_crawled: int
+    page_urls: List[str] = Field(default_factory=list)
+    nodes: List[KGNode] = Field(default_factory=list, description="Canonical, coreference-resolved entity nodes")
+    edges: List[KGEdge] = Field(default_factory=list, description="Deduplicated semantic relations")
+    induced_class_hierarchy: List[InducedClassRelation] = Field(default_factory=list, description="Induced domain ontology schema")
+    topic_clusters: List[TopicCluster] = Field(default_factory=list, description="High-level topic silos")
+    top_authority_hubs: List[str] = Field(default_factory=list, description="Central topic hubs by PageRank")
+    export_jsonld: Optional[Dict[str, Any]] = Field(default=None, description="Site-wide JSON-LD @graph")
+    export_turtle: Optional[str] = Field(default=None, description="Site-wide RDF Turtle export")
 
 
-class GeoAuditResponse(BaseModel):
-    """Aggregated GEO Share of Voice & Citation Audit Report."""
-    brand_name: str
-    share_of_voice: float = Field(..., description="Percentage of queries where brand was cited (0-100%)")
-    weighted_sov: float = Field(..., description="Rank-weighted Share of Voice score (0-100%)")
-    ai_mention_rate: float = Field(..., description="Percentage of queries with positive brand mention")
-    hallucination_rate: float = Field(default=0.0, description="Percentage of AI-attributed claims lacking ontology verification")
-    competitor_sov: Dict[str, float] = Field(default_factory=dict, description="Share of Voice for each competitor (0-100%)")
-    probe_results: List[GeoProbeResult] = Field(default_factory=list, description="Detailed probe results for each buyer query")
-    citation_gap_queries: List[str] = Field(default_factory=list, description="High-intent queries where competitors were cited but brand was omitted")
-    geo_recommendations: List[str] = Field(default_factory=list, description="Strategic recommendations to improve AI search citation rate")
+class IndustryConcept(BaseModel):
+    """
+    A canonical concept defined within an industry reference ontology.
+    """
+    id: str
+    pref_label: str
+    kind: str = "concept"
+    definition: Optional[str] = None
+    alt_labels: List[str] = Field(default_factory=list)
+    broader: Optional[str] = None
+
+
+class IndustryOntologyModel(BaseModel):
+    """
+    Reference vertical ontology containing industry taxonomies and expected standards.
+    """
+    vertical_id: str
+    display_name: str
+    classes: List[str] = Field(default_factory=list, description="Standard entity types, e.g. 'SoftwarePlatform', 'BillingFeature'")
+    core_seed_concepts: List[str] = Field(default_factory=list)
+    concepts: List[IndustryConcept] = Field(default_factory=list, description="SKOS-style hierarchy of domain concepts")
+    known_integrations: List[str] = Field(default_factory=list)
+    known_compliance: List[str] = Field(default_factory=list)
+    standard_predicates: List[str] = Field(
+        default_factory=lambda: ["automates", "integratesWith", "compliesWith", "supportsPricingModel", "subClassOf", "partOf"]
+    )
+
+
+class GraphAlignmentResult(BaseModel):
+    """
+    Result of aligning a Page or Site Knowledge Graph against an Industry Reference Ontology.
+    """
+    subject_identifier: str = Field(..., description="Target URL or domain evaluated")
+    vertical_id: str
+    industry_name: str
+    total_industry_concepts: int
+    covered_concepts: List[str] = Field(default_factory=list, description="Industry standard concepts verified in the graph")
+    category_whitespace: List[str] = Field(default_factory=list, description="Industry standard concepts unclaimed by the graph")
+    proprietary_concepts: List[str] = Field(default_factory=list, description="Concepts in the graph not defined in the standard industry taxonomy")
+    coverage_score: float = Field(..., ge=0.0, le=100.0, description="Percentage of the full industry reference ontology covered (0-100%)")
+    seed_coverage_score: float = Field(default=0.0, ge=0.0, le=100.0, description="Percentage of the vertical's core seed concepts covered (0-100%)")
+    compliance_standards_covered: List[str] = Field(default_factory=list)
+    integrations_covered: List[str] = Field(default_factory=list)
+
+
+# API Request Models
+class PageKGRequest(BaseModel):
+    url: Optional[str] = Field(default=None, max_length=2048, description="Target webpage URL to parse")
+    html_content: Optional[str] = Field(default=None, description="Optional raw HTML content to parse")
+    vertical_id: Optional[str] = Field(default="b2b_saas_fintech", description="Industry vertical context")
+
+
+class SiteKGRequest(BaseModel):
+    domain_or_url: str = Field(..., max_length=2048, description="Target domain or starting URL, e.g. 'https://www.ordwaylabs.com'")
+    max_pages: int = Field(default=10, ge=1, le=50, description="Maximum sub-pages to crawl and aggregate")
+    vertical_id: Optional[str] = Field(default="b2b_saas_fintech", description="Industry vertical context")
+
+
+class KGAlignmentRequest(BaseModel):
+    domain_or_url: Optional[str] = Field(default=None, max_length=2048, description="Target domain or URL to evaluate")
+    page_kg: Optional[PageKnowledgeGraph] = Field(default=None, description="Direct page knowledge graph to evaluate")
+    site_kg: Optional[SiteKnowledgeGraph] = Field(default=None, description="Direct site knowledge graph to evaluate")
+    vertical_id: str = Field(default="b2b_saas_fintech", description="Industry vertical to align against")
+    max_pages: int = Field(default=5, ge=1, le=25, description="Pages to crawl if not cached")
+
 
 

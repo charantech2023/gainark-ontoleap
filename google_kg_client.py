@@ -10,7 +10,7 @@ import logging
 import urllib.request
 import urllib.parse
 import urllib.error
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 
 logger = logging.getLogger("gainark.google_kg")
 
@@ -161,6 +161,6 @@ def search_entity(query: str, limit: int = 3) -> Optional[Dict[str, Any]]:
         logger.error(
             "Google Knowledge Graph Search API failed (%s): %s",
             type(e).__name__,
-            _redact(str(e))[:300],
+            _redact(str(e))[:300]
         )
         return None

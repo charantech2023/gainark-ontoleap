@@ -1,163 +1,97 @@
+"""
+End-to-end API tests for the Pure Knowledge Graph & Ontology Engine (api.py).
+"""
+
 from fastapi.testclient import TestClient
 from api import app
 
 client = TestClient(app)
+
 
 def test_api():
     print("[1] Testing GET /dashboard and GET /api/info ...")
     r_dash = client.get("/dashboard")
     assert r_dash.status_code == 200, f"Expected 200, got {r_dash.status_code}"
     assert "GainARK OntoLeap" in r_dash.text
-    print("  Dashboard Status: 200 OK (HTML served)")
+    assert "Knowledge Graph" in r_dash.text
+    print("  Dashboard Status: 200 OK (Clean KG Workbench served)")
 
     r_info = client.get("/api/info")
     assert r_info.status_code == 200, f"Expected 200, got {r_info.status_code}"
-    print("  API Info Status : 200", r_info.json())
+    info_data = r_info.json()
+    assert info_data["version"] == "3.0.0"
+    assert info_data["features"]["page_knowledge_graph_extraction"] is True
+    assert info_data["features"]["industry_ontology_alignment"] is True
+    print("  API Info Status : 200 OK (v3.0.0 pure KG manifest)")
 
-    print("\n[2] Testing POST /api/audit ...")
-    r_audit = client.post("/api/audit", json={"url": "https://www.ordwaylabs.com"})
-    assert r_audit.status_code == 200, f"Expected 200, got {r_audit.status_code}: {r_audit.text}"
-    data = r_audit.json()
-    print("  Audited URL     :", data["url"])
-    print("  Readiness Score :", data["readiness_score"])
-    print("  Mandatory Schema:", data["mandatory_schema_status"])
-    print("  Entity Labels   :", list(data["entity_breakdown"].keys()))
-    print("  Patch Available :", data["recommended_patch"] is not None)
-    if data["recommended_patch"]:
-        print("  Patch Schemas   :", data["recommended_patch"].get("schemas_added"))
+    print("\n[2] Testing GET /api/kg/industries ...")
+    r_ind = client.get("/api/kg/industries")
+    assert r_ind.status_code == 200
+    industries = r_ind.json()
+    print(f"  Available Industries ({len(industries)}): {[i['vertical_id'] for i in industries]}")
+    assert len(industries) >= 4
 
-    print("\n[3] Testing POST /api/benchmark ...")
-    bench_payload = {
-        "urls": [
-            "https://www.chargebee.com",
-            "https://www.maxio.com"
-        ]
-    }
-    r_bench = client.post("/api/benchmark", json=bench_payload)
-    assert r_bench.status_code == 200, f"Expected 200, got {r_bench.status_code}: {r_bench.text}"
-    bdata = r_bench.json()
-    print("  Vertical       :", bdata["vertical_id"])
-    print("  Total Analyzed :", bdata["total_analyzed"])
-    for row in bdata["comparative_table"]:
-        print(f"  - {row['url']}: {row['readiness_score']:.2f} | Schemas: {row['compliance_str']} | Entities: {row['entity_count']}")
+    print("\n[3] Testing GET /api/kg/industry/b2b_saas_fintech ...")
+    r_onto = client.get("/api/kg/industry/b2b_saas_fintech")
+    assert r_onto.status_code == 200
+    onto_data = r_onto.json()
+    print("  Vertical Name   :", onto_data["display_name"])
+    print("  Hierarchy Count :", len(onto_data["concepts"]))
+    print("  Known Standards :", len(onto_data["known_compliance"]))
+    assert len(onto_data["concepts"]) > 10
 
-    print("\n[4] Testing GET /api/verticals ...")
-    r_vert = client.get("/api/verticals")
-    assert r_vert.status_code == 200
-    vids = [v["vertical_id"] for v in r_vert.json()["verticals"]]
-    print("  Available Verticals:", vids)
-    assert "b2b_saas_fintech" in vids
-    assert "cybersecurity" in vids
-    assert "healthtech" in vids
-    assert "developer_tools" in vids
+    print("\n[4] Testing GET /api/ontology/schema ...")
+    r_schema = client.get("/api/ontology/schema")
+    assert r_schema.status_code == 200
+    schema_data = r_schema.json()
+    print("  Schema Relations:", schema_data["relations_count"])
+    assert schema_data["relations_count"] > 0
 
-    print("\n[5] Testing POST /api/check-draft (PAS Scoring & Fluff Detection) ...")
-    draft_req = {
-        "draft_text": "Ordway is an automated billing platform that automates Revenue Recognition under ASC 606 and integrates with NetSuite.",
-        "brand_name": "Ordway",
-        "vertical_id": "b2b_saas_fintech",
-        "triples": [
-            {"subject": "Ordway", "predicate": "automates", "object": "Revenue Recognition"},
-            {"subject": "Ordway", "predicate": "compliesWith", "object": "ASC 606"},
-            {"subject": "Ordway", "predicate": "integratesWith", "object": "NetSuite"}
-        ]
-    }
-    r_draft = client.post("/api/check-draft", json=draft_req)
-    assert r_draft.status_code == 200, f"Error: {r_draft.text}"
-    d_res = r_draft.json()
-    print("  Draft PAS Score :", d_res["product_alignment_score"])
-    print("  Draft Verdict   :", d_res["verdict"])
-    print("  Grounded Triples:", d_res["grounded_triples_count"])
+    print("\n[5] Testing POST /api/kg/page ...")
+    sample_html = """
+    <html>
+    <head><title>Ordway Labs — Cloud Billing</title></head>
+    <body>
+        <h1>Ordway Billing Platform</h1>
+        <p>Ordway automates revenue recognition and complies with ASC 606 and SOC 2. Integrates with Salesforce and Stripe.</p>
+    </body>
+    </html>
+    """
+    r_page = client.post(
+        "/api/kg/page",
+        json={"url_or_html": sample_html, "url": "https://www.ordwaylabs.com", "vertical_id": "b2b_saas_fintech"}
+    )
+    assert r_page.status_code == 200, f"Error: {r_page.text}"
+    page_data = r_page.json()
+    print("  Extracted Nodes :", len(page_data["nodes"]))
+    print("  Extracted Edges :", len(page_data["edges"]))
+    print("  JSON-LD Length  :", len(page_data.get("json_ld", "")))
+    print("  Turtle Length   :", len(page_data.get("turtle", "")))
+    assert len(page_data["nodes"]) > 0
+    assert len(page_data["edges"]) > 0
 
-    print("\n[6] Testing POST /api/content-brief (Product Truth Brief) ...")
-    brief_req = {
-        "topic": "Usage-Based Invoicing & RevRec",
-        "brand_name": "Ordway",
-        "vertical_id": "b2b_saas_fintech",
-        "triples": [
-            {"subject": "Ordway", "predicate": "automates", "object": "Revenue Recognition"}
-        ]
-    }
-    r_brief = client.post("/api/content-brief", json=brief_req)
-    assert r_brief.status_code == 200, f"Error: {r_brief.text}"
-    b_res = r_brief.json()
-    print("  Brief Target PAS:", b_res["target_alignment_score"])
-    print("  Must Include Ent:", b_res["must_include_entities"])
+    print("\n[6] Testing POST /api/kg/align ...")
+    r_align = client.post(
+        "/api/kg/align",
+        json={"page_kg": page_data, "vertical_id": "b2b_saas_fintech"}
+    )
+    assert r_align.status_code == 200, f"Error: {r_align.text}"
+    align_data = r_align.json()
+    print("  Coverage Score  :", f"{align_data['coverage_score']}%")
+    print("  Covered Concepts:", len(align_data["covered_concepts"]))
+    print("  Whitespace      :", len(align_data["category_whitespace"]))
+    assert len(align_data["covered_concepts"]) > 0
 
-    print("\n[7] Testing POST /api/export-pdf (1-Click Executive PDF with Google KG) ...")
-    pdf_req = {
-        "url": "https://www.ordwaylabs.com",
-        "vertical_id": "b2b_saas_fintech",
-        "readiness_score": 78.5,
-        "mandatory_schema_status": {"SoftwareApplication": True, "Organization": True, "Offer": False},
-        "triples": [
-            {"subject": "Ordway", "predicate": "automates", "object": "Revenue Recognition"}
-        ],
-        "google_kg_presence": {
-            "query": "Ordway",
-            "is_recognized": False,
-            "status": "Absent from Google Knowledge Graph",
-            "google_mid": None,
-            "score": 0.0,
-            "types": [],
-            "ai_overview_risk": "High Omission Risk"
-        }
-    }
-    r_pdf = client.post("/api/export-pdf", json=pdf_req)
-    assert r_pdf.status_code == 200, f"Error: {r_pdf.text}"
-    assert r_pdf.headers["content-type"] == "application/pdf"
-    assert r_pdf.content.startswith(b"%PDF-")
-    print("  PDF Generated   : 200 OK (Bytes:", len(r_pdf.content), ")")
+    print("\n[7] Testing GET /api/health ...")
+    r_health = client.get("/api/health")
+    assert r_health.status_code == 200
+    assert r_health.json()["status"] in ("healthy", "ok")
+    print("  Health Status   : 200 OK")
 
-    print("\n[8] Testing POST /api/simulate-search (Google Gemini 2.5 Flash Grounded) ...")
-    search_req = {
-        "query": "Which platform automates ASC 606 revenue recognition?",
-        "root_domain": "ordwaylabs.com",
-        "triples": [
-            {"subject": "Ordway", "predicate": "automates", "object": "Revenue Recognition"},
-            {"subject": "Ordway", "predicate": "compliesWith", "object": "ASC 606"}
-        ]
-    }
-    r_sim = client.post("/api/simulate-search", json=search_req)
-    assert r_sim.status_code == 200, f"Error: {r_sim.text}"
-    s_res = r_sim.json()
-    print("  Grounding Risk  :", s_res.get("hallucination_risk"))
-    print("  Synthesized Ans :", s_res.get("synthesized_answer")[:90], "...")
+    print("\n=======================================================")
+    print("ALL API ENDPOINT INTEGRATION TESTS PASSED SUCCESSFULLY!")
+    print("=======================================================")
 
-    print("\n[9] Testing POST /api/google-kg (Google Knowledge Graph Search API) ...")
-    r_kg_stripe = client.post("/api/google-kg", json={"query": "Stripe"})
-    assert r_kg_stripe.status_code == 200, f"Error: {r_kg_stripe.text}"
-    kg_stripe = r_kg_stripe.json()
-    print("  Stripe KG Status :", kg_stripe.get("status"))
-    print("  Stripe MID       :", kg_stripe.get("google_mid"))
-    print("  Stripe Salience  :", kg_stripe.get("score"))
-    assert kg_stripe.get("is_recognized") is True
-    assert kg_stripe.get("google_mid") is not None
-
-    r_kg_ordway = client.post("/api/google-kg", json={"query": "Ordway Labs Software"})
-    assert r_kg_ordway.status_code == 200
-    kg_ordway = r_kg_ordway.json()
-    print("  Ordway KG Status :", kg_ordway.get("status"))
-    print("  Ordway Risk      :", kg_ordway.get("ai_overview_risk"))
-
-    print("\n[10] Testing POST /api/internal-links (Sitemap & Resilient Discovery) ...")
-    # Test invalid SSRF
-    r_bad = client.post("/api/internal-links", json={"sitemap_url": "http://127.0.0.1/sitemap.xml"})
-    assert r_bad.status_code == 400
-    print("  SSRF Guard Status:", r_bad.status_code, "(Blocked internal IP)")
-
-    # Test valid request with explicit URLs
-    r_links = client.post("/api/internal-links", json={
-        "urls": ["https://example.com"],
-        "max_pages": 1
-    })
-    assert r_links.status_code == 200, f"Error: {r_links.text}"
-    links_data = r_links.json()
-    print("  Internal Links   : 200 OK (Pages analyzed:", links_data["pages_analyzed"], ")")
-
-    print("\nAll API tests PASSED successfully!")
 
 if __name__ == "__main__":
     test_api()
-
-

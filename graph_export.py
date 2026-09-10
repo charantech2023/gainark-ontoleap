@@ -27,7 +27,6 @@ def _json_for_script(value) -> str:
         .replace("\u2029", "\\u2029")
     )
 from typing import List, Dict, Any, Optional
-from urllib.parse import urlparse
 
 from models import ClusterTopology, SemanticTriple, PredictedLink
 

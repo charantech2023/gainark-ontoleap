@@ -9,15 +9,14 @@ from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 from rdflib import Graph
 
-from linking import (
-    audit_internal_links,
+from knowledge_graph import (
     execute_sparql_query_on_ttl,
-    export_to_owl_xml
+    export_to_owl_xml,
+    build_page_knowledge_graph
 )
 from link_prediction import predict_kg_links
 from graph_export import generate_standalone_graph_html
-from pipeline import validate_url_for_fetch
-from knowledge_graph import build_page_knowledge_graph
+from scraper import validate_url_for_fetch
 from routers.deps import get_pipeline
 from models import (
     SemanticTriple,
@@ -27,7 +26,21 @@ from models import (
     LinkPredictionResponse,
     ExportGraphHtmlRequest,
     PageKnowledgeGraphRequest,
-    PageKnowledgeGraphResult
+    PageKnowledgeGraphResult,
+    PageKGRequest,
+    PageKnowledgeGraph,
+    SiteKGRequest,
+    SiteKnowledgeGraph,
+    KGAlignmentRequest,
+    GraphAlignmentResult,
+    IndustryOntologyModel
+)
+from page_graph import build_page_kg
+from site_graph import build_site_kg
+from industry_ontology import (
+    list_available_industries,
+    load_industry_ontology,
+    align_graph_with_industry
 )
 
 logger = logging.getLogger("ontoleap.api.kg")
@@ -45,14 +58,6 @@ class OwlExportRequest(BaseModel):
     topic_hubs: Dict[str, str] = Field(default_factory=dict, description="Canonical topic hubs map")
     entities: List[str] = Field(default_factory=list, max_length=5000, description="Extracted entities")
     rdf_turtle: Optional[str] = Field(default=None, max_length=500_000, description="Optional Turtle to convert directly")
-
-
-class SemanticClustersRequest(BaseModel):
-    urls: List[str] = Field(default_factory=list, max_length=100)
-    sitemap_url: Optional[str] = Field(default=None, max_length=2048)
-    # Bounded for the same reason as /api/batch-crawl: every page is a fetch plus a
-    # model inference pass.
-    max_pages: int = Field(default=10, ge=1, le=100)
 
 
 @router.post("/api/sparql", response_model=SparqlQueryResponse, summary="Execute SPARQL 1.1 Query on Knowledge Graph")
@@ -144,35 +149,6 @@ def api_predict_links(req: LinkPredictionRequest):
         raise HTTPException(status_code=500, detail="Link prediction failed.")
 
 
-@router.post("/api/semantic-clusters", summary="Compute TF-IDF Cosine Similarity & Topic Clusters")
-async def api_semantic_clusters(req: SemanticClustersRequest):
-    """
-    Analyzes content across site pages, computing TF-IDF vectors, pairwise cosine
-    similarity matrix, cannibalization overlaps (>=0.70), and thematic topic silos.
-    """
-    # This endpoint crawls whatever it is given, exactly as /api/internal-links does,
-    # and so needs the same SSRF guard. It previously had none.
-    try:
-        if req.sitemap_url:
-            validate_url_for_fetch(req.sitemap_url)
-        for u in req.urls or []:
-            validate_url_for_fetch(u)
-    except ValueError as val_err:
-        raise HTTPException(status_code=400, detail=str(val_err))
-
-    if not req.sitemap_url and not req.urls:
-        raise HTTPException(status_code=400, detail="Provide either 'sitemap_url' or a non-empty 'urls' list.")
-
-    try:
-        audit_res = await audit_internal_links(sitemap_url=req.sitemap_url, urls=req.urls, max_pages=req.max_pages)
-        return audit_res.semantic_clustering or {}
-    except ValueError as val_err:
-        raise HTTPException(status_code=400, detail=str(val_err))
-    except Exception as e:
-        logger.error("Semantic cluster analysis failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Semantic cluster analysis failed.")
-
-
 @router.post("/api/export-graph-html", summary="Export Standalone Interactive PyVis/Vis.js Graph HTML")
 def api_export_graph_html(req: ExportGraphHtmlRequest):
     """
@@ -253,4 +229,100 @@ def api_extract_page_knowledge_graph(req: PageKnowledgeGraphRequest):
     except Exception as e:
         logger.error("Page knowledge graph generation failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=f"Knowledge graph generation failed: {e}")
+
+
+# ==============================================================================
+# PURE KNOWLEDGE GRAPH & ONTOLOGY ENDPOINTS
+# ==============================================================================
+
+@router.get("/api/kg/industries", response_model=List[Dict[str, str]], summary="List Available Industry Reference Ontologies")
+async def api_list_industries():
+    """
+    List all available vertical reference ontologies (FinTech, Cybersecurity, HealthTech, DevTools, etc.).
+    """
+    return list_available_industries()
+
+
+@router.get("/api/kg/industry/{vertical_id}", response_model=IndustryOntologyModel, summary="Inspect Industry Reference Ontology")
+async def api_get_industry_ontology(vertical_id: str):
+    """
+    Retrieve full SKOS concept hierarchy, standard classes, and expected predicates for an industry.
+    """
+    try:
+        return load_industry_ontology(vertical_id)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Industry ontology '{vertical_id}' not found: {e}")
+
+
+@router.post("/api/kg/page", response_model=PageKnowledgeGraph, summary="Build Page-Level Knowledge Graph")
+async def api_build_page_kg(req: PageKGRequest):
+    """
+    Extracts entities, semantic triples with provenance, and Schema.org markup from any URL or HTML page.
+    """
+    if not req.url and not req.html_content:
+        raise HTTPException(status_code=400, detail="Either 'url' or 'html_content' must be provided.")
+
+    target = req.html_content if req.html_content else req.url
+    try:
+        kg = build_page_kg(
+            url_or_html=target,
+            url=req.url,
+            vertical_id=req.vertical_id or "b2b_saas_fintech"
+        )
+        return kg
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
+    except Exception as e:
+        logger.error("[API PageKG] Failed to extract page graph: %s", e)
+        raise HTTPException(status_code=500, detail=f"Knowledge graph extraction failed: {str(e)}")
+
+
+@router.post("/api/kg/site", response_model=SiteKnowledgeGraph, summary="Synthesize Site-Wide Knowledge Graph")
+async def api_build_site_kg(req: SiteKGRequest):
+    """
+    Crawls domain, canonicalizes entity aliases, induces class hierarchy, and maps topic clusters.
+    """
+    try:
+        kg = build_site_kg(
+            start_url=req.domain_or_url,
+            max_pages=req.max_pages,
+            vertical_id=req.vertical_id or "b2b_saas_fintech"
+        )
+        return kg
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
+    except Exception as e:
+        logger.error("[API SiteKG] Failed to synthesize site graph: %s", e)
+        raise HTTPException(status_code=500, detail=f"Site knowledge graph synthesis failed: {str(e)}")
+
+
+@router.post("/api/kg/align", response_model=GraphAlignmentResult, summary="Align Knowledge Graph Against Industry Ontology")
+async def api_align_kg(req: KGAlignmentRequest):
+    """
+    Compares a page or site Knowledge Graph against an Industry Reference Ontology
+    to identify covered concepts, standards, and category whitespace.
+    """
+    try:
+        if req.page_kg:
+            kg = req.page_kg
+        elif req.site_kg:
+            kg = req.site_kg
+        elif req.domain_or_url:
+            if req.max_pages > 1:
+                kg = build_site_kg(req.domain_or_url, max_pages=req.max_pages, vertical_id=req.vertical_id)
+            else:
+                kg = build_page_kg(req.domain_or_url, vertical_id=req.vertical_id)
+        else:
+            raise HTTPException(status_code=400, detail="Either 'domain_or_url', 'page_kg', or 'site_kg' must be provided.")
+
+        alignment = align_graph_with_industry(kg, vertical_id=req.vertical_id)
+        return alignment
+    except HTTPException:
+        raise
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
+    except Exception as e:
+        logger.error("[API KGAlign] Alignment failed: %s", e)
+        raise HTTPException(status_code=500, detail=f"Knowledge graph alignment failed: {str(e)}")
+
 

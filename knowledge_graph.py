@@ -14,7 +14,7 @@ import re
 import json
 import time
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Optional, Set, Tuple
+from typing import List, Dict, Any, Optional, Set
 from urllib.parse import urlparse
 
 from rdflib import Graph, Literal, RDF, RDFS, URIRef, Namespace, OWL, XSD
@@ -24,7 +24,7 @@ from entity_grounding import ground_url, prefetch as prefetch_grounding
 from ontology_schema import (
     scheme_uri as onto_scheme_uri,
     concept_uri as onto_concept_uri,
-    slug_for_label,
+    slug_for_label
 )
 
 # The curated Q-IDs, still exported under the old name for anything importing it.
@@ -435,7 +435,7 @@ def export_to_rdf_ntriples(
 
 # SPARQL keywords that mutate the graph. Rejected outright.
 _SPARQL_MUTATION_KEYWORDS = (
-    "INSERT", "DELETE", "DROP", "CLEAR", "CREATE", "LOAD", "COPY", "MOVE", "ADD",
+    "INSERT", "DELETE", "DROP", "CLEAR", "CREATE", "LOAD", "COPY", "MOVE", "ADD"
 )
 
 # SPARQL keywords that make the query engine open a network connection of its own.

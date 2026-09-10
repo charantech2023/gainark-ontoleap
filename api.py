@@ -3,10 +3,8 @@ GainARK OntoLeap — FastAPI Enterprise REST API & Semantic Service Gateway
 
 Modular gateway mounting decoupled domain routers:
 - System & Info (health, cache, discovery, verticals, dashboard)
-- Product Truth & Governance (audits, alignment, SHACL, competitor tracking)
-- Knowledge Graph Operations (SPARQL 1.1, N-Triples, OWL 2 DL, link prediction)
-- Semantic SEO & Linking (internal links, SearchGPT simulation, draft alignment)
-- Site Audit & Benchmarking (sitemap crawl, audits, benchmark matrix, PDF reports)
+- Knowledge Graph Operations (Page KG, Site KG, SPARQL 1.1, N-Triples, OWL 2 DL, Link Prediction)
+- Industry & Regulatory Ontology (vertical taxonomy, compliance frameworks, industry alignment)
 
 Cross-cutting controls applied here, outermost first:
   CORS -> security headers -> request size ceiling -> rate limit -> API key auth
@@ -17,8 +15,6 @@ import time
 import logging
 import threading
 from collections import defaultdict
-from typing import Optional
-
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,113 +22,12 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from security import API_KEY_HEADER, api_key_matches, configured_api_key
 
-from routers.deps import (
-    get_pipeline,
-    get_default_pipeline,
-    pipeline_cache,
-    SUPPORTED_VERTICALS
-)
-from routers.system_routes import (
-    router as system_router,
-    api_info,
-    health,
-    api_list_verticals,
-    api_cache_stats,
-    api_cache_clear,
-    api_google_kg_search_post,
-    api_google_kg_search_get,
-    api_discover_industry
-)
-from routers.governance_routes import (
-    router as governance_router,
-    ShaclValidationRequest,
-    ShaclValidationResponse,
-    competitor_changes,
-    api_export_product_truth_prov,
-    api_validate_kg_shacl,
-    api_product_truth_audit,
-    api_tri_ontology_align,
-    api_competitor_ontology
-)
-from routers.kg_routes import (
-    router as kg_router,
-    NTriplesExportRequest,
-    OwlExportRequest,
-    SemanticClustersRequest,
-    PageKnowledgeGraphRequest,
-    PageKnowledgeGraphResult,
-    api_execute_sparql,
-    api_export_ntriples,
-    api_export_owl,
-    api_predict_links,
-    api_semantic_clusters,
-    api_export_graph_html,
-    api_extract_page_knowledge_graph
-)
+# get_pipeline is re-exported here: test_industry_profiler imports it from api.
+from routers.deps import get_pipeline
+from routers.system_routes import router as system_router
+from routers.kg_routes import router as kg_router
 from routers.ontology_routes import router as ontology_router
-from routers.seo_routes import (
-    router as seo_router,
-    InternalLinkAuditRequest,
-    api_internal_links,
-    api_simulate_search,
-    api_check_draft,
-    api_content_brief
-)
-from routers.audit_routes import (
-    router as audit_router,
-    BatchCrawlRequest,
-    AuditRequest,
-    AuditResponse,
-    BenchmarkRequest,
-    BenchmarkItem,
-    BenchmarkResponse,
-    BenchmarkCsvExportRequest,
-    api_batch_crawl,
-    audit_endpoint,
-    benchmark_endpoint,
-    api_export_benchmark_csv,
-    api_export_pdf,
-    api_export_battlecards_pdf,
-    api_download_pitch_pdf
-)
 
-# Re-export models for 100% backward compatibility
-from models import (
-    ReadinessBreakdown,
-    EntityMatch,
-    SeedConceptMatch,
-    SchemaOrgData,
-    CompetitiveGapAnalysis,
-    KeywordGapItem,
-    SemanticTriple,
-    UnifiedSiteGraph,
-    PageCrawlSummary,
-    InternalLinkOpportunity,
-    SiteAuditAndLinkResult,
-    SearchSimulationRequest,
-    SearchSimulationResponse,
-    CitationSource,
-    SparqlQueryRequest,
-    SparqlQueryResponse,
-    PredictedLink,
-    LinkPredictionRequest,
-    LinkPredictionResponse,
-    ExportGraphHtmlRequest,
-    DraftAlignmentRequest,
-    DraftAlignmentResponse,
-    ProductBriefRequest,
-    ProductBriefResponse,
-    ExportPdfRequest,
-    GoogleKgRequest,
-    IndustryDiscoveryRequest,
-    IndustryDiscoveryResponse,
-    ProductTruthRequest,
-    ProductTruthMatrixResponse,
-    TriOntologyAlignmentRequest,
-    TriOntologyAlignmentResponse,
-    CompetitorOntologyRequest,
-    CompetitorOntologyResponse
-)
 
 # ---------------------------------------------------------------------------
 # Structured Logging
@@ -255,26 +150,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.lock = threading.Lock()
         self.request_count = 0
         self.limits = {
-            "/api/audit": 10,                 # Max 10 audits/min per IP
-            "/api/benchmark": 3,             # Max 3 multi-domain benchmarks/min
-            "/api/batch-crawl": 3,           # Max 3 sitemap crawls/min
-            "/api/internal-links": 5,        # Max 5 internal linking crawls/min
-            "/api/semantic-clusters": 5,     # Max 5 clustering crawls/min
-            "/api/discover-industry": 5,     # Max 5 zero-shot discoveries/min
-            "/api/product-truth": 5,         # Max 5 truth audits/min
-            "/api/tri-ontology-align": 5,    # Max 5 alignment runs/min
-            "/api/competitor-ontology": 5,   # Max 5 competitor crawls/min
-            "/api/sparql": 20,               # Max 20 graph queries/min
-            "/api/google-kg": 15,            # Fans out to a metered upstream API
-            "/api/geo/citation-audit": 3,    # Fans out to live AI engines
-            "/api/geo/generate-queries": 10,
-            "/api/check-draft": 10,          # Billed LLM call
-            "/api/content-brief": 10,        # Billed LLM call
-            "/api/simulate-search": 10,      # Billed LLM call
+            "/api/kg/page": 15,              # Max 15 page KG extractions/min
+            "/api/kg/site": 5,               # Max 5 site-wide crawl & synthesis/min
+            "/api/kg/align": 10,             # Max 10 industry alignment runs/min
+            "/api/sparql": 30,               # Max 30 graph queries/min
+            "/api/google-kg": 15,            # Fans out to Google KG API
             "/api/cache/clear": 2,           # Flushes shared state
-            "/api/download-pitch-pdf": 10,   # Max 10 pitch downloads/min
-            "/api/export-pdf": 10,           # Max 10 audit PDF exports/min
-            "/api/export-battlecards-pdf": 10# Max 10 battlecard PDF exports/min
         }
         self.default_limit = 60              # Default 60 requests/min
 
@@ -442,70 +323,38 @@ async def _restore_knowledge_graph() -> None:
         logger.error("Knowledge graph could not be restored from the archive: %s", err)
 
 
-@app.on_event("startup")
-async def _restore_truth_ledger() -> None:
-    """Index the durable archive into this instance's audit history.
-
-    The graph and the ledger share an archive but not a failure mode. A cold graph store
-    admits it has nothing; a cold ledger reseeds itself from log.md, which truncates
-    verified claims at five, and then answers competitor-change questions from that
-    summary as though it were the full record. Restoring first is what keeps the
-    complete snapshots authoritative.
-
-    Never fatal. Serving audits without history is degraded; refusing to boot is worse.
-    """
-    try:
-        import graph_archive
-        import truth_ledger.history as ledger_history
-
-        ledger_history.warn_if_ephemeral()
-        archive = graph_archive.open_archive()
-        if archive is None:
-            logger.info("Truth ledger archive not configured; history is local only.")
-            return
-        result = ledger_history.sync_from_archive(archive)
-        logger.info(
-            "Truth ledger restored from %s: %d snapshot(s) pulled, %d already held.",
-            archive.describe(), result["pulled"], result["skipped"])
-    except Exception as err:
-        logger.error("Truth ledger could not be restored from the archive: %s", err)
-
-
 # ---------------------------------------------------------------------------
 # Mount Decoupled Routers
 # ---------------------------------------------------------------------------
 app.include_router(system_router)
 app.include_router(ontology_router)
-app.include_router(governance_router)
 app.include_router(kg_router)
-app.include_router(seo_router)
-app.include_router(audit_router)
 
 
 @app.get("/api/v1/mcp-info", tags=["MCP & Agent Integration"])
 def get_mcp_info():
     """Returns the Model Context Protocol (MCP) server specifications, tools, and client configs."""
     return {
-        "mcp_server": "OntoLeap Knowledge Graph & Graph-Diff Engine",
-        "version": "1.0.0",
+        "mcp_server": "OntoLeap Knowledge Graph & Domain Ontology Engine",
+        "version": "2.0.0",
         "protocol": "Model Context Protocol (MCP) 2.x",
         "transports": ["stdio", "sse"],
         "tools": [
             {
-                "name": "ontoleap_extract_facts",
-                "description": "Extracts verified semantic triples <S, P, O>, entities, and schemas from a URL or raw text."
+                "name": "ontoleap_build_page_kg",
+                "description": "Extracts entities, Wikidata QIDs, semantic triples, and JSON-LD/Turtle from a page."
             },
             {
-                "name": "ontoleap_cross_examine_diff",
-                "description": "Calculates the discrete set-theoretic graph diff (A ∩ B, A \\ B, B \\ A) between two sources."
+                "name": "ontoleap_build_site_kg",
+                "description": "Crawls a domain, canonicalizes entities, and induces domain ontology schema."
             },
             {
-                "name": "ontoleap_probe_ai_sov",
-                "description": "Probes live AI answer engines with buyer queries to measure Share of Voice (SOV %) and audit hallucinations."
+                "name": "ontoleap_align_industry_ontology",
+                "description": "Ground page or site KG against industry reference taxonomy."
             },
             {
-                "name": "ontoleap_map_site_topology",
-                "description": "Crawls sitemaps, calculates PageRank authority hubs, and generates in-context internal link opportunities."
+                "name": "ontoleap_list_industry_ontologies",
+                "description": "Enumerates all supported industry reference models."
             }
         ],
         "claude_desktop_config": {

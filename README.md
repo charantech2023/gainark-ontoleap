@@ -79,7 +79,7 @@ graph TD
 - Computes **Product-Aligned Score (PAS)**, detects unsubstantiated fluff, calculates penalty deductions, and outputs grounded rewrite recommendations.
 
 ### 5. 🕸️ Dual-Mode Citation Readiness & GEO Engine (`pipeline.py`, `linking.py`)
-- **API Endpoints**: `POST /api/audit`, `POST /api/batch-crawl`, `POST /api/internal-links`, `POST /api/simulate-search`, `POST /api/export-battlecards-pdf`
+- **API Endpoints**: `POST /api/audit`, `POST /api/batch-crawl`, `POST /api/internal-links`, `POST /api/export-battlecards-pdf`
 - **Dual-Mode AI Citation Rubric**:
   - **Single-Page Structured Data Readiness (`/api/audit`)**: Evaluates a specific URL across 3 technical pillars (**40%** Mandatory Schema.org types, **30%** Ontological Seed Concepts, **30%** GLiNER Named Entity richness). This measures structured data implementation on one page and is **not** a predictor of how often AI answer engines cite the brand — a heavily-cited domain can score low when its landing page omits JSON-LD. See `calibration_set.json` and `test_calibration.py`.
   - **Site-Wide AI Citation Authority Index (`/api/batch-crawl`)**: Evaluates the full domain knowledge graph across 4 enterprise pillars (**25%** Entity Grounding, **25%** Relational Density, **25%** Topic Silo Integrity via PageRank flow, and **25%** Schema Coverage).

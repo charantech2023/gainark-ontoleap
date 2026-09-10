@@ -38,8 +38,8 @@ def main():
     print("=" * 65)
     print(f" [Web Dashboard] : http://localhost:{port}/dashboard")
     print(f" [API Docs]      : http://localhost:{port}/docs")
-    print(f" [Audit Endpoint]: POST http://localhost:{port}/api/audit")
-    print(f" [Bench Endpoint]: POST http://localhost:{port}/api/benchmark")
+    print(f" [Page KG]       : POST http://localhost:{port}/api/kg/page")
+    print(f" [Site KG]       : POST http://localhost:{port}/api/kg/site")
     print("=" * 65)
     
     uvicorn.run("api:app", host="0.0.0.0", port=port, reload=False)

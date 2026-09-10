@@ -54,11 +54,141 @@ import asyncio
 import concurrent.futures
 import logging
 import os
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Any
+from urllib.parse import quote
+import httpx
 
 from constants import WIKIDATA_KB
 
+_WIKIDATA_PREFIX = "https://www.wikidata.org/wiki/"
+
 logger = logging.getLogger("gainark.entity_grounding")
+
+# In-memory cache for resolved Wikidata entities
+_wikidata_api_cache: Dict[str, Optional[dict]] = {}
+
+EXCLUDED_DESCRIPTIONS = [
+    "scholarly article",
+    "academic paper",
+    "town in",
+    "census-designated place",
+    "railway station",
+]
+
+PREFERRED_KEYWORDS = [
+    "software",
+    "business",
+    "economics",
+    "economic",
+    "finance",
+    "financial",
+    "accounting",
+    "pricing",
+    "price",
+]
+
+
+async def resolve_wikidata(query: str) -> Optional[dict]:
+    """
+    Asynchronously queries the public Wikidata API with in-memory caching to resolve
+    an entity or concept to its canonical Wikidata ID and URI.
+    """
+    if not query or len(query.strip()) < 2:
+        return None
+
+    cleaned = query.strip()
+    cache_key = cleaned.lower()
+    if cache_key in _wikidata_api_cache:
+        return _wikidata_api_cache[cache_key]
+
+    encoded = quote(cleaned)
+    url = f"https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&language=en&limit=3&search={encoded}"
+    headers = {
+        "User-Agent": "GainARK-OntoLeap/2.0 (Enterprise Knowledge Graph; https://gainark.com)"
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=4.0) as client:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 200:
+                data = resp.json()
+                search = data.get("search", [])
+
+                valid_candidates = []
+                for item in search:
+                    qid = item.get("id")
+                    if not qid:
+                        continue
+                    desc = (item.get("description") or "").lower()
+                    if any(ex in desc for ex in EXCLUDED_DESCRIPTIONS):
+                        continue
+                    valid_candidates.append(item)
+
+                if not valid_candidates:
+                    _wikidata_api_cache[cache_key] = None
+                    return None
+
+                preferred_candidates = []
+                for item in valid_candidates:
+                    desc = (item.get("description") or "").lower()
+                    if any(pk in desc for pk in PREFERRED_KEYWORDS):
+                        preferred_candidates.append(item)
+
+                chosen = None
+                q_lower = cleaned.lower()
+
+                if preferred_candidates:
+                    if len(preferred_candidates) == 1:
+                        chosen = preferred_candidates[0]
+                    else:
+                        exact = [c for c in preferred_candidates if (c.get("label") or "").strip().lower() == q_lower]
+                        if len(exact) == 1:
+                            chosen = exact[0]
+                        elif len(exact) > 1:
+                            chosen = exact[0]
+                        else:
+                            _wikidata_api_cache[cache_key] = None
+                            return None
+                else:
+                    _wikidata_api_cache[cache_key] = None
+                    return None
+
+                if chosen:
+                    qid = chosen.get("id")
+                    res = {
+                        "id": qid,
+                        "name": chosen.get("label") or cleaned,
+                        "sameAs": _WIKIDATA_PREFIX + str(qid),
+                        "description": chosen.get("description", ""),
+                        "concepturi": chosen.get("concepturi") or f"http://www.wikidata.org/entity/{qid}"
+                    }
+                    _wikidata_api_cache[cache_key] = res
+                    return res
+    except Exception:
+        pass
+
+    _wikidata_api_cache[cache_key] = None
+    return None
+
+
+resolve_wikidata_entity = resolve_wikidata
+
+
+def resolve_wikidata_batch(entity_names: List[str]) -> List[Dict[str, Any]]:
+    """Batch resolves multiple entity names concurrently using resolve_wikidata."""
+    async def _runner():
+        tasks = [resolve_wikidata(name) for name in entity_names]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        out = []
+        for name, r in zip(entity_names, results):
+            if isinstance(r, dict) and r:
+                out.append(r)
+            else:
+                out.append({"name": name, "sameAs": None, "id": None})
+        return out
+
+    return _run(_runner())
+
 
 # Live resolution is opt-out rather than opt-in: the static KB is the fast path either
 # way, and a deployment that cannot reach Wikidata degrades to exactly the behaviour
@@ -109,6 +239,20 @@ def ground_id(phrase: str) -> Optional[str]:
     """The Q-ID for a phrase, or None."""
     url = ground_url(phrase)
     return url.rsplit("/", 1)[-1] if url else None
+
+
+def wikidata_uri(value: Optional[str]) -> Optional[str]:
+    """Render a Wikidata identity as one well-formed URI, from a Q-ID or a URL.
+
+    Callers hold this value under a field documented as a Q-ID, but the curated KB
+    stores full URLs, so both forms circulate. Taking the last path segment accepts
+    either and makes the function idempotent - re-rendering an already-rendered URI
+    returns the same URI rather than nesting another prefix in front of it.
+    """
+    if not value:
+        return None
+    qid = value.strip().rsplit("/", 1)[-1].strip()
+    return _WIKIDATA_PREFIX + qid if qid else None
 
 
 def is_grounded(phrase: str) -> bool:
@@ -180,7 +324,7 @@ def prefetch(phrases: Iterable[str], resolver=None) -> Dict[str, int]:
         return {"requested": 0, "resolved": 0, "unresolved": 0, "skipped_over_budget": over}
 
     if resolver is None:
-        from remediation import resolve_wikidata as resolver
+        resolver = resolve_wikidata
 
     try:
         resolved = _run(_resolve_many(keys, resolver))

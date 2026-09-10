@@ -18,8 +18,8 @@ from pydantic import BaseModel, Field
 import ontology_schema as schema
 import compliance_ontology as comp_onto
 import sector_ontology as sector_onto
-from models import Concept, SemanticTriple
-from routers.deps import _vertical_config_path, DEFAULT_VERTICAL_ID, VERTICALS_DIR
+from models import  SemanticTriple
+from routers.deps import _vertical_config_path, DEFAULT_VERTICAL_ID
 
 logger = logging.getLogger("ontoleap.api.ontology")
 
@@ -87,7 +87,7 @@ def get_ontology_schema():
 @router.get("/concepts", summary="Get Concepts and Hierarchy for a Vertical")
 def get_ontology_concepts(
     vertical_id: str = Query(DEFAULT_VERTICAL_ID, description="Target vertical identifier"),
-    kind: Optional[str] = Query(None, description="Filter by kind (feature, process, pricing, standard, domain)"),
+    kind: Optional[str] = Query(None, description="Filter by kind (feature, process, pricing, standard, domain)")
 ):
     """
     Returns all defined concepts for the requested vertical, including their
@@ -150,7 +150,7 @@ def get_compliance_framework_detail(standard: str):
     if not framework:
         raise HTTPException(
             status_code=404,
-            detail=f"Compliance standard '{standard}' not found. Available: {list(comp_onto.COMPLIANCE_FRAMEWORKS.keys())}",
+            detail=f"Compliance standard '{standard}' not found. Available: {list(comp_onto.COMPLIANCE_FRAMEWORKS.keys())}"
         )
     return framework
 
@@ -220,7 +220,7 @@ def post_approve_synonym(req: ApproveSynonymRequest):
         marketing_term=req.surface_form,
         canonical_label=req.canonical_concept,
         vertical_path=config_path,
-        queue_path=queue_path,
+        queue_path=queue_path
     )
 
     if not success:
@@ -229,7 +229,7 @@ def post_approve_synonym(req: ApproveSynonymRequest):
             detail=(
                 f"Could not approve '{req.surface_form}' as an alternate for '{req.canonical_concept}'. "
                 "Ensure the concept exists and the surface form is not already assigned."
-            ),
+            )
         )
 
     return {
@@ -250,7 +250,7 @@ class OntologySparqlRequest(BaseModel):
 def get_ontology_export(
     vertical_id: str = Query(DEFAULT_VERTICAL_ID, description="Target vertical identifier"),
     format: str = Query("turtle", description="Serialization format: turtle, xml, nt, json-ld"),
-    download: bool = Query(False, description="Whether to trigger file download"),
+    download: bool = Query(False, description="Whether to trigger file download")
 ):
     """
     Exports the complete ontology knowledge graph in standard W3C Semantic Web formats:
@@ -342,7 +342,7 @@ def post_ontology_sparql(req: OntologySparqlRequest):
 
 @router.get("/tri-alignment", summary="Get Tri-Ontology Alignment Matrix (Product vs Standards vs Wikidata)")
 def get_tri_ontology_alignment(
-    vertical_id: str = Query(DEFAULT_VERTICAL_ID, description="Target vertical identifier"),
+    vertical_id: str = Query(DEFAULT_VERTICAL_ID, description="Target vertical identifier")
 ):
     """
     Returns the complete Tri-Ontology alignment matrix across all concepts in the vertical:
