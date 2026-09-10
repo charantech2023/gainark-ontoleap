@@ -36,9 +36,13 @@
         body { font-family: 'Inter', sans-serif; }
         pre, code { font-family: 'JetBrains Mono', monospace; }
         .tab-active {
-            border-bottom: 2px solid #0284c7;
-            color: #0284c7;
-            font-weight: 600;
+            background-color: #0f172a !important;
+            color: #ffffff !important;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+        }
+        .tab-active span.w-5 {
+            background-color: #0284c7 !important;
+            color: #ffffff !important;
         }
         /* Deep scan toggle */
         .toggle-track { transition: background-color 0.2s; }
@@ -136,34 +140,34 @@
         </div>
     </header>
 
-    <!-- Executive Navigation Tabs -->
-    <div class="bg-white border-b border-slate-200 sticky top-16 z-40">
+    <!-- Executive 3-Step Workflow Stepper Navigation -->
+    <div class="bg-white border-b border-slate-200 sticky top-16 z-40 shadow-xs">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-            <div class="flex space-x-4 sm:space-x-8 overflow-x-auto py-1">
-                <button id="tab-ontology-btn" onclick="switchTab('ontology')" class="py-3 text-sm font-semibold text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-all tab-active flex items-center gap-2 whitespace-nowrap">
-                    <span class="text-base">🏛️</span>
-                    <span>Ontology Foundation &amp; Taxonomy</span>
-                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 uppercase">SKOS · W3C Core</span>
+            <div class="flex space-x-2 sm:space-x-4 overflow-x-auto py-2" id="executive-workflow-stepper">
+                <!-- Step 1 Button -->
+                <button id="tab-ingest-btn" onclick="switchTab('ingest')" class="py-2 px-3.5 text-xs font-bold rounded-xl transition-all tab-active flex items-center gap-2 whitespace-nowrap cursor-pointer">
+                    <span class="w-5 h-5 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center text-[10px] font-black">1</span>
+                    <span>🚀 Ingest &amp; Live Crawl</span>
+                    <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-50 text-sky-700 border border-sky-200 uppercase">Input</span>
                 </button>
-                <button id="tab-truth-btn" onclick="switchTab('truth')" class="py-3 text-sm font-semibold text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-all flex items-center gap-2 whitespace-nowrap">
-                    <span class="text-base">⚖️</span>
-                    <span>Product Truth &amp; Governance</span>
-                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 uppercase">MGI Engine</span>
+                <!-- Step 2 Button -->
+                <button id="tab-truth-btn" onclick="switchTab('truth')" class="py-2 px-3.5 text-xs font-bold rounded-xl text-slate-600 hover:text-slate-900 transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer">
+                    <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-black">2</span>
+                    <span>⚖️ Truth &amp; Drift Audit</span>
+                    <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">MGI Scorecard</span>
                 </button>
-                <button id="tab-battlecards-btn" onclick="switchTab('battlecards')" class="py-3 text-sm font-semibold text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-all flex items-center gap-2 whitespace-nowrap">
-                    <span class="text-base">⚔️</span>
-                    <span>Competitive Battlecards &amp; Drift</span>
-                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 uppercase">Sales Intel</span>
-                </button>
-                <button id="tab-search-btn" onclick="switchTab('search')" class="py-3 text-sm font-semibold text-slate-600 hover:text-slate-900 border-b-2 border-transparent transition-all flex items-center gap-2 whitespace-nowrap">
-                    <span class="text-base">🌐</span>
-                    <span>AI Search (GEO)</span>
-                    <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 uppercase">Perplexity / LLMs</span>
+                <!-- Step 3 Button -->
+                <button id="tab-graph-btn" onclick="switchTab('graph')" class="py-2 px-3.5 text-xs font-bold rounded-xl text-slate-600 hover:text-slate-900 transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer">
+                    <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-black">3</span>
+                    <span>🏛️ W3C Knowledge Graph &amp; Exports</span>
+                    <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-50 text-purple-700 border border-purple-200 uppercase">Semantic Hub</span>
                 </button>
             </div>
-            <div class="hidden lg:flex items-center gap-2 text-xs text-slate-500">
-                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>W3C PROV-O &amp; SHACL Certified</span>
+            <div class="hidden lg:flex items-center gap-3 text-xs text-slate-500">
+                <span class="flex items-center gap-1.5">
+                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="font-medium text-[11px]">W3C PROV-O &amp; SHACL Certified</span>
+                </span>
             </div>
         </div>
     </div>
@@ -174,177 +178,135 @@
         <!-- ============================================================= -->
         <!-- ⚡ UNIFIED 1-CLICK EXECUTIVE COMMAND CENTER                  -->
         <!-- ============================================================= -->
-        <section class="bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 rounded-2xl p-6 text-white shadow-lg border border-slate-800">
-            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                <div class="space-y-1.5 max-w-xl">
-                    <div class="flex items-center gap-2">
-                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-sky-500/20 text-sky-200 border border-sky-400/30">
-                            Unified Enterprise Intelligence Bar
-                        </span>
-                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                            Zero-Configuration Ingestion
-                        </span>
-                    </div>
-                    <h2 class="text-xl sm:text-2xl font-black text-white tracking-tight">Audit Truth, Competitors &amp; AI Citations</h2>
-                    <p class="text-xs text-slate-300 leading-relaxed">
-                        Enter any B2B domain. OntoLeap auto-discovers developer specs, verifies public marketing claims against technical truth, exposes competitor vulnerabilities, and builds W3C knowledge graphs.
-                    </p>
-                </div>
-
-                <!-- 1-Click Scan Form -->
-                <div class="w-full lg:max-w-lg bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/15 space-y-3">
-                    <form id="unified-scan-form" onsubmit="handleUnifiedScan(event)" class="flex flex-col sm:flex-row gap-2">
-                        <div class="relative flex-1">
-                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">🌐</span>
-                            <input type="url" id="unified-scan-url" required value="https://www.ordwaylabs.com" placeholder="https://company.com"
-                                class="w-full pl-8 pr-3 py-2.5 text-xs font-medium bg-white text-slate-900 rounded-xl border-0 shadow-inner focus:ring-2 focus:ring-sky-500 focus:outline-none">
-                        </div>
-                        <button type="submit" id="unified-scan-btn"
-                            class="px-5 py-2.5 bg-gradient-to-r from-sky-500 to-brand-600 hover:from-sky-400 hover:to-brand-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 whitespace-nowrap">
-                            <span>⚡ Run Audit</span>
-                        </button>
-                    </form>
-
-                    <!-- Presets & Advanced Toggle -->
-                    <div class="flex items-center justify-between text-[11px] text-slate-300 pt-1 flex-wrap gap-2">
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <span class="text-slate-400 font-semibold">Presets:</span>
-                            <button type="button" onclick="loadUnifiedPreset('ordway')" class="px-2 py-0.5 rounded bg-white/15 hover:bg-white/25 text-white font-medium transition">Ordway (SaaS)</button>
-                            <button type="button" onclick="loadUnifiedPreset('chargebee')" class="px-2 py-0.5 rounded bg-white/15 hover:bg-white/25 text-white font-medium transition">Chargebee (Billing)</button>
-                            <button type="button" onclick="loadUnifiedPreset('snyk')" class="px-2 py-0.5 rounded bg-white/15 hover:bg-white/25 text-white font-medium transition">Snyk (SecOps)</button>
-                        </div>
-                        <button type="button" onclick="toggleAdvancedSettings()" class="text-sky-300 hover:text-white font-semibold flex items-center gap-1">
-                            <span>⚙️ Options</span>
-                            <span id="adv-arrow">&darr;</span>
-                        </button>
-                    </div>
-
-                    <!-- Collapsible Advanced Drawer -->
-                    <div id="unified-advanced-drawer" class="hidden pt-3 border-t border-white/10 space-y-2 text-xs">
-                        <div>
-                            <label for="unified-custom-docs" class="block text-[10px] font-bold text-slate-300 uppercase tracking-wider mb-1">Custom Tech Docs URL (Optional)</label>
-                            <input type="url" id="unified-custom-docs" placeholder="https://docs.company.com/openapi.json"
-                                class="w-full px-3 py-1.5 text-xs bg-slate-900/80 border border-slate-700 rounded-lg text-slate-100 font-mono focus:ring-1 focus:ring-sky-400">
-                        </div>
-                        <div>
-                            <label for="unified-custom-competitors" class="block text-[10px] font-bold text-slate-300 uppercase tracking-wider mb-1">Target Competitor URLs (Comma-separated)</label>
-                            <input type="text" id="unified-custom-competitors" value="https://www.chargebee.com" placeholder="https://rival1.com, https://rival2.com"
-                                class="w-full px-3 py-1.5 text-xs bg-slate-900/80 border border-slate-700 rounded-lg text-slate-100 font-mono focus:ring-1 focus:ring-sky-400">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Top Executive Health Scorecard -->
-            <div id="top-executive-scorecard" class="mt-6 pt-6 border-t border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div class="bg-slate-900/70 p-3.5 rounded-xl border border-slate-800/80">
-                    <div class="text-[10px] font-bold uppercase tracking-wider text-sky-400">Grounding Index (MGI)</div>
-                    <div class="text-2xl font-black text-white mt-1" id="kpi-mgi-score">--</div>
-                    <div class="text-[10px] text-slate-400 mt-0.5" id="kpi-mgi-subtitle">Awaiting audit run</div>
-                </div>
-                <div class="bg-slate-900/70 p-3.5 rounded-xl border border-slate-800/80">
-                    <div class="text-[10px] font-bold uppercase tracking-wider text-rose-400">Critical Drift Alerts</div>
-                    <div class="text-2xl font-black text-white mt-1" id="kpi-drift-count">--</div>
-                    <div class="text-[10px] text-slate-400 mt-0.5" id="kpi-drift-subtitle">Regulatory &amp; Integration</div>
-                </div>
-                <div class="bg-slate-900/70 p-3.5 rounded-xl border border-slate-800/80">
-                    <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Exclusive Advantages</div>
-                    <div class="text-2xl font-black text-white mt-1" id="kpi-adv-count">--</div>
-                    <div class="text-[10px] text-slate-400 mt-0.5" id="kpi-adv-subtitle">Verified vs Competitors</div>
-                </div>
-                <div class="bg-slate-900/70 p-3.5 rounded-xl border border-slate-800/80">
-                    <div class="text-[10px] font-bold uppercase tracking-wider text-indigo-400">Structured Data Score</div>
-                    <div class="text-2xl font-black text-white mt-1" id="kpi-geo-score">--</div>
-                    <div class="text-[10px] text-slate-400 mt-0.5" id="kpi-geo-subtitle">Readiness Index (0–100)</div>
-                </div>
-            </div>
-            <!-- ========================================================= -->
-            <!-- SUBVIEW 5: SPARQL QUERY CONSOLE                          -->
-            <!-- ========================================================= -->
-            <div id="onto-subview-sparql" class="hidden space-y-6">
-                <!-- Header Banner -->
-                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h3 class="text-base font-bold text-slate-900">W3C SPARQL 1.1 In-Memory Semantic Engine</h3>
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 uppercase">RDFLib Core</span>
-                            </div>
-                            <p class="text-xs text-slate-500 mt-1">
-                                Execute read-only SPARQL queries across SKOS taxonomy concepts, regulatory standards (<code class="text-purple-700 font-mono">onto:governs</code>), and hierarchy (<code class="text-purple-700 font-mono">skos:broader</code>).
-                            </p>
-                        </div>
-                        <!-- Presets Selector -->
-                        <div class="flex items-center gap-2 self-start sm:self-center">
-                            <label for="sparql-query-preset" class="text-xs font-semibold text-slate-500 whitespace-nowrap">Presets:</label>
-                            <select id="sparql-query-preset" onchange="loadSparqlPreset(this.value)" class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:ring-2 focus:ring-purple-500 focus:outline-none">
-                                <option value="concepts">Concepts with Definitions</option>
-                                <option value="governance">Standards &amp; Governed Capabilities</option>
-                                <option value="hierarchy">Hierarchy Inheritance (Broader Links)</option>
-                                <option value="alt_labels">Alternate Labels &amp; Synonyms</option>
-                                <option value="count_by_kind">Count Concepts by Kind</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Query Editor & Controls -->
-                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-bold uppercase tracking-wider text-slate-700">SPARQL Query (SELECT only)</span>
-                        <div class="flex items-center gap-3 text-xs text-slate-400">
-                            <span>Default Namespaces: <code class="text-purple-600 font-mono">skos:</code>, <code class="text-purple-600 font-mono">onto:</code>, <code class="text-purple-600 font-mono">schema:</code></span>
-                        </div>
-                    </div>
-
-                    <textarea id="sparql-query-textarea" rows="8" class="w-full p-4 font-mono text-xs bg-slate-950 text-emerald-400 border border-slate-800 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none transition leading-relaxed"></textarea>
-
-                    <div class="flex items-center justify-between pt-1">
-                        <span class="text-[11px] text-slate-400">Limits to 1000 rows max. Read-only SELECT operations strictly enforced.</span>
+        <!-- ============================================================= -->
+        <!-- STEP 1: 🚀 INGEST & LIVE CRAWL (ZERO-CONFIG COMMAND CENTER)  -->
+        <!-- ============================================================= -->
+        <section id="view-ingest" class="space-y-6">
+            <!-- Command Center Hero Card -->
+            <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 rounded-2xl p-6 text-white shadow-lg border border-slate-800">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                    <div class="space-y-1.5 max-w-xl">
                         <div class="flex items-center gap-2">
-                            <button type="button" onclick="loadSparqlPreset('concepts')" class="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition">Reset</button>
-                            <button type="button" onclick="runOntologySparqlQuery()" id="sparql-exec-btn" class="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer">
-                                <span>⚡ Execute Query</span>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-sky-500/20 text-sky-200 border border-sky-400/30">
+                                Step 1 · Enterprise Ingestion Bar
+                            </span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                                Zero-Configuration Auto-Discovery
+                            </span>
+                        </div>
+                        <h2 class="text-xl sm:text-2xl font-black text-white tracking-tight">Audit Truth, Competitors &amp; AI Citations</h2>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            Enter any B2B domain. OntoLeap auto-discovers developer specs, verifies public marketing claims against technical truth, exposes competitor vulnerabilities, and builds W3C knowledge graphs.
+                        </p>
+                    </div>
+
+                    <!-- 1-Click Scan Form -->
+                    <div class="w-full lg:max-w-lg bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/15 space-y-3">
+                        <form id="unified-scan-form" onsubmit="handleUnifiedScan(event)" class="flex flex-col sm:flex-row gap-2">
+                            <div class="relative flex-1">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">🌐</span>
+                                <input type="url" id="unified-scan-url" required value="https://www.ordwaylabs.com" placeholder="https://company.com"
+                                    class="w-full pl-8 pr-3 py-2.5 text-xs font-medium bg-white text-slate-900 rounded-xl border-0 shadow-inner focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                            </div>
+                            <button type="submit" id="unified-scan-btn"
+                                class="px-5 py-2.5 bg-gradient-to-r from-sky-500 to-brand-600 hover:from-sky-400 hover:to-brand-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer">
+                                <span>⚡ Run Audit</span>
+                            </button>
+                        </form>
+
+                        <!-- Presets & Advanced Toggle -->
+                        <div class="flex items-center justify-between text-[11px] text-slate-300 pt-1 flex-wrap gap-2">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="text-slate-400 font-semibold">Presets:</span>
+                                <button type="button" onclick="loadUnifiedPreset('ordway')" class="px-2 py-0.5 rounded bg-white/15 hover:bg-white/25 text-white font-medium transition cursor-pointer">Ordway (SaaS)</button>
+                                <button type="button" onclick="loadUnifiedPreset('chargebee')" class="px-2 py-0.5 rounded bg-white/15 hover:bg-white/25 text-white font-medium transition cursor-pointer">Chargebee (Billing)</button>
+                                <button type="button" onclick="loadUnifiedPreset('snyk')" class="px-2 py-0.5 rounded bg-white/15 hover:bg-white/25 text-white font-medium transition cursor-pointer">Snyk (SecOps)</button>
+                            </div>
+                            <button type="button" onclick="toggleAdvancedSettings()" class="text-sky-300 hover:text-white font-semibold flex items-center gap-1 cursor-pointer">
+                                <span>⚙️ Options</span>
+                                <span id="adv-arrow">&darr;</span>
                             </button>
                         </div>
+
+                        <!-- Collapsible Advanced Drawer -->
+                        <div id="unified-advanced-drawer" class="hidden pt-3 border-t border-white/10 space-y-2 text-xs">
+                            <div>
+                                <label for="unified-custom-docs" class="block text-[10px] font-bold text-slate-300 uppercase tracking-wider mb-1">Custom Tech Docs URL (Optional)</label>
+                                <input type="url" id="unified-custom-docs" placeholder="https://docs.company.com/openapi.json"
+                                    class="w-full px-3 py-1.5 text-xs bg-slate-900/80 border border-slate-700 rounded-lg text-slate-100 font-mono focus:ring-1 focus:ring-sky-400">
+                            </div>
+                            <div>
+                                <label for="unified-custom-competitors" class="block text-[10px] font-bold text-slate-300 uppercase tracking-wider mb-1">Target Competitor URLs (Comma-separated)</label>
+                                <input type="text" id="unified-custom-competitors" value="https://www.chargebee.com" placeholder="https://rival1.com, https://rival2.com"
+                                    class="w-full px-3 py-1.5 text-xs bg-slate-900/80 border border-slate-700 rounded-lg text-slate-100 font-mono focus:ring-1 focus:ring-sky-400">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ingestion Scope & Automated Engine Detection -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Auto-Detected Engines</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Active</span>
+                    </div>
+                    <div class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <span>🔍 Smart Platform Profiler</span>
+                    </div>
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        Detects developer documentation ecosystems: Zendesk Help Center API, GitBook, ReadMe, Mintlify, and Swagger/OpenAPI endpoints.
+                    </p>
+                    <div class="pt-2 flex flex-wrap gap-1.5 text-[10px] font-medium text-slate-600">
+                        <span class="px-2 py-0.5 rounded bg-slate-100 border border-slate-200">Zendesk API</span>
+                        <span class="px-2 py-0.5 rounded bg-slate-100 border border-slate-200">GitBook</span>
+                        <span class="px-2 py-0.5 rounded bg-slate-100 border border-slate-200">ReadMe.io</span>
+                        <span class="px-2 py-0.5 rounded bg-slate-100 border border-slate-200">OpenAPI 3.x</span>
                     </div>
                 </div>
 
-                <!-- Query Results Box -->
-                <div id="sparql-results-container" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
-                    <div class="px-6 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                            <span class="text-xs font-bold text-slate-900">Query Results</span>
-                            <span id="sparql-row-count-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">0 rows</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button type="button" onclick="downloadSparqlJson()" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-2xs">📥 JSON</button>
-                            <button type="button" onclick="downloadSparqlCsv()" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-2xs">📥 CSV</button>
-                        </div>
+                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Crawl Scope &amp; Robots</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200">Deep Index</span>
                     </div>
+                    <div class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <span>🗺️ Sitemap &amp; Breadth-First Crawler</span>
+                    </div>
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        Automatic sitemap.xml parsing, clean HTML text extraction, and sentence boundary tokenization for W3C PROV-O sentence provenance.
+                    </p>
+                    <div class="pt-2 flex items-center justify-between text-xs text-slate-500">
+                        <span>Max Depth: <strong class="text-slate-700">3 levels</strong></span>
+                        <span>Rate Limiting: <strong class="text-slate-700">Polite / Async</strong></span>
+                    </div>
+                </div>
 
-                    <div class="overflow-x-auto max-h-96">
-                        <table class="min-w-full divide-y divide-slate-200 text-xs font-mono" id="sparql-results-table">
-                            <thead class="bg-slate-100/70 text-slate-600 font-bold text-left uppercase tracking-wider sticky top-0" id="sparql-thead">
-                                <!-- Dynamic columns -->
-                            </thead>
-                            <tbody class="divide-y divide-slate-100 text-slate-800 bg-white" id="sparql-tbody">
-                                <!-- Dynamic rows -->
-                            </tbody>
-                        </table>
+                <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Single-Page Testing</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">PROV-O</span>
+                    </div>
+                    <div class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <span>🏛️ Page Knowledge Graph Tester</span>
+                    </div>
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        Need to test knowledge graph generation with sentence-level quotes on a single page or ad-hoc marketing text?
+                    </p>
+                    <div class="pt-2">
+                        <button type="button" onclick="switchTab('graph'); switchOntologySubView('pagekg');" class="w-full py-2 px-3 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
+                            <span>Open Page KG Generator &rarr;</span>
+                        </button>
                     </div>
                 </div>
             </div>
         </section>
 
         <!-- ============================================================= -->
-        <!-- WORKSPACE 1: PRODUCT TRUTH & GOVERNANCE                      -->
+        <!-- STEP 3: 🏛️ W3C KNOWLEDGE GRAPH & SEMANTIC EXPORTS          -->
         <!-- ============================================================= -->
-                <!-- ============================================================= -->
-        <!-- WORKSPACE 0: ONTOLOGY FOUNDATION & KNOWLEDGE GRAPH           -->
-        <!-- ============================================================= -->
-        <section id="view-ontology" class="space-y-8">
+        <section id="view-ontology" class="hidden space-y-8">
             <!-- Header Banner -->
             <div class="bg-gradient-to-r from-purple-950 via-slate-900 to-indigo-950 rounded-2xl p-6 text-white shadow-md border border-purple-900/50">
                 <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -881,6 +843,85 @@
             </div>
 
             <!-- ========================================================= -->
+            <!-- SUBVIEW 5: SPARQL QUERY CONSOLE                          -->
+            <!-- ========================================================= -->
+            <div id="onto-subview-sparql" class="hidden space-y-6">
+                <!-- Header Banner -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-base font-bold text-slate-900">W3C SPARQL 1.1 In-Memory Semantic Engine</h3>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 uppercase">RDFLib Core</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-1">
+                                Execute read-only SPARQL queries across SKOS taxonomy concepts, regulatory standards (<code class="text-purple-700 font-mono">onto:governs</code>), and hierarchy (<code class="text-purple-700 font-mono">skos:broader</code>).
+                            </p>
+                        </div>
+                        <!-- Presets Selector -->
+                        <div class="flex items-center gap-2 self-start sm:self-center">
+                            <label for="sparql-query-preset" class="text-xs font-semibold text-slate-500 whitespace-nowrap">Presets:</label>
+                            <select id="sparql-query-preset" onchange="loadSparqlPreset(this.value)" class="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                                <option value="concepts">Concepts with Definitions</option>
+                                <option value="governance">Standards &amp; Governed Capabilities</option>
+                                <option value="hierarchy">Hierarchy Inheritance (Broader Links)</option>
+                                <option value="alt_labels">Alternate Labels &amp; Synonyms</option>
+                                <option value="count_by_kind">Count Concepts by Kind</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Query Editor & Controls -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold uppercase tracking-wider text-slate-700">SPARQL Query (SELECT only)</span>
+                        <div class="flex items-center gap-3 text-xs text-slate-400">
+                            <span>Default Namespaces: <code class="text-purple-600 font-mono">skos:</code>, <code class="text-purple-600 font-mono">onto:</code>, <code class="text-purple-600 font-mono">schema:</code></span>
+                        </div>
+                    </div>
+
+                    <textarea id="sparql-query-textarea" rows="8" class="w-full p-4 font-mono text-xs bg-slate-950 text-emerald-400 border border-slate-800 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none transition leading-relaxed"></textarea>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-[11px] text-slate-400">Limits to 1000 rows max. Read-only SELECT operations strictly enforced.</span>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="loadSparqlPreset('concepts')" class="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition">Reset</button>
+                            <button type="button" onclick="runOntologySparqlQuery()" id="sparql-exec-btn" class="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer">
+                                <span>⚡ Execute Query</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Query Results Box -->
+                <div id="sparql-results-container" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
+                    <div class="px-6 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span class="text-xs font-bold text-slate-900">Query Results</span>
+                            <span id="sparql-row-count-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">0 rows</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="downloadSparqlJson()" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-2xs">📥 JSON</button>
+                            <button type="button" onclick="downloadSparqlCsv()" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-2xs">📥 CSV</button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-96">
+                        <table class="min-w-full divide-y divide-slate-200 text-xs font-mono" id="sparql-results-table">
+                            <thead class="bg-slate-100/70 text-slate-600 font-bold text-left uppercase tracking-wider sticky top-0" id="sparql-thead">
+                                <!-- Dynamic columns -->
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-slate-800 bg-white" id="sparql-tbody">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================================= -->
             <!-- SUBVIEW 7: UNIVERSAL PAGE-LEVEL KNOWLEDGE GRAPH           -->
             <!-- ========================================================= -->
             <div id="onto-subview-pagekg" class="hidden space-y-6">
@@ -1052,34 +1093,79 @@
             </div>
         </section>
 
-<section id="view-truth" class="hidden space-y-8">
+        <!-- ============================================================= -->
+        <!-- STEP 2: ⚖️ TRUTH & DRIFT AUDIT (GROUNDING & COMPETITORS)    -->
+        <!-- ============================================================= -->
+        <section id="view-truth" class="hidden space-y-6">
             <!-- Header Banner -->
             <div class="bg-gradient-to-r from-slate-900 via-sky-950 to-brand-900 rounded-2xl p-6 text-white shadow-md">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                         <div class="flex items-center gap-2">
                             <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-sky-500/20 text-sky-200 border border-sky-400/30">
-                                Dual Ingestion Engine · Grounded Product Truth
+                                Step 2 · Grounded Product Truth &amp; Competitive Intelligence
                             </span>
                             <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                                Step 2 Complete
+                                MGI Multi-Vector Engine
                             </span>
                         </div>
-                        <h2 class="text-xl font-extrabold mt-2">Marketing Claims vs. Technical Reality</h2>
+                        <h2 class="text-xl font-extrabold mt-2">Marketing Claims vs. Technical Reality &amp; Competitor Diff</h2>
                         <p class="text-xs text-slate-300 mt-1 max-w-2xl">
-                            Cross-examine public marketing claims against live OpenAPI / Swagger specs and technical documentation. Computes the Marketing Grounding Index (MGI), catches product drift, and uncovers unmarketed capabilities.
+                            Cross-examine public marketing claims against live OpenAPI / Swagger specs and technical documentation. Computes the Marketing Grounding Index (MGI), catches product drift, and exposes competitor vulnerabilities.
                         </p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button type="button" onclick="loadSampleTruthAudit()" class="px-3.5 py-2 text-xs font-bold text-sky-900 bg-white hover:bg-sky-50 rounded-xl shadow-sm transition">
+                        <button type="button" onclick="loadSampleTruthAudit()" class="px-3.5 py-2 text-xs font-bold text-sky-900 bg-white hover:bg-sky-50 rounded-xl shadow-sm transition cursor-pointer">
                             ⚡ Quick Test: Ordway + OpenAPI
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Ingestion Form Card -->
-            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
+            <!-- Top Executive Health Scorecard -->
+            <div id="top-executive-scorecard" class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-sm text-white">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-sky-400">Grounding Index (MGI)</div>
+                    <div class="text-2xl font-black text-white mt-1" id="kpi-mgi-score">--</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5" id="kpi-mgi-subtitle">Awaiting audit run</div>
+                </div>
+                <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-sm text-white">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-rose-400">Critical Drift Alerts</div>
+                    <div class="text-2xl font-black text-white mt-1" id="kpi-drift-count">--</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5" id="kpi-drift-subtitle">Regulatory &amp; Integration</div>
+                </div>
+                <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-sm text-white">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Exclusive Advantages</div>
+                    <div class="text-2xl font-black text-white mt-1" id="kpi-adv-count">--</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5" id="kpi-adv-subtitle">Verified vs Competitors</div>
+                </div>
+                <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-sm text-white">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-indigo-400">Structured Data Score</div>
+                    <div class="text-2xl font-black text-white mt-1" id="kpi-geo-score">--</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5" id="kpi-geo-subtitle">Readiness Index (0–100)</div>
+                </div>
+            </div>
+
+            <!-- Step 2 Subview Navigation Bar -->
+            <div class="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto">
+                <button type="button" id="subtab-truth-matrix-btn" onclick="switchTruthSubView('matrix')"
+                    class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-900 text-white shadow-xs transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer">
+                    <span>⚖️ Product Truth Differential Matrix</span>
+                </button>
+                <button type="button" id="subtab-truth-battlecards-btn" onclick="switchTruthSubView('battlecards')"
+                    class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer">
+                    <span>⚔️ Competitor Battlecards</span>
+                </button>
+                <button type="button" id="subtab-truth-timeline-btn" onclick="switchTruthSubView('timeline')"
+                    class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-100 text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer">
+                    <span>📜 Competitor Change Ledger</span>
+                </button>
+            </div>
+
+            <!-- Subview 1: Truth Differential Matrix -->
+            <div id="truth-subview-matrix" class="space-y-6">
+                <!-- Ingestion Form Card -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-5">
                 <div class="border-b border-slate-100 pb-4">
                     <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
                         <span>⚖️ Dual Ingestion Configuration</span>
@@ -1334,30 +1420,29 @@
                 </div>
 
             </div>
-        </section>
+            <!-- /truth-results-container -->
+        </div>
+        <!-- /truth-subview-matrix -->
 
-
-        <!-- ============================================================= -->
-        <!-- TAB: TRI-ONTOLOGY COMPETITIVE BATTLECARDS -->
-        <!-- ============================================================= -->
-        <section id="view-battlecards" class="hidden space-y-8">
-            <!-- Header Banner -->
-            <div class="bg-gradient-to-r from-amber-950 via-slate-900 to-indigo-950 rounded-2xl p-6 text-white shadow-md">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-amber-500/20 text-amber-200 border border-amber-400/30">
-                                Tri-Ontology Differential Alignment · Gemini 2.5 Flash
-                            </span>
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                                Step 3 Complete
-                            </span>
+            <!-- Subview 2: Competitor Battlecards -->
+            <div id="truth-subview-battlecards" class="hidden space-y-6">
+                <!-- Header Banner -->
+                <div class="bg-gradient-to-r from-amber-950 via-slate-900 to-indigo-950 rounded-2xl p-6 text-white shadow-md">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-amber-500/20 text-amber-200 border border-amber-400/30">
+                                    Tri-Ontology Differential Alignment · Gemini 2.5 Flash
+                                </span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                                    Head-to-Head Battlecards
+                                </span>
+                            </div>
+                            <h2 class="text-xl font-extrabold mt-2">Tri-Ontology Competitive Battlecard Engine</h2>
+                            <p class="text-xs text-slate-300 mt-1 max-w-2xl">
+                                Triangulates Company Truth, Competitor Truth, and the Industry Ontology. Identifies genuine Company Advantages, exposes Competitor Fluff vulnerabilities, and generates sales counter-positioning angles.
+                            </p>
                         </div>
-                        <h2 class="text-xl font-extrabold mt-2">Tri-Ontology Competitive Battlecard Engine</h2>
-                        <p class="text-xs text-slate-300 mt-1 max-w-2xl">
-                            Triangulates Company Truth, Competitor Truth, and the Industry Ontology. Identifies genuine Company Advantages, exposes Competitor Fluff vulnerabilities, and generates sales counter-positioning angles.
-                        </p>
-                    </div>
                     <div class="flex items-center gap-2">
                         <button type="button" onclick="loadSampleBattlecards()" class="px-3.5 py-2 text-xs font-bold text-amber-950 bg-white hover:bg-amber-50 rounded-xl shadow-sm transition">
                             ⚡ Quick Test: Ordway vs. Chargebee
@@ -1521,44 +1606,53 @@
                 <div id="battle-cards-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Populated dynamically -->
                 </div>
+            </div>
+            <!-- /battle-results-container -->
+        </div>
+        <!-- /truth-subview-battlecards -->
 
-                <!-- Competitor Claim Movement & Drift Timeline Card -->
-                <div id="battle-competitor-timeline-card" class="bg-white rounded-2xl p-6 border border-amber-200/80 shadow-sm space-y-4">
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-amber-100 pb-4">
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                                    Ledger Audit Trail
-                                </span>
-                                <span class="text-[10px] font-semibold text-slate-500">Consecutive Diffing &amp; Noise Gating</span>
-                            </div>
-                            <h3 class="text-base font-bold text-slate-900 mt-1 flex items-center gap-2">
-                                <span>⏱️ Competitor Claim Movement &amp; Drift Timeline</span>
-                            </h3>
-                            <p class="text-xs text-slate-500 mt-0.5">
-                                Tracks what competitors started claiming, dropped claiming, or gained technical backing across historical audits.
-                            </p>
-                        </div>
+        <!-- Subview 3: Competitor Change Ledger -->
+        <div id="truth-subview-timeline" class="hidden space-y-6">
+            <!-- Competitor Claim Movement & Drift Timeline Card -->
+            <div id="battle-competitor-timeline-card" class="bg-white rounded-2xl p-6 border border-amber-200/80 shadow-sm space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-amber-100 pb-4">
+                    <div>
                         <div class="flex items-center gap-2">
-                            <label for="timeline-brand-select" class="text-xs font-semibold text-slate-600">Tracked Brand:</label>
-                            <select id="timeline-brand-select" onchange="fetchAndRenderCompetitorTimeline(this.value)" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500">
-                                <option value="Chargebee" selected>Chargebee</option>
-                                <option value="Ordway">Ordway</option>
-                            </select>
-                            <button type="button" onclick="refreshTrackedBrands()" class="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100" title="Refresh Tracked Brands">
-                                🔄
-                            </button>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                Ledger Audit Trail
+                            </span>
+                            <span class="text-[10px] font-semibold text-slate-500">Consecutive Diffing &amp; Noise Gating</span>
                         </div>
+                        <h3 class="text-base font-bold text-slate-900 mt-1 flex items-center gap-2">
+                            <span>⏱️ Competitor Claim Movement &amp; Drift Timeline</span>
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">
+                            Tracks what competitors started claiming, dropped claiming, or gained technical backing across historical audits.
+                        </p>
                     </div>
-                    
-                    <!-- Timeline Stream Container -->
-                    <div id="competitor-timeline-content" class="space-y-4 pt-2">
-                        <!-- Populated dynamically via JS -->
+                    <div class="flex items-center gap-2">
+                        <label for="timeline-brand-select" class="text-xs font-semibold text-slate-600">Tracked Brand:</label>
+                        <select id="timeline-brand-select" onchange="fetchAndRenderCompetitorTimeline(this.value)" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500">
+                            <option value="Chargebee" selected>Chargebee</option>
+                            <option value="Ordway">Ordway</option>
+                        </select>
+                        <button type="button" onclick="refreshTrackedBrands()" class="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 cursor-pointer" title="Refresh Tracked Brands">
+                            🔄
+                        </button>
                     </div>
                 </div>
-
+                
+                <!-- Timeline Stream Container -->
+                <div id="competitor-timeline-content" class="space-y-4 pt-2">
+                    <!-- Populated dynamically via JS -->
+                </div>
             </div>
-        </section>
+        </div>
+        <!-- /truth-subview-timeline -->
+    </section>
+
+    <!-- Legacy View Placeholder for Backward Compatibility -->
+    <div id="view-battlecards" class="hidden"></div>
 
 
         <!-- ============================================================= -->
@@ -3275,10 +3369,10 @@ SELECT ?capability ?evidence WHERE {
                         </div>
 
                         <!-- Tabular SPARQL Results Table -->
-                        <div id="sparql-results-container" class="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-inner max-h-72">
+                        <div id="linking-sparql-results-container" class="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-inner max-h-72">
                             <table class="w-full text-left text-xs border-collapse min-w-[500px]">
-                                <thead id="sparql-thead" class="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 sticky top-0"></thead>
-                                <tbody id="sparql-tbody" class="divide-y divide-slate-100 font-mono text-[11px]"></tbody>
+                                <thead id="linking-sparql-thead" class="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 sticky top-0"></thead>
+                                <tbody id="linking-sparql-tbody" class="divide-y divide-slate-100 font-mono text-[11px]"></tbody>
                             </table>
                         </div>
                     </div>
@@ -3806,11 +3900,40 @@ SELECT ?capability ?evidence WHERE {
             }
         }
 
-        const ALL_DASHBOARD_TABS = ['ontology', 'truth', 'battlecards', 'search'];
+        const ALL_DASHBOARD_TABS = ['ingest', 'truth', 'graph'];
         const SEARCH_SUBTABS = ['audit', 'linking', 'bench', 'alignment', 'industry', 'geo'];
         const ONTOLOGY_SUBTABS = ['concepts', 'trialign', 'compliance', 'schema', 'synonyms', 'sparql', 'pagekg'];
+        const TRUTH_SUBTABS = ['matrix', 'battlecards', 'timeline'];
         let currentSearchSubTab = 'audit';
         let currentOntologySubTab = 'concepts';
+        let currentTruthSubTab = 'matrix';
+
+        function switchTruthSubView(sub) {
+            currentTruthSubTab = sub;
+            TRUTH_SUBTABS.forEach(s => {
+                const btn = document.getElementById(`subtab-truth-${s}-btn`);
+                const view = document.getElementById(`truth-subview-${s}`);
+                if (btn) {
+                    btn.classList.remove('bg-slate-900', 'text-white', 'shadow-xs');
+                    btn.classList.add('bg-slate-100', 'text-slate-600', 'hover:text-slate-900');
+                }
+                if (view) view.classList.add('hidden');
+            });
+
+            const activeBtn = document.getElementById(`subtab-truth-${sub}-btn`);
+            const activeView = document.getElementById(`truth-subview-${sub}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-slate-100', 'text-slate-600', 'hover:text-slate-900');
+                activeBtn.classList.add('bg-slate-900', 'text-white', 'shadow-xs');
+            }
+            if (activeView) activeView.classList.remove('hidden');
+
+            if (sub === 'timeline') {
+                const brandInput = document.getElementById('truth-brand-name');
+                const brand = brandInput ? brandInput.value.trim() : 'Chargebee';
+                fetchAndRenderCompetitorTimeline(brand);
+            }
+        }
 
         function switchSearchSubView(sub) {
             currentSearchSubTab = sub;
@@ -3845,33 +3968,56 @@ SELECT ?capability ?evidence WHERE {
             let targetTab = tab;
             let targetSubTab = null;
 
-            if (SEARCH_SUBTABS.includes(tab)) {
+            // Normalize legacy / aliased tabs
+            if (tab === 'ontology' || tab === 'graph') {
+                targetTab = 'graph';
+                targetSubTab = currentOntologySubTab || 'concepts';
+            } else if (tab === 'battlecards') {
+                targetTab = 'truth';
+                switchTruthSubView('battlecards');
+            } else if (SEARCH_SUBTABS.includes(tab)) {
                 targetTab = 'search';
                 targetSubTab = tab;
             } else if (tab === 'search') {
+                targetTab = 'search';
                 targetSubTab = currentSearchSubTab || 'audit';
             } else if (ONTOLOGY_SUBTABS.includes(tab)) {
-                targetTab = 'ontology';
+                targetTab = 'graph';
                 targetSubTab = tab;
-            } else if (tab === 'ontology') {
-                targetSubTab = currentOntologySubTab || 'concepts';
+            } else if (TRUTH_SUBTABS.includes(tab)) {
+                targetTab = 'truth';
+                switchTruthSubView(tab);
             }
 
+            // Hide all 3 main executive tabs and legacy search view
             ALL_DASHBOARD_TABS.forEach(t => {
                 const btn = document.getElementById(`tab-${t}-btn`);
-                const view = document.getElementById(`view-${t}`);
+                const viewId = t === 'graph' ? 'view-ontology' : `view-${t}`;
+                const view = document.getElementById(viewId);
                 if (btn) btn.classList.remove('tab-active');
                 if (view) view.classList.add('hidden');
             });
 
+            const legacyViews = ['view-battlecards', 'view-search'];
+            legacyViews.forEach(id => {
+                const lv = document.getElementById(id);
+                if (lv) lv.classList.add('hidden');
+            });
+
+            if (targetTab === 'search') {
+                const searchView = document.getElementById('view-search');
+                if (searchView) searchView.classList.remove('hidden');
+                if (targetSubTab) switchSearchSubView(targetSubTab);
+                return;
+            }
+
             const activeBtn = document.getElementById(`tab-${targetTab}-btn`);
-            const activeView = document.getElementById(`view-${targetTab}`);
+            const activeViewId = targetTab === 'graph' ? 'view-ontology' : `view-${targetTab}`;
+            const activeView = document.getElementById(activeViewId);
             if (activeBtn) activeBtn.classList.add('tab-active');
             if (activeView) activeView.classList.remove('hidden');
 
-            if (targetTab === 'search' && targetSubTab) {
-                switchSearchSubView(targetSubTab);
-            } else if (targetTab === 'ontology' && targetSubTab) {
+            if (targetTab === 'graph' && targetSubTab) {
                 switchOntologySubView(targetSubTab);
             }
         }
@@ -7627,9 +7773,9 @@ SELECT ?capability ?evidence WHERE {
             const spinner = document.getElementById('sparql-spinner');
             const btnText = document.getElementById('sparql-btn-text');
             const statusLabel = document.getElementById('sparql-status-label');
-            const container = document.getElementById('sparql-results-container');
-            const thead = document.getElementById('sparql-thead');
-            const tbody = document.getElementById('sparql-tbody');
+            const container = document.getElementById('linking-sparql-results-container') || document.getElementById('sparql-results-container');
+            const thead = document.getElementById('linking-sparql-thead') || document.getElementById('sparql-thead');
+            const tbody = document.getElementById('linking-sparql-tbody') || document.getElementById('sparql-tbody');
 
             btn.disabled = true;
             spinner.classList.remove('hidden');
