@@ -11,8 +11,9 @@ Aggregates page-level graphs across a website to construct a unified domain Know
 """
 
 import re
+import json
 import logging
-from typing import List, Dict, Tuple, Any
+from typing import List, Dict, Tuple, Any, Optional
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
 import networkx as nx
@@ -294,10 +295,54 @@ def _build_site_turtle(domain: str, nodes: List[KGNode], edges: List[KGEdge]) ->
     return "\n".join(lines)
 
 
+def persist_site_kg(site_kg: SiteKnowledgeGraph, vertical_id: str) -> Optional[Dict[str, Any]]:
+    """Record one crawl as a run graph in the durable store. Never raises.
+
+    A run is the unit of "when", so storing each crawl under its own graph id is what
+    makes change-over-time answerable at all: two runs can be diffed without any triple
+    carrying a timestamp of its own.
+
+    persist_graph, not persist_audit: persist_audit splits on the ontology namespace and
+    calls replace_graph() on the ontology half, and replace_graph DELETEs before writing.
+    A site graph is minted under a different namespace from the ontology, so that half is
+    always empty and the vertical's stored concepts would be wiped on every crawl.
+
+    Persistence is a side benefit of a crawl, never its purpose: a store that cannot be
+    written is a degraded service, not a failed request, so every failure here is logged
+    and swallowed.
+    """
+    try:
+        import graph_store
+        from rdflib import Graph as RdfGraph
+
+        graph = RdfGraph()
+        graph.parse(data=site_kg.export_turtle, format="turtle")
+        if len(graph) == 0:
+            logger.info("Site graph for %s holds no triples; nothing to persist.", site_kg.domain)
+            return None
+
+        graph_id = graph_store.run_graph_id(site_kg.domain)
+        quads = graph_store.persist_graph(
+            graph, graph_id, kind="run",
+            domain=site_kg.domain, vertical_id=vertical_id,
+            metadata=json.dumps({
+                "pages_crawled": site_kg.pages_crawled,
+                "nodes": len(site_kg.nodes),
+                "edges": len(site_kg.edges),
+            }),
+        )
+        logger.info("Persisted run graph %s (%d quads).", graph_id, quads)
+        return {"graph_id": graph_id, "quads": quads}
+    except Exception as err:
+        logger.error("Could not persist the site graph for %s: %s", site_kg.domain, err)
+        return None
+
+
 def build_site_kg(
     start_url: str,
     max_pages: int = 10,
-    vertical_id: str = "b2b_saas_fintech"
+    vertical_id: str = "b2b_saas_fintech",
+    persist: bool = True
 ) -> SiteKnowledgeGraph:
     """
     Crawl, aggregate, and synthesize an entire website into a canonical Knowledge Graph.
@@ -344,7 +389,7 @@ def build_site_kg(
     jsonld_graph = _build_site_jsonld(domain, canonical_nodes, canonical_edges)
     turtle_graph = _build_site_turtle(domain, canonical_nodes, canonical_edges)
 
-    return SiteKnowledgeGraph(
+    site_kg = SiteKnowledgeGraph(
         domain=domain,
         pages_crawled=len(crawled_urls),
         page_urls=crawled_urls,
@@ -356,3 +401,8 @@ def build_site_kg(
         export_jsonld=jsonld_graph,
         export_turtle=turtle_graph
     )
+
+    if persist:
+        persist_site_kg(site_kg, vertical_id)
+
+    return site_kg

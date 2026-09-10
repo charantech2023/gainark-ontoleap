@@ -296,6 +296,53 @@ async def api_build_site_kg(req: SiteKGRequest):
         raise HTTPException(status_code=500, detail=f"Site knowledge graph synthesis failed: {str(e)}")
 
 
+@router.get("/api/kg/history", summary="List Stored Audit Runs For A Domain")
+def api_kg_history(domain: Optional[str] = None, limit: int = 50):
+    """
+    Audit runs held in the durable store, newest first. Omit `domain` for every domain.
+
+    Each crawl of a site is recorded as its own run graph, so this is the history a
+    single page-level extraction can never provide.
+    """
+    if limit < 1 or limit > 200:
+        raise HTTPException(status_code=422, detail="limit must be between 1 and 200.")
+    try:
+        import graph_store
+        return {"runs": graph_store.list_runs(domain=domain, limit=limit)}
+    except Exception as e:
+        logger.error("[API KG History] Could not read the run store: %s", e)
+        raise HTTPException(status_code=503, detail="Run history is unavailable.")
+
+
+@router.get("/api/kg/diff", summary="Diff Two Stored Audit Runs")
+def api_kg_diff(earlier: str, later: str, claims_only: bool = True):
+    """
+    What a domain claims now that it did not before, and what it has stopped claiming.
+
+    `earlier` and `later` are graph ids from /api/kg/history. `claims_only` drops
+    provenance triples, which is what makes the answer readable - the question is almost
+    always what changed about the product, not that the crawl ran at a different time.
+    """
+    try:
+        import graph_store
+        known = {r["graph_id"] for r in graph_store.list_runs(limit=200)}
+        missing = [g for g in (earlier, later) if g not in known]
+        if missing:
+            raise HTTPException(status_code=404, detail="Unknown run graph: %s" % ", ".join(missing))
+        result = graph_store.diff_runs(earlier, later, claims_only=claims_only)
+        return {
+            "earlier": earlier,
+            "later": later,
+            "added": [list(t) for t in result["added"]],
+            "removed": [list(t) for t in result["removed"]],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[API KG Diff] Could not diff runs: %s", e)
+        raise HTTPException(status_code=503, detail="Run history is unavailable.")
+
+
 @router.post("/api/kg/align", response_model=GraphAlignmentResult, summary="Align Knowledge Graph Against Industry Ontology")
 async def api_align_kg(req: KGAlignmentRequest):
     """
