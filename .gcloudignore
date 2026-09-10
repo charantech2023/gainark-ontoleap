@@ -16,3 +16,5 @@ verify_*.py
 .env.*
 .ontoleap_cache/
 .test_cache/
+# Development-only: the evaluation harness never runs in the deployed image.
+eval/
