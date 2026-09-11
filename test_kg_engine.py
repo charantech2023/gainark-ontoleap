@@ -49,8 +49,14 @@ def test_industry_ontology_loading():
     print("\n[1] Testing Industry Reference Ontology loading & discovery...")
     industries = list_available_industries()
     print(f"  Available Industries ({len(industries)}): {[i['vertical_id'] for i in industries]}")
-    assert len(industries) >= 4
+    # The listing returns only verticals that carry a concept layer. It used to include
+    # nine auto-generated profiles with zero concepts, which is what made a count of four
+    # meaningful; counting those was counting vocabularies that cannot measure anything.
+    assert industries, "No vertical carries a concept layer."
     assert any(i["vertical_id"] == "b2b_saas_fintech" for i in industries)
+    assert all(i["concepts"] > 0 for i in industries), (
+        "Listing offered a vertical with no concepts: %s"
+        % [i["vertical_id"] for i in industries if not i["concepts"]])
 
     onto = load_industry_ontology("b2b_saas_fintech")
     print(f"  Loaded Ontology: {onto.display_name}")
@@ -159,7 +165,11 @@ def test_kg_api_endpoints():
     res1 = client.get("/api/kg/industries")
     assert res1.status_code == 200, f"Error {res1.status_code}: {res1.text}"
     inds = res1.json()
-    assert len(inds) >= 4
+    # Only verticals with a concept layer are listed. Nine auto-generated profiles
+    # with zero concepts used to pad this count; offering one is offering a vertical
+    # that reports every concept as a gap.
+    assert inds, "No vertical carries a concept layer."
+    assert all(i["concepts"] > 0 for i in inds)
     print(f"  GET /api/kg/industries -> 200 OK ({len(inds)} verticals)")
 
     # 2. GET /api/kg/industry/b2b_saas_fintech

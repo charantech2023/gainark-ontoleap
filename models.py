@@ -733,7 +733,9 @@ class GraphAlignmentResult(BaseModel):
 class PageKGRequest(BaseModel):
     url: Optional[str] = Field(default=None, max_length=2048, description="Target webpage URL to parse")
     html_content: Optional[str] = Field(default=None, description="Optional raw HTML content to parse")
-    vertical_id: Optional[str] = Field(default="b2b_saas_fintech", description="Industry vertical context")
+    # Omitted means "work it out". Defaulting measured every page against a billing
+    # vocabulary regardless of what the site sells.
+    vertical_id: Optional[str] = Field(default=None, description="Industry vertical. Omit to route automatically from the page content.")
 
 
 class SiteKGRequest(BaseModel):

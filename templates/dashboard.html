@@ -79,12 +79,12 @@
 
                     <!-- Vertical Select -->
                     <select id="target-vertical" class="text-xs bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 font-semibold text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                        <option value="b2b_saas_fintech" selected>FinTech &amp; Billing SaaS</option>
+                        <!-- Empty value omits vertical_id, which the API reads as "route it
+                             automatically". Only verticals carrying a concept layer are listed:
+                             one without concepts reports every concept as a gap. -->
+                        <option value="" selected>Auto-detect industry</option>
+                        <option value="b2b_saas_fintech">FinTech &amp; Billing SaaS</option>
                         <option value="cybersecurity">CyberSecurity &amp; SecOps</option>
-                        <option value="healthtech">HealthTech &amp; Clinical</option>
-                        <option value="developer_tools">DevTools &amp; Cloud Infra</option>
-                        <option value="hr_payroll_benefits">HR, Payroll &amp; Benefits</option>
-                        <option value="ai_application_security">AI Application Security</option>
                     </select>
 
                     <!-- Submit Button -->
@@ -306,9 +306,12 @@
             try {
                 // 1. Build Knowledge Graph (Page or Site)
                 const endpoint = currentScope === 'page' ? '/api/kg/page' : '/api/kg/site';
-                const payload = currentScope === 'page' 
-                    ? { url: url, vertical_id: vertical }
-                    : { domain_or_url: url, max_pages: 10, vertical_id: vertical };
+                // An empty selection means auto-detect, so the key is left out entirely
+                // rather than sent as "" - the API routes only when vertical_id is absent.
+                const payload = currentScope === 'page'
+                    ? { url: url }
+                    : { domain_or_url: url, max_pages: 15 };
+                if (vertical) payload.vertical_id = vertical;
 
                 const res = await fetch(endpoint, {
                     method: 'POST',

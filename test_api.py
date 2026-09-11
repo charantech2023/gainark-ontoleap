@@ -29,7 +29,10 @@ def test_api():
     assert r_ind.status_code == 200
     industries = r_ind.json()
     print(f"  Available Industries ({len(industries)}): {[i['vertical_id'] for i in industries]}")
-    assert len(industries) >= 4
+    # Only verticals with a concept layer are listed; see test_kg_engine for why a
+    # count of four stopped being the right assertion.
+    assert industries, "No vertical carries a concept layer."
+    assert all(i["concepts"] > 0 for i in industries)
 
     print("\n[3] Testing GET /api/kg/industry/b2b_saas_fintech ...")
     r_onto = client.get("/api/kg/industry/b2b_saas_fintech")

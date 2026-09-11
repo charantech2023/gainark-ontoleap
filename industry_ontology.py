@@ -124,8 +124,13 @@ def _label_matches(
     )
 
 
-def list_available_industries() -> List[Dict[str, str]]:
-    """List all available industry ontologies with display names."""
+def list_available_industries(include_unusable: bool = False) -> List[Dict[str, Any]]:
+    """Available industry ontologies, with the size of each concept layer.
+
+    A vertical with no concepts cannot measure coverage - align scores against its
+    concepts, so a site routed there is told every concept is a gap. Those are hidden
+    unless asked for, because offering one in a picker is offering a wrong answer.
+    """
     industries = []
     if not os.path.isdir(VERTICALS_DIR):
         return industries
@@ -138,10 +143,15 @@ def list_available_industries() -> List[Dict[str, str]]:
                 with open(fpath, "r", encoding="utf-8") as jf:
                     data = json.load(jf)
                     name = data.get("display_name", vid.replace("_", " ").title())
-                    industries.append({"vertical_id": vid, "display_name": name})
+                    concepts = len(data.get("concepts") or [])
+                    industries.append({"vertical_id": vid, "display_name": name,
+                                       "concepts": concepts, "usable": concepts > 0})
             except Exception:
-                industries.append({"vertical_id": vid, "display_name": vid.replace("_", " ").title()})
+                industries.append({"vertical_id": vid, "display_name": vid.replace("_", " ").title(),
+                                   "concepts": 0, "usable": False})
 
+    if not include_unusable:
+        industries = [i for i in industries if i["usable"]]
     return industries
 
 
@@ -201,7 +211,7 @@ _MIN_ROUTING_MARGIN = 1.5
 def usable_verticals() -> List[str]:
     """Vertical ids that carry a concept layer, and so can actually measure coverage."""
     usable = []
-    for meta in list_available_industries():
+    for meta in list_available_industries(include_unusable=True):
         vid = meta.get("vertical_id")
         if not vid:
             continue

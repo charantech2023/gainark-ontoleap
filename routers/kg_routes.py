@@ -3,7 +3,7 @@ GainARK OntoLeap — Knowledge Graph Operations, SPARQL, OWL 2 DL, and Link Pred
 """
 
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, Field
@@ -37,6 +37,7 @@ from models import (
 )
 from page_graph import build_page_kg
 from site_graph import build_site_kg, route_domain_to_vertical
+from industry_ontology import classify_vertical
 from industry_ontology import (
     list_available_industries,
     load_industry_ontology,
@@ -235,12 +236,16 @@ def api_extract_page_knowledge_graph(req: PageKnowledgeGraphRequest):
 # PURE KNOWLEDGE GRAPH & ONTOLOGY ENDPOINTS
 # ==============================================================================
 
-@router.get("/api/kg/industries", response_model=List[Dict[str, str]], summary="List Available Industry Reference Ontologies")
-async def api_list_industries():
+@router.get("/api/kg/industries", response_model=List[Dict[str, Any]], summary="List Available Industry Reference Ontologies")
+async def api_list_industries(include_unusable: bool = False):
     """
-    List all available vertical reference ontologies (FinTech, Cybersecurity, HealthTech, DevTools, etc.).
+    Vertical reference ontologies that can actually measure a site.
+
+    A vertical with no concept layer is hidden: coverage is scored against its concepts,
+    so routing a site to one reports every concept as a gap. Pass `include_unusable=true`
+    to see them anyway, which is an operator view rather than something to put in a picker.
     """
-    return list_available_industries()
+    return list_available_industries(include_unusable=include_unusable)
 
 
 @router.get("/api/kg/industry/{vertical_id}", response_model=IndustryOntologyModel, summary="Inspect Industry Reference Ontology")
@@ -263,11 +268,34 @@ async def api_build_page_kg(req: PageKGRequest):
         raise HTTPException(status_code=400, detail="Either 'url' or 'html_content' must be provided.")
 
     target = req.html_content if req.html_content else req.url
+
+    vertical_id = req.vertical_id
+    if not vertical_id:
+        try:
+            if req.html_content:
+                # The caller already supplied the text; classify it rather than fetch.
+                routed = classify_vertical(req.html_content)
+                routed["pages_read"] = 0
+            else:
+                routed = route_domain_to_vertical(req.url)
+        except ValueError as val_err:
+            raise HTTPException(status_code=400, detail=str(val_err))
+        vertical_id = routed.get("vertical_id")
+        if not vertical_id:
+            raise HTTPException(status_code=422, detail={
+                "error": "Could not identify an industry vertical for this page.",
+                "reason": routed.get("reason"),
+                "candidates": routed.get("candidates"),
+                "hint": "Pass vertical_id explicitly, or see GET /api/kg/industries.",
+            })
+        logger.info("[API PageKG] Routed %s to %s (%s)",
+                    req.url or "supplied HTML", vertical_id, routed.get("reason"))
+
     try:
         kg = build_page_kg(
             url_or_html=target,
             url=req.url,
-            vertical_id=req.vertical_id or "b2b_saas_fintech"
+            vertical_id=vertical_id
         )
         return kg
     except ValueError as val_err:
