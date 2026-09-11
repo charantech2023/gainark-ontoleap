@@ -32,3 +32,6 @@ scratch/
 
 # Local dev server config: references a machine-specific venv path.
 .claude/launch.json
+
+# Crawl job state when no archive is configured. Local scratch, not history.
+truth_ledger/jobs/

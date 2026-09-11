@@ -32,12 +32,15 @@ from models import (
     SiteKGRequest,
     SiteKnowledgeGraph,
     KGAlignmentRequest,
+    CrawlJobRequest,
+    CrawlJobStatus,
     GraphAlignmentResult,
     IndustryOntologyModel
 )
 from page_graph import build_page_kg
 from site_graph import build_site_kg, route_domain_to_vertical
 from industry_ontology import classify_vertical
+from crawl_jobs import create_job, advance_job, load_job, load_result, public_status
 from industry_ontology import (
     list_available_industries,
     load_industry_ontology,
@@ -312,6 +315,117 @@ async def api_build_page_kg(req: PageKGRequest):
     except Exception as e:
         logger.error("[API PageKG] Failed to extract page graph: %s", e)
         raise HTTPException(status_code=500, detail=f"Knowledge graph extraction failed: {str(e)}")
+
+
+@router.post("/api/kg/site/jobs", response_model=CrawlJobStatus,
+             summary="Start A Site Crawl That Outlives One Request")
+def api_create_crawl_job(req: CrawlJobRequest):
+    """
+    Begin a site crawl as a resumable job and return immediately.
+
+    `/api/kg/site` does the whole crawl inside one request, which caps it at whatever
+    fits in the request timeout - about forty pages, and a site slower than expected
+    loses the entire crawl to a 504 after eleven minutes of waiting. A job has no such
+    ceiling: it is advanced a slice at a time, so its length is bounded by patience
+    rather than by a timeout.
+
+    This call does no crawling. It fetches the start page once to work out the vertical,
+    records the job, and returns. Call `/advance` to make progress and `/result` to
+    collect the finished graph.
+    """
+    vertical_id = req.vertical_id
+    routed = None
+    if not vertical_id:
+        try:
+            routed = route_domain_to_vertical(req.domain_or_url)
+        except ValueError as val_err:
+            raise HTTPException(status_code=400, detail=str(val_err))
+        vertical_id = routed.get("vertical_id")
+        if not vertical_id:
+            raise HTTPException(status_code=422, detail={
+                "error": "Could not identify an industry vertical for this domain.",
+                "reason": routed.get("reason"),
+                "candidates": routed.get("candidates"),
+                "hint": "Pass vertical_id explicitly, or see GET /api/kg/industries.",
+            })
+
+    try:
+        validate_url_for_fetch(req.domain_or_url)
+        job = create_job(req.domain_or_url, req.max_pages, vertical_id, routing=routed)
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
+    except Exception as e:
+        logger.error("[API CrawlJob] Could not create job: %s", e)
+        raise HTTPException(status_code=500, detail="Could not create the crawl job.")
+
+    return public_status(job)
+
+
+@router.post("/api/kg/site/jobs/{job_id}/advance", response_model=CrawlJobStatus,
+             summary="Crawl One Slice Of A Job")
+def api_advance_crawl_job(job_id: str):
+    """
+    Crawl for a bounded slice and persist what was found.
+
+    Progress happens here, inside a request, because Cloud Run throttles CPU outside
+    request handling - a background thread would stop the moment a response was returned.
+    Each call reads the job from durable storage, crawls for about a hundred seconds,
+    writes the state back, and reports where it got to. Any instance can advance any job.
+
+    Call repeatedly until `status` is `done` or `failed`. Calling it on a finished job is
+    harmless, and calling it while another caller is mid-slice returns the current status
+    rather than crawling the same pages twice.
+    """
+    try:
+        return advance_job(job_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="No crawl job with id %r." % job_id)
+    except Exception as e:
+        logger.error("[API CrawlJob] Advancing %s failed: %s", job_id, e)
+        raise HTTPException(status_code=500, detail="Could not advance the crawl job.")
+
+
+@router.get("/api/kg/site/jobs/{job_id}", response_model=CrawlJobStatus,
+            summary="Check A Crawl Job Without Advancing It")
+def api_get_crawl_job(job_id: str):
+    """
+    How far a crawl has got. Does no work, so it is safe to call as often as you like.
+    """
+    job = load_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="No crawl job with id %r." % job_id)
+    return public_status(job)
+
+
+@router.get("/api/kg/site/jobs/{job_id}/result", response_model=SiteKnowledgeGraph,
+            summary="Collect A Finished Crawl")
+def api_get_crawl_job_result(job_id: str):
+    """
+    The site knowledge graph a finished job produced.
+
+    404 while the job is still running rather than returning a partial graph: coverage is
+    scored against whatever the graph holds, so half a crawl scores as half the site
+    missing its own content.
+    """
+    job = load_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="No crawl job with id %r." % job_id)
+
+    if job["status"] == "failed":
+        raise HTTPException(status_code=422, detail={
+            "error": "This crawl did not produce a graph.",
+            "reason": job.get("error"),
+        })
+
+    result = load_result(job_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail={
+            "error": "This crawl has not finished yet.",
+            "status": job["status"],
+            "pages_crawled": len((job.get("state") or {}).get("crawled") or []),
+            "hint": "POST /api/kg/site/jobs/%s/advance until status is 'done'." % job_id,
+        })
+    return result
 
 
 @router.post("/api/kg/classify", summary="Identify Which Industry Vertical A Domain Belongs To")

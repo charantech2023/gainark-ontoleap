@@ -152,6 +152,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.limits = {
             "/api/kg/page": 15,              # Max 15 page KG extractions/min
             "/api/kg/site": 5,               # Max 5 site-wide crawl & synthesis/min
+            "/api/kg/site/jobs": 10,         # Job creation fetches the site to route it
+            #   Advancing a job is not listed: its path carries the job id, so no exact
+            #   match is possible, and the default applies. A slice takes about a hundred
+            #   seconds, so a caller cannot poll fast enough for the limit to matter.
             "/api/kg/align": 10,             # Max 10 industry alignment runs/min
             "/api/sparql": 30,               # Max 30 graph queries/min
             "/api/google-kg": 15,            # Fans out to Google KG API

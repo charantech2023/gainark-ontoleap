@@ -790,6 +790,39 @@ class SiteKGRequest(BaseModel):
     vertical_id: Optional[str] = Field(default=None, description="Industry vertical. Omit to route automatically from the site content.")
 
 
+class CrawlJobRequest(BaseModel):
+    domain_or_url: str = Field(..., max_length=2048, description="Target domain or starting URL")
+    # The ceiling is far above the synchronous endpoint's 40 because no single request
+    # crawls the whole site any more. A job is advanced a slice at a time, so total length
+    # is bounded by patience rather than by the request timeout.
+    max_pages: int = Field(default=40, ge=1, le=200, description="Page budget for the whole job, spent across many slices")
+    vertical_id: Optional[str] = Field(default=None, description="Industry vertical. Omit to route automatically from the site.")
+
+
+class CrawlJobStatus(BaseModel):
+    """How far a crawl has got, without the crawl itself.
+
+    Deliberately excludes the frontier and the gathered graph: a caller watching progress
+    should not have to download the partial result to find out how much is left.
+    """
+    job_id: str
+    status: str = Field(description="running | done | failed")
+    start_url: str
+    vertical_id: Optional[str] = None
+    vertical_source: Optional[str] = None
+    vertical_reason: Optional[str] = None
+    pages_requested: int = 0
+    pages_attempted: int = 0
+    pages_crawled: int = 0
+    pages_failed: int = 0
+    pages_discovered: int = 0
+    pages_remaining: int = 0
+    recent_failures: List[PageFailure] = Field(default_factory=list, description="The last few pages that could not be read, so a crawl going wrong is visible while it runs")
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+    error: Optional[str] = None
+
+
 class KGAlignmentRequest(BaseModel):
     domain_or_url: Optional[str] = Field(default=None, max_length=2048, description="Target domain or URL to evaluate")
     page_kg: Optional[PageKnowledgeGraph] = Field(default=None, description="Direct page knowledge graph to evaluate")

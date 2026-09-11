@@ -103,6 +103,15 @@
                 Enter any web URL above and select either <strong>Page-Level</strong> or <strong>Site-Wide</strong> extraction to extract entities, relational triples with sentence proof, and align against industry ontologies.
             </p>
 
+            <!-- A long crawl is many short requests, so there is real progress to show
+                 rather than a spinner that reveals nothing until it finishes or dies. -->
+            <div id="crawl-progress" class="hidden mt-5 max-w-md mx-auto text-left">
+                <div class="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                    <div id="crawl-progress-bar" class="h-full bg-indigo-600 transition-all duration-500" style="width:0%"></div>
+                </div>
+                <div class="text-[11px] text-slate-500 mt-1.5" id="crawl-progress-text"></div>
+            </div>
+
             <!-- Shown only when routing refused. The choice belongs here, after an attempt
                  that raised the question, rather than being demanded before every run. -->
             <div id="routing-help" class="hidden mt-5 max-w-md mx-auto text-left bg-amber-50 border border-amber-200 rounded-xl p-3">
@@ -378,6 +387,78 @@
             box.classList.remove('hidden');
         }
 
+        // Runs a site crawl as a job, advancing it a slice at a time and reporting
+        // progress. Returns the finished graph, or null when routing refused and the
+        // picker is showing instead.
+        async function runCrawlJob(url) {
+            const payload = { domain_or_url: url, max_pages: 40 };
+            if (verticalOverride) payload.vertical_id = verticalOverride;
+
+            const created = await fetch('/api/kg/site/jobs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!created.ok) {
+                const err = await created.json();
+                const detail = err.detail;
+                if (created.status === 422 && detail && detail.candidates) {
+                    await renderRoutingFailure(detail);
+                    return null;
+                }
+                throw new Error((typeof detail === 'string' ? detail : null)
+                    || 'Could not start the crawl');
+            }
+
+            let status = await created.json();
+            showCrawlProgress(status);
+
+            // Each call crawls for about a hundred seconds and returns where it got to.
+            // The stall guard matters because without it a job that somehow stops making
+            // progress would spin here indefinitely.
+            let stalled = 0;
+            while (status.status === 'running') {
+                const before = status.pages_attempted;
+                const adv = await fetch('/api/kg/site/jobs/' + status.job_id + '/advance',
+                                        { method: 'POST' });
+                if (!adv.ok) throw new Error('The crawl stopped partway through.');
+                status = await adv.json();
+                showCrawlProgress(status);
+                stalled = status.pages_attempted > before ? 0 : stalled + 1;
+                if (stalled >= 3) throw new Error('The crawl stopped making progress.');
+            }
+
+            hideCrawlProgress();
+            if (status.status === 'failed') {
+                throw new Error(status.error || 'The crawl did not produce a graph.');
+            }
+
+            const got = await fetch('/api/kg/site/jobs/' + status.job_id + '/result');
+            if (!got.ok) throw new Error('The finished crawl returned no graph.');
+            return await got.json();
+        }
+
+        function showCrawlProgress(status) {
+            const attempted = status.pages_attempted || 0;
+            const budget = status.pages_requested || 0;
+            const pct = budget ? Math.min(Math.round((attempted / budget) * 100), 100) : 0;
+
+            document.getElementById('crawl-progress-bar').style.width = pct + '%';
+            let line = 'Read ' + (status.pages_crawled || 0) + ' of ' + budget + ' pages';
+            if (status.pages_discovered) line += ' · ' + status.pages_discovered + ' found so far';
+            if (status.pages_failed) line += ' · ' + status.pages_failed + ' failed';
+            document.getElementById('crawl-progress-text').innerText = line;
+
+            document.getElementById('empty-state').classList.remove('hidden');
+            document.getElementById('crawl-progress').classList.remove('hidden');
+            document.getElementById('btn-text').innerText = 'Crawling ' + attempted + '/' + budget;
+        }
+
+        function hideCrawlProgress() {
+            document.getElementById('crawl-progress').classList.add('hidden');
+        }
+
         function renderCrawlBanner(kg) {
             const box = document.getElementById('crawl-banner');
             // Page scope reads one page by definition; the counts only mean something
@@ -452,34 +533,40 @@
 
             try {
                 // 1. Build Knowledge Graph (Page or Site)
-                const endpoint = currentScope === 'page' ? '/api/kg/page' : '/api/kg/site';
-                // vertical_id is omitted so the service routes from the site's own words.
-                // It is sent only when the operator has corrected a detected vertical.
-                const payload = currentScope === 'page'
-                    ? { url: url }
-                    : { domain_or_url: url, max_pages: 40 };
-                if (verticalOverride) payload.vertical_id = verticalOverride;
+                if (currentScope === 'site') {
+                    // A site crawl runs as a job advanced a slice at a time. Doing it in
+                    // one request meant a site slower than expected spent eleven minutes
+                    // and then returned a 504 with nothing.
+                    const crawled = await runCrawlJob(url);
+                    if (!crawled) return;   // routing refused; the picker is showing
+                    currentGraphData = crawled;
+                } else {
+                    const payload = { url: url };
+                    // vertical_id is omitted so the service routes from the page's own
+                    // words. Sent only when the operator has corrected a detection.
+                    if (verticalOverride) payload.vertical_id = verticalOverride;
 
-                const res = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+                    const res = await fetch('/api/kg/page', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
 
-                if (!res.ok) {
-                    const err = await res.json();
-                    const detail = err.detail;
-                    // A 422 carrying candidates means routing refused rather than guessed.
-                    // Offer the choice now, against a question the run has just raised.
-                    if (res.status === 422 && detail && detail.candidates) {
-                        await renderRoutingFailure(detail);
-                        return;
+                    if (!res.ok) {
+                        const err = await res.json();
+                        const detail = err.detail;
+                        // A 422 carrying candidates means routing refused rather than
+                        // guessed. Offer the choice against a question just raised.
+                        if (res.status === 422 && detail && detail.candidates) {
+                            await renderRoutingFailure(detail);
+                            return;
+                        }
+                        throw new Error((typeof detail === 'string' ? detail : null)
+                            || 'Knowledge graph extraction failed');
                     }
-                    throw new Error((typeof detail === 'string' ? detail : null)
-                        || 'Knowledge graph extraction failed');
-                }
 
-                currentGraphData = await res.json();
+                    currentGraphData = await res.json();
+                }
 
                 // 2. Automatically Align against Industry Reference Ontology
                 // This sent the picker's value, which is "" under auto-detect, and the

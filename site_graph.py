@@ -13,6 +13,7 @@ Aggregates page-level graphs across a website to construct a unified domain Know
 
 import re
 import json
+import time
 import logging
 from collections import deque
 from typing import List, Dict, Tuple, Any, Optional
@@ -105,31 +106,57 @@ def _discover_site_urls(start_url: str, html: str) -> List[str]:
     """Pages linked from `html`, most semantically valuable first, start page included.
 
     One page's links only. Routing uses this to widen thin evidence cheaply; the crawl
-    itself uses `_crawl_site`, which recurses.
+    itself uses `crawl_slice`, which recurses.
     """
     priority_links, regular_links = _extract_internal_links(start_url, html)
     return [start_url] + priority_links + regular_links
 
 
-def _crawl_site(
-    start_url: str,
-    max_pages: int,
-    vertical_id: str
-) -> Tuple[List[str], List[KGNode], List[KGEdge], List[PageFailure], int]:
-    """Breadth-first crawl that folds each page's own links back into the frontier.
+def new_crawl_state(start_url: str) -> Dict[str, Any]:
+    """The frontier of a crawl that has not started, in a form JSON can carry.
 
-    Returns the pages read, their nodes and edges, the failures, and how many distinct
-    internal pages were seen. That last number is a floor on the size of the site, not a
-    measure of it: only pages linked from somewhere we actually read can be counted.
+    Everything the crawl needs to continue lives here rather than in local variables, so
+    a crawl can stop after any page and be resumed later, in a different process, from
+    storage. Sets and deques become lists for the same reason.
     """
-    priority_q: deque = deque([start_url])
-    regular_q: deque = deque()
-    seen = {_page_key(start_url)}
+    return {
+        "start_url": start_url,
+        "priority": [start_url],
+        "regular": [],
+        "seen": [_page_key(start_url)],
+        "crawled": [],
+        "failed": [],
+        "nodes": [],
+        "edges": [],
+        "attempts": 0,
+    }
 
-    crawled_urls: List[str] = []
-    nodes: List[KGNode] = []
-    edges: List[KGEdge] = []
-    failures: List[PageFailure] = []
+
+def crawl_is_complete(state: Dict[str, Any], max_pages: int) -> bool:
+    """True when the budget is spent or there is nothing left linked to read."""
+    return state["attempts"] >= max_pages or not (state["priority"] or state["regular"])
+
+
+def crawl_slice(
+    state: Dict[str, Any],
+    vertical_id: str,
+    max_pages: int,
+    budget_pages: Optional[int] = None,
+    budget_seconds: Optional[float] = None,
+) -> Dict[str, Any]:
+    """Advance a crawl by at most one slice, updating `state` in place.
+
+    Slices exist because a long crawl has to be many short requests rather than one long
+    one. Cloud Run throttles CPU outside request handling, so a background thread stops
+    making progress the moment a response is returned; work has to happen inside a
+    request. A budget keeps each request well under the request timeout, and gives a
+    caller something truthful to show instead of a spinner.
+
+    Passing no budget crawls to completion, which is what the synchronous path wants.
+    """
+    priority_q: deque = deque(state["priority"])
+    regular_q: deque = deque(state["regular"])
+    seen = set(state["seen"])
 
     def enqueue(urls: List[str], queue: deque) -> None:
         for url in urls:
@@ -139,13 +166,28 @@ def _crawl_site(
             seen.add(key)
             queue.append(url)
 
+    started = time.monotonic()
+    pages_this_slice = 0
+
     # max_pages budgets attempts, not successes. The binding constraint is the request
     # timeout, and a site that fails half its fetches would otherwise silently fetch twice
     # as many pages as asked for.
-    attempts = 0
-    while attempts < max_pages and (priority_q or regular_q):
+    while state["attempts"] < max_pages and (priority_q or regular_q):
+        # Both budgets are ignored until one page has been attempted. A slice that can
+        # return having done nothing is not a slow slice, it is a job that never finishes:
+        # the caller polls forever and the crawl stays where it was.
+        if pages_this_slice:
+            if budget_pages is not None and pages_this_slice >= budget_pages:
+                break
+            # Checked before starting a page rather than after finishing one: a page costs
+            # roughly sixteen seconds, so a budget tested afterwards would overshoot by
+            # that much every time.
+            if budget_seconds is not None and (time.monotonic() - started) >= budget_seconds:
+                break
+
         page_url = priority_q.popleft() if priority_q else regular_q.popleft()
-        attempts += 1
+        state["attempts"] += 1
+        pages_this_slice += 1
 
         try:
             validate_url_for_fetch(page_url)
@@ -154,7 +196,7 @@ def _crawl_site(
             # Separated from extraction below: "we never got the page" and "we got it and
             # could not read it" call for different responses from whoever investigates.
             logger.warning("[SiteKG] Could not fetch %s: %s", page_url, err)
-            failures.append(PageFailure(url=page_url, error="fetch failed: %s" % str(err)[:250]))
+            state["failed"].append({"url": page_url, "error": "fetch failed: %s" % str(err)[:250]})
             continue
 
         try:
@@ -166,26 +208,86 @@ def _crawl_site(
             pkg = build_page_kg(payload, url=page_url, vertical_id=vertical_id)
         except Exception as err:
             logger.warning("[SiteKG] Could not extract %s: %s", page_url, err)
-            failures.append(PageFailure(url=page_url, error="extraction failed: %s" % str(err)[:250]))
+            state["failed"].append({"url": page_url, "error": "extraction failed: %s" % str(err)[:250]})
             continue
 
-        crawled_urls.append(page_url)
-        nodes.extend(pkg.nodes)
-        edges.extend(pkg.edges)
+        state["crawled"].append(page_url)
+        # Stored as plain dicts so the state can be written out and read back between
+        # requests without the models having to survive the round trip.
+        state["nodes"].extend(n.model_dump() for n in pkg.nodes)
+        state["edges"].extend(e.model_dump() for e in pkg.edges)
 
         found_priority, found_regular = _extract_internal_links(page_url, html)
         enqueue(found_priority, priority_q)
         enqueue(found_regular, regular_q)
 
+    state["priority"] = list(priority_q)
+    state["regular"] = list(regular_q)
+    state["seen"] = list(seen)
+    return state
+
+
+def assemble_site_kg(
+    state: Dict[str, Any],
+    vertical_id: str,
+    max_pages: int,
+    persist: bool = True
+) -> SiteKnowledgeGraph:
+    """Canonicalize a finished crawl into the site graph and its exports.
+
+    Split from the crawl itself so a resumed job can assemble a result from state it did
+    not gather, and so the expensive part runs once at the end rather than per slice.
+    """
+    start_url = state["start_url"]
+    domain = urlparse(start_url).netloc.replace("www.", "").lower()
+
+    crawled_urls = state["crawled"]
     if not crawled_urls:
         # Refuse rather than return an empty graph. Coverage is scored against whatever
         # the graph holds, so nothing read scores as nothing covered: an unreachable site
         # would be handed back a confident 0% and the entire ontology as unwritten
         # content. That is a finding about the crawl, not about the site.
-        reason = failures[0].error if failures else "no readable pages were found"
-        raise ValueError("Could not read any page of %s (%s)." % (start_url, reason))
+        first = state["failed"][0]["error"] if state["failed"] else "no readable pages were found"
+        raise ValueError("Could not read any page of %s (%s)." % (start_url, first))
 
-    return crawled_urls, nodes, edges, failures, len(seen)
+    all_raw_nodes = [KGNode(**n) for n in state["nodes"]]
+    all_raw_edges = [KGEdge(**e) for e in state["edges"]]
+    failed_pages = [PageFailure(**f) for f in state["failed"]]
+
+    logger.info("[SiteKG] %s: read %d of %d pages found (limit %d), %d failed",
+                domain, len(crawled_urls), len(state["seen"]), max_pages, len(failed_pages))
+
+    canonical_nodes = _canonicalize_nodes(all_raw_nodes)
+    canonical_edges = _canonicalize_edges(all_raw_edges, canonical_nodes)
+    induced_schema = _induce_domain_ontology(canonical_edges)
+    top_hubs, clusters = _compute_topology_and_clusters(canonical_nodes, canonical_edges)
+    jsonld_graph = _build_site_jsonld(domain, canonical_nodes, canonical_edges)
+    turtle_graph = _build_site_turtle(domain, canonical_nodes, canonical_edges)
+
+    site_kg = SiteKnowledgeGraph(
+        domain=domain,
+        pages_crawled=len(crawled_urls),
+        page_urls=crawled_urls,
+        pages_discovered=len(state["seen"]),
+        pages_requested=max_pages,
+        pages_failed=len(failed_pages),
+        failed_pages=failed_pages[:25],
+        nodes=canonical_nodes,
+        edges=canonical_edges,
+        induced_class_hierarchy=induced_schema,
+        topic_clusters=clusters,
+        top_authority_hubs=top_hubs,
+        # The vocabulary this crawl actually ran with, set here so it cannot drift from
+        # the labels that produced the nodes above.
+        vertical_id=vertical_id,
+        export_jsonld=jsonld_graph,
+        export_turtle=turtle_graph
+    )
+
+    if persist:
+        persist_site_kg(site_kg, vertical_id)
+
+    return site_kg
 
 
 def _canonicalize_nodes(raw_nodes: List[KGNode]) -> List[KGNode]:
@@ -505,56 +607,12 @@ def build_site_kg(
 ) -> SiteKnowledgeGraph:
     """
     Crawl, aggregate, and synthesize an entire website into a canonical Knowledge Graph.
+
+    Runs the whole crawl in one call. The same machinery can be driven a slice at a time
+    through crawl_slice() when the crawl is too long to fit inside one request.
     """
     validate_url_for_fetch(start_url)
 
-    parsed = urlparse(start_url)
-    domain = parsed.netloc.replace("www.", "").lower()
-
-    # Steps 1-3: crawl breadth-first, extracting each page as it is read
-    crawled_urls, all_raw_nodes, all_raw_edges, failed_pages, discovered_count = _crawl_site(
-        start_url, max_pages, vertical_id
-    )
-    logger.info("[SiteKG] %s: read %d of %d pages found (limit %d), %d failed",
-                domain, len(crawled_urls), discovered_count, max_pages, len(failed_pages))
-
-    # Step 4: Canonicalize entities & coreferences
-    canonical_nodes = _canonicalize_nodes(all_raw_nodes)
-
-    # Step 5: Canonicalize and deduplicate edges
-    canonical_edges = _canonicalize_edges(all_raw_edges, canonical_nodes)
-
-    # Step 6: Induce domain ontology schema
-    induced_schema = _induce_domain_ontology(canonical_edges)
-
-    # Step 7: Graph topology and topic clusters
-    top_hubs, clusters = _compute_topology_and_clusters(canonical_nodes, canonical_edges)
-
-    # Step 8: Exports
-    jsonld_graph = _build_site_jsonld(domain, canonical_nodes, canonical_edges)
-    turtle_graph = _build_site_turtle(domain, canonical_nodes, canonical_edges)
-
-    site_kg = SiteKnowledgeGraph(
-        domain=domain,
-        pages_crawled=len(crawled_urls),
-        page_urls=crawled_urls,
-        pages_discovered=discovered_count,
-        pages_requested=max_pages,
-        pages_failed=len(failed_pages),
-        failed_pages=failed_pages[:25],
-        nodes=canonical_nodes,
-        edges=canonical_edges,
-        induced_class_hierarchy=induced_schema,
-        topic_clusters=clusters,
-        top_authority_hubs=top_hubs,
-        # The vocabulary this crawl actually ran with, set here so it cannot drift from
-        # the labels that produced the nodes above.
-        vertical_id=vertical_id,
-        export_jsonld=jsonld_graph,
-        export_turtle=turtle_graph
-    )
-
-    if persist:
-        persist_site_kg(site_kg, vertical_id)
-
-    return site_kg
+    state = new_crawl_state(start_url)
+    crawl_slice(state, vertical_id, max_pages)
+    return assemble_site_kg(state, vertical_id, max_pages, persist=persist)
