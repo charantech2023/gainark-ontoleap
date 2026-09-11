@@ -5,8 +5,13 @@ Combines:
    and realistic browser navigation headers.
 2. Anti-Bot Challenge Detection: Automatically identifies Cloudflare Turnstile, WAF 403/503,
    and captcha challenge pages.
-3. Level 2 (Managed Fallback): Automated fallback to Firecrawl API if FIRECRAWL_API_KEY is configured.
-4. Level 3 (Standard Fallback): Resilient standard HTTP request fallback with stealth headers.
+3. Fallbacks, tried in order and skipped when unavailable. The sync and async cascades
+   differ, so the level numbers are not interchangeable:
+     sync   1 curl_cffi -> 2 Crawl4AI -> 3 Firecrawl -> 4 standard requests
+     async  1 curl_cffi -> 2 Firecrawl -> 3 httpx
+   Crawl4AI is an optional import and is NOT in requirements.txt, so it is absent from
+   the deployed image; Firecrawl runs only when FIRECRAWL_API_KEY is set. A deployment
+   with neither goes straight from level 1 to plain HTTP.
 5. Strict SSRF Protection: Blocks private IPs, localhost, and cloud metadata endpoints —
    on the initial URL *and on every redirect hop*, since a public host may redirect inward.
 6. Response size ceiling: a single fetch cannot exhaust process memory.
@@ -37,6 +42,21 @@ except ImportError:
     CRAWL4AI_AVAILABLE = False
 
 from constants import BLOCKED_HOSTNAMES, BLOCKED_IP_PREFIXES
+
+
+def _next_sync_fallback(has_firecrawl_key: bool) -> str:
+    """Name the fallback the sync cascade will actually reach next.
+
+    Crawl4AI is an optional import absent from requirements.txt, and Firecrawl needs a
+    key, so which level comes next depends on the deployment rather than on the code.
+    Announcing a fixed "Level 2" sends a reader looking for a browser fetch that never
+    ran.
+    """
+    if CRAWL4AI_AVAILABLE:
+        return "level 2 Crawl4AI"
+    if has_firecrawl_key:
+        return "level 3 Firecrawl (Crawl4AI not installed)"
+    return "level 4 standard requests (Crawl4AI not installed, no Firecrawl key)"
 
 logger = logging.getLogger("gainark.scraper")
 
@@ -452,8 +472,9 @@ class SmartScraper:
 
                     if not html_result:
                         logger.warning(
-                            "Level 1 curl_cffi got status %d or challenge for %s. Checking Level 2 fallback...",
-                            resp.status_code, target
+                            "Level 1 curl_cffi got status %d or challenge for %s. Falling back to %s...",
+                            resp.status_code, target,
+                            _next_sync_fallback(bool(self.firecrawl_api_key))
                         )
             except Exception as e:
                 logger.warning("Level 1 curl_cffi failed for %s: %s", target, e)
@@ -476,7 +497,7 @@ class SmartScraper:
 
         # Level 4: Resilient standard requests with browser headers, streamed under a cap
         if not html_result:
-            logger.info("Attempting Level 3 standard requests for %s...", target)
+            logger.info("Attempting Level 4 standard requests for %s...", target)
             session = requests.Session()
             with session.get(
                 target,
