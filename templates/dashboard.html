@@ -274,6 +274,10 @@
                             </h3>
                             <span id="whitespace-count-badge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">0</span>
                         </div>
+                        <!-- What the list was measured on. An unclaimed concept means
+                             "absent from the graph", and the graph holds only the pages
+                             that were read, so this belongs beside the finding. -->
+                        <div id="whitespace-caveat" class="hidden text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5"></div>
                         <div id="whitespace-concepts-container" class="flex flex-wrap gap-1.5"></div>
                     </div>
                 </div>
@@ -393,9 +397,10 @@
                           : 'bg-slate-50 border-slate-200 text-slate-600');
             document.getElementById('crawl-mode').innerText = failed ? 'Partial crawl' : 'Crawl';
 
-            // "linked from the start page", not "on the site": discovery does not recurse.
+            // "found", not "on the site": only pages linked from somewhere already read
+            // can be counted, so this is a floor on the site's size.
             let summary = kg.pages_crawled + ' of ' + selected + ' pages read';
-            summary += ' \u00b7 ' + discovered + ' linked from the start page';
+            summary += ' \u00b7 ' + discovered + ' pages found';
             if (discovered > kg.pages_requested) summary += ', limit ' + kg.pages_requested;
             document.getElementById('crawl-summary').innerText = summary;
 
@@ -452,7 +457,7 @@
                 // It is sent only when the operator has corrected a detected vertical.
                 const payload = currentScope === 'page'
                     ? { url: url }
-                    : { domain_or_url: url, max_pages: 15 };
+                    : { domain_or_url: url, max_pages: 40 };
                 if (verticalOverride) payload.vertical_id = verticalOverride;
 
                 const res = await fetch(endpoint, {
@@ -619,6 +624,16 @@
             if (alignment) {
                 document.getElementById('covered-count-badge').innerText = alignment.covered_concepts.length;
                 document.getElementById('whitespace-count-badge').innerText = alignment.category_whitespace.length;
+
+                // Present whenever the graph covers less than the whole site, so a gap
+                // that is really an unread page is not read as missing content.
+                const caveatBox = document.getElementById('whitespace-caveat');
+                if (alignment.whitespace_caveat) {
+                    caveatBox.innerText = alignment.whitespace_caveat;
+                    caveatBox.classList.remove('hidden');
+                } else {
+                    caveatBox.classList.add('hidden');
+                }
 
                 const coveredBox = document.getElementById('covered-concepts-container');
                 coveredBox.innerHTML = '';

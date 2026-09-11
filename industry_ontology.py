@@ -387,6 +387,20 @@ def align_graph_with_industry(
                     if _label_matches(s, alias_index, graph_terms, allow_reverse=False))
     seed_coverage_score = round(min((seed_hits / total_seeds) * 100.0, 100.0), 1)
 
+    # What this was measured on. A page graph is one page by definition; a site graph
+    # carries its own crawl counts.
+    pages_sampled = getattr(kg, "pages_crawled", None)
+    pages_found = getattr(kg, "pages_discovered", None) or 0
+    if pages_sampled is None:
+        pages_sampled = 1
+        caveat = ("Measured on a single page. A concept covered elsewhere on the site is "
+                  "listed as unclaimed here.")
+    elif pages_found > pages_sampled:
+        caveat = ("Measured on %d of %d pages found. A concept on a page that was not read "
+                  "is listed as unclaimed." % (pages_sampled, pages_found))
+    else:
+        caveat = None
+
     return GraphAlignmentResult(
         subject_identifier=subject_id,
         vertical_id=industry.vertical_id,
@@ -398,5 +412,8 @@ def align_graph_with_industry(
         coverage_score=coverage_score,
         seed_coverage_score=seed_coverage_score,
         compliance_standards_covered=compliance_covered,
-        integrations_covered=integrations_covered
+        integrations_covered=integrations_covered,
+        pages_sampled=pages_sampled,
+        pages_found=pages_found,
+        whitespace_caveat=caveat
     )

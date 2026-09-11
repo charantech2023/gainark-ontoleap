@@ -2,7 +2,8 @@
 site_graph.py — Pure Site-Wide Knowledge Graph & Domain Ontology Synthesizer
 
 Aggregates page-level graphs across a website to construct a unified domain Knowledge Graph:
-1. Crawls homepage and high-value architectural sub-pages (/features, /pricing, /integrations, /solutions).
+1. Crawls breadth-first from a start URL, reading high-value architectural paths
+   (/features, /pricing, /integrations, /solutions) ahead of everything else.
 2. Extracts page knowledge graphs in batch.
 3. Performs Entity Coreference & Canonicalization (merging aliases and surface forms).
 4. Induces the Domain Class Hierarchy (e.g. SoftwarePlatform -> integratesWith -> IntegrationPartner).
@@ -13,6 +14,7 @@ Aggregates page-level graphs across a website to construct a unified domain Know
 import re
 import json
 import logging
+from collections import deque
 from typing import List, Dict, Tuple, Any, Optional
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
@@ -34,58 +36,148 @@ logger = logging.getLogger("gainark.site_graph")
 _MAX_EXPORT_NODES = 1000
 
 
-def _discover_site_urls(start_url: str, html: str) -> List[str]:
-    """Internal sub-pages linked from `html`, most semantically valuable first.
+# A crawl follows links from every page it reads, so the frontier has to be bounded
+# independently of max_pages: a large site can offer far more URLs than we will ever read.
+_MAX_FRONTIER = 800
 
-    Returns everything found rather than a capped slice, so a caller can report how much
-    of the site it chose not to read. Only links on this one page are considered:
-    discovery does not recurse.
+_ASSET_SUFFIXES = re.compile(r'\.(pdf|png|jpg|jpeg|svg|css|js|webp|gif|zip|xml|ico|mp4|woff2?)$')
+
+
+def _page_key(url: str) -> str:
+    """Identity of a page for crawl purposes: host and path, nothing else.
+
+    Query strings and fragments are dropped deliberately. Tracking parameters and
+    pagination would otherwise present one page as many and let a crawl spend its whole
+    budget going nowhere.
     """
-    parsed = urlparse(start_url)
+    parsed = urlparse(url)
+    netloc = parsed.netloc.replace("www.", "").lower()
+    path = parsed.path.rstrip("/").lower() or "/"
+    return netloc + path
+
+
+def _extract_internal_links(page_url: str, html: str) -> Tuple[List[str], List[str]]:
+    """Internal links on one page, split into high-value paths and the rest.
+
+    Resolved against `page_url` rather than the site origin: a relative href means
+    something different on a deep page than it does on the homepage.
+    """
+    parsed = urlparse(page_url)
     base_netloc = parsed.netloc.replace("www.", "").lower()
-    base_origin = f"{parsed.scheme}://{parsed.netloc}"
 
     soup = BeautifulSoup(html, "html.parser")
-    discovered = [start_url]
-    seen_paths = {parsed.path.rstrip("/").lower()}
-
-    # High priority architectural paths
-    priority_links = []
-    regular_links = []
+    priority_links: List[str] = []
+    regular_links: List[str] = []
+    seen_here = set()
 
     for a in soup.find_all("a", href=True):
         href = a["href"].strip()
         if not href or href.startswith(("#", "mailto:", "tel:", "javascript:")):
             continue
 
-        full_url = urljoin(base_origin, href)
+        full_url = urljoin(page_url, href)
         parsed_full = urlparse(full_url)
-        target_netloc = parsed_full.netloc.replace("www.", "").lower()
-
-        # Must stay on the same domain
-        if target_netloc != base_netloc:
+        if parsed_full.scheme not in ("http", "https"):
+            continue
+        if parsed_full.netloc.replace("www.", "").lower() != base_netloc:
             continue
 
         path = parsed_full.path.rstrip("/").lower()
-        if path in seen_paths or not path:
+        if not path or _ASSET_SUFFIXES.search(path):
             continue
 
-        # Skip assets and documents
-        if re.search(r'\.(pdf|png|jpg|jpeg|svg|css|js|webp|gif|zip)$', path):
+        key = _page_key(full_url)
+        if key in seen_here:
             continue
+        seen_here.add(key)
 
-        seen_paths.add(path)
-        is_priority = any(target in path for target in DEEP_CRAWL_PATHS)
-
-        if is_priority:
-            priority_links.append(full_url)
+        # Drop the fragment; it addresses a position on a page, not another page.
+        clean = parsed_full._replace(fragment="").geturl()
+        if any(target in path for target in DEEP_CRAWL_PATHS):
+            priority_links.append(clean)
         else:
-            regular_links.append(full_url)
+            regular_links.append(clean)
 
-    # Prioritized links first; the caller decides how many of them to read.
-    discovered.extend(priority_links + regular_links)
+    return priority_links, regular_links
 
-    return discovered
+
+def _discover_site_urls(start_url: str, html: str) -> List[str]:
+    """Pages linked from `html`, most semantically valuable first, start page included.
+
+    One page's links only. Routing uses this to widen thin evidence cheaply; the crawl
+    itself uses `_crawl_site`, which recurses.
+    """
+    priority_links, regular_links = _extract_internal_links(start_url, html)
+    return [start_url] + priority_links + regular_links
+
+
+def _crawl_site(
+    start_url: str,
+    max_pages: int,
+    vertical_id: str
+) -> Tuple[List[str], List[KGNode], List[KGEdge], List[PageFailure], int]:
+    """Breadth-first crawl that folds each page's own links back into the frontier.
+
+    Returns the pages read, their nodes and edges, the failures, and how many distinct
+    internal pages were seen. That last number is a floor on the size of the site, not a
+    measure of it: only pages linked from somewhere we actually read can be counted.
+    """
+    priority_q: deque = deque([start_url])
+    regular_q: deque = deque()
+    seen = {_page_key(start_url)}
+
+    crawled_urls: List[str] = []
+    nodes: List[KGNode] = []
+    edges: List[KGEdge] = []
+    failures: List[PageFailure] = []
+
+    def enqueue(urls: List[str], queue: deque) -> None:
+        for url in urls:
+            key = _page_key(url)
+            if key in seen or len(seen) >= _MAX_FRONTIER:
+                continue
+            seen.add(key)
+            queue.append(url)
+
+    # max_pages budgets attempts, not successes. The binding constraint is the request
+    # timeout, and a site that fails half its fetches would otherwise silently fetch twice
+    # as many pages as asked for.
+    attempts = 0
+    while attempts < max_pages and (priority_q or regular_q):
+        page_url = priority_q.popleft() if priority_q else regular_q.popleft()
+        attempts += 1
+
+        try:
+            validate_url_for_fetch(page_url)
+            html = smart_fetch(page_url)
+        except Exception as err:
+            # Separated from extraction below: "we never got the page" and "we got it and
+            # could not read it" call for different responses from whoever investigates.
+            logger.warning("[SiteKG] Could not fetch %s: %s", page_url, err)
+            failures.append(PageFailure(url=page_url, error="fetch failed: %s" % str(err)[:250]))
+            continue
+
+        try:
+            # Hand over the HTML we already hold. Passing the URL would make build_page_kg
+            # fetch it a second time, doubling every crawl.
+            payload = html
+            if payload.lstrip()[:8].lower().startswith(("http://", "https://")):
+                payload = "<html><body>%s</body></html>" % html
+            pkg = build_page_kg(payload, url=page_url, vertical_id=vertical_id)
+        except Exception as err:
+            logger.warning("[SiteKG] Could not extract %s: %s", page_url, err)
+            failures.append(PageFailure(url=page_url, error="extraction failed: %s" % str(err)[:250]))
+            continue
+
+        crawled_urls.append(page_url)
+        nodes.extend(pkg.nodes)
+        edges.extend(pkg.edges)
+
+        found_priority, found_regular = _extract_internal_links(page_url, html)
+        enqueue(found_priority, priority_q)
+        enqueue(found_regular, regular_q)
+
+    return crawled_urls, nodes, edges, failures, len(seen)
 
 
 def _canonicalize_nodes(raw_nodes: List[KGNode]) -> List[KGNode]:
@@ -405,32 +497,12 @@ def build_site_kg(
     parsed = urlparse(start_url)
     domain = parsed.netloc.replace("www.", "").lower()
 
-    # Step 1: Fetch homepage
-    home_html = smart_fetch(start_url)
-
-    # Step 2: Discover internal pages
-    discovered_urls = _discover_site_urls(start_url, home_html)
-    urls_to_crawl = discovered_urls[:max_pages]
-    logger.info("[SiteKG] Found %d internal pages on %s; crawling %d (limit %d)",
-                len(discovered_urls), domain, len(urls_to_crawl), max_pages)
-
-    # Step 3: Extract Page KGs
-    all_raw_nodes: List[KGNode] = []
-    all_raw_edges: List[KGEdge] = []
-    crawled_urls: List[str] = []
-    failed_pages: List[PageFailure] = []
-
-    for page_url in urls_to_crawl:
-        try:
-            pkg = build_page_kg(page_url, vertical_id=vertical_id)
-            crawled_urls.append(page_url)
-            all_raw_nodes.extend(pkg.nodes)
-            all_raw_edges.extend(pkg.edges)
-        except Exception as e:
-            # Recorded, not just logged. A caller reading only the response cannot
-            # otherwise tell a lost page from a page that was never there.
-            logger.warning("[SiteKG] Failed to process %s: %s", page_url, e)
-            failed_pages.append(PageFailure(url=page_url, error=str(e)[:300]))
+    # Steps 1-3: crawl breadth-first, extracting each page as it is read
+    crawled_urls, all_raw_nodes, all_raw_edges, failed_pages, discovered_count = _crawl_site(
+        start_url, max_pages, vertical_id
+    )
+    logger.info("[SiteKG] %s: read %d of %d pages found (limit %d), %d failed",
+                domain, len(crawled_urls), discovered_count, max_pages, len(failed_pages))
 
     # Step 4: Canonicalize entities & coreferences
     canonical_nodes = _canonicalize_nodes(all_raw_nodes)
@@ -452,7 +524,7 @@ def build_site_kg(
         domain=domain,
         pages_crawled=len(crawled_urls),
         page_urls=crawled_urls,
-        pages_discovered=len(discovered_urls),
+        pages_discovered=discovered_count,
         pages_requested=max_pages,
         pages_failed=len(failed_pages),
         failed_pages=failed_pages[:25],

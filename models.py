@@ -693,9 +693,9 @@ class SiteKnowledgeGraph(BaseModel):
     # Without these, a crawl that lost most of its pages is indistinguishable from a small
     # site: both return a low page count and a low coverage score, and they call for
     # opposite responses from the reader.
-    pages_discovered: int = Field(default=0, description="Internal links found on the start page. Discovery does not recurse, so this is not the size of the site.")
-    pages_requested: int = Field(default=0, description="Crawl limit applied to this run")
-    pages_failed: int = Field(default=0, description="Pages selected for crawling that could not be processed")
+    pages_discovered: int = Field(default=0, description="Distinct internal pages seen while crawling. Only pages linked from somewhere already read can be counted, so this is a floor on the size of the site, not its size.")
+    pages_requested: int = Field(default=0, description="Page budget for this run. Counts attempts, so pages_crawled + pages_failed reaches it when the crawl is limited rather than exhausted.")
+    pages_failed: int = Field(default=0, description="Pages attempted that could not be fetched or extracted")
     failed_pages: List[PageFailure] = Field(default_factory=list, description="Why each page failed, first 25")
     nodes: List[KGNode] = Field(default_factory=list, description="Canonical, coreference-resolved entity nodes")
     edges: List[KGEdge] = Field(default_factory=list, description="Deduplicated semantic relations")
@@ -755,6 +755,11 @@ class GraphAlignmentResult(BaseModel):
     seed_coverage_score: float = Field(default=0.0, ge=0.0, le=100.0, description="Percentage of the vertical's core seed concepts covered (0-100%)")
     compliance_standards_covered: List[str] = Field(default_factory=list)
     integrations_covered: List[str] = Field(default_factory=list)
+    # An unclaimed concept means "absent from the graph", and the graph holds only the
+    # pages that were read. Without this, a gap on an unread page reads as missing content.
+    pages_sampled: int = Field(default=0, description="Pages that contributed to the graph this was measured on")
+    pages_found: int = Field(default=0, description="Distinct internal pages the crawl saw, read or not")
+    whitespace_caveat: Optional[str] = Field(default=None, description="Set when the unclaimed list may overstate, because the graph covers less than the whole site")
 
 
 # API Request Models
@@ -771,7 +776,14 @@ class SiteKGRequest(BaseModel):
     # Measured: about 32s of model load on a cold instance plus 16.3s per page. The
     # Cloud Run request timeout is 900s, so 40 pages is roughly 11 minutes and fits with
     # margin. Raising this without raising that timeout only produces slower 504s.
-    max_pages: int = Field(default=15, ge=1, le=40, description="Maximum sub-pages to crawl and aggregate (a 40-page crawl takes roughly 11 minutes)")
+    #
+    # The default is the ceiling because the crawl now recurses, and a small budget spent
+    # on a deep site is what produced false gaps: an unread page reports every concept on
+    # it as missing content. ordwaylabs.com offers 106 pages, so even 40 is a sample - but
+    # reading 15 of them was measuring an eighth of the site and reporting the rest as
+    # absent. A slow site can still exhaust the timeout and lose the whole crawl, which is
+    # what background jobs are for.
+    max_pages: int = Field(default=40, ge=1, le=40, description="Maximum sub-pages to crawl and aggregate (a 40-page crawl takes roughly 11 minutes)")
     # Omitted means "work it out from the site". Defaulting to a vertical measured every
     # domain against a billing vocabulary, so a security vendor that omitted this was told
     # it covered almost nothing - a wrong answer that looked like a real result.
