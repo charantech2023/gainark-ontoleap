@@ -4,7 +4,7 @@ GainARK OntoLeap — Knowledge Graph Operations, SPARQL, OWL 2 DL, and Link Pred
 
 import logging
 from typing import List, Dict, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 from rdflib import Graph
@@ -297,18 +297,34 @@ async def api_build_site_kg(req: SiteKGRequest):
 
 
 @router.get("/api/kg/history", summary="List Stored Audit Runs For A Domain")
-def api_kg_history(domain: Optional[str] = None, limit: int = 50):
+def api_kg_history(
+    domain: str = Query(..., min_length=1, max_length=253),
+    limit: int = 50,
+):
     """
-    Audit runs held in the durable store, newest first. Omit `domain` for every domain.
+    Audit runs held in the durable store for one domain, newest first.
+
+    `domain` is required. It was optional, and omitting it listed every domain the
+    store had ever seen - names, timestamps and sizes. Authentication here is a single
+    shared key with no notion of who is calling, so that let any caller enumerate every
+    other subscriber. Requiring the domain means a caller can only ask about one it
+    already knows. That is a plug, not tenancy: the real fix is an owner recorded on
+    each run and reads filtered to the caller.
 
     Each crawl of a site is recorded as its own run graph, so this is the history a
     single page-level extraction can never provide.
     """
     if limit < 1 or limit > 200:
         raise HTTPException(status_code=422, detail="limit must be between 1 and 200.")
+    target = (domain or "").strip()
+    if not target:
+        # list_runs treats a falsy domain as "no filter", so an empty or whitespace-only
+        # string would return every domain in the store - the leak this endpoint was just
+        # changed to close. Refuse it here rather than trust the query validator alone.
+        raise HTTPException(status_code=422, detail="domain must not be empty.")
     try:
         import graph_store
-        return {"runs": graph_store.list_runs(domain=domain, limit=limit)}
+        return {"runs": graph_store.list_runs(domain=target, limit=limit)}
     except Exception as e:
         logger.error("[API KG History] Could not read the run store: %s", e)
         raise HTTPException(status_code=503, detail="Run history is unavailable.")
