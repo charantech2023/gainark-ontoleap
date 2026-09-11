@@ -161,9 +161,16 @@ def load_industry_ontology(vertical_id: str = "b2b_saas_fintech") -> IndustryOnt
     """
     fpath = os.path.join(VERTICALS_DIR, f"{vertical_id}.json")
     if not os.path.isfile(fpath):
-        # Fallback to default
-        fpath = os.path.join(VERTICALS_DIR, "b2b_saas_fintech.json")
-        vertical_id = "b2b_saas_fintech"
+        # Substituting billing here defeated every check above it: a typo in a vertical
+        # id, or a vertical that was removed, quietly returned the billing ontology and
+        # the caller was told nothing. Coverage and whitespace were then computed against
+        # a vocabulary nobody asked for.
+        available = sorted(
+            f[:-5] for f in os.listdir(VERTICALS_DIR) if f.endswith(".json")
+        ) if os.path.isdir(VERTICALS_DIR) else []
+        raise ValueError(
+            "No industry ontology named %r. Available: %s"
+            % (vertical_id, ", ".join(available) or "none"))
 
     with open(fpath, "r", encoding="utf-8") as f:
         raw = json.load(f)
@@ -312,7 +319,15 @@ def align_graph_with_industry(
     Aligns a PageKnowledgeGraph or SiteKnowledgeGraph against an Industry Reference Ontology.
     """
     if industry is None:
-        ind_id = vertical_id or "b2b_saas_fintech"
+        # A graph records the vocabulary it was built with, and that beats a constant.
+        # Scoring a security site's graph against billing is not a smaller error than
+        # extracting it wrong - it is the same error, one step later.
+        ind_id = vertical_id or getattr(kg, "vertical_id", None)
+        if not ind_id:
+            ind_id = "b2b_saas_fintech"
+            logger.warning(
+                "Aligning a graph that names no vertical; defaulting to %s. Coverage and "
+                "whitespace below are measured against that vocabulary.", ind_id)
         industry = load_industry_ontology(ind_id)
 
     # Identify subject

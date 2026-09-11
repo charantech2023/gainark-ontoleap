@@ -42,7 +42,7 @@ app = MCPServer(
 async def ontoleap_build_page_kg(
     source: str,
     url: Optional[str] = None,
-    vertical_id: str = "b2b_saas_fintech"
+    vertical_id: Optional[str] = None
 ) -> str:
     """
     Extracts a page-level Knowledge Graph.
@@ -50,7 +50,7 @@ async def ontoleap_build_page_kg(
     Args:
         source: Web page URL (e.g. 'https://www.ordwaylabs.com') or raw HTML content.
         url: Canonical page URL if source contains raw HTML.
-        vertical_id: Vertical ontology domain ID (default: 'b2b_saas_fintech').
+        vertical_id: Vertical ontology domain ID. Omit to infer it from the content.
     """
     try:
         engine = get_graph_engine()
@@ -67,16 +67,16 @@ async def ontoleap_build_page_kg(
 )
 async def ontoleap_build_site_kg(
     start_url: str,
-    max_pages: int = 10,
-    vertical_id: str = "b2b_saas_fintech"
+    max_pages: int = 40,
+    vertical_id: Optional[str] = None
 ) -> str:
     """
     Synthesizes a site-wide Knowledge Graph and induces domain ontology schema.
 
     Args:
         start_url: Target domain homepage URL (e.g. 'https://www.ordwaylabs.com').
-        max_pages: Maximum pages to crawl (1-30, default: 10).
-        vertical_id: Vertical ontology domain ID (default: 'b2b_saas_fintech').
+        max_pages: Maximum pages to crawl (1-40, default: 40).
+        vertical_id: Vertical ontology domain ID. Omit to infer it from the site.
     """
     try:
         engine = get_graph_engine()
@@ -93,19 +93,23 @@ async def ontoleap_build_site_kg(
 )
 async def ontoleap_align_industry_ontology(
     source_url: str,
-    vertical_id: str = "b2b_saas_fintech"
+    vertical_id: Optional[str] = None
 ) -> str:
     """
     Extracts page graph and aligns it against the specified industry reference taxonomy.
 
     Args:
         source_url: Target web page URL to extract and align.
-        vertical_id: Industry vertical ID (e.g. 'b2b_saas_fintech', 'cybersecurity', 'healthtech').
+        vertical_id: Industry vertical ID (e.g. 'b2b_saas_fintech', 'cybersecurity').
+            Omit to infer it from the page, which is what a caller with no prior about the
+            target should do - a wrong vertical returns a complete, plausible answer about
+            the wrong industry rather than an error.
     """
     try:
         engine = get_graph_engine()
         kg = await engine.extract_page_knowledge_graph(source=source_url, vertical_id=vertical_id)
-        alignment = await engine.align_with_industry(kg=kg, vertical_id=vertical_id)
+        # Align against whatever the extraction actually used, inferred or not.
+        alignment = await engine.align_with_industry(kg=kg, vertical_id=kg.vertical_id)
         return json.dumps(alignment.model_dump(), indent=2)
     except Exception as e:
         logger.error("ontoleap_align_industry_ontology failed: %s", e, exc_info=True)

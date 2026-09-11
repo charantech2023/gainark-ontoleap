@@ -168,6 +168,32 @@ def test_query_strings_do_not_multiply_a_page():
     print("  PASS - query strings and fragments do not multiply a page.")
 
 
+def test_unreadable_site_refuses_instead_of_returning_nothing():
+    print("\n[5] Testing that a site nobody could read is an error, not a 0% score...")
+
+    def dead_fetch(url, *args, **kwargs):
+        raise RuntimeError("connection refused")
+
+    original = site_graph.smart_fetch
+    site_graph.smart_fetch = dead_fetch
+    try:
+        site_graph.build_site_kg(start_url=HOME, max_pages=5,
+                                 vertical_id="b2b_saas_fintech", persist=False)
+    except ValueError as err:
+        # Coverage is scored against whatever the graph holds, so an empty graph scores as
+        # 0% covered with the entire ontology listed as unwritten content - the most
+        # confident possible wrong answer, handed to someone whose site was simply down.
+        print("  Raised:", err)
+        assert "Could not read any page" in str(err), err
+        assert "connection refused" in str(err), err
+        print("  PASS - an unreadable site is refused, not scored.")
+        return
+    finally:
+        site_graph.smart_fetch = original
+
+    raise AssertionError("Returned a graph for a site where every fetch failed.")
+
+
 if __name__ == "__main__":
     print("=" * 55)
     print("CRAWL REPORTING TESTS")
@@ -176,6 +202,7 @@ if __name__ == "__main__":
     test_partial_crawl_is_reported()
     test_discovery_counts_more_than_it_reads()
     test_query_strings_do_not_multiply_a_page()
+    test_unreadable_site_refuses_instead_of_returning_nothing()
     print("\n" + "=" * 55)
     print("ALL CRAWL REPORTING TESTS PASSED")
     print("=" * 55)

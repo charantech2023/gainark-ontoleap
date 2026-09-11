@@ -794,7 +794,10 @@ class KGAlignmentRequest(BaseModel):
     domain_or_url: Optional[str] = Field(default=None, max_length=2048, description="Target domain or URL to evaluate")
     page_kg: Optional[PageKnowledgeGraph] = Field(default=None, description="Direct page knowledge graph to evaluate")
     site_kg: Optional[SiteKnowledgeGraph] = Field(default=None, description="Direct site knowledge graph to evaluate")
-    vertical_id: str = Field(default="b2b_saas_fintech", description="Industry vertical to align against")
+    # Omitted means "use the vertical the graph was built with, or work it out". It was
+    # a plain default, so omitting it scored every graph against billing regardless of
+    # what the graph itself said.
+    vertical_id: Optional[str] = Field(default=None, description="Industry vertical to align against. Omit to use the graph's own vertical, or to route from the domain.")
     max_pages: int = Field(default=5, ge=1, le=25, description="Pages to crawl if not cached")
 
 

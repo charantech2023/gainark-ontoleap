@@ -177,6 +177,14 @@ def _crawl_site(
         enqueue(found_priority, priority_q)
         enqueue(found_regular, regular_q)
 
+    if not crawled_urls:
+        # Refuse rather than return an empty graph. Coverage is scored against whatever
+        # the graph holds, so nothing read scores as nothing covered: an unreachable site
+        # would be handed back a confident 0% and the entire ontology as unwritten
+        # content. That is a finding about the crawl, not about the site.
+        reason = failures[0].error if failures else "no readable pages were found"
+        raise ValueError("Could not read any page of %s (%s)." % (start_url, reason))
+
     return crawled_urls, nodes, edges, failures, len(seen)
 
 
@@ -411,7 +419,13 @@ def route_domain_to_vertical(start_url: str, max_extra_pages: int = 3) -> Dict[s
     crawling is not.
     """
     validate_url_for_fetch(start_url)
-    html = smart_fetch(start_url)
+    try:
+        html = smart_fetch(start_url)
+    except Exception as err:
+        # Routing runs before the crawl and outside its error handling, so an unreachable
+        # domain surfaced here as a bare 500. It is an unreachable site, which the caller
+        # can act on, not an internal fault.
+        raise ValueError("Could not fetch %s: %s" % (start_url, err))
     text = _page_text(html)
     result = classify_vertical(text)
     result["pages_read"] = 1

@@ -344,7 +344,12 @@ async def api_build_site_kg(req: SiteKGRequest):
     vertical_id = req.vertical_id
     routed = None
     if not vertical_id:
-        routed = route_domain_to_vertical(req.domain_or_url)
+        try:
+            routed = route_domain_to_vertical(req.domain_or_url)
+        except ValueError as val_err:
+            # Routing sits outside the crawl's error handling below, so an unreachable
+            # domain reached the client as an unexplained 500.
+            raise HTTPException(status_code=400, detail=str(val_err))
         vertical_id = routed.get("vertical_id")
         if not vertical_id:
             # Refuse rather than fall back to a default. A wrong vertical does not fail
@@ -439,9 +444,9 @@ def api_kg_diff(earlier: str, later: str, claims_only: bool = True):
         raise
     except Exception as e:
         logger.error("[API KG Diff] Could not diff runs: %s", e)
-        raise HTTPException(status_code=503, detail="Run history is unavailable.")
-
-
+        raise HTTPException(status_code=503, detail="Run history is unavailable.")
+
+
 @router.post("/api/kg/align", response_model=GraphAlignmentResult, summary="Align Knowledge Graph Against Industry Ontology")
 async def api_align_kg(req: KGAlignmentRequest):
     """
@@ -449,19 +454,39 @@ async def api_align_kg(req: KGAlignmentRequest):
     to identify covered concepts, standards, and category whitespace.
     """
     try:
-        if req.page_kg:
-            kg = req.page_kg
-        elif req.site_kg:
-            kg = req.site_kg
+        # Resolution order: what the caller asked for, then what the supplied graph was
+        # built with, then what the site classifies as. Falling back to a constant scored
+        # every graph against billing, whatever it actually described.
+        vertical_id = req.vertical_id
+        supplied = req.page_kg or req.site_kg
+
+        if supplied is not None:
+            kg = supplied
+            vertical_id = vertical_id or supplied.vertical_id
         elif req.domain_or_url:
+            if not vertical_id:
+                try:
+                    routed = route_domain_to_vertical(req.domain_or_url)
+                except ValueError as val_err:
+                    raise HTTPException(status_code=400, detail=str(val_err))
+                vertical_id = routed.get("vertical_id")
+                if not vertical_id:
+                    raise HTTPException(status_code=422, detail={
+                        "error": "Could not identify an industry vertical for this domain.",
+                        "reason": routed.get("reason"),
+                        "candidates": routed.get("candidates"),
+                        "hint": "Pass vertical_id explicitly, or see GET /api/kg/industries.",
+                    })
+                logger.info("[API KGAlign] Routed %s to %s (%s)",
+                            req.domain_or_url, vertical_id, routed.get("reason"))
             if req.max_pages > 1:
-                kg = build_site_kg(req.domain_or_url, max_pages=req.max_pages, vertical_id=req.vertical_id)
+                kg = build_site_kg(req.domain_or_url, max_pages=req.max_pages, vertical_id=vertical_id)
             else:
-                kg = build_page_kg(req.domain_or_url, vertical_id=req.vertical_id)
+                kg = build_page_kg(req.domain_or_url, vertical_id=vertical_id)
         else:
             raise HTTPException(status_code=400, detail="Either 'domain_or_url', 'page_kg', or 'site_kg' must be provided.")
 
-        alignment = align_graph_with_industry(kg, vertical_id=req.vertical_id)
+        alignment = align_graph_with_industry(kg, vertical_id=vertical_id)
         return alignment
     except HTTPException:
         raise
