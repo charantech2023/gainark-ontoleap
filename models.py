@@ -742,7 +742,10 @@ class SiteKGRequest(BaseModel):
     # Cloud Run request timeout is 900s, so 40 pages is roughly 11 minutes and fits with
     # margin. Raising this without raising that timeout only produces slower 504s.
     max_pages: int = Field(default=15, ge=1, le=40, description="Maximum sub-pages to crawl and aggregate (a 40-page crawl takes roughly 11 minutes)")
-    vertical_id: Optional[str] = Field(default="b2b_saas_fintech", description="Industry vertical context")
+    # Omitted means "work it out from the site". Defaulting to a vertical measured every
+    # domain against a billing vocabulary, so a security vendor that omitted this was told
+    # it covered almost nothing - a wrong answer that looked like a real result.
+    vertical_id: Optional[str] = Field(default=None, description="Industry vertical. Omit to route automatically from the site content.")
 
 
 class KGAlignmentRequest(BaseModel):

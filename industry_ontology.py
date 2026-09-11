@@ -14,7 +14,7 @@ import os
 import re
 import json
 import logging
-from typing import Optional, List, Dict, Union
+from typing import Optional, List, Dict, Union, Any
 
 from models import (
     IndustryOntologyModel, IndustryConcept, GraphAlignmentResult,
@@ -182,6 +182,115 @@ def load_industry_ontology(vertical_id: str = "b2b_saas_fintech") -> IndustryOnt
             "automates", "integratesWith", "compliesWith", "supportsPricingModel", "subClassOf", "partOf"
         ])
     )
+
+
+# ---------------------------------------------------------------------------
+# Routing a site to a vertical
+# ---------------------------------------------------------------------------
+# A vertical with no concept layer cannot measure anything: coverage is computed against
+# its concepts, so routing a site to one scores it near zero and reports every concept as
+# whitespace. Those profiles exist because discovery mints a vertical per site instead of
+# matching an existing one, so they are excluded here rather than trusted.
+
+# A site must match at least this many distinct vocabulary terms to be routed at all.
+_MIN_ROUTING_EVIDENCE = 5
+# ...and the winner must beat the runner-up by this factor, or the answer is ambiguous.
+_MIN_ROUTING_MARGIN = 1.5
+
+
+def usable_verticals() -> List[str]:
+    """Vertical ids that carry a concept layer, and so can actually measure coverage."""
+    usable = []
+    for meta in list_available_industries():
+        vid = meta.get("vertical_id")
+        if not vid:
+            continue
+        try:
+            if load_industry_ontology(vid).concepts:
+                usable.append(vid)
+        except Exception as err:
+            logger.warning("Skipping unreadable vertical %r: %s", vid, err)
+    return usable
+
+
+def _vocabulary_terms(industry: IndustryOntologyModel) -> List[str]:
+    """Every phrase that is evidence for this vertical, longest first."""
+    terms = set(industry.core_seed_concepts) | set(industry.known_compliance)
+    terms |= set(industry.known_integrations)
+    for c in industry.concepts:
+        if c.pref_label:
+            terms.add(c.pref_label)
+        terms.update(a for a in (c.alt_labels or []) if a)
+    cleaned = {t.strip().lower() for t in terms if t and len(t.strip()) >= 3}
+    return sorted(cleaned, key=lambda t: (-len(t), t))
+
+
+def _count_evidence(text_lower: str, terms: List[str]) -> List[str]:
+    """Distinct vocabulary terms the text mentions.
+
+    Word boundaries, not raw substrings: the same lesson as the alignment matcher, where
+    "IR" sat inside "firewall" and "CTI" inside "detection". A term counts once however
+    often it appears, so a page repeating one word cannot outvote a page covering many.
+    """
+    hits = []
+    for term in terms:
+        if re.search(r"\b" + re.escape(term) + r"\b", text_lower):
+            hits.append(term)
+    return hits
+
+
+def classify_vertical(text: str, candidates: Optional[List[str]] = None) -> Dict[str, Any]:
+    """Pick the existing vertical whose vocabulary the text best matches.
+
+    Returns the choice, the evidence behind it, and every candidate's score, so a caller
+    can show why a site was routed the way it was. `vertical_id` is None when nothing
+    matched well enough - an honest refusal, because the alternative is measuring a site
+    against a vocabulary that does not describe it.
+    """
+    text_lower = (text or "").lower()
+    scores = []
+    for vid in (candidates if candidates is not None else usable_verticals()):
+        try:
+            industry = load_industry_ontology(vid)
+        except Exception as err:
+            logger.warning("Skipping vertical %r during routing: %s", vid, err)
+            continue
+        hits = _count_evidence(text_lower, _vocabulary_terms(industry))
+        scores.append({
+            "vertical_id": vid,
+            "display_name": industry.display_name,
+            "matched": len(hits),
+            "evidence": hits[:12],
+        })
+
+    scores.sort(key=lambda r: r["matched"], reverse=True)
+    if not scores:
+        return {"vertical_id": None, "reason": "No vertical carries a concept layer.",
+                "candidates": []}
+
+    best = scores[0]
+    runner_up = scores[1]["matched"] if len(scores) > 1 else 0
+
+    if best["matched"] < _MIN_ROUTING_EVIDENCE:
+        reason = ("Best match %s found only %d vocabulary terms; %d are needed to route."
+                  % (best["vertical_id"], best["matched"], _MIN_ROUTING_EVIDENCE))
+        return {"vertical_id": None, "reason": reason, "candidates": scores}
+
+    if runner_up and best["matched"] < runner_up * _MIN_ROUTING_MARGIN:
+        reason = ("Ambiguous: %s matched %d and %s matched %d, too close to choose."
+                  % (best["vertical_id"], best["matched"],
+                     scores[1]["vertical_id"], scores[1]["matched"]))
+        return {"vertical_id": None, "reason": reason, "candidates": scores}
+
+    return {
+        "vertical_id": best["vertical_id"],
+        "display_name": best["display_name"],
+        "matched": best["matched"],
+        "evidence": best["evidence"],
+        "reason": "Matched %d vocabulary terms, %.1fx the runner-up."
+                  % (best["matched"], (best["matched"] / runner_up) if runner_up else float(best["matched"])),
+        "candidates": scores,
+    }
 
 
 def align_graph_with_industry(

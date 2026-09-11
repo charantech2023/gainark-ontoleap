@@ -24,6 +24,7 @@ from models import (
 )
 from scraper import smart_fetch, validate_url_for_fetch
 from entity_grounding import wikidata_uri
+from industry_ontology import classify_vertical
 from page_graph import build_page_kg, order_nodes_for_export
 from constants import DEEP_CRAWL_PATHS, WIKIDATA_KB
 
@@ -293,6 +294,56 @@ def _build_site_turtle(domain: str, nodes: List[KGNode], edges: List[KGEdge]) ->
         lines.append(f'ex:{tgt_slug} schema:name "{e.target}" .')
 
     return "\n".join(lines)
+
+
+def _page_text(html: str) -> str:
+    """Readable prose from a page, falling back to the raw markup."""
+    try:
+        import trafilatura
+        return trafilatura.extract(html) or html or ""
+    except Exception:
+        return html or ""
+
+
+def route_domain_to_vertical(start_url: str, max_extra_pages: int = 3) -> Dict[str, Any]:
+    """Choose an existing vertical for a domain, reading more pages if the first is thin.
+
+    A subscriber gives a domain, not a taxonomy id, so the vertical has to be inferred
+    before extraction can start - the vertical supplies the entity labels the extractor
+    looks for, so it cannot be decided afterwards.
+
+    Only fetches are used here, never the extractor: a fetch costs about a second against
+    roughly sixteen for a GLiNER pass, so widening the evidence is cheap in a way that
+    crawling is not.
+    """
+    validate_url_for_fetch(start_url)
+    html = smart_fetch(start_url)
+    text = _page_text(html)
+    result = classify_vertical(text)
+    result["pages_read"] = 1
+
+    if result.get("vertical_id") or max_extra_pages <= 0:
+        return result
+
+    # Thin or ambiguous. Widen the evidence before giving up.
+    extra = [u for u in _discover_site_urls(start_url, html, max_pages=max_extra_pages + 1)
+             if u != start_url][:max_extra_pages]
+    read = 1
+    for url in extra:
+        try:
+            text += "\n" + _page_text(smart_fetch(url))
+            read += 1
+        except Exception as err:
+            logger.warning("[Routing] Could not read %s: %s", url, err)
+
+    if read == 1:
+        return result
+
+    widened = classify_vertical(text)
+    widened["pages_read"] = read
+    if not widened.get("vertical_id"):
+        widened["reason"] = "%s (after reading %d pages)" % (widened["reason"], read)
+    return widened
 
 
 def persist_site_kg(site_kg: SiteKnowledgeGraph, vertical_id: str) -> Optional[Dict[str, Any]]:

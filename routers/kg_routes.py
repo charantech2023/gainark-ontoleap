@@ -36,7 +36,7 @@ from models import (
     IndustryOntologyModel
 )
 from page_graph import build_page_kg
-from site_graph import build_site_kg
+from site_graph import build_site_kg, route_domain_to_vertical
 from industry_ontology import (
     list_available_industries,
     load_industry_ontology,
@@ -277,16 +277,54 @@ async def api_build_page_kg(req: PageKGRequest):
         raise HTTPException(status_code=500, detail=f"Knowledge graph extraction failed: {str(e)}")
 
 
+@router.post("/api/kg/classify", summary="Identify Which Industry Vertical A Domain Belongs To")
+def api_kg_classify(req: SiteKGRequest):
+    """
+    Work out which reference vertical a domain should be measured against.
+
+    Scores the site's own words against each vertical's vocabulary and returns the match,
+    the terms that decided it, and every candidate's score. Only verticals that carry a
+    concept layer are considered: one without concepts cannot measure coverage, so routing
+    a site there would report every concept as a gap.
+
+    A `vertical_id` of null means no vertical fits well enough. That is deliberate - the
+    alternative is measuring a site against a vocabulary that does not describe it.
+    """
+    try:
+        return route_domain_to_vertical(req.domain_or_url)
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
+    except Exception as e:
+        logger.error("[API KG Classify] Routing failed: %s", e)
+        raise HTTPException(status_code=500, detail="Vertical routing failed.")
+
+
 @router.post("/api/kg/site", response_model=SiteKnowledgeGraph, summary="Synthesize Site-Wide Knowledge Graph")
 async def api_build_site_kg(req: SiteKGRequest):
     """
     Crawls domain, canonicalizes entity aliases, induces class hierarchy, and maps topic clusters.
     """
+    vertical_id = req.vertical_id
+    if not vertical_id:
+        routed = route_domain_to_vertical(req.domain_or_url)
+        vertical_id = routed.get("vertical_id")
+        if not vertical_id:
+            # Refuse rather than fall back to a default. A wrong vertical does not fail
+            # loudly, it returns a plausible report measured against the wrong yardstick.
+            raise HTTPException(status_code=422, detail={
+                "error": "Could not identify an industry vertical for this domain.",
+                "reason": routed.get("reason"),
+                "candidates": routed.get("candidates"),
+                "hint": "Pass vertical_id explicitly, or see GET /api/kg/industries.",
+            })
+        logger.info("[API SiteKG] Routed %s to %s (%s)",
+                    req.domain_or_url, vertical_id, routed.get("reason"))
+
     try:
         kg = build_site_kg(
             start_url=req.domain_or_url,
             max_pages=req.max_pages,
-            vertical_id=req.vertical_id or "b2b_saas_fintech"
+            vertical_id=vertical_id
         )
         return kg
     except ValueError as val_err:
