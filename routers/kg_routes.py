@@ -270,6 +270,7 @@ async def api_build_page_kg(req: PageKGRequest):
     target = req.html_content if req.html_content else req.url
 
     vertical_id = req.vertical_id
+    routed = None
     if not vertical_id:
         try:
             if req.html_content:
@@ -297,6 +298,14 @@ async def api_build_page_kg(req: PageKGRequest):
             url=req.url,
             vertical_id=vertical_id
         )
+        # How the vertical was arrived at is known here and nowhere else. Without it the
+        # caller cannot tell a vocabulary it chose from one the service inferred.
+        if routed is None:
+            kg.vertical_source = "requested"
+        else:
+            kg.vertical_source = "auto-detected"
+            kg.vertical_reason = routed.get("reason")
+            kg.vertical_evidence = list(routed.get("evidence") or [])
         return kg
     except ValueError as val_err:
         raise HTTPException(status_code=400, detail=str(val_err))
@@ -333,6 +342,7 @@ async def api_build_site_kg(req: SiteKGRequest):
     Crawls domain, canonicalizes entity aliases, induces class hierarchy, and maps topic clusters.
     """
     vertical_id = req.vertical_id
+    routed = None
     if not vertical_id:
         routed = route_domain_to_vertical(req.domain_or_url)
         vertical_id = routed.get("vertical_id")
@@ -354,6 +364,13 @@ async def api_build_site_kg(req: SiteKGRequest):
             max_pages=req.max_pages,
             vertical_id=vertical_id
         )
+        # Only this scope knows whether the vertical was asked for or worked out.
+        if routed is None:
+            kg.vertical_source = "requested"
+        else:
+            kg.vertical_source = "auto-detected"
+            kg.vertical_reason = routed.get("reason")
+            kg.vertical_evidence = list(routed.get("evidence") or [])
         return kg
     except ValueError as val_err:
         raise HTTPException(status_code=400, detail=str(val_err))

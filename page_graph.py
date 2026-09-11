@@ -375,6 +375,9 @@ def build_page_kg(
         classes_discovered=classes_discovered,
         predicates_discovered=predicates_discovered,
         embedded_schemas=embedded_schemas,
+        # Set here rather than by the caller: this is the vocabulary the extraction above
+        # actually ran with, so it cannot drift from what shaped the graph.
+        vertical_id=vertical_id,
         export_jsonld=export_jsonld,
         export_turtle=export_turtle
     )

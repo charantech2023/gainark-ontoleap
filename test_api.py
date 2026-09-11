@@ -72,6 +72,35 @@ def test_api():
     print("  Turtle Length   :", len(page_data.get("turtle", "")))
     assert len(page_data["nodes"]) > 0
     assert len(page_data["edges"]) > 0
+    # This request named its vertical, so the response should say so rather than imply
+    # the service worked it out.
+    assert page_data["vertical_id"] == "b2b_saas_fintech"
+    assert page_data["vertical_source"] == "requested"
+
+    print("\n[5b] Testing POST /api/kg/page auto-detects and says so ...")
+    security_html = """
+    <html><body>
+        <h1>Endpoint Detection and Response</h1>
+        <p>Our SIEM and XDR platform delivers threat detection, incident response and
+        vulnerability management. Security operations teams run threat hunting and SOC
+        automation with SOAR playbooks. Zero trust network access included.</p>
+    </body></html>
+    """
+    r_auto = client.post(
+        "/api/kg/page",
+        json={"url": "https://example.com/edr", "html_content": security_html}
+    )
+    assert r_auto.status_code == 200, f"Error: {r_auto.text}"
+    auto_data = r_auto.json()
+    print("  Routed To       :", auto_data["vertical_id"])
+    print("  Because         :", auto_data["vertical_reason"])
+    # Omitting vertical_id used to mean "measure it against billing, whatever it is".
+    assert auto_data["vertical_id"] == "cybersecurity", (
+        "Security copy routed to %s" % auto_data["vertical_id"])
+    assert auto_data["vertical_source"] == "auto-detected"
+    # A bare vertical name cannot be judged. The margin and the terms behind it can.
+    assert auto_data["vertical_reason"]
+    assert auto_data["vertical_evidence"], "Auto-detected without naming any evidence."
 
     print("\n[6] Testing POST /api/kg/align ...")
     r_align = client.post(

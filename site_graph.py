@@ -20,7 +20,7 @@ import networkx as nx
 
 from models import (
     SiteKnowledgeGraph, KGNode, KGEdge,
-    InducedClassRelation, TopicCluster
+    InducedClassRelation, TopicCluster, PageFailure
 )
 from scraper import smart_fetch, validate_url_for_fetch
 from entity_grounding import wikidata_uri
@@ -34,8 +34,13 @@ logger = logging.getLogger("gainark.site_graph")
 _MAX_EXPORT_NODES = 1000
 
 
-def _discover_site_urls(start_url: str, html: str, max_pages: int = 15) -> List[str]:
-    """Discovers internal sub-pages prioritized by semantic content value."""
+def _discover_site_urls(start_url: str, html: str) -> List[str]:
+    """Internal sub-pages linked from `html`, most semantically valuable first.
+
+    Returns everything found rather than a capped slice, so a caller can report how much
+    of the site it chose not to read. Only links on this one page are considered:
+    discovery does not recurse.
+    """
     parsed = urlparse(start_url)
     base_netloc = parsed.netloc.replace("www.", "").lower()
     base_origin = f"{parsed.scheme}://{parsed.netloc}"
@@ -77,11 +82,8 @@ def _discover_site_urls(start_url: str, html: str, max_pages: int = 15) -> List[
         else:
             regular_links.append(full_url)
 
-    # Combine prioritized links first
-    for link in priority_links + regular_links:
-        if len(discovered) >= max_pages:
-            break
-        discovered.append(link)
+    # Prioritized links first; the caller decides how many of them to read.
+    discovered.extend(priority_links + regular_links)
 
     return discovered
 
@@ -326,7 +328,7 @@ def route_domain_to_vertical(start_url: str, max_extra_pages: int = 3) -> Dict[s
         return result
 
     # Thin or ambiguous. Widen the evidence before giving up.
-    extra = [u for u in _discover_site_urls(start_url, html, max_pages=max_extra_pages + 1)
+    extra = [u for u in _discover_site_urls(start_url, html)
              if u != start_url][:max_extra_pages]
     read = 1
     for url in extra:
@@ -407,13 +409,16 @@ def build_site_kg(
     home_html = smart_fetch(start_url)
 
     # Step 2: Discover internal pages
-    urls_to_crawl = _discover_site_urls(start_url, home_html, max_pages=max_pages)
-    logger.info("[SiteKG] Crawling %d pages for domain %s", len(urls_to_crawl), domain)
+    discovered_urls = _discover_site_urls(start_url, home_html)
+    urls_to_crawl = discovered_urls[:max_pages]
+    logger.info("[SiteKG] Found %d internal pages on %s; crawling %d (limit %d)",
+                len(discovered_urls), domain, len(urls_to_crawl), max_pages)
 
     # Step 3: Extract Page KGs
     all_raw_nodes: List[KGNode] = []
     all_raw_edges: List[KGEdge] = []
     crawled_urls: List[str] = []
+    failed_pages: List[PageFailure] = []
 
     for page_url in urls_to_crawl:
         try:
@@ -422,7 +427,10 @@ def build_site_kg(
             all_raw_nodes.extend(pkg.nodes)
             all_raw_edges.extend(pkg.edges)
         except Exception as e:
+            # Recorded, not just logged. A caller reading only the response cannot
+            # otherwise tell a lost page from a page that was never there.
             logger.warning("[SiteKG] Failed to process %s: %s", page_url, e)
+            failed_pages.append(PageFailure(url=page_url, error=str(e)[:300]))
 
     # Step 4: Canonicalize entities & coreferences
     canonical_nodes = _canonicalize_nodes(all_raw_nodes)
@@ -444,11 +452,18 @@ def build_site_kg(
         domain=domain,
         pages_crawled=len(crawled_urls),
         page_urls=crawled_urls,
+        pages_discovered=len(discovered_urls),
+        pages_requested=max_pages,
+        pages_failed=len(failed_pages),
+        failed_pages=failed_pages[:25],
         nodes=canonical_nodes,
         edges=canonical_edges,
         induced_class_hierarchy=induced_schema,
         topic_clusters=clusters,
         top_authority_hubs=top_hubs,
+        # The vocabulary this crawl actually ran with, set here so it cannot drift from
+        # the labels that produced the nodes above.
+        vertical_id=vertical_id,
         export_jsonld=jsonld_graph,
         export_turtle=turtle_graph
     )

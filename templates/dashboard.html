@@ -77,16 +77,6 @@
                             class="w-full pl-3 pr-8 py-1.5 text-xs font-medium bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     </div>
 
-                    <!-- Vertical Select -->
-                    <select id="target-vertical" class="text-xs bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 font-semibold text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                        <!-- Empty value omits vertical_id, which the API reads as "route it
-                             automatically". Only verticals carrying a concept layer are listed:
-                             one without concepts reports every concept as a gap. -->
-                        <option value="" selected>Auto-detect industry</option>
-                        <option value="b2b_saas_fintech">FinTech &amp; Billing SaaS</option>
-                        <option value="cybersecurity">CyberSecurity &amp; SecOps</option>
-                    </select>
-
                     <!-- Submit Button -->
                     <button type="submit" id="submit-btn"
                         class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-1.5 shrink-0 cursor-pointer">
@@ -112,10 +102,50 @@
             <p class="text-xs text-slate-500 max-w-md mx-auto mt-1">
                 Enter any web URL above and select either <strong>Page-Level</strong> or <strong>Site-Wide</strong> extraction to extract entities, relational triples with sentence proof, and align against industry ontologies.
             </p>
+
+            <!-- Shown only when routing refused. The choice belongs here, after an attempt
+                 that raised the question, rather than being demanded before every run. -->
+            <div id="routing-help" class="hidden mt-5 max-w-md mx-auto text-left bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <div class="text-xs font-bold text-amber-900">Couldn't identify this site's industry</div>
+                <div class="text-[11px] text-amber-800 mt-1" id="routing-reason"></div>
+                <div class="flex items-center gap-2 mt-2">
+                    <select id="routing-pick" class="text-xs bg-white border border-amber-300 rounded-lg px-2 py-1 font-semibold text-slate-700 cursor-pointer"></select>
+                    <button type="button" onclick="applyVerticalOverride(document.getElementById('routing-pick').value)"
+                        class="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg cursor-pointer">Measure anyway</button>
+                </div>
+            </div>
         </div>
 
         <!-- Results Dashboard (Hidden until execution) -->
         <div id="results-dashboard" class="hidden space-y-6">
+
+            <!-- Which vocabulary this was measured against, and why. The picker that used
+                 to sit in the toolbar lives here instead: after a result it corrects
+                 something visible, before one it guesses at what the crawl will find. -->
+            <div id="vertical-banner" class="hidden">
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-2 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5">
+                    <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider" id="vertical-mode">Detected</span>
+                    <span class="text-sm font-black text-slate-900" id="vertical-name">-</span>
+                    <span class="text-[11px] text-slate-500" id="vertical-why"></span>
+                    <span class="flex flex-wrap items-center gap-1" id="vertical-evidence"></span>
+                    <span class="ml-auto flex items-center gap-1.5">
+                        <span class="text-[10px] text-slate-400">Wrong? Re-measure as</span>
+                        <select id="vertical-override" onchange="applyVerticalOverride(this.value)"
+                            class="text-xs bg-white border border-slate-300 rounded-lg px-2 py-1 font-semibold text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:outline-none cursor-pointer"></select>
+                    </span>
+                </div>
+            </div>
+
+            <!-- A crawl that lost most of its pages returns the same shape as a genuinely
+                 small site: few pages, low coverage. These counts are the only thing that
+                 tells the two apart. -->
+            <div id="crawl-banner" class="hidden">
+                <div id="crawl-box" class="flex flex-wrap items-center gap-x-3 gap-y-1 border rounded-2xl px-4 py-2">
+                    <span class="text-[11px] font-bold uppercase tracking-wider" id="crawl-mode">Crawl</span>
+                    <span class="text-[11px]" id="crawl-summary"></span>
+                    <span class="text-[10px] font-bold ml-auto" id="crawl-failures"></span>
+                </div>
+            </div>
 
             <!-- Summary KPI Bar -->
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -289,15 +319,127 @@
             document.getElementById('view-tab-' + viewId).classList.add('active');
         }
 
+        // Set only when the operator corrects a vertical after seeing a result. Never set
+        // before a build: choosing up front is guessing at the answer the crawl produces.
+        let verticalOverride = null;
+        let verticalCatalog = null;
+
+        async function loadVerticalCatalog() {
+            if (verticalCatalog) return verticalCatalog;
+            try {
+                const r = await fetch('/api/kg/industries');
+                verticalCatalog = r.ok ? await r.json() : [];
+            } catch (err) {
+                verticalCatalog = [];
+            }
+            return verticalCatalog;
+        }
+
+        function fillVerticalOptions(sel, selected) {
+            sel.innerHTML = '';
+            (verticalCatalog || []).forEach(v => {
+                const o = document.createElement('option');
+                o.value = v.vertical_id;
+                o.innerText = v.display_name;
+                if (v.vertical_id === selected) o.selected = true;
+                sel.appendChild(o);
+            });
+        }
+
+        async function renderVerticalBanner(kg) {
+            const box = document.getElementById('vertical-banner');
+            if (!kg || !kg.vertical_id) { box.classList.add('hidden'); return; }
+
+            await loadVerticalCatalog();
+            const match = (verticalCatalog || []).find(v => v.vertical_id === kg.vertical_id);
+            const auto = kg.vertical_source === 'auto-detected';
+
+            document.getElementById('vertical-mode').innerText = auto ? 'Detected' : 'You chose';
+            document.getElementById('vertical-name').innerText = match ? match.display_name : kg.vertical_id;
+            document.getElementById('vertical-why').innerText = auto
+                ? (kg.vertical_reason || '')
+                : 'Measured against the vertical you selected.';
+
+            // The terms that decided it. A margin is a number; these are checkable.
+            const ev = document.getElementById('vertical-evidence');
+            ev.innerHTML = '';
+            (kg.vertical_evidence || []).slice(0, 6).forEach(t => {
+                const chip = document.createElement('span');
+                chip.className = 'px-1.5 py-0.5 bg-white border border-slate-200 rounded-md text-[10px] text-slate-600';
+                chip.innerText = t;
+                ev.appendChild(chip);
+            });
+
+            fillVerticalOptions(document.getElementById('vertical-override'), kg.vertical_id);
+            box.classList.remove('hidden');
+        }
+
+        function renderCrawlBanner(kg) {
+            const box = document.getElementById('crawl-banner');
+            // Page scope reads one page by definition; the counts only mean something
+            // for a crawl that chose which pages to read.
+            if (!kg || !kg.domain || typeof kg.pages_requested !== 'number') {
+                box.classList.add('hidden');
+                return;
+            }
+
+            const failed = kg.pages_failed || 0;
+            const selected = (kg.pages_crawled || 0) + failed;
+            const discovered = kg.pages_discovered || 0;
+
+            document.getElementById('crawl-box').className =
+                'flex flex-wrap items-center gap-x-3 gap-y-1 border rounded-2xl px-4 py-2 '
+                + (failed ? 'bg-amber-50 border-amber-200 text-amber-900'
+                          : 'bg-slate-50 border-slate-200 text-slate-600');
+            document.getElementById('crawl-mode').innerText = failed ? 'Partial crawl' : 'Crawl';
+
+            // "linked from the start page", not "on the site": discovery does not recurse.
+            let summary = kg.pages_crawled + ' of ' + selected + ' pages read';
+            summary += ' \u00b7 ' + discovered + ' linked from the start page';
+            if (discovered > kg.pages_requested) summary += ', limit ' + kg.pages_requested;
+            document.getElementById('crawl-summary').innerText = summary;
+
+            const fx = document.getElementById('crawl-failures');
+            fx.innerText = failed ? failed + ' failed' : '';
+            fx.title = failed
+                ? (kg.failed_pages || []).map(f => f.url + ' - ' + f.error).join('; ')
+                : '';
+
+            box.classList.remove('hidden');
+        }
+
+        async function renderRoutingFailure(detail) {
+            await loadVerticalCatalog();
+            document.getElementById('routing-reason').innerText =
+                detail.reason || 'No vertical vocabulary matched this site closely enough.';
+            fillVerticalOptions(document.getElementById('routing-pick'), null);
+            document.getElementById('results-dashboard').classList.add('hidden');
+            document.getElementById('empty-state').classList.remove('hidden');
+            document.getElementById('routing-help').classList.remove('hidden');
+        }
+
+        // Re-runs the build rather than only re-scoring. The vertical chooses which entity
+        // labels are looked for, so re-scoring alone would report coverage for a graph that
+        // was never extracted that way.
+        async function applyVerticalOverride(vid) {
+            if (!vid) return;
+            if (currentGraphData && vid === currentGraphData.vertical_id) return;
+            verticalOverride = vid;
+            await executeBuild(null);
+        }
+
         async function executeBuild(e) {
-            e.preventDefault();
+            if (e) e.preventDefault();
             const btn = document.getElementById('submit-btn');
             const icon = document.getElementById('btn-icon');
             const text = document.getElementById('btn-text');
             const url = document.getElementById('target-url').value.trim();
-            const vertical = document.getElementById('target-vertical').value;
 
             if (!url) return;
+
+            // A form submit is a fresh question. Without this, a correction made for one
+            // site would silently follow the next URL the subscriber typed.
+            if (e) verticalOverride = null;
 
             btn.disabled = true;
             icon.innerText = '⏳';
@@ -306,12 +448,12 @@
             try {
                 // 1. Build Knowledge Graph (Page or Site)
                 const endpoint = currentScope === 'page' ? '/api/kg/page' : '/api/kg/site';
-                // An empty selection means auto-detect, so the key is left out entirely
-                // rather than sent as "" - the API routes only when vertical_id is absent.
+                // vertical_id is omitted so the service routes from the site's own words.
+                // It is sent only when the operator has corrected a detected vertical.
                 const payload = currentScope === 'page'
                     ? { url: url }
                     : { domain_or_url: url, max_pages: 15 };
-                if (vertical) payload.vertical_id = vertical;
+                if (verticalOverride) payload.vertical_id = verticalOverride;
 
                 const res = await fetch(endpoint, {
                     method: 'POST',
@@ -321,16 +463,27 @@
 
                 if (!res.ok) {
                     const err = await res.json();
-                    throw new Error(err.detail || 'Knowledge graph extraction failed');
+                    const detail = err.detail;
+                    // A 422 carrying candidates means routing refused rather than guessed.
+                    // Offer the choice now, against a question the run has just raised.
+                    if (res.status === 422 && detail && detail.candidates) {
+                        await renderRoutingFailure(detail);
+                        return;
+                    }
+                    throw new Error((typeof detail === 'string' ? detail : null)
+                        || 'Knowledge graph extraction failed');
                 }
 
                 currentGraphData = await res.json();
 
                 // 2. Automatically Align against Industry Reference Ontology
+                // This sent the picker's value, which is "" under auto-detect, and the
+                // API reads empty as b2b_saas_fintech. So every auto-detected site had its
+                // graph built with one vocabulary and its coverage scored against billing.
                 const alignPayload = {
                     page_kg: currentScope === 'page' ? currentGraphData : null,
                     site_kg: currentScope === 'site' ? currentGraphData : null,
-                    vertical_id: vertical
+                    vertical_id: currentGraphData.vertical_id || undefined
                 };
 
                 const alignRes = await fetch('/api/kg/align', {
@@ -345,7 +498,10 @@
                     currentAlignmentData = null;
                 }
 
+                document.getElementById('routing-help').classList.add('hidden');
                 renderUnifiedDashboard(currentGraphData, currentAlignmentData);
+                renderVerticalBanner(currentGraphData);
+                renderCrawlBanner(currentGraphData);
 
             } catch (err) {
                 alert("Extraction Error: " + err.message);

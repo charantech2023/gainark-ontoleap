@@ -29,3 +29,6 @@ truth_ledger/graph.sqlite
 # Temporary test screenshots and artifacts
 scratch/
 
+
+# Local dev server config: references a machine-specific venv path.
+.claude/launch.json

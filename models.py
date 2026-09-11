@@ -644,6 +644,13 @@ class PageKnowledgeGraph(BaseModel):
     classes_discovered: List[str] = Field(default_factory=list, description="Unique ontological classes present on page")
     predicates_discovered: List[str] = Field(default_factory=list, description="Unique predicates present on page")
     embedded_schemas: List[str] = Field(default_factory=list, description="Existing Schema.org types found in page markup")
+    # The vertical decides which entity labels are looked for, so it decides what this
+    # graph contains. Reporting it lets a caller see the vocabulary that shaped the
+    # answer - and, when it was inferred, judge how firm the inference was.
+    vertical_id: Optional[str] = Field(default=None, description="Reference vertical whose vocabulary shaped this extraction")
+    vertical_source: Optional[str] = Field(default=None, description="'requested' when the caller named it, 'auto-detected' when inferred from the content")
+    vertical_reason: Optional[str] = Field(default=None, description="Evidence count and margin behind an auto-detected vertical")
+    vertical_evidence: List[str] = Field(default_factory=list, description="Vocabulary terms found in the content that decided an auto-detected vertical")
     export_jsonld: Optional[Dict[str, Any]] = Field(default=None, description="Standard W3C Schema.org / JSON-LD @graph payload")
     export_turtle: Optional[str] = Field(default=None, description="W3C RDF Turtle serialization")
 
@@ -668,18 +675,39 @@ class TopicCluster(BaseModel):
     page_urls: List[str] = Field(default_factory=list)
 
 
+class PageFailure(BaseModel):
+    """
+    A page that was selected for crawling but produced no graph.
+    """
+    url: str
+    error: str
+
+
 class SiteKnowledgeGraph(BaseModel):
     """
     Unified, canonicalized Knowledge Graph synthesized across an entire domain.
     """
     domain: str
-    pages_crawled: int
+    pages_crawled: int = Field(description="Pages that were fetched and produced a graph")
     page_urls: List[str] = Field(default_factory=list)
+    # Without these, a crawl that lost most of its pages is indistinguishable from a small
+    # site: both return a low page count and a low coverage score, and they call for
+    # opposite responses from the reader.
+    pages_discovered: int = Field(default=0, description="Internal links found on the start page. Discovery does not recurse, so this is not the size of the site.")
+    pages_requested: int = Field(default=0, description="Crawl limit applied to this run")
+    pages_failed: int = Field(default=0, description="Pages selected for crawling that could not be processed")
+    failed_pages: List[PageFailure] = Field(default_factory=list, description="Why each page failed, first 25")
     nodes: List[KGNode] = Field(default_factory=list, description="Canonical, coreference-resolved entity nodes")
     edges: List[KGEdge] = Field(default_factory=list, description="Deduplicated semantic relations")
     induced_class_hierarchy: List[InducedClassRelation] = Field(default_factory=list, description="Induced domain ontology schema")
     topic_clusters: List[TopicCluster] = Field(default_factory=list, description="High-level topic silos")
     top_authority_hubs: List[str] = Field(default_factory=list, description="Central topic hubs by PageRank")
+    # Coverage is scored against this vertical's concepts, so a caller that cannot read it
+    # back cannot align against the vertical the crawl actually used.
+    vertical_id: Optional[str] = Field(default=None, description="Reference vertical whose vocabulary shaped this crawl")
+    vertical_source: Optional[str] = Field(default=None, description="'requested' when the caller named it, 'auto-detected' when inferred from the site")
+    vertical_reason: Optional[str] = Field(default=None, description="Evidence count and margin behind an auto-detected vertical")
+    vertical_evidence: List[str] = Field(default_factory=list, description="Vocabulary terms found on the site that decided an auto-detected vertical")
     export_jsonld: Optional[Dict[str, Any]] = Field(default=None, description="Site-wide JSON-LD @graph")
     export_turtle: Optional[str] = Field(default=None, description="Site-wide RDF Turtle export")
 

@@ -90,6 +90,10 @@ def test_page_kg_extraction():
     assert len(pkg.edges) >= 3
     assert "SoftwareApplication" in pkg.embedded_schemas
 
+    # The vertical decides which entity labels are looked for, so a graph that does not
+    # name it cannot be checked against the vocabulary that produced it.
+    assert pkg.vertical_id, "Page graph did not report the vocabulary it ran with."
+
     # Verify W3C serializations
     assert pkg.export_jsonld is not None
     assert pkg.export_jsonld["@context"] == "https://schema.org"
