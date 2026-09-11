@@ -738,7 +738,10 @@ class PageKGRequest(BaseModel):
 
 class SiteKGRequest(BaseModel):
     domain_or_url: str = Field(..., max_length=2048, description="Target domain or starting URL, e.g. 'https://www.ordwaylabs.com'")
-    max_pages: int = Field(default=10, ge=1, le=50, description="Maximum sub-pages to crawl and aggregate")
+    # Measured: about 32s of model load on a cold instance plus 16.3s per page. The
+    # Cloud Run request timeout is 900s, so 40 pages is roughly 11 minutes and fits with
+    # margin. Raising this without raising that timeout only produces slower 504s.
+    max_pages: int = Field(default=15, ge=1, le=40, description="Maximum sub-pages to crawl and aggregate (a 40-page crawl takes roughly 11 minutes)")
     vertical_id: Optional[str] = Field(default="b2b_saas_fintech", description="Industry vertical context")
 
 
