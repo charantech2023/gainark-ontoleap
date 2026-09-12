@@ -172,6 +172,10 @@ class VerticalConfig(BaseModel):
             "integration partner."
         ),
     )
+    icp_evidence: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Per buyer field, which values were verified against a quote on a cited page: {field: {value: {source_url, quote}}}"
+    )
     alt_labels: Dict[str, List[str]] = Field(
         default_factory=dict,
         description=(
@@ -594,8 +598,26 @@ class IndustryDiscoveryResponse(BaseModel):
     suggested_competitors: List[str] = Field(default_factory=list)
     direct_competitors: List[Any] = Field(default_factory=list)
     grounded_entities: List[GroundedConcept] = Field(default_factory=list)
+    known_industries: List[str] = Field(default_factory=list, description="Industries of customers the site actually names")
+    known_competitors: List[str] = Field(
+        default_factory=list,
+        description="Competitors the site itself names - comparison pages, migration pages, customers who moved off. Distinct from suggested_competitors, which is the model's market knowledge and carries no evidence."
+    )
+    icp_evidence: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Per buyer field, the values whose quote was found on the page they cited: {field: {value: {source_url, quote}}}. A value present here was read off the site; a value in the list but absent here was proposed and could not be verified."
+    )
+    evidence_urls: List[str] = Field(default_factory=list, description="Pages read to build this profile")
+    pages_read: int = Field(default=0, description="Pages successfully read for evidence")
+    pages_failed: int = Field(default=0, description="Evidence pages that could not be fetched")
+    buyer_claims_proposed: int = Field(default=0, description="Buyer-field values the model returned")
+    buyer_claims_evidenced: int = Field(default=0, description="Of those, how many carried a quote found on the cited page")
     config_file: Optional[str] = None
-    confidence_score: float = Field(default=0.95)
+    confidence_score: float = Field(
+        default=0.95,
+        description="How far this profile rests on pages actually read: moves with page count and with the share of buyer claims that verified."
+    )
+    discovery_degraded: Optional[str] = Field(default=None, description="Set when discovery fell back to category defaults, e.g. the LLM was unreachable")
     discovery_summary: str
     domain_scope_description: Optional[str] = None
 

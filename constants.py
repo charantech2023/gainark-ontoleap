@@ -263,6 +263,20 @@ DEEP_CRAWL_PATHS: List[str] = [
 DEEP_CRAWL_MAX: int = 5
 
 
+# Paths whose pages carry evidence about *who buys*, as opposed to what the product does.
+# Industry discovery ranks links by these before reading, because the ICP fields
+# (segments, industries, competitors, displaced practices) are almost never stated on a
+# homepage: they live in case studies, customer stories and comparison pages. Ordered
+# most-to-least direct; matching is a substring test against the URL path.
+ICP_EVIDENCE_PATHS: List[str] = [
+    "/case-stud", "/customer-stor", "/customers", "/success-stor", "/testimonial",
+    "/vs-", "/vs/", "/compare", "/comparison", "/alternative", "/competitors",
+    "/migrate", "/switch",
+    "/industries", "/industry", "/who-we-serve", "/solutions", "/use-cases",
+    "/pricing", "/security", "/compliance", "/about",
+]
+
+
 # ---------------------------------------------------------------------------
 # Security: Private/reserved IP ranges blocked for SSRF protection
 # ---------------------------------------------------------------------------
