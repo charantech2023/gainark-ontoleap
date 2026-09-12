@@ -254,10 +254,15 @@ def _rank_urls(base_url: str, urls: List[str], limit: Optional[int] = None) -> L
                 if hint in path:
                     rank = i
                     break
-        scored.append((rank, parsed_full._replace(fragment="", query="").geturl()))
+        # Depth breaks ties within a kind, because the index of a section makes no claims.
+        # "/compare-competitors/" is a landing page naming nobody; the vendor names live on
+        # "/compare-competitors/maxio". The same holds for "/customers/" against a single
+        # customer's story.
+        depth = len([seg for seg in path.split("/") if seg])
+        scored.append((rank, -depth, parsed_full._replace(fragment="", query="").geturl()))
 
-    scored.sort(key=lambda item: item[0])
-    ranked = [url for _, url in scored]
+    scored.sort(key=lambda item: (item[0], item[1]))
+    ranked = [url for _, _, url in scored]
     return ranked if limit is None else ranked[:limit]
 
 

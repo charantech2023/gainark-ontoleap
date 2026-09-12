@@ -808,6 +808,21 @@ def test_editorial_pages_rank_last_rather_than_being_dropped():
     assert len(ranked) == 2, ranked
 
 
+
+def test_a_section_leaf_is_preferred_over_the_section_index():
+    """Live failure: /compare-competitors/ was read and named no competitor.
+
+    A section index is a landing page full of links; the claims are on the pages it links
+    to. Reading the hub spends the reserved slot and yields nothing quotable.
+    """
+    ranked = ip._rank_urls(CB, ["%s/compare-competitors/" % CB,
+                                "%s/compare-competitors/maxio" % CB])
+    assert ranked[0].endswith("/maxio"), ranked
+
+    ranked = ip._rank_urls(CB, ["%s/customers/" % CB, "%s/customers/pret" % CB])
+    assert ranked[0].endswith("/pret"), ranked
+
+
 # ------------------------------------------------------------- match before mint
 
 BILLING_VERTICAL = {
@@ -1383,6 +1398,7 @@ TESTS = [
     test_a_comparison_page_from_the_sitemap_survives_a_crowd_of_case_studies,
     test_a_glossary_comparison_does_not_take_the_competitor_slot,
     test_editorial_pages_rank_last_rather_than_being_dropped,
+    test_a_section_leaf_is_preferred_over_the_section_index,
     test_confidence_rises_with_pages_read_and_with_verified_evidence,
     test_fabricated_buyer_claims_score_below_none_at_all,
     test_saved_profile_keeps_industries_competitors_and_evidence,
