@@ -25,7 +25,8 @@ from models import (
     IndustryDiscoveryResponse,
     GroundedConcept
 )
-from constants import ICP_EVIDENCE_PATHS, ICP_EVIDENCE_GROUPS, ICP_EVIDENCE_RESERVE
+from constants import (ICP_EVIDENCE_PATHS, ICP_EVIDENCE_GROUPS, ICP_EVIDENCE_RESERVE,
+                       ICP_EDITORIAL_PATHS)
 from industry_ontology import match_existing_vertical
 
 from security import verticals_dir
@@ -208,6 +209,16 @@ def _is_icp_evidence_page(url: str) -> bool:
     return any(hint in path for hint in ICP_EVIDENCE_PATHS)
 
 
+def _is_editorial(path: str) -> bool:
+    """Content marketing rather than a statement about the business.
+
+    These carry the same words as the pages worth reading - a glossary compares two
+    metrics, a blog post names a competitor in passing - without being evidence of who
+    buys or who is competed against.
+    """
+    return any(hint in path for hint in ICP_EDITORIAL_PATHS)
+
+
 def _rank_urls(base_url: str, urls: List[str], limit: Optional[int] = None) -> List[str]:
     """Same-site candidate pages, ICP-bearing ones first.
 
@@ -238,10 +249,11 @@ def _rank_urls(base_url: str, urls: List[str], limit: Optional[int] = None) -> L
         seen.add(path)
 
         rank = len(ICP_EVIDENCE_PATHS)
-        for i, hint in enumerate(ICP_EVIDENCE_PATHS):
-            if hint in path:
-                rank = i
-                break
+        if not _is_editorial(path):
+            for i, hint in enumerate(ICP_EVIDENCE_PATHS):
+                if hint in path:
+                    rank = i
+                    break
         scored.append((rank, parsed_full._replace(fragment="", query="").geturl()))
 
     scored.sort(key=lambda item: item[0])
@@ -252,6 +264,9 @@ def _rank_urls(base_url: str, urls: List[str], limit: Optional[int] = None) -> L
 def _evidence_group(url: str) -> Optional[str]:
     """Which buyer field this page is likely to feed, by its path."""
     path = urlparse(url).path.rstrip("/").lower()
+    if _is_editorial(path):
+        # No group, so it can never claim a slot reserved for real evidence.
+        return None
     for group, hints in ICP_EVIDENCE_GROUPS.items():
         if any(hint in path for hint in hints):
             return group

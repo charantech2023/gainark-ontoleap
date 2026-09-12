@@ -272,6 +272,16 @@ DEEP_CRAWL_MAX: int = 5
 # by rank starves the rare kinds. chargebee.com publishes hundreds of case studies and
 # fourteen comparison pages: ranked strictly by kind priority, every slot goes to case
 # studies and the competitor field stays empty however many comparison pages were found.
+# Editorial paths. A glossary entry titled "ACV vs ARR" matches a comparison hint and is
+# not a comparison page: it is content marketing about two metrics. Left in, it won the
+# comparison slot reserved for naming competitors, and the competitor field stayed empty
+# on a site with fourteen real comparison pages. Nothing under these paths says who buys.
+ICP_EDITORIAL_PATHS: List[str] = [
+    "/blog", "/resources", "/glossar", "/guide", "/ebook", "/webinar",
+    "/podcast", "/news", "/press", "/articles", "/learn",
+]
+
+
 ICP_EVIDENCE_GROUPS: Dict[str, List[str]] = {
     # Who the customers are, and what they left behind: segments, industries, replaces.
     "customer": ["/case-stud", "/customer-stor", "/customers", "/success-stor", "/testimonial"],

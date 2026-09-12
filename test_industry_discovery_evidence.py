@@ -779,6 +779,35 @@ def test_a_comparison_page_from_the_sitemap_survives_a_crowd_of_case_studies():
 
 
 
+
+def test_a_glossary_comparison_does_not_take_the_competitor_slot():
+    """Live failure: "/resources/glossaries/acv-vs-arr/" won the comparison slot.
+
+    It matches a comparison hint and compares two metrics, not two vendors. Reserving a
+    slot for competitor evidence achieves nothing if content marketing can spend it.
+    """
+    urls = ["%s/resources/glossaries/acv-vs-arr" % CB,
+            "%s/blog/chargebee-vs-zuora" % CB,
+            "%s/compare-competitors/maxio" % CB]
+    assert ip._evidence_group(urls[0]) is None
+    assert ip._evidence_group(urls[1]) is None, "a blog post naming a rival is not a comparison page"
+    assert ip._evidence_group(urls[2]) == "comparison"
+
+    selected = ip._select_evidence_urls(CB, urls + lopsided_candidates(), 7)
+    comparisons = [u for u in selected if ip._evidence_group(u) == "comparison"]
+    assert comparisons, selected
+    assert not any("glossar" in u or "/blog" in u for u in selected), selected
+    print("  Comparison slot went to %s" % comparisons[0].replace(CB, ""))
+
+
+def test_editorial_pages_rank_last_rather_than_being_dropped():
+    """Still readable when there is nothing better, just never preferred."""
+    ranked = ip._rank_urls(CB, ["%s/resources/glossaries/acv-vs-arr" % CB,
+                                "%s/customers/pret" % CB])
+    assert ranked[0].endswith("/customers/pret"), ranked
+    assert len(ranked) == 2, ranked
+
+
 # ------------------------------------------------------------- match before mint
 
 BILLING_VERTICAL = {
@@ -1352,6 +1381,8 @@ TESTS = [
     test_one_slot_goes_to_the_strongest_evidence,
     test_selection_comes_back_in_rank_order,
     test_a_comparison_page_from_the_sitemap_survives_a_crowd_of_case_studies,
+    test_a_glossary_comparison_does_not_take_the_competitor_slot,
+    test_editorial_pages_rank_last_rather_than_being_dropped,
     test_confidence_rises_with_pages_read_and_with_verified_evidence,
     test_fabricated_buyer_claims_score_below_none_at_all,
     test_saved_profile_keeps_industries_competitors_and_evidence,
