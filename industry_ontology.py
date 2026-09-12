@@ -137,6 +137,20 @@ def _label_matches(
     )
 
 
+def _refresh_from_mirror() -> None:
+    """Pull anything other instances have contributed before reading the directory.
+
+    Rate-limited inside vertical_store, so this is a no-op on most calls. Without it an
+    instance only ever sees the profiles it wrote itself, and matching a site into an
+    existing vertical cannot work across instances.
+    """
+    try:
+        import vertical_store
+        vertical_store.sync_down()
+    except Exception as err:
+        logger.warning("Could not refresh verticals from the mirror: %s", err)
+
+
 def list_available_industries(include_unusable: bool = False) -> List[Dict[str, Any]]:
     """Available industry ontologies, with the size of each concept layer.
 
@@ -145,6 +159,7 @@ def list_available_industries(include_unusable: bool = False) -> List[Dict[str, 
     unless asked for, because offering one in a picker is offering a wrong answer.
     """
     industries = []
+    _refresh_from_mirror()
     if not os.path.isdir(_verticals_dir()):
         return industries
 
@@ -173,6 +188,9 @@ def load_industry_ontology(vertical_id: str = "b2b_saas_fintech") -> IndustryOnt
     Load an Industry Reference Ontology from the verticals definition files.
     """
     fpath = os.path.join(_verticals_dir(), f"{vertical_id}.json")
+    if not os.path.isfile(fpath):
+        # Another instance may have discovered it since this one last looked.
+        _refresh_from_mirror()
     if not os.path.isfile(fpath):
         # Substituting billing here defeated every check above it: a typo in a vertical
         # id, or a vertical that was removed, quietly returned the billing ontology and

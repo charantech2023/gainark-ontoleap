@@ -1192,6 +1192,14 @@ def save_vertical_configuration(
         "concept_hierarchy": concept_hierarchy or {}
     }
 
+    # Another instance may hold a newer copy of this profile, and merging onto a stale
+    # local one silently drops whatever it contributed.
+    try:
+        import vertical_store
+        vertical_store.sync_down()
+    except Exception as err:
+        logger.warning("Could not refresh verticals before writing: %s", err)
+
     existing: Optional[Dict[str, Any]] = None
     if os.path.exists(config_path):
         try:
@@ -1210,6 +1218,15 @@ def save_vertical_configuration(
 
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(config_data, f, indent=2)
+
+    try:
+        import vertical_store
+        mirrored = vertical_store.publish(clean_id, config_data)
+        if mirrored:
+            logger.info("Vertical %r is durable at %s", clean_id, mirrored)
+    except Exception as err:
+        # Durability is not worth failing a write that already succeeded on disk.
+        logger.error("Could not mirror vertical %r: %s", clean_id, err)
 
     logger.info("Saved dynamic vertical config to %s (%s)", config_path, write_mode)
     if write_mode == "merged-into-curated":

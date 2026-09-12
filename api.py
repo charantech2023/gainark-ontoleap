@@ -315,6 +315,20 @@ async def _restore_knowledge_graph() -> None:
         import graph_store
 
         graph_archive.warn_if_ephemeral()
+
+        # Vertical profiles have the same problem and the same answer: written to a
+        # container filesystem they vanish with the instance, and a category then cannot
+        # accumulate across the customers that were matched into it.
+        try:
+            import vertical_store
+            vertical_store.warn_if_ephemeral()
+            pulled = vertical_store.sync_down(force=True)
+            if pulled:
+                logger.info("Restored %d vertical profile(s) from %s",
+                            len(pulled), vertical_store.MIRROR_URI)
+        except Exception as vs_err:
+            logger.error("Vertical profile restore failed: %s", vs_err)
+
         archive = graph_archive.open_archive()
         if archive is None:
             logger.info("Knowledge graph archive not configured; history is local only.")
