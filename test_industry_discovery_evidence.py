@@ -689,6 +689,96 @@ def test_a_linked_page_outranks_a_sitemap_only_page_of_the_same_kind():
 
 
 
+
+# --------------------------------------------------------------- budget diversity
+
+CB = "https://vendor.com"
+
+
+def lopsided_candidates(customers=300, comparisons=14):
+    """The real shape of a large vendor's sitemap: case studies dwarf everything else."""
+    urls = ["%s/customers/c%d" % (CB, i) for i in range(customers)]
+    urls += ["%s/compare-competitors/" % CB]
+    urls += ["%s/compare-competitors/rival%d" % (CB, i) for i in range(comparisons - 1)]
+    urls += ["%s/pricing" % CB, "%s/security" % CB, "%s/solutions/saas" % CB]
+    return urls
+
+
+def kinds(urls):
+    counts = {}
+    for u in urls:
+        counts[ip._evidence_group(u)] = counts.get(ip._evidence_group(u), 0) + 1
+    return counts
+
+
+def test_a_scarce_page_kind_still_gets_read():
+    """The live failure: fourteen comparison pages found, none read, competitors empty."""
+    selected = ip._select_evidence_urls(CB, lopsided_candidates(), 7)
+
+    assert len(selected) == 7
+    counts = kinds(selected)
+    assert counts.get("comparison", 0) >= 1, counts
+    assert counts.get("customer", 0) >= 3, "case studies still carry three of the four fields"
+    print("  %d slots -> %s" % (len(selected), counts))
+
+
+def test_ranking_alone_would_have_starved_it():
+    """Pins the behaviour this replaced, so the regression is visible if it returns."""
+    by_rank = ip._rank_urls(CB, lopsided_candidates(), 7)
+    assert kinds(by_rank) == {"customer": 7}, kinds(by_rank)
+
+
+def test_an_absent_kind_returns_its_slots_rather_than_wasting_them():
+    """Reserves are floors, not quotas: this must never read less than before."""
+    only_customers = ["%s/customers/c%d" % (CB, i) for i in range(20)]
+    selected = ip._select_evidence_urls(CB, only_customers, 6)
+    assert len(selected) == 6, selected
+    assert kinds(selected) == {"customer": 6}
+
+
+def test_the_budget_is_never_exceeded():
+    for limit in (1, 2, 3, 7, 40):
+        selected = ip._select_evidence_urls(CB, lopsided_candidates(), limit)
+        assert len(selected) <= limit, (limit, len(selected))
+    assert ip._select_evidence_urls(CB, lopsided_candidates(), 0) == []
+
+
+def test_one_slot_goes_to_the_strongest_evidence():
+    """With a single page to spend, a case study beats a pricing page."""
+    selected = ip._select_evidence_urls(CB, lopsided_candidates(), 1)
+    assert ip._evidence_group(selected[0]) == "customer", selected
+
+
+def test_selection_comes_back_in_rank_order():
+    selected = ip._select_evidence_urls(CB, lopsided_candidates(), 7)
+    ranks = [ip._rank_urls(CB, lopsided_candidates()).index(u) for u in selected]
+    assert ranks == sorted(ranks), ranks
+
+
+def test_a_comparison_page_from_the_sitemap_survives_a_crowd_of_case_studies():
+    """End to end: the homepage links only case studies, the sitemap adds the comparison."""
+    home = HOME_HTML.replace('<a href="/compare/vs-zuora">Acme vs Zuora</a>', "")
+    site = {
+        "https://acme.com": home,
+        "https://acme.com/pricing": PRICING_HTML,
+        "https://acme.com/sitemap.xml": sitemap_xml(
+            *(["https://acme.com/customers/story%d" % i for i in range(30)]
+              + ["https://acme.com/compare-competitors/zuora"])),
+        "https://acme.com/compare-competitors/zuora": COMPARE_HTML,
+        "https://acme.com/customers/globex-case-study": CASE_STUDY_HTML,
+    }
+    for i in range(30):
+        site["https://acme.com/customers/story%d" % i] = CASE_STUDY_HTML
+
+    with fake_site(pages=site):
+        evidence = ip.gather_discovery_evidence("https://acme.com", max_pages=5)
+
+    urls = [p["url"] for p in evidence["pages"]]
+    assert "https://acme.com/compare-competitors/zuora" in urls, urls
+    print("  Comparison page survived %d case studies" % 30)
+
+
+
 # ------------------------------------------------------------- match before mint
 
 BILLING_VERTICAL = {
@@ -1255,6 +1345,13 @@ TESTS = [
     test_offsite_urls_in_a_sitemap_are_ignored,
     test_a_comparison_page_only_in_the_sitemap_is_still_read,
     test_a_linked_page_outranks_a_sitemap_only_page_of_the_same_kind,
+    test_a_scarce_page_kind_still_gets_read,
+    test_ranking_alone_would_have_starved_it,
+    test_an_absent_kind_returns_its_slots_rather_than_wasting_them,
+    test_the_budget_is_never_exceeded,
+    test_one_slot_goes_to_the_strongest_evidence,
+    test_selection_comes_back_in_rank_order,
+    test_a_comparison_page_from_the_sitemap_survives_a_crowd_of_case_studies,
     test_confidence_rises_with_pages_read_and_with_verified_evidence,
     test_fabricated_buyer_claims_score_below_none_at_all,
     test_saved_profile_keeps_industries_competitors_and_evidence,

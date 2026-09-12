@@ -268,6 +268,33 @@ DEEP_CRAWL_MAX: int = 5
 # (segments, industries, competitors, displaced practices) are almost never stated on a
 # homepage: they live in case studies, customer stories and comparison pages. Ordered
 # most-to-least direct; matching is a substring test against the URL path.
+# The same paths grouped by the buyer field they feed, because a page budget spent purely
+# by rank starves the rare kinds. chargebee.com publishes hundreds of case studies and
+# fourteen comparison pages: ranked strictly by kind priority, every slot goes to case
+# studies and the competitor field stays empty however many comparison pages were found.
+ICP_EVIDENCE_GROUPS: Dict[str, List[str]] = {
+    # Who the customers are, and what they left behind: segments, industries, replaces.
+    "customer": ["/case-stud", "/customer-stor", "/customers", "/success-stor", "/testimonial"],
+    # The only place competitors are named.
+    "comparison": ["/vs-", "/vs/", "-vs-", "/compare", "/comparison", "/alternative",
+                   "-alternative", "/competitors", "/migrate", "/switch"],
+    # Who the company says it serves, in its own framing.
+    "context": ["/industries", "/industry", "/who-we-serve", "/solutions", "/use-cases"],
+    # Commercial and trust pages: pricing models, attestations, company shape.
+    "commercial": ["/pricing", "/security", "/compliance", "/about"],
+}
+
+# Share of the page budget reserved for each kind. Reserves are floors, not ceilings: a
+# kind with nothing to offer returns its slots to the pool, so a site with no comparison
+# page still fills the budget with case studies.
+ICP_EVIDENCE_RESERVE: Dict[str, float] = {
+    "customer": 0.5,
+    "comparison": 0.2,
+    "context": 0.15,
+    "commercial": 0.15,
+}
+
+
 ICP_EVIDENCE_PATHS: List[str] = [
     "/case-stud", "/customer-stor", "/customers", "/success-stor", "/testimonial",
     "/vs-", "/vs/", "-vs-", "/compare", "/comparison", "/alternative", "-alternative",

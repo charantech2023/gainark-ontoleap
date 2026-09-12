@@ -25,7 +25,7 @@ from models import (
     IndustryDiscoveryResponse,
     GroundedConcept
 )
-from constants import ICP_EVIDENCE_PATHS
+from constants import ICP_EVIDENCE_PATHS, ICP_EVIDENCE_GROUPS, ICP_EVIDENCE_RESERVE
 from industry_ontology import match_existing_vertical
 
 from security import verticals_dir
@@ -208,7 +208,7 @@ def _is_icp_evidence_page(url: str) -> bool:
     return any(hint in path for hint in ICP_EVIDENCE_PATHS)
 
 
-def _rank_urls(base_url: str, urls: List[str], limit: int) -> List[str]:
+def _rank_urls(base_url: str, urls: List[str], limit: Optional[int] = None) -> List[str]:
     """Same-site candidate pages, ICP-bearing ones first.
 
     Ranked rather than filtered: a site that names none of the expected paths should still
@@ -245,10 +245,64 @@ def _rank_urls(base_url: str, urls: List[str], limit: int) -> List[str]:
         scored.append((rank, parsed_full._replace(fragment="", query="").geturl()))
 
     scored.sort(key=lambda item: item[0])
-    return [url for _, url in scored[:limit]]
+    ranked = [url for _, url in scored]
+    return ranked if limit is None else ranked[:limit]
 
 
-def _rank_evidence_links(page_url: str, html: str, limit: int) -> List[str]:
+def _evidence_group(url: str) -> Optional[str]:
+    """Which buyer field this page is likely to feed, by its path."""
+    path = urlparse(url).path.rstrip("/").lower()
+    for group, hints in ICP_EVIDENCE_GROUPS.items():
+        if any(hint in path for hint in hints):
+            return group
+    return None
+
+
+def _select_evidence_urls(base_url: str, urls: List[str], limit: int) -> List[str]:
+    """Choose the pages to read, reserving slots for each kind of evidence.
+
+    Taking the top `limit` by rank looked reasonable and starved the scarce kinds. A
+    vendor with hundreds of case studies and a dozen comparison pages gave every slot to
+    case studies, so `known_competitors` came back empty on a site that had named its
+    competitors fourteen times - the pages were found and then never read.
+
+    Reserves are floors. A kind with nothing to offer hands its slots back, and whatever
+    is left over is filled in rank order, so this never reads less than before.
+    """
+    if limit <= 0:
+        return []
+
+    ranked = _rank_urls(base_url, urls)
+
+    buckets: Dict[str, List[str]] = {group: [] for group in ICP_EVIDENCE_GROUPS}
+    for url in ranked:
+        group = _evidence_group(url)
+        if group:
+            buckets[group].append(url)
+
+    selected: List[str] = []
+    for group, share in ICP_EVIDENCE_RESERVE.items():
+        # At least one slot for any kind the site actually offers: one comparison page
+        # typically names several competitors, so the first is worth far more than the
+        # second.
+        reserve = max(1, int(limit * share))
+        selected.extend(buckets.get(group, [])[:reserve])
+
+    chosen = set(selected)
+    for url in ranked:
+        if len(selected) >= limit:
+            break
+        if url not in chosen:
+            selected.append(url)
+            chosen.add(url)
+
+    # Back into rank order, so the strongest evidence leads the prompt.
+    order = {url: i for i, url in enumerate(ranked)}
+    selected.sort(key=lambda u: order.get(u, len(order)))
+    return selected[:limit]
+
+
+def _rank_evidence_links(page_url: str, html: str, limit: Optional[int] = None) -> List[str]:
     """Internal links from one page, ICP-bearing ones first."""
     soup = BeautifulSoup(html, "html.parser")
     hrefs = []
@@ -384,11 +438,11 @@ def gather_discovery_evidence(
     # Homepage links first, then whatever the sitemap adds. Both go through one ranking so
     # a case study only the sitemap knows about still outranks a linked pricing page, while
     # a linked page wins ties: the homepage links what the company considers important.
-    candidates = _rank_evidence_links(url, home_html, budget)
-    sitemap_urls = fetch_sitemap_urls(url)
-    if sitemap_urls:
-        candidates = _rank_urls(url, candidates + sitemap_urls, budget)
-    ranked = candidates
+    # Every candidate goes into one selection. Truncating the homepage links to the budget
+    # first threw away comparison pages before the sitemap could add more of them.
+    candidates = _rank_evidence_links(url, home_html)
+    candidates.extend(fetch_sitemap_urls(url))
+    ranked = _select_evidence_urls(url, candidates, budget)
 
     # A comparison page is where competitors are named, and it is the one kind of evidence
     # page a vendor tends not to link from its homepage. Probe for it rather than let the
