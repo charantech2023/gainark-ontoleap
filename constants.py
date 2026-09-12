@@ -276,6 +276,22 @@ DEEP_CRAWL_MAX: int = 5
 # not a comparison page: it is content marketing about two metrics. Left in, it won the
 # comparison slot reserved for naming competitors, and the competitor field stayed empty
 # on a site with fourteen real comparison pages. Nothing under these paths says who buys.
+# Depth is a tie-break, not a goal. "/customers/whereby" is a customer's story;
+# "/customers/freshdesk/user-roles" is a sub-page of one, and two of them displaced real
+# case studies once deeper simply meant better. One level below a section is the leaf worth
+# reading; anything deeper is a detail page.
+# Locale prefixes, as an explicit set rather than "any two letters": /ai/ is a product
+# section, not Avestan, and a bare length test skipped it. ISO 639-1 codes that read as
+# ordinary English URL segments - is, my, be, so, id - are left out deliberately; missing a
+# rare locale costs one page, while swallowing /id/ or /my/ costs a real section.
+ICP_LOCALE_SEGMENTS: frozenset = frozenset({
+    "de", "fr", "es", "pt", "it", "ja", "ko", "zh", "nl", "sv", "da", "fi", "no",
+    "pl", "ru", "tr", "cs", "hu", "ro", "el", "he", "ar", "hi", "th", "vi", "uk",
+})
+
+ICP_MAX_USEFUL_DEPTH: int = 2
+
+
 ICP_EDITORIAL_PATHS: List[str] = [
     "/blog", "/resources", "/glossar", "/guide", "/ebook", "/webinar",
     "/podcast", "/news", "/press", "/articles", "/learn",

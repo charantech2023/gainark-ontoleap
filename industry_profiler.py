@@ -26,7 +26,8 @@ from models import (
     GroundedConcept
 )
 from constants import (ICP_EVIDENCE_PATHS, ICP_EVIDENCE_GROUPS, ICP_EVIDENCE_RESERVE,
-                       ICP_EDITORIAL_PATHS)
+                       ICP_EDITORIAL_PATHS, ICP_MAX_USEFUL_DEPTH,
+                       ICP_LOCALE_SEGMENTS)
 from industry_ontology import match_existing_vertical
 
 from security import verticals_dir
@@ -209,6 +210,26 @@ def _is_icp_evidence_page(url: str) -> bool:
     return any(hint in path for hint in ICP_EVIDENCE_PATHS)
 
 
+def _is_localized(path: str) -> bool:
+    """A language variant, by its leading two-letter segment: /de/..., /fr/..., /ja/...
+
+    Only the first segment counts, and only when it names a locale: "/de/solutions" and
+    "/pt-br/pricing" are variants, while "/devops", "/ai/pricing" and "/es-money-movement"
+    are sections of an English site.
+    """
+    segments = [seg for seg in path.split("/") if seg]
+    if len(segments) < 2:
+        return False
+
+    first = segments[0]
+    if first in ICP_LOCALE_SEGMENTS:
+        return True
+    # Language-region forms: en-us, pt-br, zh-cn.
+    language, _, region = first.partition("-")
+    return (bool(region) and len(language) == 2 and len(region) == 2
+            and language.isalpha() and region.isalpha())
+
+
 def _is_editorial(path: str) -> bool:
     """Content marketing rather than a statement about the business.
 
@@ -246,6 +267,10 @@ def _rank_urls(base_url: str, urls: List[str], limit: Optional[int] = None) -> L
         path = parsed_full.path.rstrip("/").lower()
         if not path or path in seen or _ASSET_SUFFIXES.search(path):
             continue
+        if _is_localized(path):
+            # A translation of a page we would rather read in English. Left in, "/de/..."
+            # is deeper than its English original and wins the tie.
+            continue
         seen.add(path)
 
         rank = len(ICP_EVIDENCE_PATHS)
@@ -258,8 +283,11 @@ def _rank_urls(base_url: str, urls: List[str], limit: Optional[int] = None) -> L
         # "/compare-competitors/" is a landing page naming nobody; the vendor names live on
         # "/compare-competitors/maxio". The same holds for "/customers/" against a single
         # customer's story.
-        depth = len([seg for seg in path.split("/") if seg])
-        scored.append((rank, -depth, parsed_full._replace(fragment="", query="").geturl()))
+        # Deeper is better up to the cap, and worse past it. Clamping instead would make a
+        # customer story and a sub-page of one tie, and the tie goes to sitemap order.
+        segments = len([seg for seg in path.split("/") if seg])
+        depth = -segments if segments <= ICP_MAX_USEFUL_DEPTH else segments
+        scored.append((rank, depth, parsed_full._replace(fragment="", query="").geturl()))
 
     scored.sort(key=lambda item: (item[0], item[1]))
     ranked = [url for _, _, url in scored]

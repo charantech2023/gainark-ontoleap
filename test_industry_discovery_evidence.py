@@ -823,6 +823,35 @@ def test_a_section_leaf_is_preferred_over_the_section_index():
     assert ranked[0].endswith("/pret"), ranked
 
 
+
+def test_a_sub_page_of_a_customer_story_does_not_outrank_the_story():
+    """Live failure: two /customers/<name>/user-roles/ pages displaced real case studies.
+
+    Depth was a goal rather than a tie-break, so the deepest page always won.
+    """
+    ranked = ip._rank_urls(CB, ["%s/customers/freshdesk/user-roles" % CB,
+                                "%s/customers/whereby" % CB,
+                                "%s/customers/" % CB])
+    assert ranked[0].endswith("/customers/whereby"), ranked
+    assert ranked[-1].endswith("/user-roles"), ranked
+
+
+def test_language_variants_are_skipped():
+    """A German page is deeper than its English original and was winning the tie."""
+    ranked = ip._rank_urls(CB, ["%s/de/solutions/industry" % CB, "%s/solutions/industry" % CB])
+    assert ranked == ["%s/solutions/industry" % CB], ranked
+
+
+def test_the_locale_test_does_not_swallow_ordinary_paths():
+    """Only a leading two-letter segment counts, so real sections survive."""
+    for path in ("/devops/pricing", "/es-money-movement/pricing", "/ai/pricing",
+                 "/id/verification", "/my/account"):
+        assert ip._rank_urls(CB, [CB + path]) == [CB + path], path
+
+    # Language-region forms are variants too.
+    assert ip._rank_urls(CB, ["%s/pt-br/pricing" % CB]) == [], "pt-br is a translation"
+
+
 # ------------------------------------------------------------- match before mint
 
 BILLING_VERTICAL = {
@@ -1399,6 +1428,9 @@ TESTS = [
     test_a_glossary_comparison_does_not_take_the_competitor_slot,
     test_editorial_pages_rank_last_rather_than_being_dropped,
     test_a_section_leaf_is_preferred_over_the_section_index,
+    test_a_sub_page_of_a_customer_story_does_not_outrank_the_story,
+    test_language_variants_are_skipped,
+    test_the_locale_test_does_not_swallow_ordinary_paths,
     test_confidence_rises_with_pages_read_and_with_verified_evidence,
     test_fabricated_buyer_claims_score_below_none_at_all,
     test_saved_profile_keeps_industries_competitors_and_evidence,
