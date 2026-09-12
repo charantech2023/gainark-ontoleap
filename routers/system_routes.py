@@ -143,16 +143,30 @@ def api_google_kg_search_get(query: str = Query(..., description="Brand or compa
 @router.post(
     "/api/discover-industry",
     response_model=IndustryDiscoveryResponse,
-    summary="Zero-Shot Autonomous Industry & Vertical Discovery",
+    summary="Zero-Shot Industry & Buyer Profile Discovery From A Domain",
     tags=["Industry Ontology"]
 )
 async def api_discover_industry(req: IndustryDiscoveryRequest):
     """
     Autonomously bootstraps an Industry Ontology profile for any B2B SaaS domain.
-    1. Crawls homepage title, headings, and metadata
-    2. Synthesizes vertical taxonomy, seed concepts, compliance standards, integrations, and competitors
-    3. Grounds concepts against canonical Wikidata Q-IDs
-    4. Automatically saves and registers the vertical profile into the live pipeline
+
+    1. Reads the homepage plus the pages that state who buys - case studies, customer
+       stories, comparison pages - roughly eight pages, fetched but not extracted.
+    2. Synthesizes the category half (taxonomy, seed concepts, compliance, integrations,
+       pricing) from those pages plus category knowledge.
+    3. Reads the buyer half (`known_segments`, `known_industries`, `known_competitors`,
+       `known_replaces`) only from what the pages actually say. Every value must cite a
+       page that was read and quote it; `icp_evidence` holds the quotes that held up, and
+       a value absent from it was proposed but not proven. An empty buyer field means the
+       pages did not establish one, never that a default was substituted.
+    4. Grounds concepts against canonical Wikidata Q-IDs.
+    5. Saves and registers the vertical profile. An existing *curated* profile is never
+       overwritten: it keeps its own vocabulary and takes only the keys it was missing.
+       `profile_write_mode` reports which happened, and when it reads
+       'merged-into-curated' the values in this response are not all what the file holds.
+
+    `confidence_score` is derived, not fixed: it moves with how many pages were read and
+    what share of the buyer claims verified.
     """
     try:
         validate_url_for_fetch(req.url)

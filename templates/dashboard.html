@@ -193,6 +193,9 @@
                     <button id="view-tab-industry" onclick="switchView('industry')" class="tab-btn px-3.5 py-1.5 rounded-lg transition cursor-pointer">
                         🏛️ Industry Alignment &amp; Whitespace
                     </button>
+                    <button id="view-tab-icp" onclick="switchView('icp')" class="tab-btn px-3.5 py-1.5 rounded-lg transition cursor-pointer">
+                        👥 Who Buys
+                    </button>
                 </div>
 
                 <!-- Export Actions -->
@@ -299,6 +302,42 @@
                 </div>
             </div>
 
+            <!-- ============================================================= -->
+            <!-- VIEW 4: WHO BUYS - THE BUYER PROFILE READ OFF THE SITE       -->
+            <!-- ============================================================= -->
+            <!-- Every other tab answers "what does this site say". This one answers
+                 "who is it sold to", which is read from case studies and comparison
+                 pages rather than inferred, so each value carries the sentence that
+                 proves it or is marked as unproven. -->
+            <div id="view-icp" class="hidden space-y-6">
+
+                <!-- Empty state: a vertical whose buyer half has never been read. -->
+                <div id="icp-empty" class="hidden bg-white rounded-2xl p-6 border border-slate-200 shadow-xs text-center space-y-3">
+                    <div class="text-sm font-bold text-slate-900">No buyer profile for this vertical yet</div>
+                    <p class="text-xs text-slate-500 max-w-lg mx-auto">
+                        Who a product is sold to is stated on case studies, customer stories and
+                        comparison pages, not on a homepage. Reading them takes about eight fetches.
+                    </p>
+                    <button type="button" id="icp-discover-btn" onclick="discoverBuyerProfile()"
+                        class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg cursor-pointer">
+                        Read this site's buyer profile
+                    </button>
+                    <div id="icp-status" class="text-[11px] text-slate-500"></div>
+                </div>
+
+                <!-- How firm this profile is, and what was read to build it. -->
+                <div id="icp-provenance" class="hidden bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-2">
+                    <div class="flex items-center justify-between gap-3 flex-wrap">
+                        <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">📄 Read From</h3>
+                        <div id="icp-claim-counts" class="text-[11px] font-semibold text-slate-600"></div>
+                    </div>
+                    <div id="icp-evidence-urls" class="flex flex-wrap gap-1.5"></div>
+                    <div id="icp-warning" class="hidden text-[11px] text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5"></div>
+                </div>
+
+                <div id="icp-fields" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+
         </div>
 
     </main>
@@ -324,7 +363,7 @@
         }
 
         function switchView(viewId) {
-            ['graph', 'ontology', 'industry'].forEach(v => {
+            ['graph', 'ontology', 'industry', 'icp'].forEach(v => {
                 document.getElementById('view-' + v).classList.add('hidden');
                 document.getElementById('view-tab-' + v).classList.remove('active');
             });
@@ -592,6 +631,7 @@
 
                 document.getElementById('routing-help').classList.add('hidden');
                 renderUnifiedDashboard(currentGraphData, currentAlignmentData);
+                loadBuyerProfile(currentGraphData.vertical_id);
                 renderVerticalBanner(currentGraphData);
                 renderCrawlBanner(currentGraphData);
 
@@ -748,6 +788,205 @@
                     span.innerText = p;
                     propBox.appendChild(span);
                 });
+            }
+        }
+
+        // --- TAB 4: WHO BUYS ------------------------------------------------
+        // The buyer half is stored on the vertical, so it is shown from there rather than
+        // re-read on every run: discovery costs eight fetches and an LLM call, and the
+        // answer does not change between two crawls of the same site.
+
+        const ICP_FIELDS = [
+            ['known_segments',    '🏢 Segments',   'The kinds of organisation this is sold to'],
+            ['known_industries',  '🏭 Industries', 'Sectors of the customers the site names'],
+            ['known_competitors', '⚔️ Competitors', 'Vendors the site names as alternatives or displaced'],
+            ['known_replaces',    '📉 Replaces',   'What customers are described as leaving behind']
+        ];
+
+        async function loadBuyerProfile(verticalId) {
+            const empty = document.getElementById('icp-empty');
+            const fields = document.getElementById('icp-fields');
+            const provenance = document.getElementById('icp-provenance');
+            document.getElementById('icp-status').innerText = '';
+
+            if (!verticalId) {
+                // No vertical means no profile to store one against, and discovery would
+                // have nothing to attach its answer to.
+                empty.classList.remove('hidden');
+                document.getElementById('icp-discover-btn').classList.add('hidden');
+                document.getElementById('icp-status').innerText =
+                    'This run was not routed to a vertical, so there is nowhere to store a buyer profile.';
+                fields.classList.add('hidden');
+                provenance.classList.add('hidden');
+                return;
+            }
+
+            let industry = null;
+            try {
+                const r = await fetch('/api/kg/industry/' + encodeURIComponent(verticalId));
+                if (r.ok) industry = await r.json();
+            } catch (err) {
+                industry = null;
+            }
+
+            renderBuyerProfile(industry);
+        }
+
+        function renderBuyerProfile(industry) {
+            const empty = document.getElementById('icp-empty');
+            const fields = document.getElementById('icp-fields');
+            const provenance = document.getElementById('icp-provenance');
+
+            const hasAny = industry && ICP_FIELDS.some(([key]) => (industry[key] || []).length);
+            if (!hasAny) {
+                empty.classList.remove('hidden');
+                document.getElementById('icp-discover-btn').classList.remove('hidden');
+                fields.classList.add('hidden');
+                provenance.classList.add('hidden');
+                return;
+            }
+
+            empty.classList.add('hidden');
+            fields.classList.remove('hidden');
+            fields.innerHTML = '';
+
+            const evidence = industry.icp_evidence || {};
+            ICP_FIELDS.forEach(([key, label, blurb]) => {
+                const values = industry[key] || [];
+                const proven = evidence[key] || {};
+
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-3';
+
+                const header = document.createElement('div');
+                header.className = 'flex items-center justify-between border-b border-slate-100 pb-2';
+                header.innerHTML = `
+                    <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">${label}</h3>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
+                        ${Object.keys(proven).length} of ${values.length} proven
+                    </span>`;
+                card.appendChild(header);
+
+                const blurbEl = document.createElement('p');
+                blurbEl.className = 'text-[11px] text-slate-500';
+                blurbEl.innerText = blurb;
+                card.appendChild(blurbEl);
+
+                if (!values.length) {
+                    const none = document.createElement('div');
+                    none.className = 'text-[11px] text-slate-400 italic';
+                    // An empty field is an answer, not a blank: the pages carried nothing
+                    // that established this. Saying so stops it reading as a failed render.
+                    none.innerText = 'Nothing on the pages read established this.';
+                    card.appendChild(none);
+                }
+
+                values.forEach(v => {
+                    const proof = proven[v];
+                    const row = document.createElement('div');
+                    row.className = proof
+                        ? 'rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2'
+                        : 'rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2';
+
+                    const title = document.createElement('div');
+                    title.className = 'text-xs font-bold ' + (proof ? 'text-emerald-900' : 'text-slate-700');
+                    title.innerText = (proof ? '✓ ' : '· ') + v;
+                    row.appendChild(title);
+
+                    if (proof) {
+                        const quote = document.createElement('div');
+                        quote.className = 'text-[11px] text-emerald-900/80 mt-1 italic';
+                        quote.innerText = '“' + proof.quote + '”';
+                        row.appendChild(quote);
+
+                        if (proof.source_url) {
+                            const link = document.createElement('a');
+                            link.className = 'text-[10px] text-emerald-700 underline mt-1 inline-block break-all';
+                            link.href = proof.source_url;
+                            link.target = '_blank';
+                            link.rel = 'noopener noreferrer';
+                            link.innerText = proof.source_url;
+                            row.appendChild(link);
+                        }
+                    } else {
+                        const why = document.createElement('div');
+                        why.className = 'text-[10px] text-slate-500 mt-0.5';
+                        // The distinction the whole evidence layer exists to draw.
+                        why.innerText = 'Proposed, but no quote on the site backed it.';
+                        row.appendChild(why);
+                    }
+                    card.appendChild(row);
+                });
+
+                fields.appendChild(card);
+            });
+        }
+
+        function renderBuyerProvenance(discovery) {
+            const provenance = document.getElementById('icp-provenance');
+            provenance.classList.remove('hidden');
+
+            document.getElementById('icp-claim-counts').innerText =
+                discovery.buyer_claims_evidenced + ' of ' + discovery.buyer_claims_proposed +
+                ' claims proven · confidence ' + Math.round((discovery.confidence_score || 0) * 100) + '%';
+
+            const urls = document.getElementById('icp-evidence-urls');
+            urls.innerHTML = '';
+            (discovery.evidence_urls || []).forEach(u => {
+                const a = document.createElement('a');
+                a.className = 'px-2 py-0.5 rounded-lg text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 break-all';
+                a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer';
+                try { a.innerText = new URL(u).pathname || '/'; } catch (e) { a.innerText = u; }
+                a.title = u;
+                urls.appendChild(a);
+            });
+
+            // Two things the reader cannot infer from the values themselves.
+            const warn = document.getElementById('icp-warning');
+            const notes = [];
+            if (discovery.discovery_degraded) notes.push(discovery.discovery_degraded);
+            if (discovery.profile_write_mode === 'merged-into-curated') {
+                notes.push('This vertical is curated: it kept its own vocabulary and took only ' +
+                           'the fields it was missing, so what is stored differs from what this run proposed.');
+            }
+            if (notes.length) {
+                warn.innerText = notes.join(' ');
+                warn.classList.remove('hidden');
+            } else {
+                warn.classList.add('hidden');
+            }
+        }
+
+        async function discoverBuyerProfile() {
+            const btn = document.getElementById('icp-discover-btn');
+            const status = document.getElementById('icp-status');
+            const target = currentGraphData && (currentGraphData.domain || currentGraphData.url);
+            if (!target) {
+                status.innerText = 'Run an extraction first: discovery reads the site that was crawled.';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+            status.innerText = 'Reading case studies and comparison pages… about eight fetches.';
+
+            try {
+                const r = await fetch('/api/discover-industry', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: target })
+                });
+                if (!r.ok) throw new Error('Discovery failed (' + r.status + ')');
+
+                const discovery = await r.json();
+                renderBuyerProfile(discovery);
+                renderBuyerProvenance(discovery);
+                status.innerText = '';
+            } catch (err) {
+                status.innerText = err.message;
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
             }
         }
 

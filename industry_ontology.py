@@ -16,6 +16,7 @@ import json
 import logging
 from typing import Optional, List, Dict, Union, Any
 
+from security import verticals_dir
 from models import (
     IndustryOntologyModel, IndustryConcept, GraphAlignmentResult,
     PageKnowledgeGraph, SiteKnowledgeGraph
@@ -24,7 +25,19 @@ from models import (
 logger = logging.getLogger("gainark.industry_ontology")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-VERTICALS_DIR = os.path.join(BASE_DIR, "verticals")
+
+
+def _verticals_dir() -> str:
+    """Where vertical profiles live, resolved per call.
+
+    This module used to hardcode BASE_DIR/verticals while the writer used
+    `security.verticals_dir()`, which honours ONTOLEAP_VERTICALS_DIR. With the override
+    set - which is how the test suites keep discovery away from the curated profiles -
+    discovery wrote to one directory and every reader here looked in another, so a freshly
+    discovered vertical was invisible to routing. Matching a site to an existing vertical
+    reads this list, so the two have to agree.
+    """
+    return verticals_dir()
 
 
 # A concept is written differently depending on who is writing: a vendor page says
@@ -132,13 +145,13 @@ def list_available_industries(include_unusable: bool = False) -> List[Dict[str, 
     unless asked for, because offering one in a picker is offering a wrong answer.
     """
     industries = []
-    if not os.path.isdir(VERTICALS_DIR):
+    if not os.path.isdir(_verticals_dir()):
         return industries
 
-    for f in sorted(os.listdir(VERTICALS_DIR)):
+    for f in sorted(os.listdir(_verticals_dir())):
         if f.endswith(".json"):
             vid = f[:-5]
-            fpath = os.path.join(VERTICALS_DIR, f)
+            fpath = os.path.join(_verticals_dir(), f)
             try:
                 with open(fpath, "r", encoding="utf-8") as jf:
                     data = json.load(jf)
@@ -159,15 +172,15 @@ def load_industry_ontology(vertical_id: str = "b2b_saas_fintech") -> IndustryOnt
     """
     Load an Industry Reference Ontology from the verticals definition files.
     """
-    fpath = os.path.join(VERTICALS_DIR, f"{vertical_id}.json")
+    fpath = os.path.join(_verticals_dir(), f"{vertical_id}.json")
     if not os.path.isfile(fpath):
         # Substituting billing here defeated every check above it: a typo in a vertical
         # id, or a vertical that was removed, quietly returned the billing ontology and
         # the caller was told nothing. Coverage and whitespace were then computed against
         # a vocabulary nobody asked for.
         available = sorted(
-            f[:-5] for f in os.listdir(VERTICALS_DIR) if f.endswith(".json")
-        ) if os.path.isdir(VERTICALS_DIR) else []
+            f[:-5] for f in os.listdir(_verticals_dir()) if f.endswith(".json")
+        ) if os.path.isdir(_verticals_dir()) else []
         raise ValueError(
             "No industry ontology named %r. Available: %s"
             % (vertical_id, ", ".join(available) or "none"))
@@ -195,6 +208,11 @@ def load_industry_ontology(vertical_id: str = "b2b_saas_fintech") -> IndustryOnt
         concepts=concepts_list,
         known_integrations=raw.get("known_integrations", []),
         known_compliance=raw.get("known_compliance", []),
+        known_segments=raw.get("known_segments", []),
+        known_industries=raw.get("known_industries", []),
+        known_competitors=raw.get("known_competitors", []),
+        known_replaces=raw.get("known_replaces", []),
+        icp_evidence=raw.get("icp_evidence", {}),
         standard_predicates=raw.get("standard_predicates", [
             "automates", "integratesWith", "compliesWith", "supportsPricingModel", "subClassOf", "partOf"
         ])
@@ -306,6 +324,64 @@ def classify_vertical(text: str, candidates: Optional[List[str]] = None) -> Dict
         "evidence": best["evidence"],
         "reason": "Matched %d vocabulary terms, %.1fx the runner-up."
                   % (best["matched"], (best["matched"] / runner_up) if runner_up else float(best["matched"])),
+        "candidates": scores,
+    }
+
+
+def match_existing_vertical(text: str) -> Dict[str, Any]:
+    """Find the vertical a newly discovered site belongs to, if one already exists.
+
+    Deliberately a different question from `classify_vertical`, and scored against a
+    different candidate set. Routing asks "which vocabulary may I measure this site
+    against", so it considers only verticals carrying a concept layer and refuses when the
+    answer is ambiguous - measuring against the wrong vocabulary is worse than not
+    measuring. This asks "does this category already have a home", and the cost of
+    refusing is a duplicate: six discovery runs over chargebee.com minted six verticals,
+    and four separate profiles exist for AI security whose seed concepts agree on as
+    little as nothing out of twelve.
+
+    So every vertical is a candidate here, concept layer or not, and ambiguity resolves
+    rather than refuses: between two verticals that both describe the category, the one
+    carrying concepts is the one worth deepening.
+    """
+    candidates = [meta.get("vertical_id") for meta in list_available_industries(include_unusable=True)]
+    candidates = [vid for vid in candidates if vid]
+    result = classify_vertical(text, candidates=candidates)
+
+    scores = result.get("candidates") or []
+    if result.get("vertical_id"):
+        return {
+            "vertical_id": result["vertical_id"],
+            "reason": result.get("reason", ""),
+            "decision": "matched",
+            "candidates": scores,
+        }
+
+    # classify_vertical refused. Refusing here mints a duplicate, so try to resolve.
+    viable = [row for row in scores if row["matched"] >= _MIN_ROUTING_EVIDENCE]
+    if not viable:
+        return {
+            "vertical_id": None,
+            "reason": result.get("reason", "Nothing matched well enough."),
+            "decision": "no-match",
+            "candidates": scores,
+        }
+
+    def _preference(row: Dict[str, Any]) -> Any:
+        try:
+            has_concepts = 1 if load_industry_ontology(row["vertical_id"]).concepts else 0
+        except Exception:
+            has_concepts = 0
+        # Concepts first, then evidence, then the id, so the choice is reproducible.
+        return (has_concepts, row["matched"], row["vertical_id"])
+
+    best = max(viable, key=_preference)
+    return {
+        "vertical_id": best["vertical_id"],
+        "reason": ("Ambiguous by routing rules, resolved to %s (%d vocabulary terms); "
+                   "a new vertical here would duplicate an existing category."
+                   % (best["vertical_id"], best["matched"])),
+        "decision": "resolved-ambiguous",
         "candidates": scores,
     }
 

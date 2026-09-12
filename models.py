@@ -613,6 +613,19 @@ class IndustryDiscoveryResponse(BaseModel):
     buyer_claims_proposed: int = Field(default=0, description="Buyer-field values the model returned")
     buyer_claims_evidenced: int = Field(default=0, description="Of those, how many carried a quote found on the cited page")
     config_file: Optional[str] = None
+    vertical_match_mode: Optional[str] = Field(
+        default=None,
+        description="'matched-existing' when this site joined a vertical that already existed, 'minted-new' when no existing vertical described its category."
+    )
+    vertical_match_reason: Optional[str] = Field(default=None, description="Vocabulary evidence behind that decision")
+    minted_vertical_id: Optional[str] = Field(
+        default=None,
+        description="The vertical id the model proposed, recorded only when it was NOT used because an existing vertical matched. Lets a caller see what would have been created."
+    )
+    profile_write_mode: Optional[str] = Field(
+        default=None,
+        description="How the profile on disk was written: 'created', 'refreshed', 'accumulated', or 'merged-into-curated'. The last means an existing curated vertical kept its own vocabulary and took only the keys it was missing, so the values in this response are not all what the file now holds."
+    )
     confidence_score: float = Field(
         default=0.95,
         description="How far this profile rests on pages actually read: moves with page count and with the share of buyer claims that verified."
@@ -757,6 +770,17 @@ class IndustryOntologyModel(BaseModel):
     concepts: List[IndustryConcept] = Field(default_factory=list, description="SKOS-style hierarchy of domain concepts")
     known_integrations: List[str] = Field(default_factory=list)
     known_compliance: List[str] = Field(default_factory=list)
+    # The buyer half of a vertical: who it is sold to, rather than what it does. Empty
+    # until a discovery run reads it off the site, and served here so a caller can display
+    # a stored profile without re-running discovery to see it.
+    known_segments: List[str] = Field(default_factory=list, description="Kinds of organisation this vertical is sold to")
+    known_industries: List[str] = Field(default_factory=list, description="Industries of named customers")
+    known_competitors: List[str] = Field(default_factory=list, description="Vendors the site itself names as alternatives or displaced")
+    known_replaces: List[str] = Field(default_factory=list, description="Manual practices or legacy systems customers are described as leaving behind")
+    icp_evidence: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Per buyer field, the values whose quote was found on the page cited: {field: {value: {source_url, quote}}}. A value missing from here was proposed but never proven."
+    )
     standard_predicates: List[str] = Field(
         default_factory=lambda: ["automates", "integratesWith", "compliesWith", "supportsPricingModel", "subClassOf", "partOf"]
     )

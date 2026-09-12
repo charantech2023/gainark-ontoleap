@@ -14,6 +14,7 @@ import os
 import shutil
 import tempfile
 
+import industry_ontology
 import industry_profiler as ip
 
 
@@ -561,6 +562,332 @@ def test_probing_does_not_exceed_the_page_budget():
 
 
 
+
+
+# ----------------------------------------------------------------------- sitemap
+
+def sitemap_xml(*urls):
+    locs = "".join("<url><loc>%s</loc></url>" % u for u in urls)
+    return '<?xml version="1.0" encoding="UTF-8"?><urlset>%s</urlset>' % locs
+
+
+def sitemap_index(*documents):
+    locs = "".join("<sitemap><loc>%s</loc></sitemap>" % d for d in documents)
+    return '<?xml version="1.0" encoding="UTF-8"?><sitemapindex>%s</sitemapindex>' % locs
+
+
+def test_sitemap_urls_are_read():
+    site = {"https://acme.com/sitemap.xml": sitemap_xml(
+        "https://acme.com/compare/vs-zuora", "https://acme.com/customers/pret")}
+    with fake_site(pages=site):
+        urls = ip.fetch_sitemap_urls("https://acme.com")
+    assert urls == ["https://acme.com/compare/vs-zuora", "https://acme.com/customers/pret"], urls
+
+
+def test_a_sitemap_index_is_followed_one_level():
+    site = {
+        "https://acme.com/sitemap.xml": sitemap_index("https://acme.com/sitemap-pages.xml"),
+        "https://acme.com/sitemap-pages.xml": sitemap_xml("https://acme.com/alternatives"),
+    }
+    with fake_site(pages=site):
+        urls = ip.fetch_sitemap_urls("https://acme.com")
+    assert urls == ["https://acme.com/alternatives"], urls
+
+
+def test_the_sitemap_named_in_robots_txt_is_used():
+    """The site's own statement of where its index lives beats guessing at paths."""
+    site = {
+        "https://acme.com/robots.txt": "User-agent: *\nSitemap: https://acme.com/custom-map.xml\n",
+        "https://acme.com/custom-map.xml": sitemap_xml("https://acme.com/customers/globex"),
+    }
+    with fake_site(pages=site):
+        urls = ip.fetch_sitemap_urls("https://acme.com")
+    assert urls == ["https://acme.com/customers/globex"], urls
+
+
+def test_compressed_sitemaps_are_skipped_rather_than_read_as_text():
+    site = {
+        "https://acme.com/sitemap.xml": sitemap_index("https://acme.com/pages.xml.gz"),
+        "https://acme.com/pages.xml.gz": "\x1f\x8b binary noise",
+    }
+    with fake_site(pages=site):
+        urls = ip.fetch_sitemap_urls("https://acme.com")
+    assert urls == [], urls
+
+
+def test_sitemap_document_count_is_capped():
+    children = ["https://acme.com/s%d.xml" % i for i in range(12)]
+    site = {"https://acme.com/sitemap.xml": sitemap_index(*children)}
+    for i, child in enumerate(children):
+        site[child] = sitemap_xml("https://acme.com/page%d" % i)
+
+    fetched = []
+    with fake_site(pages=site, fetched=fetched):
+        ip.fetch_sitemap_urls("https://acme.com")
+
+    xml_fetches = [u for u in fetched if u.endswith(".xml")]
+    assert len(xml_fetches) <= ip._MAX_SITEMAP_DOCS, xml_fetches
+
+
+def test_a_missing_sitemap_is_not_an_error():
+    with fake_site(pages={}):
+        assert ip.fetch_sitemap_urls("https://acme.com") == []
+
+
+def test_offsite_urls_in_a_sitemap_are_ignored():
+    """A sitemap may list other hosts; those are not this company's own evidence."""
+    urls = ip._rank_urls("https://acme.com", [
+        "https://acme.com/customers/globex",
+        "https://cdn.othersite.com/customers/someone-else",
+    ], limit=10)
+    assert urls == ["https://acme.com/customers/globex"], urls
+
+
+def test_a_comparison_page_only_in_the_sitemap_is_still_read():
+    """The live failure: seven case studies linked, no comparison page, competitors empty.
+
+    chargebee.com does not link its comparison pages from the homepage and returns 404 for
+    every conventional path, so the only way to find one is the site's own index.
+    """
+    home_without_comparison = HOME_HTML.replace(
+        '<a href="/compare/vs-zuora">Acme vs Zuora</a>', "")
+    site = {
+        "https://acme.com": home_without_comparison,
+        "https://acme.com/pricing": PRICING_HTML,
+        "https://acme.com/customers/globex-case-study": CASE_STUDY_HTML,
+        "https://acme.com/sitemap.xml": sitemap_xml(
+            "https://acme.com/blog/unrelated-post",
+            "https://acme.com/acme-vs-zuora"),
+        "https://acme.com/acme-vs-zuora": COMPARE_HTML,
+    }
+    with fake_site(pages=site):
+        evidence = ip.gather_discovery_evidence("https://acme.com", max_pages=4)
+
+    urls = [p["url"] for p in evidence["pages"]]
+    assert "https://acme.com/acme-vs-zuora" in urls, urls
+    print("  Found via sitemap: /acme-vs-zuora")
+
+
+def test_a_linked_page_outranks_a_sitemap_only_page_of_the_same_kind():
+    """The homepage links what the company considers important; ties go to it."""
+    site = {
+        "https://acme.com": HOME_HTML,
+        "https://acme.com/pricing": PRICING_HTML,
+        "https://acme.com/customers/globex-case-study": CASE_STUDY_HTML,
+        "https://acme.com/compare/vs-zuora": COMPARE_HTML,
+        "https://acme.com/sitemap.xml": sitemap_xml("https://acme.com/customers/archived-story"),
+        "https://acme.com/customers/archived-story": CASE_STUDY_HTML,
+    }
+    # One slot beyond the homepage, so the tie between two /customers pages is what
+    # decides which is read.
+    with fake_site(pages=site):
+        evidence = ip.gather_discovery_evidence("https://acme.com", max_pages=2)
+
+    urls = [p["url"] for p in evidence["pages"]]
+    assert "https://acme.com/customers/globex-case-study" in urls, urls
+    assert "https://acme.com/customers/archived-story" not in urls, urls
+
+
+
+# ------------------------------------------------------------- match before mint
+
+BILLING_VERTICAL = {
+    "vertical_id": "billing_ops",
+    "display_name": "Billing Operations",
+    "gliner_labels": ["Billing Model"],
+    "mandatory_schema_types": ["SoftwareApplication"],
+    "core_seed_concepts": ["Subscription Billing", "Revenue Recognition", "Dunning",
+                           "Invoicing", "Proration", "Usage-Based Pricing"],
+    "known_compliance": ["ASC 606", "IFRS 15"],
+    "known_integrations": ["NetSuite", "Salesforce"],
+    "known_features": ["Credit Notes"],
+    "known_segments": ["Multi-entity SaaS"],
+    "concepts": [{"id": "dunning", "prefLabel": "Dunning", "definition": "Chasing failed payments."}],
+    "alt_labels": {"Dunning": ["Dunning Management"]},
+}
+
+SECURITY_VERTICAL = {
+    "vertical_id": "appsec",
+    "display_name": "Application Security",
+    "gliner_labels": ["Security Platform"],
+    "mandatory_schema_types": ["SoftwareApplication"],
+    "core_seed_concepts": ["Vulnerability Scanning", "Threat Detection", "Penetration Testing",
+                           "Static Analysis", "Container Security", "Secrets Detection"],
+    "known_compliance": ["ISO 27001"],
+    "known_integrations": ["GitHub"],
+}
+
+BILLING_TEXT = ("Automated invoicing and revenue recognition for subscription billing. "
+                "Dunning, proration and usage-based pricing, with ASC 606 schedules "
+                "exported to NetSuite.")
+
+
+def with_verticals(profiles):
+    """Point every reader and writer at a throwaway directory holding `profiles`."""
+    tmpdir = tempfile.mkdtemp(prefix="ontoleap_verticals_test_")
+    for profile in profiles:
+        with open(os.path.join(tmpdir, profile["vertical_id"] + ".json"), "w", encoding="utf-8") as fh:
+            json.dump(profile, fh)
+    return tmpdir, patched((industry_ontology, "verticals_dir", lambda: tmpdir),
+                           (ip, "verticals_dir", lambda: tmpdir))
+
+
+def test_a_site_joins_the_vertical_that_already_describes_its_category():
+    """Six runs over one domain minted six verticals. The category already had a home."""
+    tmpdir, scope = with_verticals([BILLING_VERTICAL, SECURITY_VERTICAL])
+    try:
+        with scope:
+            match = industry_ontology.match_existing_vertical(BILLING_TEXT)
+        assert match["vertical_id"] == "billing_ops", match
+        assert match["decision"] in ("matched", "resolved-ambiguous")
+        print("  Matched %s: %s" % (match["vertical_id"], match["reason"][:60]))
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_a_site_in_an_unknown_category_still_mints():
+    """Matching must not drag every site into the nearest vertical."""
+    tmpdir, scope = with_verticals([BILLING_VERTICAL])
+    try:
+        with scope:
+            match = industry_ontology.match_existing_vertical(
+                "Veterinary practice management software for scheduling and patient records.")
+        assert match["vertical_id"] is None, match
+        assert match["decision"] == "no-match"
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_ambiguity_between_near_duplicates_resolves_to_the_one_with_concepts():
+    """Refusing here mints a third copy of a category that already has two."""
+    twin = dict(BILLING_VERTICAL, vertical_id="billing_ops_twin",
+                display_name="Billing Ops Twin", concepts=[], alt_labels={})
+    tmpdir, scope = with_verticals([BILLING_VERTICAL, twin])
+    try:
+        with scope:
+            match = industry_ontology.match_existing_vertical(BILLING_TEXT)
+        assert match["vertical_id"] == "billing_ops", match
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_matching_reads_the_same_directory_that_discovery_writes():
+    """These used to disagree: writes honoured the override, reads never did."""
+    tmpdir, scope = with_verticals([SECURITY_VERTICAL])
+    try:
+        with scope:
+            visible = [m["vertical_id"] for m
+                       in industry_ontology.list_available_industries(include_unusable=True)]
+        assert visible == ["appsec"], visible
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+# ------------------------------------------------------------------ accumulation
+
+def test_a_second_site_adds_vocabulary_instead_of_replacing_it():
+    """Without this, matching is pointless: the newcomer overwrites what it joined."""
+    incoming = {
+        "vertical_id": "something_the_model_made_up",
+        "display_name": "Monetization & Revenue Ops",
+        "core_seed_concepts": ["Revenue Recognition", "Cash Application"],
+        "known_compliance": ["SOC 2"],
+        "known_segments": ["Order fulfillment provider"],
+    }
+    merged, mode = ip.merge_profile(dict(BILLING_VERTICAL, concepts=[], alt_labels={}),
+                                    incoming, matched_existing=True)
+
+    assert mode == "accumulated"
+    # Identity belongs to the category, not to whichever site was read last.
+    assert merged["vertical_id"] == "billing_ops"
+    assert merged["display_name"] == "Billing Operations"
+    # Existing vocabulary kept, new vocabulary added, no duplicates.
+    assert "Subscription Billing" in merged["core_seed_concepts"]
+    assert "Cash Application" in merged["core_seed_concepts"]
+    assert merged["core_seed_concepts"].count("Revenue Recognition") == 1
+    assert merged["known_compliance"] == ["ASC 606", "IFRS 15", "SOC 2"]
+    assert merged["known_segments"] == ["Multi-entity SaaS", "Order fulfillment provider"]
+    print("  Seeds grew %d -> %d" % (len(BILLING_VERTICAL["core_seed_concepts"]),
+                                     len(merged["core_seed_concepts"])))
+
+
+def test_accumulation_is_case_insensitive_about_duplicates():
+    merged, _ = ip.merge_profile(
+        {"vertical_id": "v", "known_pricing": ["Usage-Based Pricing"]},
+        {"known_pricing": ["usage-based pricing", "Tiered Pricing"]},
+        matched_existing=True)
+    assert merged["known_pricing"] == ["Usage-Based Pricing", "Tiered Pricing"]
+
+
+def test_rediscovering_a_minted_vertical_still_replaces_rather_than_accumulates():
+    """The same site read twice should not pile its own older words back on."""
+    merged, mode = ip.merge_profile(
+        {"vertical_id": "v", "display_name": "Old", "core_seed_concepts": ["Stale Term"]},
+        {"vertical_id": "v", "display_name": "New", "core_seed_concepts": ["Fresh Term"]},
+        matched_existing=False)
+    assert mode == "refreshed"
+    assert merged["core_seed_concepts"] == ["Fresh Term"]
+    assert merged["display_name"] == "New"
+
+
+def test_a_curated_vertical_is_still_protected_when_matched_into():
+    """Accumulation must not become a back door into the hand-built vocabulary."""
+    merged, mode = ip.merge_profile(BILLING_VERTICAL,
+                                    {"core_seed_concepts": ["Nonsense"], "display_name": "Hijack"},
+                                    matched_existing=True)
+    assert mode == "merged-into-curated"
+    assert merged["core_seed_concepts"] == BILLING_VERTICAL["core_seed_concepts"]
+    assert merged["display_name"] == "Billing Operations"
+
+
+def test_discovery_joins_an_existing_vertical_end_to_end():
+    """The whole point, through the real orchestrator: no new vertical for a known category."""
+    tmpdir, scope = with_verticals([BILLING_VERTICAL])
+
+    async def no_grounding(compliance, integrations):
+        return []
+
+    # The homepage decides the match, so it has to read like a real billing vendor's.
+    # A four-line fixture matched two vocabulary terms and minted a duplicate - which is
+    # exactly the failure mode in production, where a thin homepage looks like a new
+    # category.
+    billing_home = HOME_HTML.replace(
+        "<p>Acme automates invoicing and revenue recognition.</p>",
+        "<p>Acme automates subscription billing, invoicing and revenue recognition. "
+        "Dunning, proration and usage-based pricing, with ASC 606 and IFRS 15 revenue "
+        "schedules exported to NetSuite and Salesforce.</p>")
+    billing_site = {
+        "https://acme.com": billing_home,
+        "https://acme.com/pricing": PRICING_HTML,
+        "https://acme.com/customers/globex-case-study": CASE_STUDY_HTML,
+        "https://acme.com/compare/vs-zuora": COMPARE_HTML,
+    }
+    llm = dict(LLM_OUTPUT, vertical_id="a_brand_new_billing_category",
+               display_name="A Brand New Billing Category",
+               core_seed_concepts=["Subscription Billing", "Revenue Recognition", "Dunning",
+                                   "Invoicing", "Proration", "Usage-Based Pricing"],
+               known_compliance=["ASC 606", "IFRS 15"])
+
+    try:
+        with scope, fake_site(pages=billing_site), patched(
+            (ip, "ground_discovered_entities", no_grounding),
+            (ip.vertex_ai_client, "_call_gemini", lambda **kwargs: json.dumps(llm)),
+        ):
+            res = ip.discover_industry_profile("https://acme.com")
+
+        assert res.vertical_match_mode == "matched-existing", res.vertical_match_reason
+        assert res.vertical_id == "billing_ops"
+        assert res.minted_vertical_id == "a_brand_new_billing_category", \
+            "what would have been created is still reported"
+        assert not os.path.exists(os.path.join(tmpdir, "a_brand_new_billing_category.json")), \
+            "no duplicate vertical on disk"
+        assert res.profile_write_mode == "merged-into-curated"
+        print("  Joined %s instead of minting %s" % (res.vertical_id, res.minted_vertical_id))
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+
 # ---------------------------------------------------------------------- confidence
 
 def test_confidence_rises_with_pages_read_and_with_verified_evidence():
@@ -586,7 +913,7 @@ def test_saved_profile_keeps_industries_competitors_and_evidence():
     tmpdir = tempfile.mkdtemp(prefix="ontoleap_discovery_test_")
     try:
         with patched((ip, "verticals_dir", lambda: tmpdir)):
-            path = ip.save_vertical_configuration(
+            path, write_mode = ip.save_vertical_configuration(
                 vertical_id="acme_billing",
                 display_name="Acme Billing",
                 gliner_labels=["Billing Model"],
@@ -605,11 +932,183 @@ def test_saved_profile_keeps_industries_competitors_and_evidence():
 
         with open(path, encoding="utf-8") as fh:
             saved = json.load(fh)
+        assert write_mode == "created"
         assert saved["known_industries"] == ["Medical Devices"]
         assert saved["known_competitors"] == ["Zuora"]
         assert saved["icp_evidence"]["known_competitors"]["Zuora"]["source_url"].endswith("vs-zuora")
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+
+# --------------------------------------------------- a curated profile is not clobbered
+
+def curated_profile():
+    """A hand-built vertical, shaped like verticals/b2b_saas_fintech.json.
+
+    The two keys discovery cannot regenerate are `concepts` (definitions) and `alt_labels`
+    (the register-correct surface forms). It also carries a far richer known_features list
+    than any discovery run produces, and an empty buyer half.
+    """
+    return {
+        "vertical_id": "acme_billing",
+        "display_name": "Curated Billing",
+        "gliner_labels": ["Billing Model", "Revenue Stream"],
+        "mandatory_schema_types": ["SoftwareApplication"],
+        "core_seed_concepts": ["Subscription Billing", "Revenue Recognition", "Dunning"],
+        "known_features": ["Proration", "Revenue Waterfall", "Contract Modification",
+                           "Usage Rating", "Credit Notes", "Aging Report"],
+        "known_integrations": ["NetSuite ERP", "Salesforce CRM"],
+        "known_compliance": ["ASC 606", "IFRS 15"],
+        "known_pricing": ["Usage-Based Pricing"],
+        "known_segments": [],
+        "known_industries": [],
+        "known_competitors": [],
+        "known_replaces": [],
+        "concepts": [{"id": "asc-606", "prefLabel": "ASC 606",
+                      "definition": "Revenue from contracts with customers.",
+                      "governs": ["revenue-recognition"]}],
+        "alt_labels": {"ASC 606": ["ASC606", "Revenue Standard ASC 606"]},
+        "concept_hierarchy": {"Dunning": "Accounts Receivable"},
+        "a_key_discovery_has_never_heard_of": {"kept": True},
+    }
+
+
+def discovered_profile():
+    """What a discovery run would write for the same slug."""
+    return {
+        "vertical_id": "acme_billing",
+        "display_name": "Billing & Monetization",
+        "gliner_labels": ["Subscription Platform"],
+        "mandatory_schema_types": ["SoftwareApplication", "Organization", "Offer"],
+        "core_seed_concepts": ["Recurring Billing", "Payment Processing"],
+        "known_features": ["Automated Invoicing", "Self-Service Portal"],
+        "known_integrations": ["Stripe", "Xero"],
+        "known_compliance": ["PCI-DSS"],
+        "known_pricing": ["Tiered Pricing"],
+        "known_segments": ["Order fulfillment provider for eCommerce merchants"],
+        "known_industries": ["eCommerce"],
+        "known_competitors": ["Zuora"],
+        "known_replaces": ["Excel-dependent billing"],
+        "icp_evidence": {"known_replaces": {"Excel-dependent billing": {
+            "source_url": "https://acme.com/customers/sesame", "quote": "Excel-dependent billing"}}},
+        "concept_hierarchy": {"Recurring Billing": "Billing"},
+    }
+
+
+def test_discovery_never_destroys_hand_built_concepts_and_alt_labels():
+    """The hazard this exists for: 111 defined concepts and 85 alt-label sets, gone silently."""
+    merged, mode = ip.merge_profile(curated_profile(), discovered_profile())
+
+    assert mode == "merged-into-curated"
+    assert merged["concepts"][0]["definition"] == "Revenue from contracts with customers."
+    assert merged["alt_labels"]["ASC 606"] == ["ASC606", "Revenue Standard ASC 606"]
+
+
+def test_a_curated_profile_keeps_its_own_richer_vocabulary():
+    """Overwriting these is quieter than losing the concepts, and just as destructive."""
+    merged, _ = ip.merge_profile(curated_profile(), discovered_profile())
+
+    assert merged["known_features"] == curated_profile()["known_features"]
+    assert merged["known_integrations"] == ["NetSuite ERP", "Salesforce CRM"]
+    assert merged["core_seed_concepts"] == curated_profile()["core_seed_concepts"]
+    assert merged["display_name"] == "Curated Billing"
+    assert merged["concept_hierarchy"] == {"Dunning": "Accounts Receivable"}
+
+
+def test_a_curated_profile_gains_the_buyer_half_it_was_missing():
+    """The point of the exercise: an evidence-backed ICP without risking the vocabulary."""
+    merged, _ = ip.merge_profile(curated_profile(), discovered_profile())
+
+    assert merged["known_segments"] == ["Order fulfillment provider for eCommerce merchants"]
+    assert merged["known_industries"] == ["eCommerce"]
+    assert merged["known_competitors"] == ["Zuora"]
+    assert merged["known_replaces"] == ["Excel-dependent billing"]
+    assert merged["icp_evidence"]["known_replaces"]["Excel-dependent billing"]["source_url"]
+    print("  Curated vocabulary kept, buyer half filled: %s"
+          % merged["known_segments"])
+
+
+def test_keys_the_merge_has_never_heard_of_survive():
+    merged, _ = ip.merge_profile(curated_profile(), discovered_profile())
+    assert merged["a_key_discovery_has_never_heard_of"] == {"kept": True}
+
+
+def test_an_auto_discovered_profile_is_refreshed_wholesale():
+    """Nothing in it was curated, so a newer reading should replace it."""
+    previous = {k: v for k, v in curated_profile().items()
+                if k not in ("concepts", "alt_labels")}
+    merged, mode = ip.merge_profile(previous, discovered_profile())
+
+    assert mode == "refreshed"
+    assert merged["display_name"] == "Billing & Monetization"
+    assert merged["known_features"] == ["Automated Invoicing", "Self-Service Portal"]
+    assert merged["a_key_discovery_has_never_heard_of"] == {"kept": True}, "still not ours to drop"
+
+
+def test_a_new_profile_is_written_as_is():
+    merged, mode = ip.merge_profile(None, discovered_profile())
+    assert mode == "created"
+    assert merged == discovered_profile()
+
+
+def test_saving_over_a_curated_file_on_disk_preserves_it():
+    """End to end through the writer, not just the merge function."""
+    tmpdir = tempfile.mkdtemp(prefix="ontoleap_discovery_test_")
+    try:
+        path = os.path.join(tmpdir, "acme_billing.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(curated_profile(), fh)
+
+        with patched((ip, "verticals_dir", lambda: tmpdir)):
+            saved_path, mode = ip.save_vertical_configuration(
+                vertical_id="acme_billing",
+                display_name="Billing & Monetization",
+                gliner_labels=["Subscription Platform"],
+                core_seed_concepts=["Recurring Billing"],
+                known_integrations=["Stripe"],
+                known_compliance=["PCI-DSS"],
+                known_pricing=["Tiered Pricing"],
+                known_segments=["Order fulfillment provider for eCommerce merchants"],
+                known_industries=["eCommerce"],
+                known_competitors=["Zuora"],
+                known_replaces=["Excel-dependent billing"],
+            )
+
+        assert mode == "merged-into-curated"
+        with open(saved_path, encoding="utf-8") as fh:
+            on_disk = json.load(fh)
+        assert on_disk["alt_labels"]["ASC 606"], "the curated identity layer survived a write"
+        assert on_disk["concepts"][0]["id"] == "asc-606"
+        assert on_disk["known_segments"] == ["Order fulfillment provider for eCommerce merchants"]
+        assert on_disk["known_integrations"] == ["NetSuite ERP", "Salesforce CRM"]
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_an_unreadable_existing_profile_does_not_stop_the_write():
+    tmpdir = tempfile.mkdtemp(prefix="ontoleap_discovery_test_")
+    try:
+        path = os.path.join(tmpdir, "acme_billing.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("{ not json at all")
+
+        with patched((ip, "verticals_dir", lambda: tmpdir)):
+            saved_path, mode = ip.save_vertical_configuration(
+                vertical_id="acme_billing",
+                display_name="Billing",
+                gliner_labels=["Subscription Platform"],
+                core_seed_concepts=["Recurring Billing"],
+                known_integrations=["Stripe"],
+                known_compliance=["PCI-DSS"],
+                known_pricing=["Tiered Pricing"],
+            )
+        assert mode == "created"
+        with open(saved_path, encoding="utf-8") as fh:
+            assert json.load(fh)["display_name"] == "Billing"
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
 
 
 # ------------------------------------------------------------------------ fallback
@@ -747,9 +1246,35 @@ TESTS = [
     test_comparison_pages_are_probed_when_the_homepage_links_none,
     test_no_probing_when_the_homepage_already_links_a_comparison_page,
     test_probing_does_not_exceed_the_page_budget,
+    test_sitemap_urls_are_read,
+    test_a_sitemap_index_is_followed_one_level,
+    test_the_sitemap_named_in_robots_txt_is_used,
+    test_compressed_sitemaps_are_skipped_rather_than_read_as_text,
+    test_sitemap_document_count_is_capped,
+    test_a_missing_sitemap_is_not_an_error,
+    test_offsite_urls_in_a_sitemap_are_ignored,
+    test_a_comparison_page_only_in_the_sitemap_is_still_read,
+    test_a_linked_page_outranks_a_sitemap_only_page_of_the_same_kind,
     test_confidence_rises_with_pages_read_and_with_verified_evidence,
     test_fabricated_buyer_claims_score_below_none_at_all,
     test_saved_profile_keeps_industries_competitors_and_evidence,
+    test_discovery_never_destroys_hand_built_concepts_and_alt_labels,
+    test_a_curated_profile_keeps_its_own_richer_vocabulary,
+    test_a_curated_profile_gains_the_buyer_half_it_was_missing,
+    test_keys_the_merge_has_never_heard_of_survive,
+    test_an_auto_discovered_profile_is_refreshed_wholesale,
+    test_a_new_profile_is_written_as_is,
+    test_saving_over_a_curated_file_on_disk_preserves_it,
+    test_an_unreadable_existing_profile_does_not_stop_the_write,
+    test_a_site_joins_the_vertical_that_already_describes_its_category,
+    test_a_site_in_an_unknown_category_still_mints,
+    test_ambiguity_between_near_duplicates_resolves_to_the_one_with_concepts,
+    test_matching_reads_the_same_directory_that_discovery_writes,
+    test_a_second_site_adds_vocabulary_instead_of_replacing_it,
+    test_accumulation_is_case_insensitive_about_duplicates,
+    test_rediscovering_a_minted_vertical_still_replaces_rather_than_accumulates,
+    test_a_curated_vertical_is_still_protected_when_matched_into,
+    test_discovery_joins_an_existing_vertical_end_to_end,
     test_unreachable_llm_returns_no_buyer_profile_rather_than_a_generic_one,
     test_unparseable_llm_output_also_returns_no_buyer_profile,
     test_fenced_json_is_parsed,

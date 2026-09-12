@@ -270,8 +270,8 @@ DEEP_CRAWL_MAX: int = 5
 # most-to-least direct; matching is a substring test against the URL path.
 ICP_EVIDENCE_PATHS: List[str] = [
     "/case-stud", "/customer-stor", "/customers", "/success-stor", "/testimonial",
-    "/vs-", "/vs/", "/compare", "/comparison", "/alternative", "/competitors",
-    "/migrate", "/switch",
+    "/vs-", "/vs/", "-vs-", "/compare", "/comparison", "/alternative", "-alternative",
+    "/competitors", "/migrate", "/switch",
     "/industries", "/industry", "/who-we-serve", "/solutions", "/use-cases",
     "/pricing", "/security", "/compliance", "/about",
 ]

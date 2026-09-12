@@ -26,6 +26,7 @@ from models import (
     GroundedConcept
 )
 from constants import ICP_EVIDENCE_PATHS
+from industry_ontology import match_existing_vertical
 
 from security import verticals_dir
 
@@ -60,6 +61,22 @@ _SILENT_FAILURE_MIN_ICP_PAGES = 2
 _COMPARISON_HINTS = ("/vs-", "/vs/", "/compare", "/comparison", "/alternative", "/migrate", "/switch")
 COMPARISON_PROBE_PATHS = ["/alternatives", "/compare", "/comparison", "/competitors"]
 _MAX_COMPARISON_PAGES = 2
+
+# Sitemap reading. A sitemap is the site's own published index, so it lists the pages the
+# homepage never links - which is where comparison pages and older case studies live. The
+# caps exist because a large site's sitemap indexes tens of thousands of URLs and none of
+# this is worth an unbounded read.
+SITEMAP_PATHS = ["/sitemap.xml", "/sitemap_index.xml"]
+_MAX_SITEMAP_DOCS = 5
+_MAX_SITEMAP_URLS = 2000
+# Matches the page-fetch timeout. At 8s this timed out during DNS resolution on a site
+# whose pages fetched fine, and a timeout is indistinguishable from an absent sitemap in
+# the result: both produce no URLs.
+_SITEMAP_TIMEOUT = 12
+
+_LOC_RE = re.compile(r"<loc>\s*([^<\s]+)\s*</loc>", re.I)
+_SITEMAP_INDEX_RE = re.compile(r"<sitemapindex", re.I)
+_ROBOTS_SITEMAP_RE = re.compile(r"^\s*sitemap:\s*(\S+)", re.I | re.M)
 
 _ASSET_SUFFIXES = re.compile(r'\.(pdf|png|jpg|jpeg|svg|css|js|webp|gif|zip|xml|ico|mp4|woff2?)$')
 
@@ -191,29 +208,27 @@ def _is_icp_evidence_page(url: str) -> bool:
     return any(hint in path for hint in ICP_EVIDENCE_PATHS)
 
 
-def _rank_evidence_links(page_url: str, html: str, limit: int) -> List[str]:
-    """Internal links from one page, ICP-bearing ones first.
+def _rank_urls(base_url: str, urls: List[str], limit: int) -> List[str]:
+    """Same-site candidate pages, ICP-bearing ones first.
 
-    Ranked rather than filtered: a site that names none of the expected paths should
-    still contribute some pages rather than none. Ordering follows `ICP_EVIDENCE_PATHS`,
-    so a case study outranks a pricing page, which outranks an unclassified page.
+    Ranked rather than filtered: a site that names none of the expected paths should still
+    contribute some pages rather than none. Ordering follows `ICP_EVIDENCE_PATHS`, so a
+    case study outranks a pricing page, which outranks an unclassified page. The sort is
+    stable, so within one rank the caller's order decides - which is how a page the
+    homepage links stays ahead of one only the sitemap knows about.
     """
-    parsed = urlparse(page_url)
+    parsed = urlparse(base_url)
     base_netloc = parsed.netloc.replace("www.", "").lower()
 
-    soup = BeautifulSoup(html, "html.parser")
     scored: List[Tuple[int, str]] = []
     seen = {(parsed.path.rstrip("/").lower() or "/")}
 
-    for a in soup.find_all("a", href=True):
-        href = a["href"].strip()
-        if not href or href.startswith(("#", "mailto:", "tel:", "javascript:")):
-            continue
-
-        full_url = urljoin(page_url, href)
-        parsed_full = urlparse(full_url)
+    for candidate in urls:
+        parsed_full = urlparse(candidate)
         if parsed_full.scheme not in ("http", "https"):
             continue
+        # A sitemap may list other hosts, and a link may point off-site. Neither is this
+        # company's own evidence.
         if parsed_full.netloc.replace("www.", "").lower() != base_netloc:
             continue
 
@@ -233,6 +248,84 @@ def _rank_evidence_links(page_url: str, html: str, limit: int) -> List[str]:
     return [url for _, url in scored[:limit]]
 
 
+def _rank_evidence_links(page_url: str, html: str, limit: int) -> List[str]:
+    """Internal links from one page, ICP-bearing ones first."""
+    soup = BeautifulSoup(html, "html.parser")
+    hrefs = []
+    for a in soup.find_all("a", href=True):
+        href = a["href"].strip()
+        if not href or href.startswith(("#", "mailto:", "tel:", "javascript:")):
+            continue
+        hrefs.append(urljoin(page_url, href))
+    return _rank_urls(page_url, hrefs, limit)
+
+
+def _sitemap_documents(base_url: str) -> List[str]:
+    """Where this site's sitemap might be: the conventional paths, then robots.txt.
+
+    robots.txt is read for its `Sitemap:` directive only. That line exists to be read by
+    crawlers and is the site's own statement of where its index lives, which beats guessing
+    at paths.
+    """
+    parsed = urlparse(base_url)
+    origin = "%s://%s" % (parsed.scheme, parsed.netloc)
+    documents = [origin + path for path in SITEMAP_PATHS]
+
+    try:
+        validate_url_for_fetch(origin + "/robots.txt")
+        robots = smart_fetch(origin + "/robots.txt", timeout=_SITEMAP_TIMEOUT)
+    except Exception as err:
+        logger.debug("[Discovery] No robots.txt for %s: %s", origin, err)
+        return documents
+
+    for declared in _ROBOTS_SITEMAP_RE.findall(robots or ""):
+        if declared not in documents:
+            documents.append(declared)
+    return documents
+
+
+def fetch_sitemap_urls(base_url: str) -> List[str]:
+    """Page URLs the site publishes in its own sitemap. Never raises.
+
+    Follows a sitemap index one level down to the sitemaps it names. Compressed sitemaps
+    are skipped: `smart_fetch` returns text, so a .gz would arrive as binary noise, and
+    handling it properly is a separate job from finding evidence pages.
+    """
+    found: List[str] = []
+    pending = _sitemap_documents(base_url)
+    fetched = 0
+    seen_docs = set()
+
+    while pending and fetched < _MAX_SITEMAP_DOCS and len(found) < _MAX_SITEMAP_URLS:
+        document = pending.pop(0)
+        if document in seen_docs or document.endswith(".gz"):
+            continue
+        seen_docs.add(document)
+
+        # Counted before the attempt, not after: a miss costs a request just as a hit does,
+        # and a site offering many dead candidates should not get unlimited tries.
+        fetched += 1
+        try:
+            validate_url_for_fetch(document)
+            body = smart_fetch(document, timeout=_SITEMAP_TIMEOUT)
+        except Exception as err:
+            logger.debug("[Discovery] No sitemap at %s: %s", document, err)
+            continue
+
+        locations = _LOC_RE.findall(body or "")
+        if _SITEMAP_INDEX_RE.search(body or ""):
+            # An index names other sitemaps, not pages. Queue them instead of reading
+            # their URLs as content.
+            pending.extend(loc for loc in locations if loc not in seen_docs)
+            continue
+
+        found.extend(locations)
+
+    if found:
+        logger.info("[Discovery] Sitemap offered %d URLs for %s", len(found), base_url)
+    return found[:_MAX_SITEMAP_URLS]
+
+
 def gather_discovery_evidence(
     url: str,
     max_pages: int = DISCOVERY_EVIDENCE_PAGES,
@@ -245,8 +338,12 @@ def gather_discovery_evidence(
     have told it anything sharper. Who buys is stated on case studies, customer stories
     and comparison pages, so those are what this reads.
 
-    Comparison pages are the exception to "links it to": a vendor rarely links one from its
-    own homepage, so when none is linked the conventional URLs are probed directly.
+    The site's own sitemap is read too, because the homepage does not link everything: on
+    chargebee.com the homepage offered seven case studies and no comparison page at all,
+    and the competitor field came back empty as a result.
+
+    Comparison pages are the last exception: when neither the links nor the sitemap offers
+    one, the conventional URLs are probed directly.
 
     Only fetches, never the extractor - about a second a page against roughly sixteen for
     a GLiNER pass - so widening the evidence this way costs seconds, not the eleven
@@ -283,7 +380,15 @@ def gather_discovery_evidence(
     pages.append(_summarize_html(url, domain, home_html))
 
     budget = max(0, max_pages - 1)
-    ranked = _rank_evidence_links(url, home_html, budget)
+
+    # Homepage links first, then whatever the sitemap adds. Both go through one ranking so
+    # a case study only the sitemap knows about still outranks a linked pricing page, while
+    # a linked page wins ties: the homepage links what the company considers important.
+    candidates = _rank_evidence_links(url, home_html, budget)
+    sitemap_urls = fetch_sitemap_urls(url)
+    if sitemap_urls:
+        candidates = _rank_urls(url, candidates + sitemap_urls, budget)
+    ranked = candidates
 
     # A comparison page is where competitors are named, and it is the one kind of evidence
     # page a vendor tends not to link from its homepage. Probe for it rather than let the
@@ -746,6 +851,19 @@ def discovery_confidence(
     return round(0.4 + (0.3 * page_component) + (0.3 * evidence_component), 3)
 
 
+def evidence_text(evidence: Dict[str, Any]) -> str:
+    """Everything read this run, as one blob for vocabulary matching."""
+    parts = []
+    for page in evidence.get("pages") or []:
+        parts.extend([
+            page.get("title") or "",
+            page.get("meta_description") or "",
+            " ".join(page.get("headings") or []),
+            page.get("body_snippet") or "",
+        ])
+    return "\n".join(p for p in parts if p)
+
+
 async def ground_discovered_entities(
     compliance_list: List[str],
     integration_list: List[str]
@@ -777,6 +895,98 @@ async def ground_discovered_entities(
     return grounded
 
 
+# A profile nobody curated holds only what discovery generates, so rediscovering it should
+# refresh it. A curated profile holds work discovery cannot produce - concept definitions,
+# alt-label sets - and these two keys are how one is recognised.
+_CURATION_MARKERS = ("concepts", "alt_labels")
+
+# What a vertical is called is a property of the category, not of whichever site was read
+# most recently. Left mutable, six runs over one domain renamed the category six times.
+_IDENTITY_KEYS = ("vertical_id", "display_name")
+
+
+def _profile_is_curated(profile: Dict[str, Any]) -> bool:
+    """Does this profile contain work that discovery could not have written?"""
+    return any(profile.get(marker) for marker in _CURATION_MARKERS)
+
+
+def _union(existing: Any, incoming: Any) -> Any:
+    """Add what is new without dropping what is there.
+
+    Lists keep their existing order and gain unseen values, compared case-insensitively so
+    "Usage-Based Pricing" and "usage-based pricing" do not both survive. Dicts take new
+    keys and keep the values already recorded.
+    """
+    if isinstance(existing, list) and isinstance(incoming, list):
+        merged = list(existing)
+        seen = {str(v).strip().lower() for v in existing}
+        for value in incoming:
+            key = str(value).strip().lower()
+            if key and key not in seen:
+                merged.append(value)
+                seen.add(key)
+        return merged
+    if isinstance(existing, dict) and isinstance(incoming, dict):
+        merged = dict(incoming)
+        merged.update(existing)
+        return merged
+    return existing if existing else incoming
+
+
+def merge_profile(
+    existing: Optional[Dict[str, Any]],
+    discovered: Dict[str, Any],
+    matched_existing: bool = False
+) -> Tuple[Dict[str, Any], str]:
+    """Fold a discovered profile into whatever is already on disk.
+
+    `save_vertical_configuration` used to build the file from scratch and write it whole,
+    and overwriting an existing profile was explicitly allowed. Point discovery at a slug
+    that matches a curated vertical and its 111 defined concepts and 85 alt-label sets were
+    gone, silently - the two things discovery cannot regenerate and the prompt work depends
+    on entirely.
+
+    Four outcomes, because these are four different events:
+      created           - nothing was there.
+      refreshed         - the same site's own minted vertical, replaced with the newer
+                          reading. Nothing accumulates because there is nothing to keep.
+      accumulated       - a *different* site was matched into this vertical, so its
+                          vocabulary is added rather than substituted. This is what lets a
+                          category deepen with each customer instead of forking: without
+                          it, the second billing site overwrites the first one's words and
+                          the library never grows.
+      merged-into-curated - a curated profile keeps everything it has and gains only the
+                          keys it was missing or had empty.
+
+    Keys discovery does not generate survive in every case.
+    """
+    if not existing:
+        return discovered, "created"
+
+    curated = _profile_is_curated(existing)
+    # Starting from `existing` rather than from `discovered` is what preserves keys this
+    # function has never heard of.
+    merged = dict(existing)
+
+    for key, value in discovered.items():
+        if key not in merged:
+            merged[key] = value
+        elif curated:
+            if not merged.get(key):
+                merged[key] = value
+        elif matched_existing:
+            # Identity is the vertical's own, not the newcomer's: a site joining a
+            # category does not get to rename it.
+            if key not in _IDENTITY_KEYS:
+                merged[key] = _union(merged.get(key), value)
+        else:
+            merged[key] = value
+
+    if curated:
+        return merged, "merged-into-curated"
+    return merged, "accumulated" if matched_existing else "refreshed"
+
+
 def save_vertical_configuration(
     vertical_id: str,
     display_name: str,
@@ -794,11 +1004,15 @@ def save_vertical_configuration(
     known_replaces: Optional[List[str]] = None,
     known_industries: Optional[List[str]] = None,
     known_competitors: Optional[List[str]] = None,
-    icp_evidence: Optional[Dict[str, Any]] = None
-) -> str:
+    icp_evidence: Optional[Dict[str, Any]] = None,
+    matched_existing: bool = False
+) -> Tuple[str, str]:
     """
     Saves the discovered vertical configuration into verticals/<vertical_id>.json
     so that OntologyPipeline can immediately instantiate it.
+
+    Returns (path, write_mode). See `merge_profile` for what the modes mean; a curated
+    profile is never overwritten by a discovery run.
     """
     target_dir = verticals_dir()
     os.makedirs(target_dir, exist_ok=True)
@@ -849,11 +1063,32 @@ def save_vertical_configuration(
         "concept_hierarchy": concept_hierarchy or {}
     }
 
+    existing: Optional[Dict[str, Any]] = None
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, encoding="utf-8") as f:
+                loaded = json.load(f)
+            if isinstance(loaded, dict):
+                existing = loaded
+            else:
+                logger.warning("Existing profile %s is not an object; replacing it.", config_path)
+        except Exception as err:
+            # Unreadable is treated as absent, but never silently: a profile that cannot be
+            # parsed is also a profile whose curated content cannot be protected.
+            logger.warning("Could not read existing profile %s (%s); replacing it.", config_path, err)
+
+    config_data, write_mode = merge_profile(existing, config_data, matched_existing=matched_existing)
+
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(config_data, f, indent=2)
 
-    logger.info("Saved dynamic vertical config to %s", config_path)
-    return config_path
+    logger.info("Saved dynamic vertical config to %s (%s)", config_path, write_mode)
+    if write_mode == "merged-into-curated":
+        logger.info(
+            "[Discovery] %s is curated: its existing vocabulary was kept and only empty "
+            "keys were filled from this run.", config_path
+        )
+    return config_path, write_mode
 
 
 async def discover_industry_profile_async(
@@ -890,8 +1125,23 @@ async def discover_industry_profile_async(
         )
 
     brand_name = discovered.get("brand_name") or brand_hint or evidence["domain"]
-    vertical_id = _sanitize_slug(discovered.get("vertical_id") or f"custom_{brand_name}")
+    minted_id = _sanitize_slug(discovered.get("vertical_id") or f"custom_{brand_name}")
     display_name = discovered.get("display_name") or f"{brand_name} Vertical"
+
+    # Match before mint. The model names a category from scratch every time, so the same
+    # site read six times produced six vertical ids and four separate AI-security profiles
+    # exist that barely share a word. A category that already has a home should be
+    # deepened, not forked.
+    match = match_existing_vertical(evidence_text(evidence))
+    matched_existing = bool(match.get("vertical_id"))
+    if matched_existing:
+        vertical_id = match["vertical_id"]
+        logger.info("[Discovery] %s joins existing vertical %r (%s); not minting %r.",
+                    evidence.get("domain", ""), vertical_id, match.get("decision"), minted_id)
+    else:
+        vertical_id = minted_id
+        logger.info("[Discovery] %s minted new vertical %r: %s",
+                    evidence.get("domain", ""), vertical_id, match.get("reason", ""))
     category = discovered.get("category") or "B2B SaaS"
     gliner_labels = discovered.get("gliner_labels") or ["Software Platform", "Feature", "Compliance Standard", "Integration Partner"]
     core_seed_concepts = discovered.get("core_seed_concepts") or []
@@ -920,8 +1170,9 @@ async def discover_industry_profile_async(
 
     # 5. Save config
     config_file = None
+    profile_write_mode = None
     if save_config:
-        config_file = save_vertical_configuration(
+        config_file, profile_write_mode = save_vertical_configuration(
             vertical_id=vertical_id,
             display_name=display_name,
             gliner_labels=gliner_labels,
@@ -938,7 +1189,8 @@ async def discover_industry_profile_async(
             known_replaces=known_replaces,
             known_industries=known_industries,
             known_competitors=known_competitors,
-            icp_evidence=icp_evidence
+            icp_evidence=icp_evidence,
+            matched_existing=matched_existing
         )
 
     return IndustryDiscoveryResponse(
@@ -972,6 +1224,12 @@ async def discover_industry_profile_async(
         direct_competitors=suggested_competitors,
         grounded_entities=grounded,
         config_file=config_file,
+        profile_write_mode=profile_write_mode,
+        vertical_match_mode="matched-existing" if matched_existing else "minted-new",
+        vertical_match_reason=match.get("reason"),
+        # What would have been created, reported only when it was not: after a mint,
+        # vertical_id already is that id.
+        minted_vertical_id=minted_id if matched_existing else None,
         confidence_score=discovery_confidence(
             buyer_stats,
             evidence.get("pages_read", 0),
