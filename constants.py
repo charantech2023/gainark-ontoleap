@@ -263,52 +263,37 @@ DEEP_CRAWL_PATHS: List[str] = [
 DEEP_CRAWL_MAX: int = 5
 
 
-# Paths whose pages carry evidence about *who buys*, as opposed to what the product does.
-# Industry discovery ranks links by these before reading, because the ICP fields
-# (segments, industries, competitors, displaced practices) are almost never stated on a
-# homepage: they live in case studies, customer stories and comparison pages. Ordered
-# most-to-least direct; matching is a substring test against the URL path.
-# The same paths grouped by the buyer field they feed, because a page budget spent purely
-# by rank starves the rare kinds. chargebee.com publishes hundreds of case studies and
-# fourteen comparison pages: ranked strictly by kind priority, every slot goes to case
-# studies and the competitor field stays empty however many comparison pages were found.
-# Editorial paths. A glossary entry titled "ACV vs ARR" matches a comparison hint and is
-# not a comparison page: it is content marketing about two metrics. Left in, it won the
-# comparison slot reserved for naming competitors, and the competitor field stayed empty
-# on a site with fourteen real comparison pages. Nothing under these paths says who buys.
-# Depth is a tie-break, not a goal. "/customers/whereby" is a customer's story;
-# "/customers/freshdesk/user-roles" is a sub-page of one, and two of them displaced real
-# case studies once deeper simply meant better. One level below a section is the leaf worth
-# reading; anything deeper is a detail page.
-# Locale prefixes, as an explicit set rather than "any two letters": /ai/ is a product
-# section, not Avestan, and a bare length test skipped it. ISO 639-1 codes that read as
-# ordinary English URL segments - is, my, be, so, id - are left out deliberately; missing a
-# rare locale costs one page, while swallowing /id/ or /my/ costs a real section.
-ICP_LOCALE_SEGMENTS: frozenset = frozenset({
-    "de", "fr", "es", "pt", "it", "ja", "ko", "zh", "nl", "sv", "da", "fi", "no",
-    "pl", "ru", "tr", "cs", "hu", "ro", "el", "he", "ar", "hi", "th", "vi", "uk",
-})
-
-ICP_MAX_USEFUL_DEPTH: int = 2
-
-
-ICP_EDITORIAL_PATHS: List[str] = [
-    "/blog", "/resources", "/glossar", "/guide", "/ebook", "/webinar",
-    "/podcast", "/news", "/press", "/articles", "/learn",
-]
-
-
+# Evidence pages, grouped by the buyer field each kind feeds, and matched against whole
+# path SEGMENTS rather than substrings.
+#
+# Substring matching kept mistaking an article for the section it sits in: "/pricing"
+# matched "/pricing-labs/zapier-pricing-transformation", "/industry" matched
+# "/industry-reports", and "-vs-" matched the glossary entry "acv-vs-arr". Each was fixed
+# by adding another exclusion, which is a blocklist that grows with every site read.
+# Segment matching removes the class: "pricing-labs" is simply not the segment "pricing".
+#
+# Hint syntax:
+#   name    - the segment is exactly this
+#   name*   - the segment starts with this ("case-stud*" catches case-study and case-studies)
+#   *frag*  - the segment contains this ("*-vs-*" catches acme-vs-zuora)
 ICP_EVIDENCE_GROUPS: Dict[str, List[str]] = {
-    # Who the customers are, and what they left behind: segments, industries, replaces.
-    "customer": ["/case-stud", "/customer-stor", "/customers", "/success-stor", "/testimonial"],
-    # The only place competitors are named.
-    "comparison": ["/vs-", "/vs/", "-vs-", "/compare", "/comparison", "/alternative",
-                   "-alternative", "/competitors", "/migrate", "/switch"],
+    # Who the customers are and what they left behind: segments, industries, replaces.
+    "customer": ["case-stud*", "customer-stor*", "customers", "success-stor*", "testimonial*"],
+    # The only place a competitor is named.
+    "comparison": ["compare", "compare-*", "comparison", "vs", "vs-*", "*-vs-*",
+                   "alternatives", "*-alternative*", "competitors", "migrate", "switch"],
     # Who the company says it serves, in its own framing.
-    "context": ["/industries", "/industry", "/who-we-serve", "/solutions", "/use-cases"],
+    "context": ["industries", "industry", "who-we-serve", "solutions", "use-cases"],
     # Commercial and trust pages: pricing models, attestations, company shape.
-    "commercial": ["/pricing", "/security", "/compliance", "/about"],
+    "commercial": ["pricing", "security", "compliance", "about"],
 }
+
+# Rank order is group order, then order within a group - one source of truth, so a hint
+# cannot rank one way and group another.
+ICP_EVIDENCE_PATHS: List[str] = [
+    hint for group in ("customer", "comparison", "context", "commercial")
+    for hint in ICP_EVIDENCE_GROUPS[group]
+]
 
 # Share of the page budget reserved for each kind. Reserves are floors, not ceilings: a
 # kind with nothing to offer returns its slots to the pool, so a site with no comparison
@@ -320,14 +305,27 @@ ICP_EVIDENCE_RESERVE: Dict[str, float] = {
     "commercial": 0.15,
 }
 
-
-ICP_EVIDENCE_PATHS: List[str] = [
-    "/case-stud", "/customer-stor", "/customers", "/success-stor", "/testimonial",
-    "/vs-", "/vs/", "-vs-", "/compare", "/comparison", "/alternative", "-alternative",
-    "/competitors", "/migrate", "/switch",
-    "/industries", "/industry", "/who-we-serve", "/solutions", "/use-cases",
-    "/pricing", "/security", "/compliance", "/about",
+# Content marketing. These carry the same words as the pages worth reading without being
+# evidence of anything: a glossary compares two metrics, a blog post names a rival in
+# passing. Segment-matched like the rest.
+ICP_EDITORIAL_PATHS: List[str] = [
+    "blog", "resources", "glossar*", "guide*", "ebook*", "webinar*",
+    "podcast*", "news", "press", "articles", "learn",
 ]
+
+# Locale prefixes, as an explicit set rather than "any two letters": /ai/ is a product
+# section, not Avestan, and a bare length test skipped it. ISO 639-1 codes that read as
+# ordinary English URL segments - is, my, be, so, id - are left out deliberately; missing a
+# rare locale costs one page, while swallowing /id/ or /my/ costs a real section.
+ICP_LOCALE_SEGMENTS: frozenset = frozenset({
+    "de", "fr", "es", "pt", "it", "ja", "ko", "zh", "nl", "sv", "da", "fi", "no",
+    "pl", "ru", "tr", "cs", "hu", "ro", "el", "he", "ar", "hi", "th", "vi", "uk",
+})
+
+# Depth is a tie-break, not a goal. "/customers/whereby" is a customer's story;
+# "/customers/freshdesk/user-roles" is a sub-page of one, and two of them displaced real
+# case studies once deeper simply meant better.
+ICP_MAX_USEFUL_DEPTH: int = 2
 
 
 # ---------------------------------------------------------------------------

@@ -60,7 +60,6 @@ _SILENT_FAILURE_MIN_ICP_PAGES = 2
 
 # Paths that name competitors, and the conventional spellings worth probing directly when
 # the homepage links none of them.
-_COMPARISON_HINTS = ("/vs-", "/vs/", "/compare", "/comparison", "/alternative", "/migrate", "/switch")
 COMPARISON_PROBE_PATHS = ["/alternatives", "/compare", "/comparison", "/competitors"]
 _MAX_COMPARISON_PAGES = 2
 
@@ -174,8 +173,9 @@ def extract_page_summary(url: str, timeout: float = 12.0) -> Dict[str, Any]:
 
 def _is_comparison_page(url: str) -> bool:
     """Is this the kind of page that names a competitor?"""
-    path = urlparse(url).path.rstrip("/").lower()
-    return any(hint in path for hint in _COMPARISON_HINTS)
+    # One definition of "comparison page", shared with the grouping, so probing and
+    # selection cannot disagree about what one is.
+    return _evidence_group(url) == "comparison"
 
 
 def _probe_comparison_pages(base_url: str) -> List[Tuple[str, str]]:
@@ -210,6 +210,34 @@ def _is_icp_evidence_page(url: str) -> bool:
     return any(hint in path for hint in ICP_EVIDENCE_PATHS)
 
 
+def _segments(path: str) -> List[str]:
+    """The non-empty segments of a URL path."""
+    return [seg for seg in path.split("/") if seg]
+
+
+def _segment_matches(segment: str, hint: str) -> bool:
+    """One path segment against one hint. See ICP_EVIDENCE_GROUPS for the syntax."""
+    if hint.startswith("*") and hint.endswith("*"):
+        return hint[1:-1] in segment
+    if hint.endswith("*"):
+        return segment.startswith(hint[:-1])
+    return segment == hint
+
+
+def _path_matches(path: str, hints: List[str]) -> bool:
+    """Does any segment of this path match any of these hints?"""
+    return any(_segment_matches(seg, hint) for seg in _segments(path) for hint in hints)
+
+
+def _path_hint_rank(path: str) -> Optional[int]:
+    """Position of the first hint this path matches, or None when it matches none."""
+    for segment in _segments(path):
+        for i, hint in enumerate(ICP_EVIDENCE_PATHS):
+            if _segment_matches(segment, hint):
+                return i
+    return None
+
+
 def _is_localized(path: str) -> bool:
     """A language variant, by its leading two-letter segment: /de/..., /fr/..., /ja/...
 
@@ -237,7 +265,7 @@ def _is_editorial(path: str) -> bool:
     metrics, a blog post names a competitor in passing - without being evidence of who
     buys or who is competed against.
     """
-    return any(hint in path for hint in ICP_EDITORIAL_PATHS)
+    return _path_matches(path, ICP_EDITORIAL_PATHS)
 
 
 def _rank_urls(base_url: str, urls: List[str], limit: Optional[int] = None) -> List[str]:
@@ -275,10 +303,9 @@ def _rank_urls(base_url: str, urls: List[str], limit: Optional[int] = None) -> L
 
         rank = len(ICP_EVIDENCE_PATHS)
         if not _is_editorial(path):
-            for i, hint in enumerate(ICP_EVIDENCE_PATHS):
-                if hint in path:
-                    rank = i
-                    break
+            matched = _path_hint_rank(path)
+            if matched is not None:
+                rank = matched
         # Depth breaks ties within a kind, because the index of a section makes no claims.
         # "/compare-competitors/" is a landing page naming nobody; the vendor names live on
         # "/compare-competitors/maxio". The same holds for "/customers/" against a single
@@ -301,7 +328,7 @@ def _evidence_group(url: str) -> Optional[str]:
         # No group, so it can never claim a slot reserved for real evidence.
         return None
     for group, hints in ICP_EVIDENCE_GROUPS.items():
-        if any(hint in path for hint in hints):
+        if _path_matches(path, hints):
             return group
     return None
 
