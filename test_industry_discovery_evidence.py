@@ -800,6 +800,50 @@ def test_a_glossary_comparison_does_not_take_the_competitor_slot():
     print("  Comparison slot went to %s" % comparisons[0].replace(CB, ""))
 
 
+def test_evidence_filed_under_resources_is_still_evidence():
+    """Live failure: Ordway keeps its case studies and comparison pages under /resources/.
+
+    With "resources" treated as editorial, discovery read six product pages, counted one
+    buyer page, and left the competitor field empty on a site naming Zuora and Maxio.
+    """
+    OW = "https://ordwaylabs.com"
+    assert ip._evidence_group(OW + "/resources/case-studies/retail/qu-case-study/") == "customer"
+    assert ip._evidence_group(OW + "/resources/billing-software-alternatives/maxio-vs-ordway/") == "comparison"
+    assert ip._evidence_group(OW + "/resources/billing-software-alternatives/zuora-alternative/") == "comparison"
+
+    # What the hub also holds stays out of the reserved slots.
+    assert ip._evidence_group(OW + "/resources/glossary/credit-memo-vs-debit-memo/") is None
+    assert ip._evidence_group(OW + "/resources/blog/acme-vs-zuora/") is None
+    assert ip._evidence_group(OW + "/resources/acv-vs-arr/") is None, "a slug alone is not a section"
+    assert ip._evidence_group(OW + "/resources/") is None
+
+    products = ["%s/products/%s/" % (OW, p) for p in ("billing", "usage", "revrec", "ar", "metrics", "ai")]
+    candidates = [OW + "/customers/"] + products + [
+        OW + "/resources/case-studies/retail/qu-case-study/",
+        OW + "/resources/case-studies/real-estate/compstak-case-study/",
+        OW + "/resources/billing-software-alternatives/maxio-vs-ordway/",
+    ]
+    selected = ip._select_evidence_urls(OW, candidates, 7)
+    assert any("maxio-vs-ordway" in u for u in selected), selected
+    assert sum("case-stud" in u for u in selected) == 2, selected
+    assert ip._is_icp_evidence_page(OW + "/resources/case-studies/retail/qu-case-study/")
+
+
+def test_a_blog_roundup_does_not_take_the_comparison_slot():
+    """Tried and reverted: counting "<rival>-alternatives" blog posts as comparison pages.
+
+    Every roundup on rippling.com/blog/ does pitch Rippling, but the slot went to the first
+    in sitemap order, /blog/1password-alternative. Holding the slot also switched off the
+    comparison probe, which is what finds rippling.com/compare ("See why Rippling beats ADP,
+    BambooHR, Gusto, Deel, Workday"). Competitors went from those five to 1Password and Zoho
+    Vault.
+    """
+    RP = "https://www.rippling.com"
+    for slug in ("1password-alternative", "deel-competitors", "gusto-alternatives"):
+        assert ip._evidence_group("%s/blog/%s" % (RP, slug)) is None, slug
+    assert not ip._is_comparison_page(RP + "/blog/1password-alternative")
+
+
 def test_editorial_pages_rank_last_rather_than_being_dropped():
     """Still readable when there is nothing better, just never preferred."""
     ranked = ip._rank_urls(CB, ["%s/resources/glossaries/acv-vs-arr" % CB,
@@ -1455,6 +1499,8 @@ TESTS = [
     test_selection_comes_back_in_rank_order,
     test_a_comparison_page_from_the_sitemap_survives_a_crowd_of_case_studies,
     test_a_glossary_comparison_does_not_take_the_competitor_slot,
+    test_evidence_filed_under_resources_is_still_evidence,
+    test_a_blog_roundup_does_not_take_the_comparison_slot,
     test_editorial_pages_rank_last_rather_than_being_dropped,
     test_a_section_leaf_is_preferred_over_the_section_index,
     test_a_sub_page_of_a_customer_story_does_not_outrank_the_story,

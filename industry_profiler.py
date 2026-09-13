@@ -26,7 +26,7 @@ from models import (
     GroundedConcept
 )
 from constants import (ICP_EVIDENCE_PATHS, ICP_EVIDENCE_GROUPS, ICP_EVIDENCE_RESERVE,
-                       ICP_EDITORIAL_PATHS, ICP_MAX_USEFUL_DEPTH,
+                       ICP_EDITORIAL_PATHS, ICP_HUB_PATHS, ICP_MAX_USEFUL_DEPTH,
                        ICP_LOCALE_SEGMENTS)
 from industry_ontology import match_existing_vertical
 from profiler_guard import guard_discovered_vertical_profile
@@ -207,8 +207,9 @@ def _probe_comparison_pages(base_url: str) -> List[Tuple[str, str]]:
 
 def _is_icp_evidence_page(url: str) -> bool:
     """Is this one of the pages a buyer profile is supposed to be readable from?"""
-    path = urlparse(url).path.rstrip("/").lower()
-    return any(hint in path for hint in ICP_EVIDENCE_PATHS)
+    # The same matcher selection uses. A substring test here could never match the
+    # wildcard hints ("case-stud*"), so every case study went uncounted.
+    return _evidence_group(url) is not None
 
 
 def _segments(path: str) -> List[str]:
@@ -266,7 +267,16 @@ def _is_editorial(path: str) -> bool:
     metrics, a blog post names a competitor in passing - without being evidence of who
     buys or who is competed against.
     """
-    return _path_matches(path, ICP_EDITORIAL_PATHS)
+    if _path_matches(path, ICP_EDITORIAL_PATHS):
+        return True
+
+    segments = _segments(path)
+    hubs = [i for i, seg in enumerate(segments) if any(_segment_matches(seg, h) for h in ICP_HUB_PATHS)]
+    if not hubs:
+        return False
+    # The sections between the hub and the page itself. The slug alone does not count.
+    sections = segments[hubs[0] + 1:-1]
+    return not any(_segment_matches(seg, hint) for seg in sections for hint in ICP_EVIDENCE_PATHS)
 
 
 def _rank_urls(base_url: str, urls: List[str], limit: Optional[int] = None) -> List[str]:

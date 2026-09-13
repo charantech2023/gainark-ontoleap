@@ -1980,5 +1980,119 @@
       "broader": "accounts-receivable",
       "governs": []
     }
-  ]
+  ],
+  "known_segments": [
+    "Digital estate planning SaaS",
+    "Equipment lifecycle software company in the construction industry",
+    "Vertical SaaS application for multifamily properties",
+    "GTM intelligence platform for B2B organizations",
+    "Healthcare technology platform offering interest-free lines of credit for healthcare expenses",
+    "Human Trust Platform for background checks and screenings"
+  ],
+  "known_deployment": [
+    "Cloud-Native",
+    "SaaS"
+  ],
+  "known_sla": [],
+  "known_replaces": [
+    "Spreadsheets",
+    "QuickBooks invoicing",
+    "QuickBooks Online"
+  ],
+  "known_industries": [
+    "SaaS",
+    "Cloud",
+    "Fintech",
+    "Construction",
+    "Real Estate",
+    "Healthcare"
+  ],
+  "known_competitors": [
+    "Recurly",
+    "SaaSOptics (Maxio)",
+    "Maxio (SaaSOptics)",
+    "Zuora"
+  ],
+  "icp_evidence": {
+    "known_segments": {
+      "Digital estate planning SaaS": {
+        "source_url": "https://ordwaylabs.com/resources/case-studies/gentreo-saas-billing-case-study/",
+        "quote": "See how Gentreo, a digital estate planning SaaS, streamlined its complex subscription billing with Ordway\u2014reducing billing time by 75%, accelerating month-end close, and gaining real-time revenue visibility."
+      },
+      "Equipment lifecycle software company in the construction industry": {
+        "source_url": "https://ordwaylabs.com/resources/case-studies/smartequip-revenue-recognition-case-study/",
+        "quote": "About SmartEquip SmartEquip is a parts procurement and equipment lifecycle software company that connects equipment owners, fleets, contractors, OEMs, suppliers, dealers, and distributors in the construction industry through a shared digital network."
+      },
+      "Vertical SaaS application for multifamily properties": {
+        "source_url": "https://ordwaylabs.com/resources/case-studies/happyco-subscription-billing-case-study/",
+        "quote": "HappyCo is a vertical SaaS application designed for acquiring and maintaining multifamily properties such as apartment buildings."
+      },
+      "GTM intelligence platform for B2B organizations": {
+        "source_url": "https://ordwaylabs.com/resources/case-studies/calibermind-revenue-recognition-case-study/",
+        "quote": "About CaliberMind CaliberMind provides a GTM intelligence platform that unifies complex marketing and sales data to help B2B organizations understand how go-to-market activity contributes to pipeline and revenue."
+      },
+      "Healthcare technology platform offering interest-free lines of credit for healthcare expenses": {
+        "source_url": "https://ordwaylabs.com/resources/case-studies/paytient-speeds-up-collections-and-automates-billing-with-ordway/",
+        "quote": "About Paytient Paytient is a healthcare technology platform on a mission to build the Better Care Economy by offering a simpler, more affordable way to pay for healthcare expenses."
+      },
+      "Human Trust Platform for background checks and screenings": {
+        "source_url": "https://ordwaylabs.com/resources/case-studies/yardstik-automates-usage-based-billing/",
+        "quote": "About Yardstik Yardstik is the creator of the Human Trust Platform, which enables organizations to perform various types of background checks and screenings for both new hires during the recruiting process and existing workers throughout their employment."
+      }
+    },
+    "known_industries": {
+      "SaaS": {
+        "source_url": "https://ordwaylabs.com",
+        "quote": "Subscription Billing & Revenue Automation Software for SaaS"
+      },
+      "Cloud": {
+        "source_url": "https://ordwaylabs.com",
+        "quote": "Discover Ordway \u2013 the all-in-one billing and revenue automation platform for SaaS, cloud, and fintech businesses."
+      },
+      "Fintech": {
+        "source_url": "https://ordwaylabs.com",
+        "quote": "Discover Ordway \u2013 the all-in-one billing and revenue automation platform for SaaS, cloud, and fintech businesses."
+      },
+      "Construction": {
+        "source_url": "https://ordwaylabs.com/resources/case-studies/smartequip-revenue-recognition-case-study/",
+        "quote": "SmartEquip is a parts procurement and equipment lifecycle software company that connects equipment owners, fleets, contractors, OEMs, suppliers, dealers, and distributors in the construction industry through a shared digital network."
+      },
+      "Healthcare": {
+        "source_url": "https://ordwaylabs.com/resources/case-studies/paytient-speeds-up-collections-and-automates-billing-with-ordway/",
+        "quote": "Health Care SaaS Case Study Subscription and Usage-Based Billing Speeding up Collections and Automating Complex Billing"
+      }
+    },
+    "known_competitors": {
+      "Recurly": {
+        "source_url": "https://ordwaylabs.com/resources/case-studies/gentreo-saas-billing-case-study/",
+        "quote": "For the first few years of our journey, Gentreo had been using Recurly for subscription management and payment processing."
+      },
+      "SaaSOptics (Maxio)": {
+        "source_url": "https://ordwaylabs.com/resources/case-studies/happyco-subscription-billing-case-study/",
+        "quote": "Prior to adopting Ordway, HappyCo was using SaaSOptics (Maxio) for billing and revenue management."
+      },
+      "Maxio (SaaSOptics)": {
+        "source_url": "https://ordwaylabs.com/resources/case-studies/calibermind-revenue-recognition-case-study/",
+        "quote": "CaliberMind selected Ordway because it was price-competitive and more user-friendly than others, such as Maxio (SaaSOptics)."
+      },
+      "Zuora": {
+        "source_url": "https://ordwaylabs.com/resources/billing-software-alternatives/zuora-alternative/",
+        "quote": "Ordway is the best Zuora alternative for fast-growing SaaS companies. Ordway offers a cheaper, more flexible subscription billing."
+      }
+    },
+    "known_replaces": {
+      "Spreadsheets": {
+        "source_url": "https://ordwaylabs.com",
+        "quote": "Ordway replaces semi-automated processes based upon spreadsheets with fully automated workflows that enable your business to scale faster."
+      },
+      "QuickBooks invoicing": {
+        "source_url": "https://ordwaylabs.com/resources/case-studies/smartequip-revenue-recognition-case-study/",
+        "quote": "SmartEquip implemented Ordway to automate its order-to-cash process, which, in the early days of the company, was run on spreadsheets and QuickBooks invoicing."
+      },
+      "QuickBooks Online": {
+        "source_url": "https://ordwaylabs.com/resources/case-studies/paytient-speeds-up-collections-and-automates-billing-with-ordway/",
+        "quote": "Paytient selected Ordway to modernize its billing and revenue accounting operations as the company outgrew QuickBooks Online and prepared to migrate to NetSuite."
+      }
+    }
+  }
 }

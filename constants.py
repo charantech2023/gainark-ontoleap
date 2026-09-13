@@ -309,9 +309,20 @@ ICP_EVIDENCE_RESERVE: Dict[str, float] = {
 # evidence of anything: a glossary compares two metrics, a blog post names a rival in
 # passing. Segment-matched like the rest.
 ICP_EDITORIAL_PATHS: List[str] = [
-    "blog", "resources", "glossar*", "guide*", "ebook*", "webinar*",
+    "blog", "glossar*", "guide*", "ebook*", "webinar*",
     "podcast*", "news", "press", "articles", "learn",
 ]
+
+# Hubs hold evidence and content marketing side by side, so the hub segment itself says
+# nothing either way. Ordway files thirteen case studies and both of its comparison pages
+# under /resources/, next to its glossary; with "resources" treated as editorial, discovery
+# read six product pages instead and the competitor field came back empty.
+#
+# Below a hub, a page is evidence only when a SECTION names the kind -
+# /resources/case-studies/qu-case-study - never on its own slug alone: a flat
+# /resources/acv-vs-arr is an article, exactly the false positive the editorial list exists
+# to stop. Editorial sections below a hub (/resources/glossaries/...) stay editorial.
+ICP_HUB_PATHS: List[str] = ["resources"]
 
 # Locale prefixes, as an explicit set rather than "any two letters": /ai/ is a product
 # section, not Avestan, and a bare length test skipped it. ISO 639-1 codes that read as
