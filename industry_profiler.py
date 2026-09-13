@@ -1248,6 +1248,22 @@ def save_vertical_configuration(
     return config_path, write_mode
 
 
+def discovered_category_terms(discovered: Dict[str, Any]) -> List[str]:
+    """The category vocabulary a discovery response proposed, or nothing if it is degraded.
+
+    A degraded response carries stock defaults ("API Integration", "Analytics") that
+    describe no category, so it must not be read as agreeing with one.
+    """
+    if discovered.get("discovery_degraded"):
+        return []
+    terms: List[str] = []
+    for key in ("core_seed_concepts", "gliner_labels", "known_features"):
+        terms.extend(t for t in (discovered.get(key) or []) if isinstance(t, str))
+    if isinstance(discovered.get("display_name"), str):
+        terms.append(discovered["display_name"])
+    return terms
+
+
 async def discover_industry_profile_async(
     url: str,
     brand_hint: Optional[str] = None,
@@ -1290,7 +1306,11 @@ async def discover_industry_profile_async(
     # site read six times produced six vertical ids and four separate AI-security profiles
     # exist that barely share a word. A category that already has a home should be
     # deepened, not forked.
-    match = match_existing_vertical(evidence_text(evidence))
+    # The model's category vocabulary decides the match, because page text alone joined an
+    # HR platform to the billing vertical on generic words. A degraded run returns stock
+    # defaults instead, which describe no category, so matching falls back to the pages.
+    match = match_existing_vertical(evidence_text(evidence),
+                                    discovered_terms=discovered_category_terms(discovered))
     matched_existing = bool(match.get("vertical_id"))
     if matched_existing:
         vertical_id = match["vertical_id"]

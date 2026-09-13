@@ -1007,6 +1007,101 @@ def test_ambiguity_between_near_duplicates_resolves_to_the_one_with_concepts():
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
+GENERIC_BILLING_VERTICAL = dict(
+    BILLING_VERTICAL,
+    concepts=[{"id": c.lower().replace(" ", "-"), "prefLabel": c, "definition": c}
+              for c in ("Permissions", "Approvals", "Custom Reports", "Multi-Entity")],
+    known_integrations=["NetSuite", "Salesforce", "Workday"],
+)
+
+HR_VERTICAL = {
+    "vertical_id": "hr_payroll",
+    "display_name": "HR, Payroll & Benefits Management",
+    "gliner_labels": ["HR Platform"],
+    "mandatory_schema_types": ["SoftwareApplication"],
+    # Written the way the discovery model writes, which no page repeats verbatim.
+    "core_seed_concepts": ["Payroll Processing", "Benefits Administration",
+                           "Time and Attendance Tracking", "HRIS (Human Resources Information System)",
+                           "Time tracking software (e.g., When I Work, Homebase)"],
+    "known_compliance": ["FLSA (Fair Labor Standards Act)"],
+    "known_integrations": ["Accounting software (e.g., QuickBooks, Xero)"],
+}
+
+# What rippling.com's pages gave the matcher: generic words the billing vertical happens to
+# carry, and nothing the HR vertical's phrasing would catch.
+HR_SITE_TEXT = ("One platform with custom reports, permissions and approvals across every "
+                "multi-entity workforce. Teams leave Workday and ADP for payroll, benefits "
+                "and onboarding in one place.")
+HR_SITE_TERMS = ["HR Management", "Payroll Processing", "Benefits Administration",
+                 "Time & Attendance Tracking", "Employee Onboarding", "Workforce Management System"]
+
+
+def test_an_hr_platform_does_not_join_the_billing_vertical_on_generic_words():
+    """Live failure: rippling.com was merged into b2b_saas_fintech.
+
+    The pages matched five billing terms, all generic, and one HR term. The discovery
+    model had called the site Human Resources; that vocabulary is what decides now.
+    """
+    tmpdir, scope = with_verticals([GENERIC_BILLING_VERTICAL, HR_VERTICAL])
+    try:
+        with scope:
+            by_text = industry_ontology.match_existing_vertical(HR_SITE_TEXT)
+            by_vocabulary = industry_ontology.match_existing_vertical(
+                HR_SITE_TEXT, discovered_terms=HR_SITE_TERMS)
+        assert by_text["vertical_id"] == "billing_ops", "the fixture must reproduce the failure"
+        assert by_vocabulary["vertical_id"] == "hr_payroll", by_vocabulary
+        assert "payroll processing" in by_vocabulary["reason"].lower(), by_vocabulary["reason"]
+        print("  %s" % by_vocabulary["reason"])
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_page_words_alone_cannot_join_a_site_to_an_unrelated_vertical():
+    """With no vertical sharing its category, the site mints, however its pages scored."""
+    tmpdir, scope = with_verticals([GENERIC_BILLING_VERTICAL])
+    try:
+        with scope:
+            match = industry_ontology.match_existing_vertical(
+                HR_SITE_TEXT, discovered_terms=HR_SITE_TERMS)
+        assert match["vertical_id"] is None, match
+        assert match["decision"] == "no-match"
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_two_generic_phrases_are_not_enough_to_join():
+    """Live failure: pos.toasttab.com, a restaurant point-of-sale system, joined billing.
+
+    It shared "Payment Processing" and "Order Management" with the billing vertical and
+    nothing else; the model had called it Hospitality Technology.
+    """
+    billing = dict(BILLING_VERTICAL, core_seed_concepts=BILLING_VERTICAL["core_seed_concepts"]
+                   + ["Payment Processing", "Order Management"])
+    tmpdir, scope = with_verticals([billing])
+    try:
+        with scope:
+            match = industry_ontology.match_existing_vertical(
+                "Restaurant POS with payment processing, order management and menu management.",
+                discovered_terms=["Point of Sale (POS)", "Menu Management", "Payment Processing",
+                                  "Order Management", "Restaurant Operations", "Check Splitting"])
+        assert match["vertical_id"] is None, match
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def test_discovered_vocabulary_still_joins_a_billing_site_to_billing():
+    """The same rule must keep doing the job it replaced for the category it already knew."""
+    tmpdir, scope = with_verticals([BILLING_VERTICAL, SECURITY_VERTICAL, HR_VERTICAL])
+    try:
+        with scope:
+            match = industry_ontology.match_existing_vertical(
+                BILLING_TEXT, discovered_terms=["Subscription Billing", "Revenue Recognition",
+                                                "Dunning Management", "Invoicing"])
+        assert match["vertical_id"] == "billing_ops", match
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
 def test_matching_reads_the_same_directory_that_discovery_writes():
     """These used to disagree: writes honoured the override, reads never did."""
     tmpdir, scope = with_verticals([SECURITY_VERTICAL])
@@ -1522,6 +1617,10 @@ TESTS = [
     test_a_site_joins_the_vertical_that_already_describes_its_category,
     test_a_site_in_an_unknown_category_still_mints,
     test_ambiguity_between_near_duplicates_resolves_to_the_one_with_concepts,
+    test_an_hr_platform_does_not_join_the_billing_vertical_on_generic_words,
+    test_page_words_alone_cannot_join_a_site_to_an_unrelated_vertical,
+    test_two_generic_phrases_are_not_enough_to_join,
+    test_discovered_vocabulary_still_joins_a_billing_site_to_billing,
     test_matching_reads_the_same_directory_that_discovery_writes,
     test_a_second_site_adds_vocabulary_instead_of_replacing_it,
     test_accumulation_is_case_insensitive_about_duplicates,

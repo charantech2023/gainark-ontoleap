@@ -346,7 +346,104 @@ def classify_vertical(text: str, candidates: Optional[List[str]] = None) -> Dict
     }
 
 
-def match_existing_vertical(text: str) -> Dict[str, Any]:
+# Category phrases a discovered site must share with a vertical before it may join it.
+#
+# Page text alone put rippling.com, an HR platform, into b2b_saas_fintech: five hits, all
+# generic ("permissions", "approvals", "custom reports", "multi-entity", and "Workday",
+# which is an integration there and a competitor here), against one for the HR vertical,
+# whose model-written vocabulary ("time tracking software (e.g., when i work, homebase)")
+# never appears verbatim on a page. The discovery model's own category vocabulary is the
+# same kind of text the stored verticals were built from, so it compares like with like.
+#
+# Calibrated on five live sites. The right vertical shared 3-14 phrases (rippling 3,
+# vanta 7, ordwaylabs 10, chargebee 14). Wrong ones shared 0, except toasttab, a restaurant
+# point-of-sale system, which shared 2 generic phrases with billing ("Payment Processing",
+# "Order Management") and joined it at a floor of 2. A wrong join is the costlier mistake:
+# it merges one category's vocabulary into another's, where a miss only mints a vertical.
+# Rippling's margin is the thin one, against an HR vertical with a small vocabulary; a
+# non-curated vertical accumulates what joins it, so that margin widens with each HR site.
+MIN_VOCABULARY_AGREEMENT = 3
+
+
+def _phrase_forms(term: str) -> set:
+    """Normalised forms of one vocabulary phrase, as either side may have written it.
+
+    "HRIS (Human Resources Information System)" yields both halves, an "(e.g., ...)"
+    example list is dropped, and "&" reads as "and".
+    """
+    t = re.sub(r"\(\s*e\.g\.[^)]*\)", " ", (term or "").lower())
+    m = re.match(r"^(.*?)\s*\(([^)]*)\)\s*$", t)
+    parts = [m.group(1), m.group(2)] if m else [t]
+    forms = set()
+    for part in parts:
+        part = re.sub(r"\s*&\s*", " and ", part)
+        part = re.sub(r"\s+", " ", part).strip(" -,")
+        if len(part) >= 3:
+            forms.add(part)
+    return forms
+
+
+def _vertical_phrases(industry: IndustryOntologyModel) -> set:
+    phrases = set()
+    for term in _vocabulary_terms(industry) + [industry.display_name or ""]:
+        phrases |= _phrase_forms(term)
+    return phrases
+
+
+def vocabulary_agreement(terms: List[str], industry: IndustryOntologyModel) -> List[str]:
+    """The discovered phrases this vertical also uses, one entry per discovered phrase."""
+    phrases = _vertical_phrases(industry)
+    agreed = []
+    for term in terms:
+        if _phrase_forms(term) & phrases and term not in agreed:
+            agreed.append(term)
+    return agreed
+
+
+def _match_by_discovered_vocabulary(text: str, terms: List[str], candidates: List[str]) -> Dict[str, Any]:
+    text_scores = {row["vertical_id"]: row["matched"]
+                   for row in classify_vertical(text, candidates=candidates).get("candidates") or []}
+    rows = []
+    for vid in candidates:
+        try:
+            industry = load_industry_ontology(vid)
+        except Exception as err:
+            logger.warning("Skipping vertical %r during matching: %s", vid, err)
+            continue
+        agreed = vocabulary_agreement(terms, industry)
+        rows.append({
+            "vertical_id": vid,
+            "matched": text_scores.get(vid, 0),
+            "agreement": len(agreed),
+            "agreed": agreed[:12],
+            "has_concepts": bool(industry.concepts),
+        })
+    rows.sort(key=lambda r: (r["agreement"], r["has_concepts"], r["matched"], r["vertical_id"]), reverse=True)
+
+    viable = [r for r in rows if r["agreement"] >= MIN_VOCABULARY_AGREEMENT]
+    if not viable:
+        best = rows[0] if rows else None
+        reason = ("The site's own category vocabulary shares fewer than %d phrases with every "
+                  "existing vertical" % MIN_VOCABULARY_AGREEMENT)
+        if best:
+            reason += " (closest: %s with %d)" % (best["vertical_id"], best["agreement"])
+        return {"vertical_id": None, "reason": reason + ".", "decision": "no-match", "candidates": rows}
+
+    best = viable[0]
+    runner_up = viable[1]["agreement"] if len(viable) > 1 else 0
+    clear = not runner_up or best["agreement"] >= runner_up * _MIN_ROUTING_MARGIN
+    return {
+        "vertical_id": best["vertical_id"],
+        "reason": "Shares %d category phrases with %s (%s)%s." % (
+            best["agreement"], best["vertical_id"], ", ".join(best["agreed"][:5]),
+            "" if clear else "; %s shares %d, so it was resolved by concept layer, then page evidence"
+            % (viable[1]["vertical_id"], runner_up)),
+        "decision": "matched" if clear else "resolved-ambiguous",
+        "candidates": rows,
+    }
+
+
+def match_existing_vertical(text: str, discovered_terms: Optional[List[str]] = None) -> Dict[str, Any]:
     """Find the vertical a newly discovered site belongs to, if one already exists.
 
     Deliberately a different question from `classify_vertical`, and scored against a
@@ -361,9 +458,18 @@ def match_existing_vertical(text: str) -> Dict[str, Any]:
     So every vertical is a candidate here, concept layer or not, and ambiguity resolves
     rather than refuses: between two verticals that both describe the category, the one
     carrying concepts is the one worth deepening.
+
+    `discovered_terms` is the category vocabulary the discovery model proposed for this
+    site. When given, it decides: a vertical is joined only if it shares enough of those
+    phrases, whatever the page text scored. Without it - the model was unavailable and
+    returned defaults - the page text decides, as before.
     """
     candidates = [meta.get("vertical_id") for meta in list_available_industries(include_unusable=True)]
     candidates = [vid for vid in candidates if vid]
+    terms = [t for t in (discovered_terms or []) if isinstance(t, str) and t.strip()]
+    if terms:
+        return _match_by_discovered_vocabulary(text, terms, candidates)
+
     result = classify_vertical(text, candidates=candidates)
 
     scores = result.get("candidates") or []
