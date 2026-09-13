@@ -18,12 +18,11 @@ from models import (
     GraphAlignmentResult
 )
 from page_graph import build_page_kg
-from site_graph import build_site_kg, route_domain_to_vertical
+from site_graph import build_site_kg, route_domain_to_vertical, route_text_to_vertical
 from industry_ontology import (
     load_industry_ontology,
     list_available_industries,
     align_graph_with_industry,
-    classify_vertical
 )
 
 logger = logging.getLogger("gainark.graph_engine")
@@ -44,7 +43,7 @@ def _resolve_vertical(
     if explicit:
         return explicit
 
-    routed = classify_vertical(text) if text is not None else route_domain_to_vertical(url)
+    routed = route_text_to_vertical(text, url) if text is not None else route_domain_to_vertical(url)
     vertical_id = routed.get("vertical_id")
     if not vertical_id:
         raise ValueError(

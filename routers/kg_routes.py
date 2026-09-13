@@ -39,8 +39,7 @@ from models import (
     IndustryOntologyModel
 )
 from page_graph import build_page_kg
-from site_graph import build_site_kg, route_domain_to_vertical
-from industry_ontology import classify_vertical
+from site_graph import build_site_kg, route_domain_to_vertical, route_text_to_vertical
 from crawl_jobs import create_job, advance_job, load_job, load_result, public_status
 from industry_ontology import (
     list_available_industries,
@@ -284,7 +283,7 @@ async def api_build_page_kg(req: PageKGRequest):
         try:
             if req.html_content:
                 # The caller already supplied the text; classify it rather than fetch.
-                routed = classify_vertical(req.html_content)
+                routed = route_text_to_vertical(req.html_content, req.url)
                 routed["pages_read"] = 0
             else:
                 routed = route_domain_to_vertical(req.url)

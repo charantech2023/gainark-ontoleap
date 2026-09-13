@@ -28,6 +28,7 @@ from models import (
 from scraper import smart_fetch, validate_url_for_fetch
 from entity_grounding import wikidata_uri
 from industry_ontology import classify_vertical
+from industry_profiler import confirm_vertical_by_category
 from page_graph import build_page_kg, order_nodes_for_export
 from constants import DEEP_CRAWL_PATHS, WIKIDATA_KB
 
@@ -528,32 +529,70 @@ def route_domain_to_vertical(start_url: str, max_extra_pages: int = 3) -> Dict[s
         # domain surfaced here as a bare 500. It is an unreachable site, which the caller
         # can act on, not an internal fault.
         raise ValueError("Could not fetch %s: %s" % (start_url, err))
+    pages = [(start_url, html)]
     text = _page_text(html)
-    result = classify_vertical(text)
+    result = classify_vertical(text, distinctive=True)
     result["pages_read"] = 1
 
-    if result.get("vertical_id") or max_extra_pages <= 0:
-        return result
+    if result.get("confident") or max_extra_pages <= 0:
+        return _confirm_weak_route(result, pages)
 
-    # Thin or ambiguous. Widen the evidence before giving up.
+    # Thin, ambiguous, or routed on weak evidence. Widen before deciding anything.
     extra = [u for u in _discover_site_urls(start_url, html)
              if u != start_url][:max_extra_pages]
-    read = 1
     for url in extra:
         try:
-            text += "\n" + _page_text(smart_fetch(url))
-            read += 1
+            page_html = smart_fetch(url)
         except Exception as err:
             logger.warning("[Routing] Could not read %s: %s", url, err)
+            continue
+        pages.append((url, page_html))
+        text += "\n" + _page_text(page_html)
 
-    if read == 1:
+    if len(pages) == 1:
+        return _confirm_weak_route(result, pages)
+
+    widened = classify_vertical(text, distinctive=True)
+    widened["pages_read"] = len(pages)
+    if not widened.get("vertical_id"):
+        widened["reason"] = "%s (after reading %d pages)" % (widened["reason"], len(pages))
+    return _confirm_weak_route(widened, pages)
+
+
+def route_text_to_vertical(text: str, url: Optional[str] = None) -> Dict[str, Any]:
+    """Route content the caller already supplied, under the same rules as a domain."""
+    result = classify_vertical(text, distinctive=True)
+    result["pages_read"] = 0
+    return _confirm_weak_route(result, [(url or "", text or "")])
+
+
+def _confirm_weak_route(result: Dict[str, Any], pages: List[Tuple[str, str]]) -> Dict[str, Any]:
+    """Keep a route only if its evidence is strong, or the site's own category agrees.
+
+    Refusing beats defaulting here as everywhere in routing: a crawl measured against the
+    wrong vertical returns a complete, plausible report about the wrong industry. So a weak
+    route the category check cannot confirm - the model is unavailable, or the answer does
+    not parse - is refused, not trusted.
+    """
+    vertical_id = result.get("vertical_id")
+    if not vertical_id or result.get("confident"):
         return result
 
-    widened = classify_vertical(text)
-    widened["pages_read"] = read
-    if not widened.get("vertical_id"):
-        widened["reason"] = "%s (after reading %d pages)" % (widened["reason"], read)
-    return widened
+    check = confirm_vertical_by_category(pages, vertical_id)
+    result["category_check"] = check
+    if check.get("confirmed"):
+        result["reason"] = "%s Evidence was thin, so the category was checked: %s" % (
+            result["reason"], check["reason"])
+        return result
+
+    refused = {k: v for k, v in result.items() if k not in ("display_name", "matched", "evidence")}
+    refused["vertical_id"] = None
+    refused["reason"] = "Page text pointed to %s on %d terms, which is too thin to trust, and %s" % (
+        vertical_id, result.get("matched", 0),
+        check["reason"][0].lower() + check["reason"][1:] if check.get("confirmed") is False
+        else "the category could not be checked: " + check["reason"])
+    logger.info("[Routing] Refused %s: %s", vertical_id, refused["reason"])
+    return refused
 
 
 def persist_site_kg(site_kg: SiteKnowledgeGraph, vertical_id: str) -> Optional[Dict[str, Any]]:

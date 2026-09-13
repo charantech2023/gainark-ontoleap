@@ -292,23 +292,82 @@ def _count_evidence(text_lower: str, terms: List[str]) -> List[str]:
     return hits
 
 
-def classify_vertical(text: str, candidates: Optional[List[str]] = None) -> Dict[str, Any]:
+# Below this many distinctive terms a route is weak, and has to be confirmed against the
+# site's own category before a crawl is measured against it. Ordwaylabs and chargebee
+# homepages alone give 17-18; vanta (security) and toasttab (restaurant point of sale) both
+# give 6 after four pages - one right, one wrong, and page text cannot tell them apart.
+CONFIDENT_ROUTING_EVIDENCE = 10
+
+
+def _fold(term: str) -> str:
+    """One key for a term and its plural, so "dashboard" and "dashboards" count once."""
+    return re.sub(r"(?<=[a-z]{3})s$", "", term)
+
+
+def _routing_terms(industry: IndustryOntologyModel) -> List[str]:
+    """Vocabulary that says what category a site is in.
+
+    Integration names are left out unless the vertical also uses them as a concept: they
+    say what a product connects to. "Slack" and "Workday" were billing evidence for
+    rippling.com, an HR platform, and for vanta.com, a security one.
+    """
+    integration_only = {t.strip().lower() for t in industry.known_integrations if t}
+    integration_only -= {t.strip().lower() for t in industry.core_seed_concepts if t}
+    for c in industry.concepts:
+        integration_only -= {(c.pref_label or "").strip().lower()}
+        integration_only -= {(a or "").strip().lower() for a in (c.alt_labels or [])}
+    return [t for t in _vocabulary_terms(industry) if t not in integration_only]
+
+
+def classify_vertical(
+    text: str,
+    candidates: Optional[List[str]] = None,
+    distinctive: bool = False
+) -> Dict[str, Any]:
     """Pick the existing vertical whose vocabulary the text best matches.
 
     Returns the choice, the evidence behind it, and every candidate's score, so a caller
     can show why a site was routed the way it was. `vertical_id` is None when nothing
     matched well enough - an honest refusal, because the alternative is measuring a site
     against a vocabulary that does not describe it.
+
+    `distinctive` is for routing between verticals of different categories. It counts only
+    terms that could tell the candidates apart: no integration names, nothing two
+    candidates both carry (vanta.com matched "SOC 2", "HIPAA" and "ISO 27001" for security
+    and billing alike, and was refused as a tie), and a plural once. Matching discovered
+    sites leaves it off, because there the candidates include near-duplicates of one
+    category, which share nearly every term that matters.
     """
     text_lower = (text or "").lower()
-    scores = []
+    vocabularies = []
     for vid in (candidates if candidates is not None else usable_verticals()):
         try:
             industry = load_industry_ontology(vid)
         except Exception as err:
             logger.warning("Skipping vertical %r during routing: %s", vid, err)
             continue
-        hits = _count_evidence(text_lower, _vocabulary_terms(industry))
+        terms = _routing_terms(industry) if distinctive else _vocabulary_terms(industry)
+        vocabularies.append((vid, industry, terms))
+
+    shared = set()
+    if distinctive:
+        seen: Dict[str, int] = {}
+        for _, _, terms in vocabularies:
+            for key in {_fold(t) for t in terms}:
+                seen[key] = seen.get(key, 0) + 1
+        shared = {key for key, n in seen.items() if n > 1}
+
+    scores = []
+    for vid, industry, terms in vocabularies:
+        hits = _count_evidence(text_lower, terms)
+        if distinctive:
+            kept, keys = [], set()
+            for h in hits:
+                key = _fold(h)
+                if key not in shared and key not in keys:
+                    kept.append(h)
+                    keys.add(key)
+            hits = kept
         scores.append({
             "vertical_id": vid,
             "display_name": industry.display_name,
@@ -342,6 +401,7 @@ def classify_vertical(text: str, candidates: Optional[List[str]] = None) -> Dict
         "evidence": best["evidence"],
         "reason": "Matched %d vocabulary terms, %.1fx the runner-up."
                   % (best["matched"], (best["matched"] / runner_up) if runner_up else float(best["matched"])),
+        "confident": best["matched"] >= CONFIDENT_ROUTING_EVIDENCE,
         "candidates": scores,
     }
 

@@ -28,7 +28,8 @@ from models import (
 from constants import (ICP_EVIDENCE_PATHS, ICP_EVIDENCE_GROUPS, ICP_EVIDENCE_RESERVE,
                        ICP_EDITORIAL_PATHS, ICP_HUB_PATHS, ICP_MAX_USEFUL_DEPTH,
                        ICP_LOCALE_SEGMENTS)
-from industry_ontology import match_existing_vertical
+from industry_ontology import (match_existing_vertical, vocabulary_agreement,
+                               load_industry_ontology, MIN_VOCABULARY_AGREEMENT)
 from profiler_guard import guard_discovered_vertical_profile
 
 from security import verticals_dir
@@ -1262,6 +1263,49 @@ def discovered_category_terms(discovered: Dict[str, Any]) -> List[str]:
     if isinstance(discovered.get("display_name"), str):
         terms.append(discovered["display_name"])
     return terms
+
+
+def confirm_vertical_by_category(
+    pages: List[Tuple[str, str]],
+    vertical_id: str
+) -> Dict[str, Any]:
+    """Ask whether the site's own category agrees with a route that page text proposed.
+
+    For routes too weak to trust on text: vanta.com (security) and pos.toasttab.com
+    (restaurant point of sale) each gave six terms after four pages, one right and one
+    wrong. The discovery model reads the same pages, and its category vocabulary is checked
+    against the vertical exactly as discovery's own matching checks it.
+
+    `confirmed` is True or False when the model answered, and None when it could not - the
+    caller decides what an unconfirmable route is worth.
+    """
+    if not pages:
+        return {"confirmed": None, "reason": "No pages to read the category from."}
+    first_url = pages[0][0] or ""
+    domain = urlparse(first_url).netloc or "supplied content"
+    evidence = {
+        "url": first_url,
+        "domain": domain,
+        "pages": [_summarize_html(url or first_url, domain, html, word_cap=DISCOVERY_PAGE_WORDS)
+                  for url, html in pages],
+    }
+    discovered = call_gemini_industry_discovery(evidence)
+    terms = discovered_category_terms(discovered)
+    if not terms:
+        return {"confirmed": None,
+                "reason": "The site's category could not be read (%s)."
+                          % (discovered.get("discovery_degraded") or "no category vocabulary")}
+
+    agreed = vocabulary_agreement(terms, load_industry_ontology(vertical_id))
+    category = discovered.get("category") or discovered.get("display_name") or "unnamed"
+    if len(agreed) >= MIN_VOCABULARY_AGREEMENT:
+        return {"confirmed": True, "category": category, "agreed": agreed,
+                "reason": "The site's own category (%s) shares %d phrases with %s (%s)."
+                          % (category, len(agreed), vertical_id, ", ".join(agreed[:5]))}
+    return {"confirmed": False, "category": category, "agreed": agreed,
+            "reason": "The site's own category (%s) shares %d of the %d phrases needed with %s%s."
+                      % (category, len(agreed), MIN_VOCABULARY_AGREEMENT, vertical_id,
+                         " (%s)" % ", ".join(agreed) if agreed else "")}
 
 
 async def discover_industry_profile_async(
