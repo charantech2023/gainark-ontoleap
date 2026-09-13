@@ -99,6 +99,45 @@ class TestJinaReader(unittest.TestCase):
                     self.scraper.fetch_html(url)
             post.assert_not_called()
 
+    def test_a_stoplight_page_waits_for_its_article_to_render(self):
+        """Without the wait, Stoplight pages came back as a 19-220 character loading shell."""
+        rendered = '<html><body><div class="sl-markdown-viewer"><h1>Overview</h1></div></body></html>'
+        with patch("scraper.requests.post", return_value=_jina_response(html=rendered)) as post:
+            self.scraper.fetch_html("https://ordwaylabs.stoplight.io/docs/ordway/overview", timeout=8)
+        headers = post.call_args.kwargs["headers"]
+        self.assertEqual(headers["X-Wait-For-Selector"], ".sl-markdown-viewer")
+        # The caller's 8s is shorter than a render takes, so the wait is raised, and the
+        # client waits longer than Jina does.
+        self.assertEqual(headers["X-Timeout"], str(scraper.JINA_RENDER_TIMEOUT))
+        self.assertGreater(post.call_args.kwargs["timeout"], scraper.JINA_RENDER_TIMEOUT)
+
+    def test_a_stoplight_shell_is_retried_and_never_kept(self):
+        """A shell returned when the wait ran out would otherwise be cached as the page."""
+        url = "https://ordwaylabs.stoplight.io/docs/ordway/authentication"
+        rendered = '<html><body><div class="sl-markdown-viewer"><p>All requests need tokens.</p></div></body></html>'
+        shell = "<html><body><div id='root'>Loading</div></body></html>"
+
+        with patch("scraper.requests.post", side_effect=[_jina_response(html=shell),
+                                                          _jina_response(html=rendered)]) as post:
+            self.assertEqual(self.scraper.fetch_html(url), rendered)
+        self.assertEqual(post.call_count, 2)
+
+        self.cache.reset_mock()
+        with patch("scraper.requests.post", return_value=_jina_response(html=shell)) as post:
+            with self.assertRaises(_WentLocal):
+                self.scraper.fetch_html(url)
+        self.assertEqual(post.call_count, 2)
+        self.cache.set.assert_not_called()
+
+    def test_other_hosts_do_not_wait_for_a_selector(self):
+        for url in ("https://example.com/docs", "https://notstoplight.io/docs",
+                    "https://stoplight.io.example.com/docs"):
+            with patch("scraper.requests.post", return_value=_jina_response()) as post:
+                self.scraper.fetch_html(url, timeout=8)
+            headers = post.call_args.kwargs["headers"]
+            self.assertNotIn("X-Wait-For-Selector", headers, url)
+            self.assertEqual(headers["X-Timeout"], "8", url)
+
     def test_disabled_reader_is_never_called(self):
         with patch.dict("os.environ", {"ONTOLEAP_JINA_READER": ""}):
             off = SmartScraper()

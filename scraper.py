@@ -25,7 +25,7 @@ import time
 import socket
 import logging
 import ipaddress
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 from urllib.parse import urlparse, urljoin
 import requests
 import httpx
@@ -116,6 +116,39 @@ _JINA_RETRY_LOCALLY = {403, 429, 503}
 # Jina renders these as HTML - a sitemap through its XSL, robots.txt inside a <pre> - which
 # destroys the <loc> tags and directives the callers are reading them for.
 _JINA_SKIP_SUFFIXES = (".txt", ".xml", ".json", ".yaml", ".yml", ".gz", ".pdf", ".csv", ".rss", ".atom")
+
+
+# Docs platforms that build the page in the browser, keyed by host suffix: the element that
+# holds the rendered article, which Jina is told to wait for before reading.
+#
+# Stoplight serves a loading shell; a direct fetch of ordwaylabs.stoplight.io reads 206
+# characters. Jina without a wait returned the full article in 7 of 9 renders across three
+# pages, took up to 71s, and read 19 and 220 characters on the other two. Waiting for the
+# markdown viewer returned it in 9 of 9, in 9-15s. Waiting for any "h1" was no better than
+# not waiting: the shell has a heading before the article arrives.
+#
+# ReadMe, GitBook and Mintlify serve their text in the HTML itself, so a direct fetch
+# already reads them in full and they are not listed. A Stoplight site on a custom domain
+# is not caught by its host.
+#
+# Each entry is (selector to wait for, class that proves it rendered). When the wait runs
+# out Jina returns the shell anyway, with a 200.
+_JINA_WAIT_FOR_SELECTOR = {
+    "stoplight.io": (".sl-markdown-viewer", "sl-markdown-viewer"),
+}
+
+# How long Jina may wait for that element. Callers pass fetch timeouts of 6-15s, shorter
+# than a render; renders measured 9-15s in one hour and 13-34s in the next, and at 30 one
+# in six came back as the shell.
+JINA_RENDER_TIMEOUT = 45
+
+
+def _jina_wait_selector(url: str) -> Optional[Tuple[str, str]]:
+    host = (urlparse(url).hostname or "").lower()
+    for suffix, wait in _JINA_WAIT_FOR_SELECTOR.items():
+        if host == suffix or host.endswith("." + suffix):
+            return wait
+    return None
 
 
 def _jina_should_skip(url: str) -> bool:
@@ -347,20 +380,25 @@ class SmartScraper:
             and time.monotonic() >= self._jina_paused_until
         )
 
-    def _jina_headers(self, timeout: int, force_refresh: bool) -> Dict[str, str]:
+    def _jina_request(self, url: str, timeout: int, force_refresh: bool) -> Tuple[Dict[str, str], int]:
+        """Headers for one Jina read, and how long to wait for the response."""
         # JSON rather than the plain body, because only the JSON carries the target's own
         # status: a missing page otherwise comes back as 200 with the site's 404 template.
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
             "X-Return-Format": "html",
-            "X-Timeout": str(timeout),
         }
+        wait_for = _jina_wait_selector(url)
+        if wait_for:
+            headers["X-Wait-For-Selector"] = wait_for[0]
+            timeout = max(timeout, JINA_RENDER_TIMEOUT)
+        headers["X-Timeout"] = str(timeout)
         if self.jina_api_key:
             headers["Authorization"] = f"Bearer {self.jina_api_key}"
         if force_refresh:
             headers["X-No-Cache"] = "true"
-        return headers
+        return headers, timeout + 15
 
     def _jina_result(self, url: str, status_code: int, body: bytes) -> Optional[str]:
         """Turn a Jina response into page HTML, None to fall back, or an HTTPError.
@@ -407,31 +445,48 @@ class SmartScraper:
 
     def _fetch_jina(self, url: str, timeout: int, force_refresh: bool) -> Optional[str]:
         """Level 0: read the page through Jina Reader, which fetches and renders it remotely."""
-        try:
-            # POST, so a query string in the target cannot be confused with the reader's own.
-            resp = requests.post(
-                JINA_READER_ENDPOINT,
-                json={"url": url},
-                headers=self._jina_headers(timeout, force_refresh),
-                timeout=timeout + 15,
-            )
-        except requests.RequestException as e:
-            logger.warning("Jina Reader failed for %s: %s", url, type(e).__name__)
-            return None
-        return self._jina_result(url, resp.status_code, resp.content)
+        headers, wait = self._jina_request(url, timeout, force_refresh)
+        for attempt in (1, 2):
+            try:
+                # POST, so a query string in the target cannot be confused with the reader's own.
+                resp = requests.post(JINA_READER_ENDPOINT, json={"url": url}, headers=headers, timeout=wait)
+            except requests.RequestException as e:
+                logger.warning("Jina Reader failed for %s: %s", url, type(e).__name__)
+                return None
+            html = self._jina_result(url, resp.status_code, resp.content)
+            if not self._render_unfinished(url, html, attempt):
+                return html
+        return None
 
     async def _fetch_jina_async(self, url: str, timeout: int, force_refresh: bool) -> Optional[str]:
-        try:
-            async with httpx.AsyncClient(timeout=float(timeout + 15)) as client:
-                resp = await client.post(
-                    JINA_READER_ENDPOINT,
-                    json={"url": url},
-                    headers=self._jina_headers(timeout, force_refresh),
-                )
-        except httpx.HTTPError as e:
-            logger.warning("Jina Reader failed for %s (async): %s", url, type(e).__name__)
-            return None
-        return self._jina_result(url, resp.status_code, resp.content)
+        headers, wait = self._jina_request(url, timeout, force_refresh)
+        for attempt in (1, 2):
+            try:
+                async with httpx.AsyncClient(timeout=float(wait)) as client:
+                    resp = await client.post(JINA_READER_ENDPOINT, json={"url": url}, headers=headers)
+            except httpx.HTTPError as e:
+                logger.warning("Jina Reader failed for %s (async): %s", url, type(e).__name__)
+                return None
+            html = self._jina_result(url, resp.status_code, resp.content)
+            if not self._render_unfinished(url, html, attempt):
+                return html
+        return None
+
+    @staticmethod
+    def _render_unfinished(url: str, html: Optional[str], attempt: int) -> bool:
+        """True when a docs page came back as its loading shell, so it must not be kept.
+
+        A shell kept here is cached as the page, and every later read gets the shell too.
+        One retry, because the renders that missed were slow rather than broken.
+        """
+        wait_for = _jina_wait_selector(url)
+        if not html or not wait_for or wait_for[1] in html:
+            return False
+        if attempt == 1:
+            logger.info("Jina Reader returned %s before %s rendered; retrying once.", url, wait_for[0])
+        else:
+            logger.warning("Jina Reader could not render %s (no %s); fetching directly.", url, wait_for[0])
+        return True
 
     def _fetch_crawl4ai(self, url: str, timeout: int = 30) -> Optional[str]:
         """
