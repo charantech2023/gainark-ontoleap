@@ -7,8 +7,10 @@ Combines:
    and captcha challenge pages.
 3. Fallbacks, tried in order and skipped when unavailable. The sync and async cascades
    differ, so the level numbers are not interchangeable:
-     sync   1 curl_cffi -> 2 Crawl4AI -> 3 Firecrawl -> 4 standard requests
-     async  1 curl_cffi -> 2 Firecrawl -> 3 httpx
+     sync   0 Jina Reader -> 1 curl_cffi -> 2 Crawl4AI -> 3 Firecrawl -> 4 standard requests
+     async  0 Jina Reader -> 1 curl_cffi -> 2 Firecrawl -> 3 httpx
+   Level 0 runs only when ONTOLEAP_JINA_READER is set. It returns the rendered DOM, so
+   callers keep parsing HTML, and it is never used for robots.txt, sitemaps or specs.
    Crawl4AI is an optional import and is NOT in requirements.txt, so it is absent from
    the deployed image; Firecrawl runs only when FIRECRAWL_API_KEY is set. A deployment
    with neither goes straight from level 1 to plain HTTP.
@@ -18,6 +20,8 @@ Combines:
 """
 
 import os
+import json
+import time
 import socket
 import logging
 import ipaddress
@@ -97,6 +101,28 @@ MAX_REDIRECTS = _env_int("MAX_REDIRECTS", 5, minimum=0)
 ALLOW_UNRESOLVABLE_HOSTS = os.environ.get(
     "ONTOLEAP_ALLOW_UNRESOLVABLE_HOSTS", ""
 ).strip().lower() in ("1", "true", "yes")
+
+
+JINA_READER_ENDPOINT = "https://r.jina.ai/"
+
+# Without a key Jina allows 20 requests a minute. Once it says no, every page of a crawl
+# would ask again and be refused again, so the reader is skipped for this long instead.
+JINA_COOLDOWN_SECONDS = _env_int("JINA_COOLDOWN_SECONDS", 60)
+
+# Upstream statuses that Jina reports but a direct fetch might still get past: the reader's
+# addresses can be blocked, or rate limited, where ours are not.
+_JINA_RETRY_LOCALLY = {403, 429, 503}
+
+# Jina renders these as HTML - a sitemap through its XSL, robots.txt inside a <pre> - which
+# destroys the <loc> tags and directives the callers are reading them for.
+_JINA_SKIP_SUFFIXES = (".txt", ".xml", ".json", ".yaml", ".yml", ".gz", ".pdf", ".csv", ".rss", ".atom")
+
+
+def _jina_should_skip(url: str) -> bool:
+    """True for documents that must be read as served, not as a browser renders them."""
+    path = urlparse(url).path.lower()
+    last = path.rstrip("/").rsplit("/", 1)[-1]
+    return path.endswith(_JINA_SKIP_SUFFIXES) or "sitemap" in last
 
 
 def _ip_is_forbidden(ip: Any) -> bool:
@@ -287,8 +313,13 @@ class SmartScraper:
     Enterprise-grade scraper with Chrome TLS fingerprinting and anti-bot mitigation.
     """
 
-    def __init__(self, firecrawl_api_key: Optional[str] = None):
+    def __init__(self, firecrawl_api_key: Optional[str] = None, jina_reader: Optional[bool] = None):
         self.firecrawl_api_key = firecrawl_api_key or os.environ.get("FIRECRAWL_API_KEY")
+        if jina_reader is None:
+            jina_reader = os.environ.get("ONTOLEAP_JINA_READER", "").strip().lower() in ("1", "true", "yes")
+        self.jina_reader = jina_reader
+        self.jina_api_key = os.environ.get("JINA_API_KEY") or None
+        self._jina_paused_until = 0.0
         self.browser_headers = {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
@@ -308,6 +339,99 @@ class SmartScraper:
             )
         }
 
+
+    def _jina_usable(self, url: str) -> bool:
+        return (
+            self.jina_reader
+            and not _jina_should_skip(url)
+            and time.monotonic() >= self._jina_paused_until
+        )
+
+    def _jina_headers(self, timeout: int, force_refresh: bool) -> Dict[str, str]:
+        # JSON rather than the plain body, because only the JSON carries the target's own
+        # status: a missing page otherwise comes back as 200 with the site's 404 template.
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "X-Return-Format": "html",
+            "X-Timeout": str(timeout),
+        }
+        if self.jina_api_key:
+            headers["Authorization"] = f"Bearer {self.jina_api_key}"
+        if force_refresh:
+            headers["X-No-Cache"] = "true"
+        return headers
+
+    def _jina_result(self, url: str, status_code: int, body: bytes) -> Optional[str]:
+        """Turn a Jina response into page HTML, None to fall back, or an HTTPError.
+
+        Raises only when the target itself answered with a definitive error, so a missing
+        page fails the way it does on a direct fetch instead of being read as content.
+        """
+        if status_code != 200:
+            # Rate limited, out of balance, or a bad key: every later page would be refused
+            # the same way, so stop asking for a while.
+            if status_code in (401, 402, 429):
+                self._jina_paused_until = time.monotonic() + JINA_COOLDOWN_SECONDS
+                logger.warning(
+                    "Jina Reader returned HTTP %d; pausing it for %ds and fetching directly.",
+                    status_code, JINA_COOLDOWN_SECONDS
+                )
+            else:
+                logger.warning("Jina Reader returned HTTP %d for %s; fetching directly.", status_code, url)
+            return None
+
+        # JSON escaping inflates the page, hence the allowance above the page ceiling.
+        if len(body) > 2 * MAX_RESPONSE_BYTES:
+            logger.warning("Jina Reader response for %s exceeds the size ceiling; fetching directly.", url)
+            return None
+        try:
+            data = json.loads(body).get("data") or {}
+        except (ValueError, AttributeError):
+            logger.warning("Jina Reader sent an unreadable response for %s; fetching directly.", url)
+            return None
+
+        upstream = data.get("httpStatus")
+        if isinstance(upstream, int) and upstream >= 400:
+            if upstream in _JINA_RETRY_LOCALLY:
+                logger.info("Target answered Jina Reader with %d for %s; fetching directly.", upstream, url)
+                return None
+            raise requests.HTTPError(f"{upstream} error for url: {url} (reported by Jina Reader)")
+
+        html = data.get("html") or ""
+        if not html.strip() or is_challenge_page(200, html):
+            logger.info("Jina Reader got no usable page for %s; fetching directly.", url)
+            return None
+        logger.debug("Level 0 Jina Reader succeeded for %s (%d chars)", url, len(html))
+        return html[:MAX_RESPONSE_BYTES]
+
+    def _fetch_jina(self, url: str, timeout: int, force_refresh: bool) -> Optional[str]:
+        """Level 0: read the page through Jina Reader, which fetches and renders it remotely."""
+        try:
+            # POST, so a query string in the target cannot be confused with the reader's own.
+            resp = requests.post(
+                JINA_READER_ENDPOINT,
+                json={"url": url},
+                headers=self._jina_headers(timeout, force_refresh),
+                timeout=timeout + 15,
+            )
+        except requests.RequestException as e:
+            logger.warning("Jina Reader failed for %s: %s", url, type(e).__name__)
+            return None
+        return self._jina_result(url, resp.status_code, resp.content)
+
+    async def _fetch_jina_async(self, url: str, timeout: int, force_refresh: bool) -> Optional[str]:
+        try:
+            async with httpx.AsyncClient(timeout=float(timeout + 15)) as client:
+                resp = await client.post(
+                    JINA_READER_ENDPOINT,
+                    json={"url": url},
+                    headers=self._jina_headers(timeout, force_refresh),
+                )
+        except httpx.HTTPError as e:
+            logger.warning("Jina Reader failed for %s (async): %s", url, type(e).__name__)
+            return None
+        return self._jina_result(url, resp.status_code, resp.content)
 
     def _fetch_crawl4ai(self, url: str, timeout: int = 30) -> Optional[str]:
         """
@@ -448,6 +572,14 @@ class SmartScraper:
             logger.debug("Cache hit for %s; skipping network fetch.", url)
             return cached
 
+        # Level 0: Jina Reader. Ahead of redirect resolution, because when it succeeds the
+        # site is never contacted from here at all - redirects included, which Jina follows.
+        if self._jina_usable(url):
+            jina_html = self._fetch_jina(url, timeout, force_refresh)
+            if jina_html:
+                content_cache.set(url, jina_html)
+                return jina_html
+
         target = _resolve_redirects(url, self.browser_headers, timeout=timeout)
         html_result = None
 
@@ -576,6 +708,12 @@ class SmartScraper:
         if cached is not None:
             logger.debug("Async cache hit for %s; skipping network fetch.", url)
             return cached
+
+        if self._jina_usable(url):
+            jina_html = await self._fetch_jina_async(url, timeout, force_refresh)
+            if jina_html:
+                content_cache.set(url, jina_html)
+                return jina_html
 
         target = await self._resolve_redirects_async(url, timeout=timeout)
         html_result = None
