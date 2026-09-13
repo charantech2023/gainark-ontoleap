@@ -1,19 +1,19 @@
-# OntoLeap Engine Architecture & Co-Worker Reference Guide
+# OntoLeap Engine Architecture & Co-Worker Reference Guide (v2.2)
 
-> **For Co-Workers (Claude, Antigravity, and Human Engineers)**: This document defines the architectural contracts, data structures, and tool bindings of the GainARK OntoLeap platform. Follow these standards when modifying or extending this codebase.
+> **For Co-Workers (Claude, Antigravity, and Human Engineers)**: This document defines the architectural contracts, data structures, and tool bindings of the GainARK OntoLeap platform following the knowledge-graph core refactor (commit `b7a9174` and subsequent releases). Follow these standards when modifying or extending this codebase.
 
 ---
 
 ## 1. What the Engine Mechanically Is
 
 OntoLeap is **not** a generic LLM wrapper or a vector-similarity search engine. It is a:
-> **Deterministic Relational Knowledge Graph Extraction, Topology & Graph-Diff Engine.**
+> **Deterministic Relational Knowledge Graph Extraction, Topology & Industry Alignment Engine.**
 
-It executes discrete, repeatable graph mathematics across digital text, code specifications, and live AI search engines.
+It executes discrete, reproducible graph mathematics across digital text, code specifications, and structured semantic ontologies.
 
 ```
                     ┌──────────────────────────────┐
-                    │ Raw Input (URL, Spec, Text)  │
+                    │ Raw Input (URL, HTML, Text)  │
                     └──────────────┬───────────────┘
                                    │
                                    ▼
@@ -25,186 +25,159 @@ It executes discrete, repeatable graph mathematics across digital text, code spe
                                    ▼
                     ┌──────────────────────────────┐
                     │  Semantic Triples ⟨S, P, O⟩  │
-                    │   + Schema.org + Entities    │
+                    │    + Grounded Wikidata Q-IDs │
+                    │       + Schema.org JSON-LD   │
                     └──────┬───────────────┬───────┘
                            │               │
             ┌──────────────┴───────┐       └──────────────┬───────────────┐
             │                      │                      │               │
             ▼                      ▼                      ▼               ▼
 ┌──────────────────────┐ ┌───────────────────┐ ┌─────────────────┐ ┌─────────────┐
-│ 2. Graph Diff        │ │ 3. Network Graph  │ │ 4. AI Search    │ │ 5. Export   │
-│ A ∩ B (Grounded)     │ │ PageRank          │ │ Prober          │ │ W3C RDF     │
-│ A \ B (Hallucination)│ │ Betweenness       │ │ Gemini / Web    │ │ PROV-O .ttl │
-│ B \ A (Omission)     │ │ Topic Silos       │ │ Share of Voice  │ │ JSON-LD     │
+│ 2. Page & Site KG    │ │ 3. Network Graph  │ │ 4. Taxonomy     │ │ 5. Standards│
+│ Entity nodes,        │ │ PageRank Centrality│ │ Alignment       │ │ Export      │
+│ relation edges,      │ │ Topic Authority   │ │ Covered Concepts│ │ W3C RDF     │
+│ evidence quotes      │ │ Entity Canonical. │ │ Whitespace Gaps │ │ OWL 2 DL    │
+│ (page/site_graph.py) │ │ (crawl_jobs.py)   │ │ (industry_ont.) │ │ SPARQL 1.1  │
 └──────────────────────┘ └───────────────────┘ └─────────────────┘ └─────────────┘
 ```
 
 ---
 
-## 2. Codebase Map & File Responsibilities
+## 2. Codebase Map & Module Responsibilities
 
 | File | Primary Responsibility | Key Functions / Classes |
 | :--- | :--- | :--- |
-| `graph_engine.py` | **Core Engine Primitive**. Decoupled extraction, graph diff, topology, and GEO probing. | `GraphEngine`, `extract_knowledge_graph`, `diff_knowledge_graphs`, `analyze_site_topology`, `probe_ai_search_sov` |
-| `mcp_server.py` | **Official MCP Server** on stdio transport for Claude Desktop, Cursor, and AI agents. | `ontoleap_extract_facts`, `ontoleap_cross_examine_diff`, `ontoleap_probe_ai_sov`, `ontoleap_map_site_topology` |
-| `pipeline.py` | Core crawler, GLiNER NER model loader, Schema.org extractor (`extruct`), and triple miner. | `OntologyPipeline`, `fetch_sitemap_urls`, `discover_subpages` |
-| `product_truth.py` | OpenAPI 3.0 spec parser, proof discovery aggregator, and grounding evaluator. | `extract_capabilities_from_openapi`, `evaluate_grounding` |
-| `proof_discovery.py`| Autonomous discovery of proof sources (Trust Centers, PyPI/npm packages, changelogs). | `discover_technical_proof` |
-| `geo_engine.py` | Live AI search query synthesizer, multi-engine prober, and Share of Voice (SOV) computer. | `run_geo_probing`, `generate_buyer_queries`, `probe_ai_citation` |
-| `semantic_seo.py` | Multi-page crawler, topic authority hub discovery, and in-context internal linking engine. | `audit_internal_links`, `SemanticLinkingEngine` |
-| `graph_analytics.py`| NetworkX graph algorithms: PageRank, betweenness centrality, cluster topology. | `compute_graph_pagerank`, `build_cluster_topology` |
-| `models.py` | Pydantic data contracts and models. Single source of truth for schemas. | `SemanticTriple`, `EntityMatch`, `SiteAuditAndLinkResult`, `GeoProbingResult` |
-| `scraper.py` | Headless scraping with Chrome TLS impersonation, rate-limiting, and SSRF security protection. | `smart_fetch`, `smart_fetch_async`, `validate_url_for_fetch` |
-| `constants.py` | Grounding taxonomies, Wikidata knowledge base, and high-value path patterns. | `WIKIDATA_KB`, `DEEP_CRAWL_PATHS`, `BLOCKED_IP_PREFIXES` |
+| `page_graph.py` | **Page-Level KG Engine**. Single-page extraction, entity canonicalization, GLiNER NER, and RDF Turtle generation. | `extract_page_knowledge_graph`, `PageKnowledgeGraph` |
+| `site_graph.py` | **Site-Level KG Engine**. Multi-page crawl aggregation, cross-page entity resolution, and domain ontology schema induction. | `build_site_knowledge_graph`, `SiteKnowledgeGraph` |
+| `crawl_jobs.py` | **Resumable Async Crawl Coordinator**. Discrete multi-step crawl execution preventing Cloud Run timeouts. | `CrawlJobManager`, `advance_job`, `CrawlJobStatus` |
+| `industry_ontology.py` | **Taxonomy & SKOS Engine**. Curated reference ontologies, concept hierarchies, altLabel matching, and whitespace analysis. | `IndustryOntologyEngine`, `align_graph_with_industry`, `resolve_concept_by_label` |
+| `industry_profiler.py` | **Autonomous Vertical Discovery**. Zero-shot category discovery from candidate pages (reading buyer personas, evidence, competitors). | `discover_industry_vertical`, `extract_evidence_candidates` |
+| `vertical_store.py` | **Vertical Persistence**. Filesystem persistence of dynamically discovered industry taxonomies across server lifecycles. | `VerticalStore`, `save_vertical`, `get_vertical` |
+| `graph_engine.py` | **Unified Graph Query & Reasoning**. Decoupled engine facade for SPARQL 1.1 querying, OWL 2 DL exports, and link prediction. | `GraphEngine`, `get_graph_engine`, `execute_sparql_query` |
+| `entity_grounding.py` | **External Entity Authority**. Resolves phrases to authoritative Wikidata Q-IDs via curated KB and bounded live resolution. | `ground_url`, `ground_id`, `prefetch`, `wikidata_uri` |
+| `compliance_ontology.py`| **Compliance Frameworks**. Multi-step evaluation for regulatory standards (SOC 2, HIPAA, GDPR, ISO 27001, ASC 606). | `COMPLIANCE_FRAMEWORKS`, `evaluate_compliance_readiness` |
+| `ontology_schema.py` | **Schema & Relations**. Single source of truth for semantic predicates, relation specs, and domain/range definitions. | `CORE_RELATIONS`, `RelationSpec`, `get_relation_spec` |
+| `link_prediction.py` | **Graph Inferences**. Predicts missing edges in extracted graphs using ontological priors and transitivity rules. | `predict_missing_links`, `LinkPredictionResponse` |
+| `pipeline.py` | **NLP Pipeline & Workers**. Shared GLiNER model loading, Schema.org extractor (`extruct`), and relational triple mining. | `OntologyPipeline`, `_load_shared_gliner` |
+| `scraper.py` | **Headless HTTP/TLS Scraper**. Chrome TLS impersonation (curl_cffi), anti-bot header rotation, rate limiting, and SSRF security. | `smart_fetch`, `smart_fetch_async`, `validate_url_for_fetch` |
+| `mcp_server.py` | **Official MCP Server**. Standard I/O Model Context Protocol server exposing KG extraction tools to Claude, Cursor, and agents. | `ontoleap_build_page_kg`, `ontoleap_build_site_kg`, `ontoleap_align_industry_ontology` |
+| `models.py` | **Pydantic Data Contracts**. Pydantic v2 data models for knowledge graphs, alignments, and crawl jobs. | `KGNode`, `KGEdge`, `PageKnowledgeGraph`, `SiteKnowledgeGraph`, `GraphAlignmentResult` |
+| `constants.py` | **Taxonomies & Network Rules**. Curated Wikidata KB, high-value crawl path heuristics, and SSRF blocked IP prefixes. | `WIKIDATA_KB`, `DEEP_CRAWL_PATHS`, `BLOCKED_IP_PREFIXES` |
 
 ---
 
-## 3. The 6 MCP Tools (Signatures & JSON Schemas)
+## 3. The 4 Official MCP Tools (Signatures & JSON Schemas)
 
-AI assistants call these tools via the Model Context Protocol:
+AI assistants (Claude Desktop, Cursor, Antigravity) call these tools via the Model Context Protocol (`mcp_server.py`):
 
-### Tool 1: `ontoleap_extract_facts`
-* **Description**: Extracts verified semantic triples $\langle S, P, O \rangle$, named entities, and Schema.org types from a web URL or raw text.
+### Tool 1: `ontoleap_build_page_kg`
+* **Description**: Extracts a rich Knowledge Graph from a URL or raw HTML: Named Entities with Wikidata Q-IDs, semantic triples with exact sentence evidence, Schema.org types, and W3C JSON-LD / Turtle serialization.
 * **Arguments**:
-  * `source` (str, required): Web URL or raw markdown/text.
-  * `vertical_id` (str, optional, default: `"b2b_saas_fintech"`): Domain vertical.
+  * `source` (str, required): Web page URL (e.g. `'https://www.ordwaylabs.com'`) or raw HTML content.
+  * `url` (str, optional): Canonical URL if `source` contains raw HTML.
+  * `vertical_id` (str, optional): Vertical ontology domain ID. Omit to infer it dynamically from content.
 * **Returns**:
   ```json
   {
-    "source": "https://www.ordwaylabs.com",
-    "subject_entity": "Ordway",
-    "readiness_score": 78.5,
-    "entities_count": 14,
-    "triples_count": 9,
-    "entities": [{"text": "ASC 606", "label": "Accounting Standard", "score": 0.94}],
-    "triples": [
+    "url": "https://www.ordwaylabs.com",
+    "domain": "ordwaylabs.com",
+    "vertical_id": "b2b_saas_fintech",
+    "nodes_count": 16,
+    "edges_count": 12,
+    "nodes": [
       {
-        "subject": "Ordway",
-        "predicate": "automates",
-        "object": "Revenue Recognition",
-        "confidence": 0.9,
-        "evidence": "Ordway automates revenue recognition compliant with ASC 606."
+        "id": "ordwaylabs.com:Ordway",
+        "label": "Ordway",
+        "entity_type": "Organization",
+        "wikidata_id": "https://www.wikidata.org/wiki/Q113645856",
+        "mentions_count": 8
+      },
+      {
+        "id": "ordwaylabs.com:ASC 606",
+        "label": "ASC 606",
+        "entity_type": "Standard",
+        "wikidata_id": "https://www.wikidata.org/wiki/Q28195748"
       }
     ],
-    "detected_schemas": ["SoftwareApplication", "Organization"]
+    "edges": [
+      {
+        "subject_id": "ordwaylabs.com:Ordway",
+        "predicate": "compliesWith",
+        "object_id": "ordwaylabs.com:ASC 606",
+        "confidence": 0.95,
+        "evidence_quote": "Ordway billing and revenue recognition software is fully compliant with ASC 606 and IFRS 15."
+      }
+    ],
+    "turtle_serialization": "@prefix schema: <https://schema.org/> .\n..."
   }
   ```
 
-### Tool 2: `ontoleap_cross_examine_diff`
-* **Description**: Computes the discrete mathematical set difference between Source A (claims/copy) and Source B (proof/code/competitor).
+### Tool 2: `ontoleap_build_site_kg`
+* **Description**: Crawls a website across multiple pages, canonicalizes entities across aliases, induces the domain ontology schema, and computes PageRank authority hubs.
 * **Arguments**:
-  * `source_a` (str, required): Marketing copy URL, blog draft, or landing page.
-  * `source_b` (str, required): OpenAPI spec JSON, technical documentation URL, codebase docs, or competitor URL.
-  * `vertical_id` (str, optional): Domain vertical ID.
-* **Set Diff Math**:
-  * `grounded_facts` $= A \cap B$ (Verified overlap)
-  * `unbacked_claims` $= A \setminus B$ (Hallucinations / unbacked marketing drift)
-  * `omitted_capabilities` $= B \setminus A$ (Shipped features omitted from marketing)
+  * `start_url` (str, required): Target domain homepage URL (e.g. `'https://www.ordwaylabs.com'`).
+  * `max_pages` (int, default: 40): Maximum pages to crawl.
+  * `vertical_id` (str, optional): Vertical ontology domain ID. Omit to infer from the site.
 * **Returns**:
   ```json
   {
-    "grounding_score": 66.7,
-    "verdict": "Moderate Drift",
-    "summary": {
-      "total_claims_in_a": 6,
-      "total_proof_in_b": 8,
-      "grounded_count": 4,
-      "unbacked_count": 2,
-      "omitted_count": 4
-    },
-    "grounded_facts": [...],
-    "unbacked_claims": [...],
-    "omitted_capabilities": [...]
-  }
-  ```
-
-### Tool 3: `ontoleap_probe_ai_sov`
-* **Description**: Probes live AI answer engines with buyer queries, computes Share of Voice (SOV %), and audits AI hallucinations.
-* **Arguments**:
-  * `brand_name` (str, required): Primary brand.
-  * `domain` (str, required): Brand domain.
-  * `competitor_names` (list[str], optional): Competitor brands (e.g. `["Chargebee", "Stripe"]`).
-  * `vertical_id` (str, optional): Industry vertical.
-  * `custom_queries` (list[str], optional): Custom buyer queries.
-* **Returns**:
-  ```json
-  {
-    "brand_name": "Ordway",
-    "share_of_voice_pct": 60.0,
-    "weighted_sov_pct": 52.0,
-    "ontology_grounding_score_pct": 100.0,
-    "competitor_breakdown": {
-      "Chargebee": 80.0,
-      "Stripe": 60.0
-    },
-    "citation_gaps_count": 2,
-    "queries_audited": [...]
-  }
-  ```
-
-### Tool 4: `ontoleap_map_site_topology`
-* **Description**: Crawls a sitemap or URL list, calculates NetworkX PageRank authority hubs, and generates in-context internal linking opportunities.
-* **Arguments**:
-  * `sitemap_url` (str, optional): XML sitemap URL.
-  * `urls` (list[str], optional): List of explicit URLs.
-  * `max_pages` (int, default: 10): Crawl page budget.
-* **Returns**:
-  ```json
-  {
-    "root_domain": "ordwaylabs.com",
-    "pages_analyzed": 10,
-    "topic_hubs": [
+    "domain": "ordwaylabs.com",
+    "vertical_id": "b2b_saas_fintech",
+    "pages_crawled": 12,
+    "nodes_count": 48,
+    "edges_count": 37,
+    "topic_authority_hubs": [
       {
         "concept": "Revenue Recognition",
         "canonical_url": "https://ordwaylabs.com/products/revenue-recognition-software-asc-606-ifrs-15/",
-        "role": "Authority Anchor",
-        "pagerank": 0.2415,
-        "inbound_links": 6
-      }
-    ],
-    "internal_link_opportunities": [...]
-  }
-  ```
-
-### Tool 5: `ontoleap_track_competitor_changes`
-* **Description**: Tracks chronological claim movements and grounding index shifts for a competitor brand using the immutable Product Truth ledger. Identifies newly added claims, dropped capabilities, and gates out crawl noise.
-* **Arguments**:
-  * `brand_name` (str, required): Competitor brand name (e.g. `"Chargebee"` or `"Ordway"`).
-* **Returns**:
-  ```json
-  {
-    "brand": "Chargebee",
-    "snapshots": 2,
-    "changes": [
-      {
-        "from": "2026-08-01T09:00:00+00:00",
-        "to": "2026-08-22T09:00:00+00:00",
-        "hours_apart": 504.0,
-        "grounding_from": 0.5,
-        "grounding_to": 0.6,
-        "added": [{"predicate": "compliesWith", "object": "SOC 2"}],
-        "dropped": [],
-        "low_confidence": false,
-        "notes": []
+        "pagerank_score": 0.284,
+        "inbound_connections": 9
       }
     ]
   }
   ```
 
-### Tool 6: `ontoleap_export_w3c_ontology`
-* **Description**: Exports an extracted knowledge graph into formal W3C RDF Turtle (`.ttl`) or OWL 2 DL RDF/XML (`.owl`) format with Dublin Core, DCAT cataloging, SKOS taxonomies, and `owl:inverseOf` axioms.
+### Tool 3: `ontoleap_align_industry_ontology`
+* **Description**: Aligns an extracted Page Knowledge Graph or Site Knowledge Graph against an industry reference taxonomy to identify Covered Concepts, Category Whitespace, and Standards Compliance.
 * **Arguments**:
-  * `source` (str, required): Web URL or raw text.
-  * `domain` (str, optional): Target domain (e.g. `"ordwaylabs.com"`).
-  * `export_format` (str, optional, default: `"turtle"`): `"turtle"` (`.ttl`) or `"owl_xml"` (`.owl`).
-  * `vertical_id` (str, optional, default: `"b2b_saas_fintech"`): Domain vertical.
+  * `source_url` (str, required): Target web page URL to extract and align.
+  * `vertical_id` (str, optional): Industry vertical ID (e.g. `'b2b_saas_fintech'`, `'cybersecurity'`). Omit to infer.
 * **Returns**:
   ```json
   {
-    "domain": "ordwaylabs.com",
-    "format": "turtle",
-    "triples_count": 8,
-    "serialized_ontology": "@prefix schema: <https://schema.org/> .\n..."
+    "vertical_id": "b2b_saas_fintech",
+    "coverage_score_pct": 74.2,
+    "covered_concepts": [
+      {
+        "concept_id": "revenue_recognition",
+        "pref_label": "Revenue Recognition",
+        "matched_term": "ASC 606 Revenue Schedule",
+        "match_type": "altLabel"
+      }
+    ],
+    "whitespace_concepts": [
+      {
+        "concept_id": "dunning_management",
+        "pref_label": "Dunning Management",
+        "category": "Billing Operations"
+      }
+    ],
+    "proprietary_concepts": [
+      "Smart Revenue Schedule Engine"
+    ]
+  }
+  ```
+
+### Tool 4: `ontoleap_list_industry_ontologies`
+* **Description**: Lists all registered and discovered industry reference ontologies with display names, category hierarchies, and IDs.
+* **Arguments**: None.
+* **Returns**:
+  ```json
+  {
+    "industries": [
+      {"id": "b2b_saas_fintech", "name": "B2B SaaS Fintech & Billing", "concepts_count": 34},
+      {"id": "cybersecurity", "name": "Enterprise Cybersecurity", "concepts_count": 81}
+    ]
   }
   ```
 
@@ -212,7 +185,8 @@ AI assistants call these tools via the Model Context Protocol:
 
 ## 4. Key Rules for Co-Workers
 
-1. **Preserve Determinism**: Never replace graph diff math ($A \cap B$) with fuzzy LLM approximations. The engine must remain verifiable and reproducible.
-2. **Strict Evidence Gating**: A claim is only verified if supported by an OpenAPI route, an SDK registry package (PyPI/npm), a Trust Center certificate, or verified technical documentation.
-3. **No Unbounded Crawling**: Keep `max_pages` capped (default 10-15) and recursion guarded (`_depth <= 2`) to ensure fast response times under Cloud Run timeouts (60s).
-4. **Clean Stdio Logging in MCP**: All logging in `mcp_server.py` must stream to `sys.stderr` so that `sys.stdout` remains dedicated exclusively to the JSON-RPC Model Context Protocol messages.
+1. **Deterministic Extraction & Graph Math**: Do not substitute LLM-generated approximations for discrete graph facts. Entity grounding, triple matching, and taxonomy coverage must remain reproducible and mathematically verifiable.
+2. **Robust Synonym Matching (`prefLabel` + `altLabel`)**: When comparing extracted text to vertical taxonomies, always test both `prefLabel` and curated `altLabel` dictionaries (e.g. "Order-to-Revenue Cycle" must match "Quote-to-Cash"). Respect word boundaries so short forms (e.g. "IR", "EDR") do not match inside unrelated words.
+3. **Budgeted Resumable Crawls**: Large site-wide graphs must be executed via `crawl_jobs.py` as resumable batches rather than single synchronous HTTP requests to prevent Cloud Run 60s/300s timeout crashes.
+4. **Clean Stdio Logging in MCP**: All logging in `mcp_server.py` must stream exclusively to `sys.stderr` (`stream=sys.stderr`). Never write raw strings to `sys.stdout`, as stdout is reserved strictly for JSON-RPC MCP messages.
+5. **Safe Entity Grounding**: All Wikidata lookups must route through `entity_grounding.py` using `prefetch()` for concurrency, caching negative misses, and respecting the `ONTOLEAP_WIKIDATA_BUDGET` ceiling.
