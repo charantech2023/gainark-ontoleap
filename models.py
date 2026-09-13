@@ -651,6 +651,8 @@ class KGNode(BaseModel):
     description: Optional[str] = Field(default=None, description="Discovered or linked entity definition")
     mentions_count: int = Field(default=1, description="Number of times this node was observed")
     source_urls: List[str] = Field(default_factory=list, description="URLs where this entity was found")
+    resolution: Optional[str] = Field(default=None, description="How the site graph identified this node: registry, concept, brand, suffix, observed, mention. See entity_resolver.")
+    concept_uri: Optional[str] = Field(default=None, description="The vertical concept this registry entity is the same thing as, when there is one")
 
 
 class KGEdge(BaseModel):
@@ -660,6 +662,8 @@ class KGEdge(BaseModel):
     id: str = Field(..., description="Unique edge identifier, e.g. 'edge:ordway-integrateswith-stripe'")
     source: str = Field(..., description="Source node ID or canonical name (Subject)")
     target: str = Field(..., description="Target node ID or canonical name (Object)")
+    source_id: Optional[str] = Field(default=None, description="Resolved identity of the subject node, when the graph has been resolved")
+    target_id: Optional[str] = Field(default=None, description="Resolved identity of the object node, when the graph has been resolved")
     predicate: str = Field(..., description="Relationship type, e.g. 'integratesWith', 'compliesWith', 'automates', 'subClassOf'")
     source_type: Optional[str] = Field(default=None, description="Subject entity class")
     target_type: Optional[str] = Field(default=None, description="Object entity class")
@@ -732,7 +736,10 @@ class SiteKnowledgeGraph(BaseModel):
     pages_requested: int = Field(default=0, description="Page budget for this run. Counts attempts, so pages_crawled + pages_failed reaches it when the crawl is limited rather than exhausted.")
     pages_failed: int = Field(default=0, description="Pages attempted that could not be fetched or extracted")
     failed_pages: List[PageFailure] = Field(default_factory=list, description="Why each page failed, first 25")
-    nodes: List[KGNode] = Field(default_factory=list, description="Canonical, coreference-resolved entity nodes")
+    nodes: List[KGNode] = Field(default_factory=list, description="Identified nodes: registry entities, vertical concepts, the site's brand, and unresolved proper names. The brand is first.")
+    mentions: List[KGNode] = Field(default_factory=list, description="Unresolved common-noun phrases ('new customers', 'billing portal'). Not exported as graph nodes, but still read by coverage scoring, which must find whatever the page wrote.")
+    resolution_summary: Dict[str, Any] = Field(default_factory=dict, description="How many forms each resolution rung identified. The learning metric: registry and concept should grow run over run.")
+    crawl_summary: Dict[str, Any] = Field(default_factory=dict, description="Per kind of page (product, docs, customers...): pages read, what they added to the graph, whether the kind was set aside for yielding nothing, and how many were left unread. See crawl_planner.")
     edges: List[KGEdge] = Field(default_factory=list, description="Deduplicated semantic relations")
     induced_class_hierarchy: List[InducedClassRelation] = Field(default_factory=list, description="Induced domain ontology schema")
     topic_clusters: List[TopicCluster] = Field(default_factory=list, description="High-level topic silos")
@@ -841,7 +848,9 @@ class CrawlJobRequest(BaseModel):
     # The ceiling is far above the synchronous endpoint's 40 because no single request
     # crawls the whole site any more. A job is advanced a slice at a time, so total length
     # is bounded by patience rather than by the request timeout.
-    max_pages: int = Field(default=40, ge=1, le=200, description="Page budget for the whole job, spent across many slices")
+    # 150 by default because a crawl now stops when the pages left stop adding to the graph
+    # (crawl_planner), so the budget is a ceiling most sites do not reach, not a target.
+    max_pages: int = Field(default=150, ge=1, le=200, description="Page budget for the whole job, spent across many slices. The crawl ends earlier when no kind of page left is adding anything new.")
     vertical_id: Optional[str] = Field(default=None, description="Industry vertical. Omit to route automatically from the site.")
 
 

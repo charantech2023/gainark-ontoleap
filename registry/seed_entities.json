@@ -1,0 +1,273 @@
+{
+  "_about": "Curated seed for the entity registry. Folded before any archived event, so it is the starting state every instance agrees on. Replaces constants.WIKIDATA_KB and knowledge_graph._ENTITY_ALIASES as the source of entity identity for the site graph. Q-IDs and official websites were checked against live Wikidata on 13 Sep 2026; aliases were chosen by hand from Wikidata's alias lists and the old alias table, rejecting junk (Wikidata lists 'CRM' as an alias of Salesforce and 'Big Red' of Oracle). test_entity_registry.py holds the invariants; test_wikidata_kb_live.py checks the Q-IDs.",
+  "entities": [
+    {
+      "id": "salesforce", "kind": "organization", "prefLabel": "Salesforce",
+      "definition": "Cloud software company best known for its CRM platform.",
+      "aliases": ["Salesforce.com", "Salesforce, Inc.", "Salesforce CRM", "SFDC"],
+      "domains": ["salesforce.com"],
+      "external": {"wikidata": "Q941127"}
+    },
+    {
+      "id": "oracle", "kind": "organization", "prefLabel": "Oracle",
+      "definition": "Enterprise software and database company.",
+      "aliases": ["Oracle Corporation", "Oracle Cloud", "Oracle ERP", "Oracle Financials"],
+      "domains": ["oracle.com"],
+      "external": {"wikidata": "Q19900"}
+    },
+    {
+      "id": "netsuite", "kind": "product", "prefLabel": "NetSuite",
+      "definition": "Cloud ERP and business management suite owned by Oracle.",
+      "aliases": ["Oracle NetSuite", "NetSuite ERP", "NetSuite Inc."],
+      "domains": ["netsuite.com"], "part_of": "oracle",
+      "external": {"wikidata": "Q4045248"}
+    },
+    {
+      "id": "intuit", "kind": "organization", "prefLabel": "Intuit",
+      "definition": "Financial software company that makes QuickBooks and TurboTax.",
+      "aliases": ["Intuit Inc."],
+      "domains": ["intuit.com"],
+      "external": {"wikidata": "Q1318848"}
+    },
+    {
+      "id": "quickbooks", "kind": "product", "prefLabel": "QuickBooks",
+      "definition": "Accounting software for small and mid-sized businesses, made by Intuit.",
+      "aliases": ["QuickBooks Online", "Intuit QuickBooks", "Quick Books", "QBO"],
+      "domains": ["quickbooks.intuit.com"], "part_of": "intuit",
+      "external": {"wikidata": "Q7271951"}
+    },
+    {
+      "id": "stripe", "kind": "organization", "prefLabel": "Stripe",
+      "definition": "Payment infrastructure company providing card processing and billing APIs.",
+      "aliases": ["Stripe, Inc.", "Stripe Payments", "Stripe Billing"],
+      "domains": ["stripe.com"],
+      "external": {"wikidata": "Q7624104"}
+    },
+    {
+      "id": "taxjar", "kind": "organization", "prefLabel": "TaxJar",
+      "definition": "Sales tax calculation and filing service, owned by Stripe.",
+      "aliases": [],
+      "domains": ["taxjar.com"], "parent_org": "stripe",
+      "external": {"wikidata": "Q140989087"}
+    },
+    {
+      "id": "workday", "kind": "organization", "prefLabel": "Workday",
+      "definition": "Enterprise software company for finance and human capital management.",
+      "aliases": ["Workday, Inc.", "Workday HCM", "Workday Financials"],
+      "domains": ["workday.com"],
+      "external": {"wikidata": "Q8034666"}
+    },
+    {
+      "id": "hubspot", "kind": "organization", "prefLabel": "HubSpot",
+      "definition": "Marketing, sales and CRM software company.",
+      "aliases": ["HubSpot Inc", "HubSpot CRM", "HubSpot Marketing"],
+      "domains": ["hubspot.com"],
+      "external": {"wikidata": "Q5926631"}
+    },
+    {
+      "id": "sage-group", "kind": "organization", "prefLabel": "Sage",
+      "definition": "British accounting and business management software company.",
+      "aliases": ["Sage Group", "The Sage Group plc"],
+      "domains": ["sage.com"],
+      "external": {"wikidata": "Q1469903"}
+    },
+    {
+      "id": "sage-intacct", "kind": "product", "prefLabel": "Sage Intacct",
+      "definition": "Cloud financial management and accounting software owned by Sage.",
+      "aliases": ["Intacct", "Sage Intacct Cloud"],
+      "domains": ["sageintacct.com"], "part_of": "sage-group",
+      "external": {"wikidata": "Q54818220"}
+    },
+    {
+      "id": "xero", "kind": "organization", "prefLabel": "Xero",
+      "definition": "Cloud accounting software company for small businesses.",
+      "aliases": ["Xero Limited", "Xero Accounting"],
+      "domains": ["xero.com"],
+      "external": {"wikidata": "Q8043794"}
+    },
+    {
+      "id": "avalara", "kind": "organization", "prefLabel": "Avalara",
+      "definition": "Tax compliance automation company.",
+      "aliases": ["Avalara, Inc.", "Avalara AvaTax"],
+      "domains": ["avalara.com"],
+      "external": {"wikidata": "Q117189001"}
+    },
+    {
+      "id": "sap", "kind": "organization", "prefLabel": "SAP",
+      "definition": "German enterprise software company best known for ERP.",
+      "aliases": ["SAP SE", "SAP ERP", "SAP S/4HANA", "SAP Business One"],
+      "domains": ["sap.com"],
+      "external": {"wikidata": "Q552581"}
+    },
+    {
+      "id": "zendesk", "kind": "organization", "prefLabel": "Zendesk",
+      "definition": "Customer service and support software company.",
+      "aliases": [],
+      "domains": ["zendesk.com"],
+      "external": {"wikidata": "Q15401349"}
+    },
+    {
+      "id": "slack", "kind": "product", "prefLabel": "Slack",
+      "definition": "Workplace messaging service owned by Salesforce.",
+      "aliases": [],
+      "domains": ["slack.com"], "part_of": "salesforce",
+      "external": {"wikidata": "Q17130715"}
+    },
+    {
+      "id": "plaid", "kind": "organization", "prefLabel": "Plaid",
+      "definition": "Financial data network connecting applications to bank accounts.",
+      "aliases": ["Plaid Inc."],
+      "domains": ["plaid.com"],
+      "external": {"wikidata": "Q30610132"}
+    },
+    {
+      "id": "snowflake", "kind": "organization", "prefLabel": "Snowflake",
+      "definition": "Cloud data warehouse company.",
+      "aliases": ["Snowflake Inc.", "Snowflake Computing"],
+      "domains": ["snowflake.com"],
+      "external": {"wikidata": "Q22078063"}
+    },
+    {
+      "id": "microsoft", "kind": "organization", "prefLabel": "Microsoft",
+      "definition": "Technology company making Windows, Azure, Office and Dynamics.",
+      "aliases": ["Microsoft Corporation", "Microsoft Corp."],
+      "domains": ["microsoft.com"],
+      "external": {"wikidata": "Q2283"}
+    },
+    {
+      "id": "microsoft-dynamics", "kind": "product", "prefLabel": "Microsoft Dynamics",
+      "definition": "Microsoft's line of ERP and CRM business applications.",
+      "aliases": ["Dynamics 365", "MS Dynamics", "Dynamics CRM"],
+      "domains": ["dynamics.microsoft.com"], "part_of": "microsoft",
+      "external": {"wikidata": "Q856705"}
+    },
+
+    {
+      "id": "asc-606", "kind": "standard", "prefLabel": "ASC 606",
+      "definition": "US accounting standard for recognising revenue from contracts with customers.",
+      "aliases": ["ASC606", "Topic 606"],
+      "external": {}
+    },
+    {
+      "id": "ifrs-15", "kind": "standard", "prefLabel": "IFRS 15",
+      "definition": "International accounting standard for revenue from contracts with customers.",
+      "aliases": [],
+      "external": {"wikidata": "Q18358064"}
+    },
+    {
+      "id": "gaap", "kind": "standard", "prefLabel": "GAAP",
+      "definition": "Generally accepted accounting principles: a jurisdiction's framework for financial reporting.",
+      "aliases": ["Generally Accepted Accounting Principles"],
+      "external": {"wikidata": "Q330153"}
+    },
+    {
+      "id": "us-gaap", "kind": "standard", "prefLabel": "US GAAP",
+      "definition": "The accounting principles used for financial reporting in the United States.",
+      "aliases": ["U.S. GAAP", "United States GAAP"], "part_of": "gaap",
+      "external": {"wikidata": "Q650978"}
+    },
+    {
+      "id": "soc-1", "kind": "standard", "prefLabel": "SOC 1",
+      "definition": "AICPA report on a service organisation's controls relevant to clients' financial reporting.",
+      "aliases": ["SOC1"],
+      "external": {"wikidata": "Q122423588"}
+    },
+    {
+      "id": "soc-1-type-ii", "kind": "standard", "prefLabel": "SOC 1 Type II",
+      "definition": "A SOC 1 report that tests how controls operated over a period of time.",
+      "aliases": ["SOC 1 Type 2", "SOC1 Type II"], "part_of": "soc-1",
+      "external": {}
+    },
+    {
+      "id": "soc-2", "kind": "standard", "prefLabel": "SOC 2",
+      "definition": "AICPA report on a service organisation's controls for security, availability, processing integrity, confidentiality or privacy.",
+      "aliases": ["SOC2", "System and Organization Controls 2"],
+      "external": {"wikidata": "Q136309472"}
+    },
+    {
+      "id": "soc-2-type-ii", "kind": "standard", "prefLabel": "SOC 2 Type II",
+      "definition": "A SOC 2 report that tests how controls operated over a period of time.",
+      "aliases": ["SOC 2 Type 2", "SOC2 Type II", "SOC2 Type 2"], "part_of": "soc-2",
+      "external": {}
+    },
+    {
+      "id": "gdpr", "kind": "standard", "prefLabel": "GDPR",
+      "definition": "European Union regulation on the processing of personal data.",
+      "aliases": ["General Data Protection Regulation"],
+      "external": {"wikidata": "Q1172506"}
+    },
+    {
+      "id": "pci-dss", "kind": "standard", "prefLabel": "PCI DSS",
+      "definition": "Security standard for organisations that handle payment card data.",
+      "aliases": ["PCI-DSS", "Payment Card Industry Data Security Standard"],
+      "external": {"wikidata": "Q2065387"}
+    },
+    {
+      "id": "iso-27001", "kind": "standard", "prefLabel": "ISO 27001",
+      "definition": "International standard for information security management systems.",
+      "aliases": ["ISO/IEC 27001"],
+      "external": {"wikidata": "Q852641"}
+    },
+    {
+      "id": "hipaa", "kind": "standard", "prefLabel": "HIPAA",
+      "definition": "US federal law governing the privacy and security of health information.",
+      "aliases": ["Health Insurance Portability and Accountability Act"],
+      "external": {"wikidata": "Q606563"}
+    },
+    {
+      "id": "ccpa", "kind": "standard", "prefLabel": "CCPA",
+      "definition": "California law giving consumers rights over their personal data.",
+      "aliases": ["California Consumer Privacy Act"],
+      "external": {"wikidata": "Q60754243"}
+    },
+
+    {
+      "id": "software-as-a-service", "kind": "topic", "prefLabel": "SaaS",
+      "definition": "Software licensed by subscription and delivered as a hosted service.",
+      "aliases": ["Software as a Service"],
+      "external": {"wikidata": "Q1254596"}
+    },
+    {
+      "id": "enterprise-resource-planning", "kind": "topic", "prefLabel": "ERP",
+      "definition": "Integrated management of a company's core business processes in one system.",
+      "aliases": ["Enterprise Resource Planning"],
+      "external": {"wikidata": "Q131508"}
+    },
+    {
+      "id": "cloud-computing", "kind": "topic", "prefLabel": "Cloud computing",
+      "definition": "On-demand delivery of computing resources over the internet.",
+      "aliases": [],
+      "external": {"wikidata": "Q483639"}
+    },
+    {
+      "id": "subscription-business-model", "kind": "topic", "prefLabel": "Subscription business model",
+      "definition": "Charging customers a recurring price for continued access to a product or service.",
+      "aliases": [],
+      "external": {"wikidata": "Q4054833"}
+    },
+    {
+      "id": "revenue-recognition", "kind": "topic", "prefLabel": "Revenue recognition",
+      "definition": "The accounting principle for when and how revenue is recorded.",
+      "aliases": [],
+      "external": {"wikidata": "Q2146785"}
+    },
+    {
+      "id": "invoicing", "kind": "topic", "prefLabel": "Invoicing",
+      "definition": "Issuing invoices for goods or services delivered or due.",
+      "aliases": [],
+      "external": {"wikidata": "Q1301067"}
+    },
+    {
+      "id": "accounts-receivable", "kind": "topic", "prefLabel": "Accounts receivable",
+      "definition": "Money owed to a business by customers for goods or services already delivered.",
+      "aliases": [],
+      "external": {"wikidata": "Q328554"}
+    },
+    {
+      "id": "usage-based-pricing", "kind": "topic", "prefLabel": "Usage-based pricing",
+      "definition": "Charging customers for the amount of a product or service they actually consume.",
+      "aliases": ["Pay-per-use"],
+      "external": {"wikidata": "Q140247033"}
+    }
+  ]
+}

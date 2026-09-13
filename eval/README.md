@@ -19,6 +19,22 @@ three were found by reading output and noticing something odd. That does not sca
 | `seed_candidates.py` | Fills `relations.csv` with candidates from real crawls. |
 | `run_eval.py` | Measures the extractor against the labels. |
 | `baseline.json` | Committed numbers to compare against. |
+| `registry_replay.py` | Replays stored crawl jobs through site-graph assembly: node, duplicate, `sameAs` and coverage numbers, gold violations, and id stability across two runs of a domain. |
+| `entity_gold.json` | Identity judgements for the replay: pairs that are the same thing, pairs that are not, and forms that must be nodes or mentions. Drafted from reading output; needs Sree's review to be ground truth. |
+
+### Identity replay
+
+A crawl job keeps every page's raw nodes in the archive, and assembly is deterministic
+given them, so an identity change is measured on identical pages rather than on a fresh
+crawl whose page timeouts differ:
+
+```bash
+python eval/registry_replay.py measure --jobs <job id> [<job id> ...] --out after.json
+git stash; python eval/registry_replay.py measure --jobs <same ids> --out before.json; git stash pop
+python eval/registry_replay.py compare before.json after.json
+```
+
+Job state is cached in `.ontoleap_cache/replay/` (gitignored: it holds a client's pages).
 
 ## Labelling
 

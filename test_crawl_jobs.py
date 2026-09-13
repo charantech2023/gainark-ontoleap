@@ -82,7 +82,8 @@ def test_job_state_survives_storage():
 
         reloaded = crawl_jobs.load_job(job["job_id"])
         assert reloaded is not None, "Job was not readable after being created."
-        assert reloaded["state"]["priority"] == [HOME]
+        candidates = reloaded["state"]["plan"]["candidates"]
+        assert [c["url"] for c in candidates.values()] == [HOME], candidates
         assert reloaded["vertical_id"] == "b2b_saas_fintech"
         assert reloaded["status"] == crawl_jobs.STATUS_RUNNING
         print("  PASS - a job round-trips through storage.")

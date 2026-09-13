@@ -5,17 +5,19 @@ Aggregates page-level graphs across a website to construct a unified domain Know
 1. Crawls breadth-first from a start URL, reading high-value architectural paths
    (/features, /pricing, /integrations, /solutions) ahead of everything else.
 2. Extracts page knowledge graphs in batch.
-3. Performs Entity Coreference & Canonicalization (merging aliases and surface forms).
+3. Resolves every extracted name to an identity through entity_resolver: a registry
+   entity, a vertical concept, the site's own brand, or an unresolved name.
 4. Induces the Domain Class Hierarchy (e.g. SoftwarePlatform -> integratesWith -> IntegrationPartner).
 5. Computes PageRank authority hubs and semantic topic clusters.
 6. Serializes site-wide W3C JSON-LD and Turtle graphs.
 """
 
+import os
 import re
 import json
 import time
 import logging
-from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Tuple, Any, Optional
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
@@ -25,12 +27,18 @@ from models import (
     SiteKnowledgeGraph, KGNode, KGEdge,
     InducedClassRelation, TopicCluster, PageFailure
 )
+from rdflib import Graph as RdfGraph, Literal, Namespace, RDF, URIRef
+from rdflib.namespace import SKOS
+
 from scraper import smart_fetch, validate_url_for_fetch
 from entity_grounding import wikidata_uri
-from industry_ontology import classify_vertical
-from industry_profiler import confirm_vertical_by_category
+import crawl_planner
+from entity_registry import Registry, default_store
+from entity_resolver import normalise_key, resolve_site
+from industry_ontology import _alias_index, _label_matches, classify_vertical, load_industry_ontology
+from industry_profiler import confirm_vertical_by_category, fetch_sitemap_urls
 from page_graph import build_page_kg, order_nodes_for_export
-from constants import DEEP_CRAWL_PATHS, WIKIDATA_KB
+from constants import DEEP_CRAWL_PATHS
 
 logger = logging.getLogger("gainark.site_graph")
 
@@ -38,9 +46,9 @@ logger = logging.getLogger("gainark.site_graph")
 _MAX_EXPORT_NODES = 1000
 
 
-# A crawl follows links from every page it reads, so the frontier has to be bounded
-# independently of max_pages: a large site can offer far more URLs than we will ever read.
-_MAX_FRONTIER = 800
+# Pages fetched at once. Fetching is waiting, so this is where a crawl gets faster; the
+# scraper's Jina rate limit keeps it within what the reader allows.
+FETCH_CONCURRENCY = int(os.environ.get("ONTOLEAP_FETCH_CONCURRENCY", "6") or 6)
 
 _ASSET_SUFFIXES = re.compile(r'\.(pdf|png|jpg|jpeg|svg|css|js|webp|gif|zip|xml|ico|mp4|woff2?)$')
 
@@ -118,12 +126,14 @@ def new_crawl_state(start_url: str) -> Dict[str, Any]:
 
     Everything the crawl needs to continue lives here rather than in local variables, so
     a crawl can stop after any page and be resumed later, in a different process, from
-    storage. Sets and deques become lists for the same reason.
+    storage. The plan - candidates, per-kind yield, what the graph already holds - is part
+    of it for the same reason.
     """
+    plan = crawl_planner.new_plan(start_url)
+    crawl_planner.add_candidates(plan, [start_url], "start", set())
     return {
         "start_url": start_url,
-        "priority": [start_url],
-        "regular": [],
+        "plan": plan,
         "seen": [_page_key(start_url)],
         "crawled": [],
         "failed": [],
@@ -133,9 +143,109 @@ def new_crawl_state(start_url: str) -> Dict[str, Any]:
     }
 
 
+def _plan_for(state: Dict[str, Any]) -> Dict[str, Any]:
+    """The state's plan, built from an older queue-based state if it predates planning."""
+    plan = state.get("plan")
+    if plan is None:
+        plan = crawl_planner.new_plan(state["start_url"])
+        done = {_page_key(u) for u in state.get("crawled", [])} | {
+            _page_key(f["url"]) for f in state.get("failed", [])}
+        queued = list(state.pop("priority", []) or []) + list(state.pop("regular", []) or [])
+        crawl_planner.add_candidates(plan, queued, "link", done)
+        state["plan"] = plan
+    return plan
+
+
 def crawl_is_complete(state: Dict[str, Any], max_pages: int) -> bool:
-    """True when the budget is spent or there is nothing left linked to read."""
-    return state["attempts"] >= max_pages or not (state["priority"] or state["regular"])
+    """True when the budget is spent, or no page left to read belongs to a kind that is
+    still adding anything to the graph."""
+    if state["attempts"] >= max_pages:
+        return True
+    return crawl_planner.exhausted(_plan_for(state))
+
+
+def _page_links(page_url: str, html: str) -> List[str]:
+    """Every link on a page, absolute. Which of them are worth reading is the planner's call."""
+    soup = BeautifulSoup(html, "html.parser")
+    links = []
+    for a in soup.find_all("a", href=True):
+        href = a["href"].strip()
+        if not href or href.startswith(("#", "mailto:", "tel:", "javascript:")):
+            continue
+        links.append(urljoin(page_url, href))
+    return links
+
+
+def _read_sitemap(origin: str) -> List[str]:
+    """A host's sitemap, read through this module's fetch. Never raises."""
+    return fetch_sitemap_urls(origin, fetch=lambda url, **kw: smart_fetch(url, **kw))
+
+
+def _fetch_page(url: str, lite: str) -> Tuple[Optional[str], Optional[str]]:
+    """(html, None) or (None, error text). Runs on a worker thread."""
+    try:
+        validate_url_for_fetch(url)
+        return smart_fetch(url, lite=lite), None
+    except Exception as err:
+        return None, str(err)
+
+
+def _fetch_batch(batch: List[Dict[str, Any]], start_url: str) -> Dict[str, Tuple[Optional[str], Optional[str]]]:
+    """Fetch a batch of pages concurrently.
+
+    Fetching is waiting - on the site, or on Jina rendering it - so it runs in parallel;
+    extraction is CPU and stays serial. The start page is read with its navigation kept,
+    because its menu and footer are the crawl's map of the site; every other page is read
+    trimmed. The rate limit lives in the scraper, so concurrency here cannot push Jina past it.
+    """
+    start_key = _page_key(start_url)
+    jobs = [(c["url"], "full" if c["key"] == start_key else "trimmed") for c in batch]
+    if len(jobs) == 1:
+        return {jobs[0][0]: _fetch_page(*jobs[0])}
+    with ThreadPoolExecutor(max_workers=min(FETCH_CONCURRENCY, len(jobs))) as pool:
+        futures = {url: pool.submit(_fetch_page, url, lite) for url, lite in jobs}
+        return {url: fut.result() for url, fut in futures.items()}
+
+
+def page_identities(pkg, registry: Optional[Registry], industry) -> List[str]:
+    """What one page tells the graph, as identity strings, for scoring a crawl's yield.
+
+    Three kinds count: a registry entity the page names, a vertical concept it covers -
+    matched exactly as coverage scoring matches, so yield and coverage agree - and a claim
+    (predicate and object). An unresolved name does not count: every customer story names
+    a new company, and counting those would keep a crawl reading customer stories forever.
+    """
+    out: List[str] = []
+    terms = set()
+    for node in pkg.nodes:
+        for form in [node.canonical_name] + list(node.aliases or []):
+            terms.add(form.strip().lower())
+            if registry is not None:
+                hits = registry.lookup(normalise_key(form))
+                if len(hits) == 1:
+                    out.append("entity:" + hits[0].id)
+    for edge in pkg.edges:
+        terms.add(edge.target.strip().lower())
+        out.append("claim:%s|%s" % (edge.predicate, normalise_key(edge.target)))
+    if industry is not None and industry.concepts and terms:
+        index = _alias_index(industry)
+        for concept in industry.concepts:
+            if _label_matches(concept.pref_label, index, terms):
+                out.append("concept:" + concept.id)
+    return out
+
+
+def _resolution_context(vertical_id: str):
+    try:
+        registry = default_store().registry()
+    except Exception as err:
+        logger.warning("[SiteKG] Registry unavailable for yield scoring: %s", err)
+        registry = None
+    try:
+        industry = load_industry_ontology(vertical_id)
+    except Exception:
+        industry = None
+    return registry, industry
 
 
 def crawl_slice(
@@ -153,78 +263,95 @@ def crawl_slice(
     request. A budget keeps each request well under the request timeout, and gives a
     caller something truthful to show instead of a spinner.
 
+    Which pages, in what order, and when to stop is crawl_planner's. This reads the
+    site's sitemap once, fetches the planner's batches in parallel, extracts each page,
+    scores what it added, and feeds its links back to the planner.
+
     Passing no budget crawls to completion, which is what the synchronous path wants.
     """
-    priority_q: deque = deque(state["priority"])
-    regular_q: deque = deque(state["regular"])
-    seen = set(state["seen"])
-
-    def enqueue(urls: List[str], queue: deque) -> None:
-        for url in urls:
-            key = _page_key(url)
-            if key in seen or len(seen) >= _MAX_FRONTIER:
-                continue
-            seen.add(key)
-            queue.append(url)
-
+    plan = _plan_for(state)
+    done = {_page_key(u) for u in state["crawled"]} | {_page_key(f["url"]) for f in state["failed"]}
+    registry, industry = _resolution_context(vertical_id)
     started = time.monotonic()
     pages_this_slice = 0
+
+    def add(urls: List[str], source: str) -> None:
+        for host in crawl_planner.add_candidates(plan, urls, source, done):
+            # A docs or help host the site links to: its sitemap is where its articles are
+            # listed, and it is read once.
+            plan["sitemaps"].append(host)
+            add(_read_sitemap("https://%s" % host), "sitemap")
+
+    if plan["site_host"] not in plan["sitemaps"]:
+        plan["sitemaps"].append(plan["site_host"])
+        parsed = urlparse(state["start_url"])
+        add(_read_sitemap("%s://%s" % (parsed.scheme, parsed.netloc)), "sitemap")
 
     # max_pages budgets attempts, not successes. The binding constraint is the request
     # timeout, and a site that fails half its fetches would otherwise silently fetch twice
     # as many pages as asked for.
-    while state["attempts"] < max_pages and (priority_q or regular_q):
+    while state["attempts"] < max_pages:
         # Both budgets are ignored until one page has been attempted. A slice that can
         # return having done nothing is not a slow slice, it is a job that never finishes:
         # the caller polls forever and the crawl stays where it was.
+        size = FETCH_CONCURRENCY
         if pages_this_slice:
             if budget_pages is not None and pages_this_slice >= budget_pages:
                 break
-            # Checked before starting a page rather than after finishing one: a page costs
-            # roughly sixteen seconds, so a budget tested afterwards would overshoot by
-            # that much every time.
+            # Checked before starting a batch rather than after finishing one, so a slice
+            # overshoots its budget by at most one batch.
             if budget_seconds is not None and (time.monotonic() - started) >= budget_seconds:
                 break
+        if budget_pages is not None:
+            size = min(size, budget_pages - pages_this_slice)
 
-        page_url = priority_q.popleft() if priority_q else regular_q.popleft()
-        state["attempts"] += 1
-        pages_this_slice += 1
+        batch = crawl_planner.next_batch(plan, max_pages, state["attempts"], size)
+        if not batch:
+            break
+        # Marked done before any of the batch is read: a link on its first page to its
+        # last would otherwise make the last a candidate again, and it would be read twice.
+        # The first local 150-page crawl of ordwaylabs.com read four pages twice this way.
+        done.update(cand["key"] for cand in batch)
+        state["attempts"] += len(batch)
+        fetched = _fetch_batch(batch, state["start_url"])
 
-        try:
-            validate_url_for_fetch(page_url)
-            html = smart_fetch(page_url)
-        except Exception as err:
-            # Separated from extraction below: "we never got the page" and "we got it and
-            # could not read it" call for different responses from whoever investigates.
-            logger.warning("[SiteKG] Could not fetch %s: %s", page_url, err)
-            state["failed"].append({"url": page_url, "error": "fetch failed: %s" % str(err)[:250]})
-            continue
+        for cand in batch:
+            page_url, kind = cand["url"], cand["kind"]
+            pages_this_slice += 1
+            html, fetch_error = fetched[page_url]
+            if fetch_error is not None:
+                # Separated from extraction below: "we never got the page" and "we got it
+                # and could not read it" call for different responses from whoever
+                # investigates.
+                logger.warning("[SiteKG] Could not fetch %s: %s", page_url, fetch_error)
+                state["failed"].append({"url": page_url, "error": "fetch failed: %s" % fetch_error[:250]})
+                crawl_planner.record_failure(plan, kind)
+                continue
 
-        try:
-            # Hand over the HTML we already hold. Passing the URL would make build_page_kg
-            # fetch it a second time, doubling every crawl.
-            payload = html
-            if payload.lstrip()[:8].lower().startswith(("http://", "https://")):
-                payload = "<html><body>%s</body></html>" % html
-            pkg = build_page_kg(payload, url=page_url, vertical_id=vertical_id)
-        except Exception as err:
-            logger.warning("[SiteKG] Could not extract %s: %s", page_url, err)
-            state["failed"].append({"url": page_url, "error": "extraction failed: %s" % str(err)[:250]})
-            continue
+            try:
+                # Hand over the HTML we already hold. Passing the URL would make
+                # build_page_kg fetch it a second time, doubling every crawl.
+                payload = html
+                if payload.lstrip()[:8].lower().startswith(("http://", "https://")):
+                    payload = "<html><body>%s</body></html>" % html
+                pkg = build_page_kg(payload, url=page_url, vertical_id=vertical_id)
+            except Exception as err:
+                logger.warning("[SiteKG] Could not extract %s: %s", page_url, err)
+                state["failed"].append({"url": page_url, "error": "extraction failed: %s" % str(err)[:250]})
+                crawl_planner.record_failure(plan, kind)
+                continue
 
-        state["crawled"].append(page_url)
-        # Stored as plain dicts so the state can be written out and read back between
-        # requests without the models having to survive the round trip.
-        state["nodes"].extend(n.model_dump() for n in pkg.nodes)
-        state["edges"].extend(e.model_dump() for e in pkg.edges)
+            state["crawled"].append(page_url)
+            # Stored as plain dicts so the state can be written out and read back between
+            # requests without the models having to survive the round trip.
+            state["nodes"].extend(n.model_dump() for n in pkg.nodes)
+            state["edges"].extend(e.model_dump() for e in pkg.edges)
 
-        found_priority, found_regular = _extract_internal_links(page_url, html)
-        enqueue(found_priority, priority_q)
-        enqueue(found_regular, regular_q)
+            added = crawl_planner.record_yield(plan, page_url, kind, page_identities(pkg, registry, industry))
+            logger.debug("[SiteKG] %s (%s) added %d", page_url, kind, added)
+            add(_page_links(page_url, html), "link")
 
-    state["priority"] = list(priority_q)
-    state["regular"] = list(regular_q)
-    state["seen"] = list(seen)
+    state["seen"] = sorted(done | set(plan["candidates"]) | set(state.get("seen") or []))
     return state
 
 
@@ -232,12 +359,15 @@ def assemble_site_kg(
     state: Dict[str, Any],
     vertical_id: str,
     max_pages: int,
-    persist: bool = True
+    persist: bool = True,
+    registry: Optional[Registry] = None,
 ) -> SiteKnowledgeGraph:
-    """Canonicalize a finished crawl into the site graph and its exports.
+    """Resolve a finished crawl into the site graph and its exports.
 
     Split from the crawl itself so a resumed job can assemble a result from state it did
     not gather, and so the expensive part runs once at the end rather than per slice.
+    Deterministic given `state` and the registry, which is what lets eval/registry_replay
+    measure an identity change on stored crawls.
     """
     start_url = state["start_url"]
     domain = urlparse(start_url).netloc.replace("www.", "").lower()
@@ -258,12 +388,25 @@ def assemble_site_kg(
     logger.info("[SiteKG] %s: read %d of %d pages found (limit %d), %d failed",
                 domain, len(crawled_urls), len(state["seen"]), max_pages, len(failed_pages))
 
-    canonical_nodes = _canonicalize_nodes(all_raw_nodes)
-    canonical_edges = _canonicalize_edges(all_raw_edges, canonical_nodes)
-    induced_schema = _induce_domain_ontology(canonical_edges)
-    top_hubs, clusters = _compute_topology_and_clusters(canonical_nodes, canonical_edges)
-    jsonld_graph = _build_site_jsonld(domain, canonical_nodes, canonical_edges)
-    turtle_graph = _build_site_turtle(domain, canonical_nodes, canonical_edges)
+    store = None
+    if registry is None:
+        store = default_store()
+        registry = store.registry()
+    try:
+        industry = load_industry_ontology(vertical_id)
+    except Exception as err:
+        # Without the vertical, concepts cannot be identified; registry entities and the
+        # brand still can, so this degrades rather than fails.
+        logger.warning("[SiteKG] Vertical %s unavailable for resolution: %s", vertical_id, err)
+        industry = None
+
+    resolved = resolve_site(all_raw_nodes, all_raw_edges, domain, vertical_id, registry, industry)
+    logger.info("[SiteKG] %s resolution: %s", domain, resolved.summary["groups_by_method"])
+
+    induced_schema = _induce_domain_ontology(resolved.edges)
+    top_hubs, clusters = _compute_topology_and_clusters(resolved.nodes, resolved.edges)
+    jsonld_graph = _build_site_jsonld(domain, resolved.brand, resolved.nodes, resolved.edges)
+    turtle_graph = _build_site_turtle(domain, resolved.brand, resolved.nodes, resolved.edges)
 
     site_kg = SiteKnowledgeGraph(
         domain=domain,
@@ -273,8 +416,11 @@ def assemble_site_kg(
         pages_requested=max_pages,
         pages_failed=len(failed_pages),
         failed_pages=failed_pages[:25],
-        nodes=canonical_nodes,
-        edges=canonical_edges,
+        nodes=resolved.nodes,
+        mentions=resolved.mentions,
+        resolution_summary=resolved.summary,
+        crawl_summary=crawl_planner.summary(state["plan"]) if state.get("plan") else {},
+        edges=resolved.edges,
         induced_class_hierarchy=induced_schema,
         topic_clusters=clusters,
         top_authority_hubs=top_hubs,
@@ -287,99 +433,16 @@ def assemble_site_kg(
 
     if persist:
         persist_site_kg(site_kg, vertical_id)
+        if store is not None:
+            # What each page added travels with how each name resolved: together they are
+            # the evidence for where on a site of this kind the graph's content lives.
+            store.record_observation(dict(resolved.observation,
+                                          pages_crawled=len(crawled_urls),
+                                          summary=resolved.summary,
+                                          crawl=site_kg.crawl_summary,
+                                          yield_log=(state.get("plan") or {}).get("yield_log", [])))
 
     return site_kg
-
-
-def _canonicalize_nodes(raw_nodes: List[KGNode]) -> List[KGNode]:
-    """Merge coreferent entity nodes across multiple pages into canonical nodes."""
-    canonical_map: Dict[str, KGNode] = {}
-
-    for node in raw_nodes:
-        # Normalize key for canonical clustering
-        clean_key = re.sub(r'\s+', ' ', node.canonical_name.strip().lower())
-
-        # Strip common trailing suffixes for canonical grouping (e.g. "Stripe API" -> "Stripe")
-        base_key = clean_key
-        for suffix in [" api", " integration", " connector", " sync", " platform", " software", " solution"]:
-            if base_key.endswith(suffix) and len(base_key) > len(suffix) + 3:
-                base_key = base_key[:-len(suffix)].strip()
-                break
-
-        if base_key in canonical_map:
-            existing = canonical_map[base_key]
-            existing.mentions_count += node.mentions_count
-            for url in node.source_urls:
-                if url not in existing.source_urls:
-                    existing.source_urls.append(url)
-            for alias in node.aliases:
-                if alias not in existing.aliases:
-                    existing.aliases.append(alias)
-            if node.wikidata_id and not existing.wikidata_id:
-                existing.wikidata_id = node.wikidata_id
-        else:
-            # Check Wikidata lookup
-            qid = node.wikidata_id or WIKIDATA_KB.get(base_key)
-            node_id = f"entity:{re.sub(r'[^a-zA-Z0-9_-]', '_', base_key)}"
-            canonical_map[base_key] = KGNode(
-                id=node_id,
-                canonical_name=node.canonical_name,
-                entity_type=node.entity_type,
-                aliases=list(set(node.aliases + [node.canonical_name])),
-                wikidata_id=qid,
-                mentions_count=node.mentions_count,
-                source_urls=list(node.source_urls)
-            )
-
-    return list(canonical_map.values())
-
-
-def _canonicalize_edges(raw_edges: List[KGEdge], canonical_nodes: List[KGNode]) -> List[KGEdge]:
-    """Deduplicate and link edges to canonical entity names."""
-    # Build name lookup to canonical name
-    alias_to_canonical = {}
-    for node in canonical_nodes:
-        alias_to_canonical[node.canonical_name.lower()] = node.canonical_name
-        for alias in node.aliases:
-            alias_to_canonical[alias.lower()] = node.canonical_name
-
-    unique_edges: Dict[Tuple[str, str, str], KGEdge] = {}
-
-    for edge in raw_edges:
-        can_source = alias_to_canonical.get(edge.source.lower(), edge.source)
-        can_target = alias_to_canonical.get(edge.target.lower(), edge.target)
-
-        # Skip self loops
-        if can_source.lower() == can_target.lower():
-            continue
-
-        edge_key = (can_source.lower(), edge.predicate.lower(), can_target.lower())
-
-        if edge_key in unique_edges:
-            existing = unique_edges[edge_key]
-            # Keep higher confidence or longer provenance sentence
-            if edge.confidence > existing.confidence:
-                existing.confidence = edge.confidence
-            if edge.provenance_sentence and (not existing.provenance_sentence or len(edge.provenance_sentence) > len(existing.provenance_sentence)):
-                existing.provenance_sentence = edge.provenance_sentence
-        else:
-            sub_slug = re.sub(r'[^a-zA-Z0-9_-]', '_', can_source.lower())
-            tgt_slug = re.sub(r'[^a-zA-Z0-9_-]', '_', can_target.lower())
-            edge_id = f"edge:{sub_slug}-{edge.predicate.lower()}-{tgt_slug}"
-
-            unique_edges[edge_key] = KGEdge(
-                id=edge_id,
-                source=can_source,
-                target=can_target,
-                predicate=edge.predicate,
-                source_type=edge.source_type,
-                target_type=edge.target_type,
-                confidence=edge.confidence,
-                provenance_sentence=edge.provenance_sentence,
-                source_url=edge.source_url
-            )
-
-    return list(unique_edges.values())
 
 
 def _induce_domain_ontology(edges: List[KGEdge]) -> List[InducedClassRelation]:
@@ -445,22 +508,27 @@ def _compute_topology_and_clusters(nodes: List[KGNode], edges: List[KGEdge]) -> 
     return top_hubs, clusters
 
 
-def _build_site_jsonld(domain: str, nodes: List[KGNode], edges: List[KGEdge]) -> Dict[str, Any]:
-    """Generates site-wide W3C JSON-LD @graph representation."""
-    graph_items = []
+def _build_site_jsonld(domain: str, brand: KGNode, nodes: List[KGNode], edges: List[KGEdge]) -> Dict[str, Any]:
+    """Site-wide JSON-LD @graph: the brand, then every identified node.
 
-    # Main organization / platform
-    brand_name = domain.split(".")[0].capitalize()
-    graph_items.append({
+    Mentions are not here. A common-noun phrase ("new customers") names nothing a consumer
+    of the export could link to, and publishing it as a Thing is noise that buries the
+    entities that do have identities.
+    """
+    subject: Dict[str, Any] = {
         "@type": "SoftwareApplication",
-        "@id": f"https://{domain}/#{brand_name.lower()}",
-        "name": brand_name,
+        "@id": brand.id,
+        "name": brand.canonical_name,
         "url": f"https://{domain}",
         "featureList": [e.target for e in edges if e.predicate in ("hasFeature", "automates")][:25],
         "availableOnDevice": [e.target for e in edges if e.predicate == "integratesWith"][:25]
-    })
+    }
+    brand_same_as = wikidata_uri(brand.wikidata_id)
+    if brand_same_as:
+        subject["sameAs"] = brand_same_as
+    graph_items = [subject]
 
-    for node in order_nodes_for_export(nodes, _MAX_EXPORT_NODES):
+    for node in order_nodes_for_export([n for n in nodes if n.id != brand.id], _MAX_EXPORT_NODES):
         item: Dict[str, Any] = {
             "@type": "Thing",
             "@id": node.id,
@@ -478,27 +546,51 @@ def _build_site_jsonld(domain: str, nodes: List[KGNode], edges: List[KGEdge]) ->
     }
 
 
-def _build_site_turtle(domain: str, nodes: List[KGNode], edges: List[KGEdge]) -> str:
-    """Generates site-wide W3C RDF Turtle representation."""
-    brand_name = domain.split(".")[0].capitalize()
-    sub_slug = re.sub(r'[^a-zA-Z0-9_-]', '_', brand_name.lower())
+_EX = Namespace("https://gainark.com/kg/")
+_SCHEMA = Namespace("http://schema.org/")
 
-    lines = [
-        "@prefix schema: <http://schema.org/> .",
-        "@prefix ex: <https://gainark.com/kg/> .",
-        "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .",
-        "",
-        f"ex:{sub_slug} a schema:SoftwareApplication ;",
-        f'    schema:name "{brand_name}" ;',
-        f'    schema:url <https://{domain}> .'
-    ]
 
+def _build_site_turtle(domain: str, brand: KGNode, nodes: List[KGNode], edges: List[KGEdge]) -> str:
+    """Site-wide Turtle: the claims, between resolved identities.
+
+    Subjects and objects are node ids, not slugs of whatever spelling a page used, so the
+    stored run graph - and graph_store.diff_runs over two of them - compares identities.
+    A site that writes "Salesforce.com" one month and "Salesforce" the next no longer
+    reads as one claim dropped and another added.
+
+    Built through rdflib rather than by string formatting, which broke on any name
+    containing a quote.
+    """
+    g = RdfGraph()
+    g.bind("schema", _SCHEMA)
+    g.bind("ex", _EX)
+    g.bind("skos", SKOS)
+
+    by_id = {n.id: n for n in nodes}
+    subject = URIRef(brand.id)
+    g.add((subject, RDF.type, _SCHEMA.SoftwareApplication))
+    g.add((subject, _SCHEMA.name, Literal(brand.canonical_name)))
+    g.add((subject, _SCHEMA.url, URIRef(f"https://{domain}")))
+
+    described = set()
     for e in edges:
-        tgt_slug = re.sub(r'[^a-zA-Z0-9_-]', '_', e.target.lower())
-        lines.append(f'ex:{sub_slug} ex:{e.predicate} ex:{tgt_slug} .')
-        lines.append(f'ex:{tgt_slug} schema:name "{e.target}" .')
+        s, o = URIRef(e.source_id), URIRef(e.target_id)
+        g.add((s, _EX[e.predicate], o))
+        for node_id, name in ((e.source_id, e.source), (e.target_id, e.target)):
+            if node_id in described:
+                continue
+            described.add(node_id)
+            g.add((URIRef(node_id), _SCHEMA.name, Literal(name)))
+            node = by_id.get(node_id)
+            if node is None:
+                continue
+            same_as = wikidata_uri(node.wikidata_id)
+            if same_as:
+                g.add((URIRef(node_id), _SCHEMA.sameAs, URIRef(same_as)))
+            if node.concept_uri:
+                g.add((URIRef(node_id), SKOS.exactMatch, URIRef(node.concept_uri)))
 
-    return "\n".join(lines)
+    return g.serialize(format="turtle")
 
 
 def _page_text(html: str) -> str:

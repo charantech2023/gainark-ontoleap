@@ -35,3 +35,6 @@ scratch/
 
 # Crawl job state when no archive is configured. Local scratch, not history.
 truth_ledger/jobs/
+
+# Entity registry events and run observations when no archive is configured.
+truth_ledger/registry_archive/

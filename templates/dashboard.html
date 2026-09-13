@@ -498,7 +498,7 @@
         // progress. Returns the finished graph, or null when routing refused and the
         // picker is showing instead.
         async function runCrawlJob(url) {
-            const payload = { domain_or_url: url, max_pages: 40 };
+            const payload = { domain_or_url: url, max_pages: 150 };
             if (verticalOverride) payload.vertical_id = verticalOverride;
 
             const created = await fetch('/api/kg/site/jobs', {

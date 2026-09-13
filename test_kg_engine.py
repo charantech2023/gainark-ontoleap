@@ -10,7 +10,9 @@ from models import (
     IndustryOntologyModel, GraphAlignmentResult
 )
 from page_graph import build_page_kg
-from site_graph import _canonicalize_nodes, _canonicalize_edges, _induce_domain_ontology
+from site_graph import _induce_domain_ontology
+from entity_registry import fold, load_seed
+from entity_resolver import normalise_key, resolve_site
 from industry_ontology import (
     load_industry_ontology,
     list_available_industries,
@@ -104,42 +106,42 @@ def test_page_kg_extraction():
 
 
 def test_site_kg_canonicalization():
-    print("\n[3] Testing Multi-Page Entity Canonicalization & Induced Ontology...")
+    print("\n[3] Testing Multi-Page Entity Resolution & Induced Ontology...")
     raw_nodes = [
         KGNode(id="n1", canonical_name="Stripe API", entity_type="IntegrationPartner", aliases=["Stripe API"], mentions_count=2, source_urls=["https://example.com/p1"]),
-        KGNode(id="n2", canonical_name="Stripe", entity_type="IntegrationPartner", aliases=["Stripe"], mentions_count=5, source_urls=["https://example.com/p2"], wikidata_id="Q24067"),
+        KGNode(id="n2", canonical_name="Stripe", entity_type="IntegrationPartner", aliases=["Stripe"], mentions_count=5, source_urls=["https://example.com/p2"]),
         KGNode(id="n3", canonical_name="Salesforce Connector", entity_type="IntegrationPartner", aliases=["Salesforce Connector"], mentions_count=1, source_urls=["https://example.com/p1"]),
         KGNode(id="n4", canonical_name="Salesforce", entity_type="IntegrationPartner", aliases=["Salesforce"], mentions_count=4, source_urls=["https://example.com/p3"]),
     ]
-
-    canonical_nodes = _canonicalize_nodes(raw_nodes)
-    print(f"  Raw Nodes: {len(raw_nodes)} -> Canonical Nodes: {len(canonical_nodes)}")
-    for cn in canonical_nodes:
-        print(f"    * {cn.canonical_name} (Mentions: {cn.mentions_count}, Sources: {len(cn.source_urls)}, Wikidata: {cn.wikidata_id})")
-
-    assert len(canonical_nodes) == 2
-    stripe_node = next(n for n in canonical_nodes if "stripe" in n.canonical_name.lower())
-    assert stripe_node.mentions_count == 7
-    assert stripe_node.wikidata_id is not None
-    assert len(stripe_node.source_urls) == 2
-
-    # Test edge canonicalization and schema induction
     raw_edges = [
         KGEdge(id="e1", source="Ordway", target="Stripe API", predicate="integratesWith", source_type="SoftwarePlatform", target_type="IntegrationPartner"),
         KGEdge(id="e2", source="Ordway", target="Stripe", predicate="integratesWith", source_type="SoftwarePlatform", target_type="IntegrationPartner"),
         KGEdge(id="e3", source="Ordway", target="ASC 606", predicate="compliesWith", source_type="SoftwarePlatform", target_type="Standard")
     ]
-    canonical_edges = _canonicalize_edges(raw_edges, canonical_nodes)
-    print(f"  Raw Edges: {len(raw_edges)} -> Canonical Edges: {len(canonical_edges)}")
-    for ce in canonical_edges:
+
+    registry = fold(load_seed(), [], normalise_key)
+    resolved = resolve_site(raw_nodes, raw_edges, "ordwaylabs.com", "b2b_saas_fintech", registry)
+    entities = [n for n in resolved.nodes if n.id != resolved.brand.id]
+    print(f"  Raw Nodes: {len(raw_nodes)} -> Resolved Nodes: {len(entities)} (+ brand)")
+    for cn in resolved.nodes:
+        print(f"    * {cn.canonical_name} [{cn.resolution}] (Mentions: {cn.mentions_count}, Sources: {len(cn.source_urls)}, Wikidata: {cn.wikidata_id})")
+
+    stripe_node = next(n for n in entities if n.canonical_name == "Stripe")
+    assert stripe_node.mentions_count == 7
+    assert stripe_node.wikidata_id == "Q7624104"
+    assert len(stripe_node.source_urls) == 2
+    assert any(n.canonical_name == "Salesforce" and "Salesforce Connector" in n.aliases for n in entities)
+
+    print(f"  Raw Edges: {len(raw_edges)} -> Resolved Edges: {len(resolved.edges)}")
+    for ce in resolved.edges:
         print(f"    * {ce.source} --({ce.predicate})--> {ce.target}")
+    assert len(resolved.edges) == 2  # Stripe API and Stripe are one claim
+    assert all(e.source_id == resolved.brand.id for e in resolved.edges)
 
-    assert len(canonical_edges) == 2  # Stripe API and Stripe merged
-
-    induced_schema = _induce_domain_ontology(canonical_edges)
+    induced_schema = _induce_domain_ontology(resolved.edges)
     print(f"  Induced Class Relations: {[f'{r.source_class} -({r.predicate})-> {r.target_class} ({r.count})' for r in induced_schema]}")
     assert len(induced_schema) == 2
-    print("  PASS - Entity coreference canonicalization and ontology induction verified.")
+    print("  PASS - Entity resolution and ontology induction verified.")
 
 
 def test_industry_alignment():

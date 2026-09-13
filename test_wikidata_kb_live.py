@@ -62,30 +62,57 @@ def _fetch(qids):
     return entities
 
 
-def test_every_curated_qid_names_its_key():
-    print("\n[1] Every WIKIDATA_KB entry resolves to the item its key names ...")
-    qid_of = {k: v.rstrip("/").rsplit("/", 1)[-1] for k, v in WIKIDATA_KB.items()}
+def _wrong_items(expected):
+    """expected: label -> (qid, [names any of which the item must carry]). None if offline."""
     try:
-        entities = _fetch(set(qid_of.values()))
+        entities = _fetch({qid for qid, _ in expected.values()})
     except OSError as exc:
         print("  SKIP - Wikidata unreachable: %s" % exc)
-        return
-
+        return None
     wrong = []
-    for key, qid in qid_of.items():
+    for label, (qid, wanted) in expected.items():
         entity = entities.get(qid, {})
         names = _names(entity)
         instance_of = [c["mainsnak"].get("datavalue", {}).get("value", {}).get("id")
                        for c in entity.get("claims", {}).get("P31", [])]
-        want = _norm(DELIBERATE.get(key, key))
-        matched = any(re.search(r"\b%s\b" % re.escape(want), _norm(n)) for n in names)
+        matched = any(re.search(r"\b%s\b" % re.escape(_norm(w)), _norm(n))
+                      for w in wanted for n in names)
         if "missing" in entity or not matched or DISAMBIGUATION in instance_of:
-            wrong.append("%-30s %-12s is %r" % (key, qid, names[:1] or "(no such item)"))
+            wrong.append("%-30s %-12s is %r" % (label, qid, names[:1] or "(no such item)"))
+    return wrong
 
-    print("    %d entries checked, %d wrong" % (len(qid_of), len(wrong)))
+
+def test_every_curated_qid_names_its_key():
+    print("\n[1] Every WIKIDATA_KB entry resolves to the item its key names ...")
+    expected = {k: (v.rstrip("/").rsplit("/", 1)[-1], [DELIBERATE.get(k, k)])
+                for k, v in WIKIDATA_KB.items()}
+    wrong = _wrong_items(expected)
+    if wrong is None:
+        return
+    print("    %d entries checked, %d wrong" % (len(expected), len(wrong)))
     for line in wrong:
         print("      " + line)
     assert not wrong, "WIKIDATA_KB holds Q-IDs for the wrong items:\n" + "\n".join(wrong)
+    print("  PASS")
+
+
+def test_every_registry_seed_qid_names_its_entity():
+    print("\n[2] Every registry seed Q-ID names the entity that carries it ...")
+    from entity_registry import load_seed
+    expected = {}
+    for ent in load_seed():
+        qid = (ent.get("external") or {}).get("wikidata")
+        if qid:
+            forms = [ent["prefLabel"]] + [a if isinstance(a, str) else a["form"]
+                                          for a in ent.get("aliases", [])]
+            expected[ent["id"]] = (qid, forms)
+    wrong = _wrong_items(expected)
+    if wrong is None:
+        return
+    print("    %d seed Q-IDs checked, %d wrong" % (len(expected), len(wrong)))
+    for line in wrong:
+        print("      " + line)
+    assert not wrong, "The registry seed holds Q-IDs for the wrong items:\n" + "\n".join(wrong)
     print("  PASS")
 
 
@@ -95,6 +122,7 @@ if __name__ == "__main__":
     print("WIKIDATA KB - LIVE VERIFICATION")
     print("=" * 78)
     test_every_curated_qid_names_its_key()
+    test_every_registry_seed_qid_names_its_entity()
     print("\n" + "=" * 78)
     print("ALL WIKIDATA KB CHECKS PASSED")
     print("=" * 78)

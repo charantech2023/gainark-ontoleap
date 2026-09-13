@@ -596,7 +596,10 @@ def align_graph_with_industry(
     # Build lookup of concepts and aliases present in the Knowledge Graph
     graph_terms = set()
 
-    for node in kg.nodes:
+    # Mentions count too. A site graph keeps common-noun phrases out of its exported nodes,
+    # but coverage asks what the site wrote, and "usage-based billing" in lowercase prose
+    # is still the site writing it.
+    for node in list(kg.nodes) + list(getattr(kg, "mentions", None) or []):
         graph_terms.add(node.canonical_name.strip().lower())
         for alias in node.aliases:
             graph_terms.add(alias.strip().lower())

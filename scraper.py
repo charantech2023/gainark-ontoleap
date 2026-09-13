@@ -25,6 +25,7 @@ import time
 import socket
 import logging
 import ipaddress
+import threading
 from typing import Optional, Dict, Any, Tuple
 from urllib.parse import urlparse, urljoin
 import requests
@@ -109,6 +110,26 @@ JINA_READER_ENDPOINT = "https://r.jina.ai/"
 # would ask again and be refused again, so the reader is skipped for this long instead.
 JINA_COOLDOWN_SECONDS = _env_int("JINA_COOLDOWN_SECONDS", 60)
 
+# Requests a minute, kept under Jina's ceilings: 20 without a key, 500 with a free or paid
+# one. Exceeding them earns a 429 and a cooldown, so a crawl fetching pages in parallel
+# waits its turn instead.
+JINA_RPM_KEYED = _env_int("JINA_RPM", 450)
+JINA_RPM_KEYLESS = _env_int("JINA_RPM_KEYLESS", 18)
+# How long a fetch waits for its turn before reading the page directly instead.
+JINA_RATE_WAIT_SECONDS = _env_int("JINA_RATE_WAIT_SECONDS", 20)
+
+# A key Jina refuses (401 bad key, 402 no balance) is set aside for this long and reads
+# continue without it, at the keyless rate. On 13 Sep 2026 the configured key had run out
+# of balance; pausing the whole reader for that would have sent every page back to a
+# direct fetch while Jina itself was still available.
+JINA_KEY_RETRY_SECONDS = _env_int("JINA_KEY_RETRY_SECONDS", 900)
+
+# What a "lite" read strips before Jina counts tokens. Measured on 13 Sep 2026 against the
+# same pages: full HTML cost 120,000-190,000 tokens a page, markdown 5,000-8,500, and
+# markdown with the page chrome and images removed 1,200-4,100. A 150-page crawl in HTML
+# would spend roughly 25M tokens; the chrome is also the part extraction discards.
+_JINA_LITE_REMOVE = "header, nav, footer, [role=navigation], [role=banner], [role=contentinfo]"
+
 # Upstream statuses that Jina reports but a direct fetch might still get past: the reader's
 # addresses can be blocked, or rate limited, where ours are not.
 _JINA_RETRY_LOCALLY = {403, 429, 503}
@@ -156,6 +177,57 @@ def _jina_should_skip(url: str) -> bool:
     path = urlparse(url).path.lower()
     last = path.rstrip("/").rsplit("/", 1)[-1]
     return path.endswith(_JINA_SKIP_SUFFIXES) or "sitemap" in last
+
+
+class _JinaKeyRefused(Exception):
+    """Jina refused the API key (bad or out of balance); the read may be retried without it."""
+
+
+class _RateLimiter:
+    """At most `rpm` acquisitions in any sixty seconds, shared by every thread."""
+
+    def __init__(self, rpm: int):
+        self.rpm = max(1, rpm)
+        self._stamps: list = []
+        self._lock = threading.Lock()
+
+    def acquire(self, max_wait: float) -> bool:
+        deadline = time.monotonic() + max_wait
+        while True:
+            with self._lock:
+                now = time.monotonic()
+                self._stamps = [t for t in self._stamps if now - t < 60.0]
+                if len(self._stamps) < self.rpm:
+                    self._stamps.append(now)
+                    return True
+                wake = self._stamps[0] + 60.0
+            if wake > deadline:
+                return False
+            time.sleep(max(0.05, min(wake - time.monotonic(), 1.0)))
+
+
+def _markdown_page(data: Dict[str, Any]) -> str:
+    """A Jina markdown read, as the minimal HTML every caller already parses.
+
+    The page's own prose goes in <main>, rendered by markdown-it with raw HTML disabled so
+    nothing in a page can inject markup. The links summary goes in a <nav>: link
+    extraction reads every <a>, while trafilatura discards navigation, so the links reach
+    the crawl frontier without reaching the text extraction reads.
+    """
+    import html as html_lib
+    from markdown_it import MarkdownIt
+
+    title = html_lib.escape(data.get("title") or "")
+    description = html_lib.escape(data.get("description") or "", quote=True)
+    body = MarkdownIt("commonmark", {"html": False}).render(data.get("content") or "")
+    anchors = []
+    for link in data.get("links") or []:
+        if isinstance(link, (list, tuple)) and len(link) == 2 and isinstance(link[1], str):
+            anchors.append('<a href="%s">%s</a>' % (html_lib.escape(link[1], quote=True),
+                                                    html_lib.escape(link[0] or "")))
+    return ('<html><head><title>%s</title><meta name="description" content="%s"></head>'
+            '<body><main>%s</main><nav>%s</nav></body></html>'
+            % (title, description, body, "".join(anchors)))
 
 
 def _ip_is_forbidden(ip: Any) -> bool:
@@ -353,6 +425,8 @@ class SmartScraper:
         self.jina_reader = jina_reader
         self.jina_api_key = os.environ.get("JINA_API_KEY") or None
         self._jina_paused_until = 0.0
+        self._jina_key_suspended_until = 0.0
+        self._jina_limits = {True: _RateLimiter(JINA_RPM_KEYED), False: _RateLimiter(JINA_RPM_KEYLESS)}
         self.browser_headers = {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
@@ -380,34 +454,68 @@ class SmartScraper:
             and time.monotonic() >= self._jina_paused_until
         )
 
-    def _jina_request(self, url: str, timeout: int, force_refresh: bool) -> Tuple[Dict[str, str], int]:
-        """Headers for one Jina read, and how long to wait for the response."""
+    def _jina_key(self) -> Optional[str]:
+        """The key to send, unless Jina has recently refused it."""
+        if self.jina_api_key and time.monotonic() >= self._jina_key_suspended_until:
+            return self.jina_api_key
+        return None
+
+    def _jina_request(self, url: str, timeout: int, force_refresh: bool,
+                      lite: Optional[str] = None) -> Tuple[Dict[str, str], int]:
+        """Headers for one Jina read, and how long to wait for the response.
+
+        `lite` asks for markdown instead of rendered HTML: "full" keeps the page chrome
+        (its navigation links are a crawl's map of the site), "trimmed" removes it.
+        """
         # JSON rather than the plain body, because only the JSON carries the target's own
         # status: a missing page otherwise comes back as 200 with the site's 404 template.
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
-            "X-Return-Format": "html",
+            "X-Return-Format": "markdown" if lite else "html",
         }
+        if lite:
+            headers["X-With-Links-Summary"] = "all"
+            headers["X-Retain-Images"] = "none"
+            if lite == "trimmed":
+                headers["X-Remove-Selector"] = _JINA_LITE_REMOVE
         wait_for = _jina_wait_selector(url)
         if wait_for:
             headers["X-Wait-For-Selector"] = wait_for[0]
             timeout = max(timeout, JINA_RENDER_TIMEOUT)
         headers["X-Timeout"] = str(timeout)
-        if self.jina_api_key:
-            headers["Authorization"] = f"Bearer {self.jina_api_key}"
+        key = self._jina_key()
+        if key:
+            headers["Authorization"] = f"Bearer {key}"
         if force_refresh:
             headers["X-No-Cache"] = "true"
         return headers, timeout + 15
 
-    def _jina_result(self, url: str, status_code: int, body: bytes) -> Optional[str]:
+    def _jina_turn(self, headers: Dict[str, str]) -> bool:
+        """Wait for a request slot at the rate this read's key allows."""
+        if self._jina_limits["Authorization" in headers].acquire(JINA_RATE_WAIT_SECONDS):
+            return True
+        logger.info("Jina Reader rate limit reached; reading directly instead.")
+        return False
+
+    def _jina_result(self, url: str, status_code: int, body: bytes,
+                     lite: Optional[str] = None, keyed: bool = False) -> Optional[str]:
         """Turn a Jina response into page HTML, None to fall back, or an HTTPError.
 
         Raises only when the target itself answered with a definitive error, so a missing
         page fails the way it does on a direct fetch instead of being read as content.
+        A refused key raises _JinaKeyRefused, so the caller can retry without it.
         """
         if status_code != 200:
-            # Rate limited, out of balance, or a bad key: every later page would be refused
+            if keyed and status_code in (401, 402):
+                # The key is bad or out of balance; Jina itself is fine. Read on without
+                # the key rather than sending every page back to a direct fetch.
+                self._jina_key_suspended_until = time.monotonic() + JINA_KEY_RETRY_SECONDS
+                logger.warning(
+                    "Jina Reader refused the API key (HTTP %d); reading without it at %d "
+                    "requests a minute for %ds.", status_code, JINA_RPM_KEYLESS, JINA_KEY_RETRY_SECONDS)
+                raise _JinaKeyRefused()
+            # Rate limited, or refused without a key: every later page would be refused
             # the same way, so stop asking for a while.
             if status_code in (401, 402, 429):
                 self._jina_paused_until = time.monotonic() + JINA_COOLDOWN_SECONDS
@@ -436,26 +544,46 @@ class SmartScraper:
                 return None
             raise requests.HTTPError(f"{upstream} error for url: {url} (reported by Jina Reader)")
 
-        html = data.get("html") or ""
+        if lite:
+            if not (data.get("content") or "").strip():
+                logger.info("Jina Reader got no usable text for %s; fetching directly.", url)
+                return None
+            html = _markdown_page(data)
+        else:
+            html = data.get("html") or ""
         if not html.strip() or is_challenge_page(200, html):
             logger.info("Jina Reader got no usable page for %s; fetching directly.", url)
             return None
-        logger.debug("Level 0 Jina Reader succeeded for %s (%d chars)", url, len(html))
+        logger.debug("Level 0 Jina Reader succeeded for %s (%d chars, %s tokens)",
+                     url, len(html), (data.get("usage") or {}).get("tokens"))
         return html[:MAX_RESPONSE_BYTES]
 
-    def _fetch_jina(self, url: str, timeout: int, force_refresh: bool) -> Optional[str]:
+    def _fetch_jina(self, url: str, timeout: int, force_refresh: bool,
+                    lite: Optional[str] = None) -> Optional[str]:
         """Level 0: read the page through Jina Reader, which fetches and renders it remotely."""
-        headers, wait = self._jina_request(url, timeout, force_refresh)
-        for attempt in (1, 2):
+        attempt = 1
+        key_retried = False
+        while attempt <= 2:
+            headers, wait = self._jina_request(url, timeout, force_refresh, lite)
+            if not self._jina_turn(headers):
+                return None
             try:
                 # POST, so a query string in the target cannot be confused with the reader's own.
                 resp = requests.post(JINA_READER_ENDPOINT, json={"url": url}, headers=headers, timeout=wait)
             except requests.RequestException as e:
                 logger.warning("Jina Reader failed for %s: %s", url, type(e).__name__)
                 return None
-            html = self._jina_result(url, resp.status_code, resp.content)
+            try:
+                html = self._jina_result(url, resp.status_code, resp.content, lite,
+                                         keyed="Authorization" in headers)
+            except _JinaKeyRefused:
+                if key_retried:
+                    return None
+                key_retried = True
+                continue  # same attempt, now without the key
             if not self._render_unfinished(url, html, attempt):
                 return html
+            attempt += 1
         return None
 
     async def _fetch_jina_async(self, url: str, timeout: int, force_refresh: bool) -> Optional[str]:
@@ -467,7 +595,12 @@ class SmartScraper:
             except httpx.HTTPError as e:
                 logger.warning("Jina Reader failed for %s (async): %s", url, type(e).__name__)
                 return None
-            html = self._jina_result(url, resp.status_code, resp.content)
+            try:
+                html = self._jina_result(url, resp.status_code, resp.content,
+                                         keyed="Authorization" in headers)
+            except _JinaKeyRefused:
+                # The key is now set aside; this read falls back, the next goes keyless.
+                return None
             if not self._render_unfinished(url, html, attempt):
                 return html
         return None
@@ -608,7 +741,8 @@ class SmartScraper:
         url: str,
         timeout: int = 15,
         force_refresh: bool = False,
-        max_age: Optional[int] = None
+        max_age: Optional[int] = None,
+        lite: Optional[str] = None,
     ) -> str:
         """
         Synchronously fetches a URL's HTML content.
@@ -616,12 +750,26 @@ class SmartScraper:
         Uses Chrome TLS impersonation, checks for anti-bot blocks,
         and falls back to Firecrawl or standard requests as needed.
 
+        `lite` ("full" or "trimmed") is for callers that need a page's text and links but
+        not its markup - the site crawl. Through Jina it reads markdown rendered back into
+        minimal HTML, at a small fraction of the tokens; without Jina it changes nothing,
+        because a direct fetch costs the same either way. A lite read is cached apart from
+        the full page, so a caller that needs meta tags or embedded schema never gets one.
+        A page whose docs viewer must render first is always read in full.
+
         Every redirect hop is re-validated against the SSRF policy before it is followed.
         """
         validate_url_for_fetch(url)
 
         # Check cache, keyed on the URL the caller asked for, before redirect resolution
         content_cache = get_content_cache()
+        if lite and _jina_wait_selector(url):
+            lite = None
+        if lite:
+            lite_key = "%s#jina-%s" % (url, lite)
+            cached = content_cache.get(lite_key, max_age=max_age, force_refresh=force_refresh)
+            if cached is not None:
+                return cached
         cached = content_cache.get(url, max_age=max_age, force_refresh=force_refresh)
         if cached is not None:
             logger.debug("Cache hit for %s; skipping network fetch.", url)
@@ -630,9 +778,9 @@ class SmartScraper:
         # Level 0: Jina Reader. Ahead of redirect resolution, because when it succeeds the
         # site is never contacted from here at all - redirects included, which Jina follows.
         if self._jina_usable(url):
-            jina_html = self._fetch_jina(url, timeout, force_refresh)
+            jina_html = self._fetch_jina(url, timeout, force_refresh, lite)
             if jina_html:
-                content_cache.set(url, jina_html)
+                content_cache.set(lite_key if lite else url, jina_html)
                 return jina_html
 
         target = _resolve_redirects(url, self.browser_headers, timeout=timeout)
@@ -848,10 +996,12 @@ def smart_fetch(
     url: str,
     timeout: int = 15,
     force_refresh: bool = False,
-    max_age: Optional[int] = None
+    max_age: Optional[int] = None,
+    lite: Optional[str] = None,
 ) -> str:
     """Synchronous helper function to fetch a URL using the smart scraper and cache."""
-    return get_smart_scraper().fetch_html(url, timeout=timeout, force_refresh=force_refresh, max_age=max_age)
+    return get_smart_scraper().fetch_html(url, timeout=timeout, force_refresh=force_refresh,
+                                          max_age=max_age, lite=lite)
 
 
 async def smart_fetch_async(

@@ -162,5 +162,107 @@ class TestJinaReader(unittest.TestCase):
             asyncio.run(run(_jina_response(http_status=404)))
 
 
+def _markdown_response(status_code=200, content="# Billing\n\nAcme integrates with **Stripe**.",
+                       links=(("Pricing", "https://example.com/pricing"),), body=None):
+    resp = MagicMock()
+    resp.status_code = status_code
+    resp.content = body if body is not None else json.dumps({
+        "code": 200,
+        "data": {"url": "https://example.com/", "title": "Acme Billing", "description": "Billing",
+                 "content": content, "links": [list(l) for l in links], "httpStatus": 200,
+                 "usage": {"tokens": 1200}},
+    }).encode()
+    return resp
+
+
+class TestLiteReads(unittest.TestCase):
+    """Markdown reads for the crawl: a small fraction of the tokens, the same text and links.
+
+    Measured 13 Sep 2026 on the same pages: rendered HTML cost 120,000-190,000 tokens a
+    page, trimmed markdown 1,200-4,100, and extraction from the markdown kept 92% of the
+    concepts the direct HTML yielded while finding more on pages built by script.
+    """
+
+    def setUp(self):
+        cache = MagicMock()
+        cache.get.return_value = None
+        for p in (patch("scraper.get_content_cache", return_value=cache),
+                  patch("scraper.validate_url_for_fetch", return_value=None),
+                  patch("scraper._resolve_redirects", side_effect=_WentLocal)):
+            p.start()
+            self.addCleanup(p.stop)
+        self.cache = cache
+        self.scraper = SmartScraper(jina_reader=True)
+        self.scraper.jina_api_key = None
+
+    def test_a_trimmed_read_asks_for_markdown_without_the_chrome(self):
+        with patch("scraper.requests.post", return_value=_markdown_response()) as post:
+            html = self.scraper.fetch_html("https://example.com/features", lite="trimmed")
+        headers = post.call_args.kwargs["headers"]
+        self.assertEqual(headers["X-Return-Format"], "markdown")
+        self.assertEqual(headers["X-Retain-Images"], "none")
+        self.assertIn("nav", headers["X-Remove-Selector"])
+        self.assertEqual(headers["X-With-Links-Summary"], "all")
+        self.assertIn("<title>Acme Billing</title>", html)
+        self.assertIn("<strong>Stripe</strong>", html)
+        self.assertIn('<a href="https://example.com/pricing">Pricing</a>', html)
+        # Cached apart from the full page, so a caller that needs the markup never gets this.
+        self.cache.set.assert_called_once_with("https://example.com/features#jina-trimmed", html)
+
+    def test_a_full_lite_read_keeps_the_navigation(self):
+        with patch("scraper.requests.post", return_value=_markdown_response()) as post:
+            self.scraper.fetch_html("https://example.com/", lite="full")
+        self.assertNotIn("X-Remove-Selector", post.call_args.kwargs["headers"])
+
+    def test_the_text_extraction_reads_is_the_page_not_its_link_list(self):
+        import trafilatura
+        with patch("scraper.requests.post", return_value=_markdown_response(
+                content="Acme automates revenue recognition for subscription businesses. " * 8,
+                links=[("Careers", "https://example.com/careers")] * 30)):
+            html = self.scraper.fetch_html("https://example.com/rev-rec", lite="trimmed")
+        text = trafilatura.extract(html) or ""
+        self.assertIn("revenue recognition", text)
+        self.assertNotIn("Careers", text)
+
+    def test_markup_inside_a_page_cannot_reach_the_document(self):
+        with patch("scraper.requests.post", return_value=_markdown_response(
+                content='<script>alert(1)</script> text',
+                links=[('"><script>x</script>', 'https://example.com/"onmouseover="x')])):
+            html = self.scraper.fetch_html("https://example.com/x", lite="trimmed")
+        self.assertNotIn("<script>", html)
+        self.assertNotIn('"onmouseover="', html)
+
+    def test_a_docs_viewer_page_is_always_read_in_full(self):
+        rendered = '<html><body><div class="sl-markdown-viewer"><h1>Overview</h1></div></body></html>'
+        with patch("scraper.requests.post", return_value=_jina_response(html=rendered)) as post:
+            self.scraper.fetch_html("https://ordwaylabs.stoplight.io/docs/ordway/overview", lite="trimmed")
+        self.assertEqual(post.call_args.kwargs["headers"]["X-Return-Format"], "html")
+
+    def test_a_refused_key_is_dropped_and_the_read_continues_without_it(self):
+        """13 Sep 2026: the configured key had no balance, and Jina itself still worked."""
+        self.scraper.jina_api_key = "k"
+        refused = _markdown_response(status_code=402, body=b'{"name":"InsufficientBalanceError"}')
+        with patch("scraper.requests.post", side_effect=[refused, _markdown_response(), _markdown_response()]) as post:
+            first = self.scraper.fetch_html("https://example.com/a", lite="trimmed")
+            self.scraper.fetch_html("https://example.com/b", lite="trimmed")
+        sent = [c.kwargs["headers"] for c in post.call_args_list]
+        self.assertIn("Authorization", sent[0])
+        self.assertNotIn("Authorization", sent[1], "The retry still sent the refused key")
+        self.assertNotIn("Authorization", sent[2], "The next page went back to the refused key")
+        self.assertIn("Stripe", first)
+        self.assertEqual(self.scraper._jina_paused_until, 0.0, "A refused key paused the whole reader")
+
+    def test_the_rate_limit_waits_then_gives_way_to_a_direct_fetch(self):
+        limiter = scraper._RateLimiter(rpm=2)
+        self.assertTrue(limiter.acquire(0))
+        self.assertTrue(limiter.acquire(0))
+        self.assertFalse(limiter.acquire(0.1), "A third request inside the minute was allowed")
+        self.scraper._jina_limits = {True: limiter, False: limiter}
+        with patch("scraper.requests.post") as post, patch.object(scraper, "JINA_RATE_WAIT_SECONDS", 0):
+            with self.assertRaises(_WentLocal):
+                self.scraper.fetch_html("https://example.com/c", lite="trimmed")
+        post.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

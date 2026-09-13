@@ -401,20 +401,21 @@ def _rank_evidence_links(page_url: str, html: str, limit: Optional[int] = None) 
     return _rank_urls(page_url, hrefs, limit)
 
 
-def _sitemap_documents(base_url: str) -> List[str]:
+def _sitemap_documents(base_url: str, fetch=None) -> List[str]:
     """Where this site's sitemap might be: the conventional paths, then robots.txt.
 
     robots.txt is read for its `Sitemap:` directive only. That line exists to be read by
     crawlers and is the site's own statement of where its index lives, which beats guessing
     at paths.
     """
+    fetch = fetch or smart_fetch
     parsed = urlparse(base_url)
     origin = "%s://%s" % (parsed.scheme, parsed.netloc)
     documents = [origin + path for path in SITEMAP_PATHS]
 
     try:
         validate_url_for_fetch(origin + "/robots.txt")
-        robots = smart_fetch(origin + "/robots.txt", timeout=_SITEMAP_TIMEOUT)
+        robots = fetch(origin + "/robots.txt", timeout=_SITEMAP_TIMEOUT)
     except Exception as err:
         logger.debug("[Discovery] No robots.txt for %s: %s", origin, err)
         return documents
@@ -425,15 +426,19 @@ def _sitemap_documents(base_url: str) -> List[str]:
     return documents
 
 
-def fetch_sitemap_urls(base_url: str) -> List[str]:
+def fetch_sitemap_urls(base_url: str, fetch=None) -> List[str]:
     """Page URLs the site publishes in its own sitemap. Never raises.
 
     Follows a sitemap index one level down to the sitemaps it names. Compressed sitemaps
     are skipped: `smart_fetch` returns text, so a .gz would arrive as binary noise, and
     handling it properly is a separate job from finding evidence pages.
+
+    `fetch` defaults to smart_fetch; the site crawl passes its own so that one fetch
+    function, and one set of test doubles, governs everything a crawl reads.
     """
+    fetch = fetch or smart_fetch
     found: List[str] = []
-    pending = _sitemap_documents(base_url)
+    pending = _sitemap_documents(base_url, fetch)
     fetched = 0
     seen_docs = set()
 
@@ -448,7 +453,7 @@ def fetch_sitemap_urls(base_url: str) -> List[str]:
         fetched += 1
         try:
             validate_url_for_fetch(document)
-            body = smart_fetch(document, timeout=_SITEMAP_TIMEOUT)
+            body = fetch(document, timeout=_SITEMAP_TIMEOUT)
         except Exception as err:
             logger.debug("[Discovery] No sitemap at %s: %s", document, err)
             continue
