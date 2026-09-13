@@ -20,6 +20,9 @@ class TestMCPServer(unittest.TestCase):
             self.assertIn("ontoleap_build_site_kg", tool_names)
             self.assertIn("ontoleap_align_industry_ontology", tool_names)
             self.assertIn("ontoleap_list_industry_ontologies", tool_names)
+            self.assertIn("ontoleap_build_doc_kg", tool_names)
+            self.assertIn("ontoleap_discover_documents", tool_names)
+            self.assertIn("ontoleap_ingest_document_url", tool_names)
         finally:
             loop.close()
 
@@ -91,6 +94,81 @@ class TestMCPServer(unittest.TestCase):
             data = json.loads(res.content[0].text)
             self.assertEqual(data.get("status"), "failed", data)
             self.assertIn("vertical", data.get("message", "").lower())
+        finally:
+            loop.close()
+
+    def test_mcp_build_doc_kg(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as tmp:
+            tmp.write("# Ordway Revenue Automation\nOrdway automates revenue recognition and complies with ASC 606.")
+            tmp_path = tmp.name
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            res = loop.run_until_complete(
+                app.call_tool(
+                    "ontoleap_build_doc_kg",
+                    {"file_path": tmp_path, "vertical_id": "b2b_saas_fintech", "subject_brand": "Ordway"}
+                )
+            )
+            self.assertFalse(res.is_error)
+            data = json.loads(res.content[0].text)
+            self.assertIn("nodes", data)
+            self.assertIn("edges", data)
+            self.assertTrue(len(data["nodes"]) > 0)
+        finally:
+            loop.close()
+            Path(tmp_path).unlink(missing_ok=True)
+
+    def test_mcp_discover_documents(self):
+        from unittest.mock import patch
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            mock_docs = [
+                {"url": "https://acme.com/soc2.pdf", "filename": "soc2.pdf", "title": "SOC 2 Report", "category": "🛡️ Security & Compliance", "source": "sitemap"}
+            ]
+            with patch("scraper.validate_url_for_fetch", return_value=None), \
+                 patch("document_graph.discover_domain_documents", return_value=mock_docs):
+                res = loop.run_until_complete(
+                    app.call_tool("ontoleap_discover_documents", {"domain": "https://acme.com", "max_docs": 5})
+                )
+                self.assertFalse(res.is_error)
+                data = json.loads(res.content[0].text)
+                self.assertEqual(data["count"], 1)
+                self.assertEqual(data["documents"][0]["filename"], "soc2.pdf")
+        finally:
+            loop.close()
+
+    def test_mcp_ingest_document_url(self):
+        from unittest.mock import patch
+        from models import PageKnowledgeGraph
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            mock_kg = PageKnowledgeGraph(
+                url="https://acme.com/soc2.pdf",
+                title="Acme SOC 2",
+                nodes=[],
+                edges=[],
+                classes_discovered=[],
+                predicates_discovered=[],
+                embedded_schemas=[],
+                vertical_id="b2b_saas_fintech",
+                export_jsonld={"@graph": []},
+                export_turtle="@prefix ex: <http://example.org/> ."
+            )
+            with patch("scraper.validate_url_for_fetch", return_value=None), \
+                 patch("document_graph.ingest_remote_document", return_value=mock_kg):
+                res = loop.run_until_complete(
+                    app.call_tool("ontoleap_ingest_document_url", {"document_url": "https://acme.com/soc2.pdf"})
+                )
+                self.assertFalse(res.is_error)
+                data = json.loads(res.content[0].text)
+                self.assertEqual(data["url"], "https://acme.com/soc2.pdf")
+                self.assertEqual(data["title"], "Acme SOC 2")
         finally:
             loop.close()
 

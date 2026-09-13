@@ -4,7 +4,8 @@ GainARK OntoLeap — Knowledge Graph Operations, SPARQL, OWL 2 DL, and Link Pred
 
 import logging
 from typing import List, Dict, Optional, Any
-from fastapi import APIRouter, HTTPException, Query
+from urllib.parse import urlparse
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 from rdflib import Graph
@@ -45,6 +46,11 @@ from industry_ontology import (
     list_available_industries,
     load_industry_ontology,
     align_graph_with_industry
+)
+from document_graph import (
+    extract_document_knowledge_graph,
+    discover_domain_documents,
+    ingest_remote_document
 )
 
 logger = logging.getLogger("ontoleap.api.kg")
@@ -315,6 +321,126 @@ async def api_build_page_kg(req: PageKGRequest):
     except Exception as e:
         logger.error("[API PageKG] Failed to extract page graph: %s", e)
         raise HTTPException(status_code=500, detail=f"Knowledge graph extraction failed: {str(e)}")
+
+
+@router.post("/api/kg/document", response_model=PageKnowledgeGraph,
+             summary="Extract Knowledge Graph From Uploaded Document (PDF/Markdown/Text)")
+async def api_build_doc_kg(
+    file: UploadFile = File(..., description="Document file to ingest (.pdf, .md, .txt, .json, .yaml)"),
+    vertical_id: Optional[str] = Form(None, description="Vertical ontology domain ID (defaults to b2b_saas_fintech)"),
+    title: Optional[str] = Form(None, description="Optional custom document title"),
+    subject_brand: Optional[str] = Form(None, description="Optional primary brand/subject name")
+):
+    """
+    Extracts entities, semantic triples with provenance, and W3C Turtle RDF from an uploaded document
+    (PDF whitepaper, SOC 2 compliance report, Markdown documentation, or text specification).
+    Powered by LlamaIndex document ingestion readers.
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Uploaded file must have a filename.")
+
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    target_vertical = vertical_id or "b2b_saas_fintech"
+
+    try:
+        kg = extract_document_knowledge_graph(
+            file_bytes=file_bytes,
+            filename=file.filename,
+            vertical_id=target_vertical,
+            custom_title=title,
+            subject_brand=subject_brand
+        )
+        kg.vertical_source = "requested" if vertical_id else "default"
+        return kg
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
+    except Exception as e:
+        logger.error("[API DocKG] Failed to extract document graph: %s", e)
+        raise HTTPException(status_code=500, detail=f"Document knowledge graph extraction failed: {str(e)}")
+
+
+class DocumentDiscoveryRequest(BaseModel):
+    url: str = Field(..., description="Target company website URL or domain (e.g. https://company.com)")
+    max_docs: int = Field(10, ge=1, le=50, description="Maximum candidate documents to discover")
+
+
+class DiscoveredDocument(BaseModel):
+    url: str
+    filename: str
+    title: str
+    category: str
+    source: str
+
+
+class DocumentDiscoveryResponse(BaseModel):
+    domain: str
+    count: int
+    documents: List[DiscoveredDocument]
+
+
+class RemoteDocumentIngestRequest(BaseModel):
+    url: str = Field(..., description="URL of the remote document (PDF, DOCX, etc.) to ingest")
+    vertical_id: Optional[str] = Field(None, description="Vertical ontology domain ID (defaults to b2b_saas_fintech)")
+    title: Optional[str] = Field(None, description="Optional custom document title")
+    subject_brand: Optional[str] = Field(None, description="Optional primary brand/subject name")
+
+
+@router.post("/api/kg/documents/discover", response_model=DocumentDiscoveryResponse,
+             summary="Auto-Discover Documents & PDFs From Target Domain")
+def api_discover_documents(req: DocumentDiscoveryRequest):
+    """
+    Scans XML sitemaps, robots.txt, and conventional resource hubs (/resources, /trust, /security)
+    on a target domain to discover high-signal technical PDFs, compliance reports, and case studies.
+    """
+    try:
+        validate_url_for_fetch(req.url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    try:
+        docs = discover_domain_documents(req.url, max_docs=req.max_docs)
+        parsed = urlparse(req.url)
+        domain = parsed.netloc or parsed.path
+        return DocumentDiscoveryResponse(
+            domain=domain,
+            count=len(docs),
+            documents=[DiscoveredDocument(**d) for d in docs]
+        )
+    except Exception as e:
+        logger.error("[API DocDiscovery] Discovery failed for %s: %s", req.url, e)
+        raise HTTPException(status_code=500, detail=f"Failed to discover documents: {str(e)}")
+
+
+@router.post("/api/kg/documents/ingest-url", response_model=PageKnowledgeGraph,
+             summary="Ingest Discovered Remote Document by URL into Knowledge Graph")
+def api_ingest_remote_document(req: RemoteDocumentIngestRequest):
+    """
+    Fetches a discovered remote PDF/document and extracts its Knowledge Graph
+    (entities, semantic triples with evidence, and W3C Turtle RDF).
+    """
+    try:
+        validate_url_for_fetch(req.url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    target_vertical = req.vertical_id or "b2b_saas_fintech"
+    try:
+        kg = ingest_remote_document(
+            url=req.url,
+            vertical_id=target_vertical,
+            custom_title=req.title,
+            subject_brand=req.subject_brand
+        )
+        kg.vertical_source = "requested" if req.vertical_id else "default"
+        return kg
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err))
+    except Exception as e:
+        logger.error("[API IngestDocURL] Failed to ingest remote document %s: %s", req.url, e)
+        raise HTTPException(status_code=500, detail=f"Document ingestion failed: {str(e)}")
 
 
 @router.post("/api/kg/site/jobs", response_model=CrawlJobStatus,

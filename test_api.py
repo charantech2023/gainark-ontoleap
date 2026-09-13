@@ -2,6 +2,7 @@
 End-to-end API tests for the Pure Knowledge Graph & Ontology Engine (api.py).
 """
 
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 from api import app
 
@@ -114,7 +115,56 @@ def test_api():
     print("  Whitespace      :", len(align_data["category_whitespace"]))
     assert len(align_data["covered_concepts"]) > 0
 
-    print("\n[7] Testing GET /api/health ...")
+    print("\n[6b] Testing POST /api/kg/document (LlamaIndex ingestion) ...")
+    import io
+    sample_doc_bytes = b"# Ordway Billing Platform\nOrdway automates revenue recognition and complies with ASC 606."
+    r_doc = client.post(
+        "/api/kg/document",
+        files={"file": ("ordway_whitepaper.md", io.BytesIO(sample_doc_bytes), "text/markdown")},
+        data={"vertical_id": "b2b_saas_fintech", "subject_brand": "Ordway"}
+    )
+    assert r_doc.status_code == 200, f"Error: {r_doc.text}"
+    doc_data = r_doc.json()
+    print("  Document Nodes  :", len(doc_data["nodes"]))
+    print("  Document Edges  :", len(doc_data["edges"]))
+    assert len(doc_data["nodes"]) > 0
+    assert len(doc_data["edges"]) > 0
+
+    print("\n[7] Testing POST /api/kg/documents/discover ...")
+    with patch("scraper.validate_url_for_fetch", return_value=None), \
+         patch("routers.kg_routes.discover_domain_documents", return_value=[
+             {"url": "https://acme.com/soc2.pdf", "filename": "soc2.pdf", "title": "SOC 2 Report", "category": "🛡️ Security & Compliance", "source": "sitemap"}
+         ]):
+        r_disc = client.post("/api/kg/documents/discover", json={"url": "https://acme.com", "max_docs": 5})
+        assert r_disc.status_code == 200, f"Error: {r_disc.text}"
+        disc_data = r_disc.json()
+        assert disc_data["count"] == 1
+        assert disc_data["documents"][0]["filename"] == "soc2.pdf"
+        print("  Discovered Docs :", disc_data["count"])
+
+    print("\n[8] Testing POST /api/kg/documents/ingest-url ...")
+    from models import PageKnowledgeGraph
+    mock_kg = PageKnowledgeGraph(
+        url="https://acme.com/soc2.pdf",
+        title="Acme SOC 2",
+        nodes=[],
+        edges=[],
+        classes_discovered=[],
+        predicates_discovered=[],
+        embedded_schemas=[],
+        vertical_id="b2b_saas_fintech",
+        export_jsonld={"@graph": []},
+        export_turtle="@prefix ex: <http://example.org/> ."
+    )
+    with patch("scraper.validate_url_for_fetch", return_value=None), \
+         patch("routers.kg_routes.ingest_remote_document", return_value=mock_kg):
+        r_ingest = client.post("/api/kg/documents/ingest-url", json={"url": "https://acme.com/soc2.pdf", "title": "Acme SOC 2"})
+        assert r_ingest.status_code == 200, f"Error: {r_ingest.text}"
+        ingest_data = r_ingest.json()
+        assert ingest_data["url"] == "https://acme.com/soc2.pdf"
+        print("  Ingested URL    :", ingest_data["url"])
+
+    print("\n[9] Testing GET /api/health ...")
     r_health = client.get("/api/health")
     assert r_health.status_code == 200
     assert r_health.json()["status"] in ("healthy", "ok")

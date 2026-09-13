@@ -69,6 +69,9 @@
                         <button type="button" id="scope-site" onclick="setScope('site')" class="px-2.5 py-1.5 rounded-lg transition text-slate-500 hover:text-slate-800 cursor-pointer">
                             🌐 Site
                         </button>
+                        <button type="button" id="scope-doc" onclick="setScope('doc')" class="px-2.5 py-1.5 rounded-lg transition text-slate-500 hover:text-slate-800 cursor-pointer">
+                            📑 Documents
+                        </button>
                     </div>
 
                     <!-- URL Input -->
@@ -121,6 +124,50 @@
                     <select id="routing-pick" class="text-xs bg-white border border-amber-300 rounded-lg px-2 py-1 font-semibold text-slate-700 cursor-pointer"></select>
                     <button type="button" onclick="applyVerticalOverride(document.getElementById('routing-pick').value)"
                         class="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg cursor-pointer">Measure anyway</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Documents Auto-Discovery & Upload Workspace -->
+        <div id="documents-panel" class="hidden space-y-6">
+            <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-6">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-100 pb-5">
+                    <div>
+                        <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                            <span>📑 Domain Document &amp; PDF Ingestion</span>
+                            <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">LlamaIndex Powered</span>
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-1">
+                            Auto-discover compliance audits (SOC 2, ISO 27001), architectural whitepapers, and technical datasheets directly from any company domain.
+                        </p>
+                    </div>
+                    <!-- Manual Upload Button -->
+                    <label class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-2 shrink-0">
+                        <span>📤 Upload Local File (.pdf, .md, .txt)</span>
+                        <input type="file" class="hidden" accept=".pdf,.md,.markdown,.txt,.json,.yaml" onchange="uploadLocalDoc(this)">
+                    </label>
+                </div>
+
+                <!-- Discovery Loading State -->
+                <div id="doc-discovery-loading" class="hidden text-center py-10">
+                    <div class="inline-block animate-spin w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full mb-2"></div>
+                    <p class="text-xs font-semibold text-slate-700">Scanning sitemaps, robots.txt, and conventional resource hubs...</p>
+                </div>
+
+                <!-- Discovered Documents List -->
+                <div id="doc-discovery-results" class="hidden space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                            Discovered Documents (<span id="doc-count">0</span>)
+                        </h3>
+                        <span class="text-[11px] font-semibold text-slate-500" id="doc-domain-badge"></span>
+                    </div>
+                    <div id="doc-cards-container" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                </div>
+
+                <!-- Initial Helper Prompt -->
+                <div id="doc-intro" class="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                    <p class="text-xs text-slate-600 font-medium">Enter a company domain in the address bar above and click <strong>Find Documents</strong> to automatically scan for downloadable whitepapers and compliance audits.</p>
                 </div>
             </div>
         </div>
@@ -352,13 +399,34 @@
             currentScope = scope;
             const pageBtn = document.getElementById('scope-page');
             const siteBtn = document.getElementById('scope-site');
+            const docBtn = document.getElementById('scope-doc');
+            const btnText = document.getElementById('btn-text');
+            const urlInput = document.getElementById('target-url');
+            const emptyState = document.getElementById('empty-state');
+            const docsPanel = document.getElementById('documents-panel');
+
+            [pageBtn, siteBtn, docBtn].forEach(b => {
+                if (b) b.className = "px-2.5 py-1.5 rounded-lg transition text-slate-500 hover:text-slate-800 cursor-pointer";
+            });
 
             if (scope === 'page') {
                 pageBtn.className = "px-2.5 py-1.5 rounded-lg transition bg-white text-slate-900 shadow-xs font-bold cursor-pointer";
-                siteBtn.className = "px-2.5 py-1.5 rounded-lg transition text-slate-500 hover:text-slate-800 cursor-pointer";
-            } else {
+                btnText.innerText = 'Build Graph';
+                urlInput.placeholder = "https://company.com/product";
+                docsPanel.classList.add('hidden');
+                if (!currentGraphData) emptyState.classList.remove('hidden');
+            } else if (scope === 'site') {
                 siteBtn.className = "px-2.5 py-1.5 rounded-lg transition bg-white text-slate-900 shadow-xs font-bold cursor-pointer";
-                pageBtn.className = "px-2.5 py-1.5 rounded-lg transition text-slate-500 hover:text-slate-800 cursor-pointer";
+                btnText.innerText = 'Build Site Graph';
+                urlInput.placeholder = "https://company.com";
+                docsPanel.classList.add('hidden');
+                if (!currentGraphData) emptyState.classList.remove('hidden');
+            } else if (scope === 'doc') {
+                docBtn.className = "px-2.5 py-1.5 rounded-lg transition bg-white text-slate-900 shadow-xs font-bold cursor-pointer";
+                btnText.innerText = 'Find Documents';
+                urlInput.placeholder = "https://company.com";
+                docsPanel.classList.remove('hidden');
+                emptyState.classList.add('hidden');
             }
         }
 
@@ -571,6 +639,11 @@
             text.innerText = currentScope === 'page' ? 'Extracting...' : 'Crawling...';
 
             try {
+                if (currentScope === 'doc') {
+                    await discoverDocuments(url);
+                    return;
+                }
+
                 // 1. Build Knowledge Graph (Page or Site)
                 if (currentScope === 'site') {
                     // A site crawl runs as a job advanced a slice at a time. Doing it in
@@ -640,7 +713,203 @@
             } finally {
                 btn.disabled = false;
                 icon.innerText = '⚡';
-                text.innerText = 'Build Graph';
+                text.innerText = currentScope === 'doc' ? 'Find Documents' : 'Build Graph';
+            }
+        }
+
+        async function discoverDocuments(url) {
+            const btn = document.getElementById('submit-btn');
+            const icon = document.getElementById('btn-icon');
+            const text = document.getElementById('btn-text');
+
+            btn.disabled = true;
+            icon.innerText = '⏳';
+            text.innerText = 'Discovering...';
+
+            document.getElementById('doc-discovery-loading').classList.remove('hidden');
+            document.getElementById('doc-discovery-results').classList.add('hidden');
+            document.getElementById('doc-intro').classList.add('hidden');
+
+            try {
+                const res = await fetch('/api/kg/documents/discover', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url, max_docs: 10 })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Document discovery failed');
+                }
+
+                const data = await res.json();
+                renderDiscoveredDocuments(data);
+            } catch (err) {
+                alert('Document Discovery Error: ' + err.message);
+                document.getElementById('doc-intro').classList.remove('hidden');
+            } finally {
+                document.getElementById('doc-discovery-loading').classList.add('hidden');
+            }
+        }
+
+        function renderDiscoveredDocuments(data) {
+            const resultsBox = document.getElementById('doc-discovery-results');
+            const introBox = document.getElementById('doc-intro');
+            const countBadge = document.getElementById('doc-count');
+            const domainBadge = document.getElementById('doc-domain-badge');
+            const container = document.getElementById('doc-cards-container');
+
+            introBox.classList.add('hidden');
+            resultsBox.classList.remove('hidden');
+            countBadge.innerText = data.count || 0;
+            domainBadge.innerText = data.domain || '';
+            container.innerHTML = '';
+
+            if (!data.documents || data.documents.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-2 text-center py-8 text-xs text-slate-500 bg-slate-50 rounded-xl border border-slate-200">
+                        No downloadable PDFs or documents found in sitemaps or conventional hubs for this domain.
+                    </div>
+                `;
+                return;
+            }
+
+            data.documents.forEach(doc => {
+                const card = document.createElement('div');
+                card.className = 'p-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:border-indigo-200 hover:shadow-xs transition space-y-3';
+
+                let catBadgeClass = 'bg-slate-100 text-slate-700';
+                if (doc.category.includes('Security')) catBadgeClass = 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+                else if (doc.category.includes('Architecture')) catBadgeClass = 'bg-blue-50 text-blue-700 border border-blue-200';
+                else if (doc.category.includes('Case')) catBadgeClass = 'bg-amber-50 text-amber-800 border border-amber-200';
+                else if (doc.category.includes('Market')) catBadgeClass = 'bg-purple-50 text-purple-700 border border-purple-200';
+
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-2">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold ${catBadgeClass}">
+                            ${escapeHtml(doc.category)}
+                        </span>
+                        <span class="text-[10px] text-slate-400 font-mono uppercase">${escapeHtml(doc.source)}</span>
+                    </div>
+                    <div>
+                        <div class="font-bold text-xs text-slate-900 line-clamp-1" title="${escapeHtml(doc.title)}">
+                            ${escapeHtml(doc.title)}
+                        </div>
+                        <a href="${escapeHtml(doc.url)}" target="_blank" class="text-[11px] text-indigo-600 hover:underline font-mono truncate block mt-0.5" title="${escapeHtml(doc.url)}">
+                            🔗 ${escapeHtml(doc.filename)}
+                        </a>
+                    </div>
+                    <div class="pt-1 flex items-center justify-end">
+                        <button type="button" onclick="ingestDiscoveredUrl('${encodeURIComponent(doc.url)}', '${escapeHtml(doc.title).replace(/'/g, "\\'")}')"
+                            class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg shadow-xs transition flex items-center gap-1 cursor-pointer">
+                            <span>⚡ Ingest into KG</span>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        async function ingestDiscoveredUrl(encodedUrl, title) {
+            const rawUrl = decodeURIComponent(encodedUrl);
+            const btn = document.getElementById('submit-btn');
+            const icon = document.getElementById('btn-icon');
+            const text = document.getElementById('btn-text');
+
+            btn.disabled = true;
+            icon.innerText = '⏳';
+            text.innerText = 'Extracting Graph...';
+
+            try {
+                const res = await fetch('/api/kg/documents/ingest-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: rawUrl, title: title })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Failed to ingest document');
+                }
+
+                currentGraphData = await res.json();
+
+                const alignRes = await fetch('/api/kg/align', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        page_kg: currentGraphData,
+                        vertical_id: currentGraphData.vertical_id || undefined
+                    })
+                });
+
+                currentAlignmentData = alignRes.ok ? await alignRes.json() : null;
+
+                document.getElementById('documents-panel').classList.add('hidden');
+                renderUnifiedDashboard(currentGraphData, currentAlignmentData);
+                loadBuyerProfile(currentGraphData.vertical_id);
+                renderVerticalBanner(currentGraphData);
+
+            } catch (err) {
+                alert('Document Ingestion Error: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                icon.innerText = '⚡';
+                text.innerText = currentScope === 'doc' ? 'Find Documents' : 'Build Graph';
+            }
+        }
+
+        async function uploadLocalDoc(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const btn = document.getElementById('submit-btn');
+            const icon = document.getElementById('btn-icon');
+            const text = document.getElementById('btn-text');
+
+            btn.disabled = true;
+            icon.innerText = '⏳';
+            text.innerText = 'Parsing File...';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch('/api/kg/document', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'File ingestion failed');
+                }
+
+                currentGraphData = await res.json();
+
+                const alignRes = await fetch('/api/kg/align', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        page_kg: currentGraphData,
+                        vertical_id: currentGraphData.vertical_id || undefined
+                    })
+                });
+
+                currentAlignmentData = alignRes.ok ? await alignRes.json() : null;
+
+                document.getElementById('documents-panel').classList.add('hidden');
+                renderUnifiedDashboard(currentGraphData, currentAlignmentData);
+                loadBuyerProfile(currentGraphData.vertical_id);
+                renderVerticalBanner(currentGraphData);
+
+            } catch (err) {
+                alert('Local File Extraction Error: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                icon.innerText = '⚡';
+                text.innerText = currentScope === 'doc' ? 'Find Documents' : 'Build Graph';
+                input.value = '';
             }
         }
 

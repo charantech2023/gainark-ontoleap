@@ -9,6 +9,7 @@ Tools provided:
 2. ontoleap_build_site_kg: Crawls a domain, canonicalizes entities, and induces domain ontology schema.
 3. ontoleap_align_industry_ontology: Ground page or site KG against industry reference taxonomy.
 4. ontoleap_list_industry_ontologies: Enumerates all supported industry reference models.
+5. ontoleap_build_doc_kg: Extracts Knowledge Graph from local documents (PDF, Markdown, Text).
 """
 
 import sys
@@ -131,6 +132,99 @@ async def ontoleap_list_industry_ontologies() -> str:
         return json.dumps({"error": type(e).__name__, "message": str(e), "status": "failed"})
 
 
+@app.tool(
+    name="ontoleap_build_doc_kg",
+    description="Extracts a rich Knowledge Graph from a local document (PDF, Markdown, Text, JSON/YAML): Named Entities with Wikidata QIDs, semantic triples with exact sentence quotes, and W3C Turtle RDF serialization."
+)
+async def ontoleap_build_doc_kg(
+    file_path: str,
+    vertical_id: Optional[str] = None,
+    title: Optional[str] = None,
+    subject_brand: Optional[str] = None
+) -> str:
+    """
+    Extracts a Knowledge Graph from a local document file (PDF whitepaper, SOC 2 report, Markdown).
+
+    Args:
+        file_path: Absolute or relative path to the local document (.pdf, .md, .txt, .json).
+        vertical_id: Vertical ontology domain ID (defaults to b2b_saas_fintech).
+        title: Optional custom document title.
+        subject_brand: Optional primary subject/brand name.
+    """
+    try:
+        from document_graph import extract_document_knowledge_graph
+        kg = extract_document_knowledge_graph(
+            file_path=file_path,
+            vertical_id=vertical_id or "b2b_saas_fintech",
+            custom_title=title,
+            subject_brand=subject_brand
+        )
+        return json.dumps(kg.model_dump(), indent=2)
+    except Exception as e:
+        logger.error("ontoleap_build_doc_kg failed: %s", e, exc_info=True)
+        return json.dumps({"error": type(e).__name__, "message": str(e), "status": "failed"})
+
+
+@app.tool()
+def ontoleap_discover_documents(
+    domain: str,
+    max_docs: int = 10
+) -> str:
+    """
+    Auto-discovers downloadable PDFs and technical documents (SOC 2, whitepapers, datasheets) from a company domain.
+
+    Args:
+        domain: Target website domain or URL (e.g. "https://stripe.com" or "stripe.com").
+        max_docs: Maximum candidate documents to discover (default: 10).
+    """
+    try:
+        from document_graph import discover_domain_documents
+        from scraper import validate_url_for_fetch
+        validate_url_for_fetch(domain)
+        docs = discover_domain_documents(domain, max_docs=max_docs)
+        return json.dumps({
+            "domain": domain,
+            "count": len(docs),
+            "documents": docs
+        }, indent=2)
+    except Exception as e:
+        logger.error("ontoleap_discover_documents failed: %s", e, exc_info=True)
+        return json.dumps({"error": type(e).__name__, "message": str(e), "status": "failed"})
+
+
+@app.tool()
+def ontoleap_ingest_document_url(
+    document_url: str,
+    vertical_id: Optional[str] = None,
+    title: Optional[str] = None,
+    subject_brand: Optional[str] = None
+) -> str:
+    """
+    Fetches a discovered remote document (PDF whitepaper, compliance report) and extracts its Knowledge Graph.
+
+    Args:
+        document_url: Direct URL to the document (e.g. "https://example.com/assets/soc2.pdf").
+        vertical_id: Vertical ontology domain ID (defaults to b2b_saas_fintech).
+        title: Optional custom document title.
+        subject_brand: Optional primary brand/subject name.
+    """
+    try:
+        from document_graph import ingest_remote_document
+        from scraper import validate_url_for_fetch
+        validate_url_for_fetch(document_url)
+        kg = ingest_remote_document(
+            url=document_url,
+            vertical_id=vertical_id or "b2b_saas_fintech",
+            custom_title=title,
+            subject_brand=subject_brand
+        )
+        return json.dumps(kg.model_dump(), indent=2)
+    except Exception as e:
+        logger.error("ontoleap_ingest_document_url failed: %s", e, exc_info=True)
+        return json.dumps({"error": type(e).__name__, "message": str(e), "status": "failed"})
+
+
 if __name__ == "__main__":
     logger.info("Starting OntoLeap MCP Server on stdio transport...")
     app.run(transport="stdio")
+
