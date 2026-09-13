@@ -29,6 +29,7 @@ from constants import (ICP_EVIDENCE_PATHS, ICP_EVIDENCE_GROUPS, ICP_EVIDENCE_RES
                        ICP_EDITORIAL_PATHS, ICP_MAX_USEFUL_DEPTH,
                        ICP_LOCALE_SEGMENTS)
 from industry_ontology import match_existing_vertical
+from profiler_guard import guard_discovered_vertical_profile
 
 from security import verticals_dir
 
@@ -1256,6 +1257,7 @@ async def discover_industry_profile_async(
 
     # 2. LLM synthesis
     discovered = call_gemini_industry_discovery(evidence, brand_hint=brand_hint)
+    discovered = guard_discovered_vertical_profile(discovered)
 
     # 3. Verify the buyer half against the pages that were actually read
     buyer_values, icp_evidence, buyer_stats = resolve_buyer_fields(discovered, pages)
