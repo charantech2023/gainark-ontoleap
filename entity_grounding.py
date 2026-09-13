@@ -10,8 +10,9 @@ as "SOC 2" in a Chargebee graph, and the same resource as SOC 2 anywhere else.
 
 Why this module exists
 ----------------------
-That question was answered by a dict literal. constants.WIKIDATA_KB holds 40 hand-
-verified Q-IDs, and four call sites read it directly:
+That question was answered by a dict literal. constants.WIKIDATA_KB holds ~40 curated
+Q-IDs (checked against live Wikidata by test_wikidata_kb_live.py), and four call sites
+read it directly:
 
   knowledge_graph.py      - schema:sameAs on the brand, on triple objects, on hubs
   link_prediction.py      - grounding a predicted link
@@ -222,9 +223,9 @@ def normalise(phrase: str) -> str:
 def ground_url(phrase: str) -> Optional[str]:
     """The Wikidata URL for a phrase, or None.
 
-    Static KB first, always. Those 40 entries are hand-verified against the Q-ID, which
-    is a stronger claim than the resolver's heuristics can make, so a curated answer is
-    never overridden by a fetched one.
+    Static KB first, always. Those entries are verified against the live Q-ID by
+    test_wikidata_kb_live.py, which is a stronger claim than the resolver's heuristics
+    can make, so a curated answer is never overridden by a fetched one.
     """
     key = normalise(phrase)
     if not key:

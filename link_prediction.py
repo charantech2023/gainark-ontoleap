@@ -31,28 +31,28 @@ PREDICTION_TEMPLATES: List[Dict[str, Any]] = [
                 "object": "ASC 606",
                 "base_confidence": 0.96,
                 "reasoning": "Platforms automating Revenue Recognition universally require ASC 606 compliance for audit-ready financial statements.",
-                "action": "Add SoftwareApplication.complianceStandard = 'ASC 606' to Schema.org and ground with Q2819869."
+                "action": "Add SoftwareApplication.complianceStandard = 'ASC 606' to Schema.org."
             },
             {
                 "predicate": "compliesWith",
                 "object": "IFRS 15",
                 "base_confidence": 0.92,
                 "reasoning": "Dual-reporting financial platforms automate IFRS 15 alongside ASC 606 for multinational contracts.",
-                "action": "Include IFRS 15 in accounting compliance schemas with Q16996614."
+                "action": "Include IFRS 15 in accounting compliance schemas with Q18358064."
             },
             {
                 "predicate": "integratesWith",
                 "object": "Salesforce",
                 "base_confidence": 0.94,
                 "reasoning": "Closed-Won Opportunities in Salesforce CRM are the primary upstream triggers for automated revenue schedules.",
-                "action": "Define isRelatedTo linking Salesforce with Wikidata Q760814."
+                "action": "Define isRelatedTo linking Salesforce with Wikidata Q941127."
             },
             {
                 "predicate": "integratesWith",
                 "object": "NetSuite",
                 "base_confidence": 0.91,
                 "reasoning": "NetSuite General Ledger synchronization is essential for revenue recognition journal entry exports.",
-                "action": "Document NetSuite ERP connector in platform schema with Q1978731."
+                "action": "Document NetSuite ERP connector in platform schema with Q4045248."
             },
             {
                 "predicate": "supportsCapability",
@@ -86,14 +86,14 @@ PREDICTION_TEMPLATES: List[Dict[str, Any]] = [
                 "object": "Stripe",
                 "base_confidence": 0.91,
                 "reasoning": "Stripe is the dominant payment infrastructure for recurring credit card tokenization and processing.",
-                "action": "Add Stripe integration node grounded to Wikidata Q7624119."
+                "action": "Add Stripe integration node grounded to Wikidata Q7624104."
             },
             {
                 "predicate": "integratesWith",
                 "object": "QuickBooks",
                 "base_confidence": 0.88,
                 "reasoning": "SME and mid-market billing solutions sync accounts receivable balances with QuickBooks Online.",
-                "action": "Add QuickBooks accounting integration triple grounded to Q7271981."
+                "action": "Add QuickBooks accounting integration triple grounded to Q7271951."
             },
             {
                 "predicate": "compliesWith",
@@ -113,7 +113,7 @@ PREDICTION_TEMPLATES: List[Dict[str, Any]] = [
                 "object": "SOC 2 Type II",
                 "base_confidence": 0.93,
                 "reasoning": "Enterprise B2B SaaS buyers require verified SOC 2 Type II security audit compliance.",
-                "action": "Highlight SOC 2 Type II in Organization and Application trust schemas (Q105822363)."
+                "action": "Highlight SOC 2 Type II in Organization and Application trust schemas (Q136309472)."
             },
             {
                 "predicate": "compliesWith",
@@ -134,7 +134,7 @@ PREDICTION_TEMPLATES: List[Dict[str, Any]] = [
                 "object": "Workday",
                 "base_confidence": 0.84,
                 "reasoning": "Enterprise cloud ecosystems integrate with Workday for corporate financial and headcount synchronization.",
-                "action": "Link Workday integration entity (Wikidata Q2592881)."
+                "action": "Link Workday integration entity (Wikidata Q8034666)."
             },
             {
                 "predicate": "integratesWith",

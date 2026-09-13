@@ -18,61 +18,70 @@ from typing import Dict, List
 # OWL ontologies, and Knowledge Graph Link Prediction.
 #
 # Verification source: https://www.wikidata.org/wiki/<QID>
+#
+# Every Q-ID below was checked against the live Wikidata label and English
+# Wikipedia sitelink on 13 Sep 2026. The table it replaced claimed the same and
+# 38 of its 40 Q-IDs named unrelated items (SaaS -> Caiaphas, Slack -> a
+# baseball player). test_wikidata_kb_live.py re-checks every entry against
+# Wikidata; run it after touching this table.
+#
+# A term with no Wikidata item is left out rather than approximated: sameAs is
+# an identity claim, and a missing link is honest where a near miss is not.
+# ASC 606 has no item of its own, so it is not listed.
 # ---------------------------------------------------------------------------
 
 WIKIDATA_KB: Dict[str, str] = {
     # -------------------------------------------------------------------------
     # Compliance, Accounting & Regulatory Standards
     # -------------------------------------------------------------------------
-    "asc 606":          "https://www.wikidata.org/wiki/Q2819869",
-    "ifrs 15":          "https://www.wikidata.org/wiki/Q16996614",
+    "ifrs 15":          "https://www.wikidata.org/wiki/Q18358064",
     # SOC 1 and SOC 2 are distinct audit frameworks
-    "soc 1":            "https://www.wikidata.org/wiki/Q7548567",   # SSAE 18 / SOC 1
-    "soc 2":            "https://www.wikidata.org/wiki/Q105822363",  # SOC 2 Trust Services
-    "soc 2 type ii":    "https://www.wikidata.org/wiki/Q105822363",
-    "soc 1 type ii":    "https://www.wikidata.org/wiki/Q7548567",
-    "gaap":             "https://www.wikidata.org/wiki/Q478440",
-    "us gaap":          "https://www.wikidata.org/wiki/Q478440",
-    "gdpr":             "https://www.wikidata.org/wiki/Q11723205",
-    "pci-dss":          "https://www.wikidata.org/wiki/Q1051515",
-    "iso 27001":        "https://www.wikidata.org/wiki/Q1135272",
-    "hipaa":            "https://www.wikidata.org/wiki/Q1586524",
-    "ccpa":             "https://www.wikidata.org/wiki/Q55606411",
+    "soc 1":            "https://www.wikidata.org/wiki/Q122423588",
+    "soc 2":            "https://www.wikidata.org/wiki/Q136309472",
+    "soc 2 type ii":    "https://www.wikidata.org/wiki/Q136309472",
+    "soc 1 type ii":    "https://www.wikidata.org/wiki/Q122423588",
+    "gaap":             "https://www.wikidata.org/wiki/Q330153",
+    "us gaap":          "https://www.wikidata.org/wiki/Q650978",
+    "gdpr":             "https://www.wikidata.org/wiki/Q1172506",
+    "pci-dss":          "https://www.wikidata.org/wiki/Q2065387",
+    "iso 27001":        "https://www.wikidata.org/wiki/Q852641",
+    "hipaa":            "https://www.wikidata.org/wiki/Q606563",
+    "ccpa":             "https://www.wikidata.org/wiki/Q60754243",
 
     # -------------------------------------------------------------------------
     # Software Integrations & Enterprise Ecosystem Partners
     # -------------------------------------------------------------------------
-    "salesforce":           "https://www.wikidata.org/wiki/Q760814",
-    "netsuite":             "https://www.wikidata.org/wiki/Q1978731",
-    "quickbooks":           "https://www.wikidata.org/wiki/Q7271981",
-    "stripe":               "https://www.wikidata.org/wiki/Q7624119",
-    "workday":              "https://www.wikidata.org/wiki/Q2592881",
-    "hubspot":              "https://www.wikidata.org/wiki/Q17055745",
-    "sage intacct":         "https://www.wikidata.org/wiki/Q28956947",
-    "sage":                 "https://www.wikidata.org/wiki/Q1197415",
-    "xero":                 "https://www.wikidata.org/wiki/Q8043818",
-    "avalara":              "https://www.wikidata.org/wiki/Q16836798",
-    "taxjar":               "https://www.wikidata.org/wiki/Q106726884",
-    "sap":                  "https://www.wikidata.org/wiki/Q5528",
+    "salesforce":           "https://www.wikidata.org/wiki/Q941127",
+    "netsuite":             "https://www.wikidata.org/wiki/Q4045248",
+    "quickbooks":           "https://www.wikidata.org/wiki/Q7271951",
+    "stripe":               "https://www.wikidata.org/wiki/Q7624104",
+    "workday":              "https://www.wikidata.org/wiki/Q8034666",
+    "hubspot":              "https://www.wikidata.org/wiki/Q5926631",
+    "sage intacct":         "https://www.wikidata.org/wiki/Q54818220",
+    "sage":                 "https://www.wikidata.org/wiki/Q1469903",   # Sage Group
+    "xero":                 "https://www.wikidata.org/wiki/Q8043794",
+    "avalara":              "https://www.wikidata.org/wiki/Q117189001",
+    "taxjar":               "https://www.wikidata.org/wiki/Q140989087",
+    "sap":                  "https://www.wikidata.org/wiki/Q552581",
     "oracle":               "https://www.wikidata.org/wiki/Q19900",
-    "zendesk":              "https://www.wikidata.org/wiki/Q8069151",
-    "slack":                "https://www.wikidata.org/wiki/Q16202723",
-    "plaid":                "https://www.wikidata.org/wiki/Q65069792",
-    "snowflake":            "https://www.wikidata.org/wiki/Q104862415",
-    "microsoft dynamics":   "https://www.wikidata.org/wiki/Q1050212",
+    "zendesk":              "https://www.wikidata.org/wiki/Q15401349",
+    "slack":                "https://www.wikidata.org/wiki/Q17130715",  # the product
+    "plaid":                "https://www.wikidata.org/wiki/Q30610132",
+    "snowflake":            "https://www.wikidata.org/wiki/Q22078063",  # Snowflake Inc.
+    "microsoft dynamics":   "https://www.wikidata.org/wiki/Q856705",
 
     # -------------------------------------------------------------------------
     # Core B2B SaaS Concepts & Capabilities
     # -------------------------------------------------------------------------
-    "revenue recognition":          "https://www.wikidata.org/wiki/Q7318047",
-    "accounts receivable":          "https://www.wikidata.org/wiki/Q190766",
-    "invoicing":                    "https://www.wikidata.org/wiki/Q185521",
-    "usage-based pricing":          "https://www.wikidata.org/wiki/Q1134591",
-    "subscription business model":  "https://www.wikidata.org/wiki/Q381373",
-    "saas":                         "https://www.wikidata.org/wiki/Q211246",
+    "revenue recognition":          "https://www.wikidata.org/wiki/Q2146785",
+    "accounts receivable":          "https://www.wikidata.org/wiki/Q328554",
+    "invoicing":                    "https://www.wikidata.org/wiki/Q1301067",
+    "usage-based pricing":          "https://www.wikidata.org/wiki/Q140247033",  # pay-per-use
+    "subscription business model":  "https://www.wikidata.org/wiki/Q4054833",
+    "saas":                         "https://www.wikidata.org/wiki/Q1254596",
     "cloud computing":              "https://www.wikidata.org/wiki/Q483639",
-    "enterprise resource planning": "https://www.wikidata.org/wiki/Q14620",
-    "erp":                          "https://www.wikidata.org/wiki/Q14620",
+    "enterprise resource planning": "https://www.wikidata.org/wiki/Q131508",
+    "erp":                          "https://www.wikidata.org/wiki/Q131508",
 }
 
 

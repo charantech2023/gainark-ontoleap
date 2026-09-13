@@ -69,7 +69,7 @@ def test_curated_entries_answer_without_asking():
     resolver = FakeResolver({"soc 2": "Q999"})
 
     assert eg.ground_url("SOC 2") == WIKIDATA_KB["soc 2"]
-    assert eg.ground_id("SOC 2") == "Q105822363"
+    assert eg.ground_id("SOC 2") == "Q136309472"
     assert eg.is_grounded("SOC 2")
     stats = eg.prefetch(["SOC 2", "GDPR", "Stripe"], resolver=resolver)
 
