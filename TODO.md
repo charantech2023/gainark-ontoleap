@@ -20,11 +20,22 @@ Resolved: Key field & manager in the dashboard UI (`templates/dashboard.html`).
 * HTTP `401 Unauthorized` responses are automatically intercepted to display the modal with an actionable prompt.
 * Verified with `test_security_controls.py` and dashboard template integration tests.
 
-### D2 — Should auth fail closed?
+### [RESOLVED] D2 — Should auth fail closed?
 
-Currently opt-in: no key means the API is open (with a startup warning). The
-alternative is refusing to start without a key. Two-line change, but it breaks the
-current deployment until the key is set.
+Resolved: yes, it fails closed (`api.py`, commit `a4f7cd1`). The warning was not a
+control — the deployed service was found running with no key set and `allUsers` holding
+`roles/run.invoker`, so every endpoint was reachable by anyone with the URL and free to
+spend metered Gemini / Google Knowledge Graph quota.
+* Startup raises when `ONTOLEAP_API_KEY` is unset, so the container fails to come up.
+* On Cloud Run the new revision never takes traffic and the last good one keeps serving:
+  the deploy fails, the service does not.
+* `ONTOLEAP_ALLOW_UNAUTHENTICATED=1` still allows open mode, asked for by name and logged
+  on every boot. Anything that is not a yes is not consent — a stray `0` refuses.
+* Documented in `.env.example`; covered by `test_fail_closed.py` (4 cases).
+
+The objection that it "breaks the current deployment until the key is set" stands, and is
+the point: **set `ONTOLEAP_API_KEY` on the service before deploying `a4f7cd1` or later.**
+The dashboard already carries a key (D1), so it keeps working once one is set.
 
 ---
 
