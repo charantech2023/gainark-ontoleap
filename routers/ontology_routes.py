@@ -20,6 +20,7 @@ import compliance_ontology as comp_onto
 import sector_ontology as sector_onto
 from models import  SemanticTriple
 from routers.deps import _vertical_config_path, DEFAULT_VERTICAL_ID
+from security import content_disposition
 
 logger = logging.getLogger("ontoleap.api.ontology")
 
@@ -289,7 +290,10 @@ def get_ontology_export(
 
     headers = {}
     if download:
-        headers["Content-Disposition"] = f'attachment; filename="ontology_{vertical_id}.{ext}"'
+        # Built through security.content_disposition rather than an f-string: vertical_id
+        # is caller-supplied, and a hostile one only fails to reach here because the
+        # isfile check above 404s first. The sink should not depend on that.
+        headers["Content-Disposition"] = content_disposition("ontology_%s.%s" % (vertical_id, ext))
 
     from fastapi.responses import Response
     return Response(content=serialized, media_type=media_type, headers=headers)

@@ -196,7 +196,7 @@ def test_http_surface():
     )
 
     # Path traversal through vertical_id must be a client error, not a file read.
-    r = client.post("/api/audit", json={"url": "https://example.com", "vertical_id": "../../etc/passwd"})
+    r = client.post("/api/kg/page", json={"url": "https://example.com", "vertical_id": "../../etc/passwd"})
     check("traversal vertical_id rejected", r.status_code, 400)
 
     # Body ceiling.
@@ -204,23 +204,38 @@ def test_http_surface():
     r = client.post("/api/sparql", content=big, headers={"Content-Type": "application/json"})
     check("oversized body rejected", r.status_code, 413)
 
-    # SSRF through the crawl endpoints.
+    # SSRF through every endpoint that fetches a target the caller names. 169.254.169.254
+    # is the cloud metadata service; 127.0.0.1 is anything bound on the instance itself.
     for path, payload in [
-        ("/api/audit", {"url": "http://169.254.169.254/"}),
-        ("/api/batch-crawl", {"sitemap_url": "http://169.254.169.254/sitemap.xml"}),
-        ("/api/internal-links", {"urls": ["http://127.0.0.1/"]}),
+        ("/api/kg/page", {"url": "http://169.254.169.254/"}),
+        ("/api/kg/page", {"url": "http://127.0.0.1/"}),
+        ("/api/kg/site", {"domain_or_url": "http://169.254.169.254/"}),
+        ("/api/kg/site/jobs", {"domain_or_url": "http://127.0.0.1/"}),
+        ("/api/kg/documents/discover", {"url": "http://169.254.169.254/"}),
+        ("/api/kg/documents/ingest-url", {"url": "http://127.0.0.1/secret"}),
     ]:
+        target = payload.get("url") or payload.get("domain_or_url")
         r = client.post(path, json=payload)
-        check(f"{path} refuses internal target", r.status_code, 400)
+        check(f"{path} refuses {target}", r.status_code, 400)
 
-    # Input bounds.
-    r = client.post("/api/batch-crawl", json={"sitemap_url": "https://example.com/s.xml", "max_pages": 100000})
+    # Input bounds. Both crawl surfaces cap the page budget - 40 inside one request, 200
+    # across a job's slices - so neither can be talked into an unbounded crawl.
+    r = client.post("/api/kg/site", json={"domain_or_url": "https://example.com", "max_pages": 100000})
     check("max_pages ceiling enforced", r.status_code, 422)
+    r = client.post("/api/kg/site/jobs", json={"domain_or_url": "https://example.com", "max_pages": 100000})
+    check("max_pages ceiling enforced on jobs", r.status_code, 422)
 
-    # Header injection through the PDF filename.
-    r = client.post("/api/export-pdf", json={"url": 'https://ev"il\r\nX-Injected: yes'})
+    # Header injection through a filename echoed into Content-Disposition. The live
+    # sink is the ontology export's download name, built from a caller's vertical_id.
+    r = client.get("/api/ontology/export",
+                   params={"vertical_id": 'ev"il\r\nX-Injected: yes', "download": "true"})
     cd = r.headers.get("content-disposition", "")
-    check("PDF filename sanitised", ("\r" in cd or "\n" in cd), False)
+    check("hostile vertical_id reaches no header", ('\r' in cd or '\n' in cd), False)
+    # A real export still names its file, and names it safely.
+    r = client.get("/api/ontology/export", params={"vertical_id": "b2b_saas_fintech", "download": "true"})
+    check("export filename is quoted and clean",
+          r.headers.get("content-disposition", ""),
+          'attachment; filename=\"ontology_b2b_saas_fintech.ttl\"')
 
     # Auth enforcement when a key is configured.
     os.environ["ONTOLEAP_API_KEY"] = "unit-test-key"
