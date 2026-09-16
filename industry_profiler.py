@@ -20,7 +20,7 @@ import trafilatura
 
 import vertex_ai_client
 from entity_grounding import resolve_wikidata
-from scraper import smart_fetch, validate_url_for_fetch
+from scraper import repair_glued_words, smart_fetch, validate_url_for_fetch
 from models import (
     IndustryDiscoveryResponse,
     GroundedConcept
@@ -33,6 +33,8 @@ from industry_ontology import (match_existing_vertical, vocabulary_agreement,
 from profiler_guard import guard_discovered_vertical_profile
 
 from security import verticals_dir
+import buyer_profiles
+from datetime import datetime, timezone
 
 logger = logging.getLogger("gainark.industry_profiler")
 
@@ -119,7 +121,7 @@ def _summarize_html(url: str, domain: str, html: str, word_cap: int = 250) -> Di
     # as a list of product menu items, which is why nothing on it could be quoted.
     main_text = ""
     try:
-        main_text = trafilatura.extract(html) or ""
+        main_text = repair_glued_words(trafilatura.extract(html) or "")
     except Exception as err:
         logger.debug("trafilatura could not extract %s: %s", url, err)
 
@@ -1410,15 +1412,26 @@ async def discover_industry_profile_async(
             known_automation=known_automation,
             concept_hierarchy=concept_hierarchy,
             known_features=known_features,
-            known_segments=known_segments,
             known_deployment=known_deployment,
             known_sla=known_sla,
-            known_replaces=known_replaces,
-            known_industries=known_industries,
-            known_competitors=known_competitors,
-            icp_evidence=icp_evidence,
+            # The buyer half describes this site, not the category, and many sites share
+            # a vertical: it is stored against the site below instead. Written here, it
+            # became every other site's Who Buys tab - ordwaylabs.com showed Chargebee's.
             matched_existing=matched_existing
         )
+        buyer_profiles.save(evidence.get("domain") or url, {
+            "url": evidence["url"],
+            "vertical_id": vertical_id,
+            "known_segments": known_segments,
+            "known_industries": known_industries,
+            "known_competitors": known_competitors,
+            "known_replaces": known_replaces,
+            "icp_evidence": icp_evidence,
+            "evidence_urls": [p.get("url", "") for p in pages],
+            "buyer_claims_proposed": buyer_stats["proposed"],
+            "buyer_claims_evidenced": buyer_stats["evidenced"],
+            "discovered_at": datetime.now(timezone.utc).isoformat(),
+        }, root=verticals_dir())
 
     return IndustryDiscoveryResponse(
         url=evidence["url"],

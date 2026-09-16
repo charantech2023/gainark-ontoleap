@@ -8,6 +8,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import HTMLResponse
 
+import buyer_profiles
 import google_kg_client
 import industry_profiler
 from pipeline import validate_url_for_fetch
@@ -138,6 +139,27 @@ def api_google_kg_search_get(query: str = Query(..., description="Brand or compa
     if not res:
         raise HTTPException(status_code=500, detail="Google Knowledge Graph search failed or unconfigured.")
     return res
+
+
+@router.get(
+    "/api/buyer-profile",
+    summary="The stored buyer profile of one site",
+    tags=["Industry Ontology"]
+)
+def api_buyer_profile(domain: str = Query(..., description="The site's domain or any URL on it")):
+    """Who buys from this site, as its last discovery run proved it.
+
+    Stored per site, never per vertical: a vertical is shared by every site routed to it,
+    and one company's customers and competitors are not another's. 404 when discovery has
+    not been run for this site.
+    """
+    key = buyer_profiles.domain_key(domain)
+    if not key:
+        raise HTTPException(status_code=400, detail="Not a usable domain.")
+    profile = buyer_profiles.load(key)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="No buyer profile has been discovered for %s." % key)
+    return profile
 
 
 @router.post(

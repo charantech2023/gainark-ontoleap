@@ -44,7 +44,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from entity_registry import Registry, entity_uri
 from models import KGEdge, KGNode
-from ontology_schema import concept_uri
+from ontology_schema import canonical_class, concept_uri
 
 # ---------------------------------------------------------------------------
 # Rung 0 - normalisation
@@ -94,6 +94,15 @@ def normalise_key(form: str) -> str:
     elif last == last.lower() or words[-1] in GENERIC_WORDS or _singular(words[-1]) in GENERIC_WORDS:
         words[-1] = _singular(words[-1])
     return " ".join(words)
+
+
+def _fold(key: str) -> str:
+    """A key with its spaces and its last word's plural gone: "card connect" and
+    "cardconnect", "coupons" and "coupon" fold together."""
+    words = key.split()
+    if words:
+        words[-1] = _singular(words[-1])
+    return "".join(words)
 
 
 def slug(text: str) -> str:
@@ -219,7 +228,7 @@ class _Group:
     def add(self, form: str, label: Optional[str], count: int, urls: List[str]):
         self.forms[form] += max(count, 1)
         if label:
-            self.labels[label] += 1
+            self.labels[canonical_class(label)] += 1
         self.mentions += max(count, 0)
         for u in urls:
             if u not in self.sources:
@@ -374,6 +383,79 @@ def resolve_site(raw_nodes: List[KGNode], raw_edges: List[KGEdge], domain: str,
         if kind == "observed" and tid != key and tid in targets and targets[tid][0] != "observed":
             targets[key] = (targets[tid][0], targets[tid][1], method)
 
+    # Rung 7: one name written two ways on the same site. Normalisation keeps "Card
+    # Connect" and "CardConnect", "Coupon" and "Coupons", "AWS" and "Amazon Web Services"
+    # apart; the 14 Sep 2026 ordwaylabs.com run listed each pair as two entities. Only
+    # keys nothing else resolved are moved - a registry or concept match already is an
+    # identity, and a blocked key stays blocked.
+    def movable(key: str) -> bool:
+        kind, _, method = targets[key]
+        return kind in ("observed", "mention") and method != "blocked"
+
+    def rank(key: str) -> Tuple[int, int, int]:
+        kind = targets[key][0]
+        g = groups.get(key)
+        return (0 if kind in ("entity", "concept", "brand") else 1 if kind == "observed" else 2,
+                -(g.mentions if g else 0), -len(key.split()))
+
+    # Keys join when any of their folds meet. A written form is folded as well as the key,
+    # because the key has already lost a legal suffix: "Hashi Corp" keys as "hashi".
+    parent: Dict[str, str] = {}
+
+    def find(k: str) -> str:
+        while parent.setdefault(k, k) != k:
+            parent[k] = parent[parent[k]]
+            k = parent[k]
+        return k
+
+    first_by_fold: Dict[str, str] = {}
+    for key in targets:
+        if targets[key][2] == "blocked":
+            continue
+        g = groups.get(key)
+        key_folds = {_fold(key)} | {_fold(" ".join(re.findall(r"[a-z0-9]+", f.lower())))
+                                    for f in (g.forms if g else [])}
+        for fold in key_folds:
+            if not fold:
+                continue
+            if fold in first_by_fold:
+                parent[find(key)] = find(first_by_fold[fold])
+            else:
+                first_by_fold[fold] = key
+    clusters: Dict[str, List[str]] = {}
+    for key in parent:
+        clusters.setdefault(find(key), []).append(key)
+    fold_target: Dict[str, Tuple[str, str]] = {}
+    for keys in clusters.values():
+        best = min(keys, key=rank)
+        for k in keys:
+            fold_target[_fold(k)] = (targets[best][0], targets[best][1])
+            if k != best and movable(k):
+                targets[k] = (targets[best][0], targets[best][1], "spelling")
+
+    # An acronym the site writes in capitals, when exactly one longer name it uses has
+    # those initials: "AWS" is "Amazon Web Services", "US" is "United States".
+    by_initials: Dict[str, set] = {}
+    for key in targets:
+        words = key.split()
+        if len(words) >= 2 and all(len(w) > 1 and w.isalpha() for w in words) and targets[key][2] != "blocked":
+            by_initials.setdefault("".join(w[0] for w in words), set()).add(
+                (targets[key][0], targets[key][1]))
+    for key, g in groups.items():
+        if " " in key or not movable(key) or not any(
+                re.fullmatch(r"[A-Z]{2,5}", f.replace(".", "")) for f in g.forms):
+            continue
+        found = by_initials.get(key.replace(" ", ""), set())
+        if len(found) == 1:
+            kind, tid = next(iter(found))
+            targets[key] = (kind, tid, "acronym")
+
+    # Anything still pointing at a key that just moved follows it.
+    for key, (kind, tid, method) in list(targets.items()):
+        moved = targets.get(tid)
+        if kind in ("observed", "mention") and tid != key and moved and (moved[0], moved[1]) != (kind, tid):
+            targets[key] = (moved[0], moved[1], method)
+
     # Edges name their endpoints by text too; resolve those forms the same way.
     def resolve_form(form: str) -> Tuple[str, str, str]:
         key = normalise_key(form)
@@ -382,6 +464,8 @@ def resolve_site(raw_nodes: List[KGNode], raw_edges: List[KGEdge], domain: str,
         hit = direct(key)
         if hit and hit[0] in ("entity", "concept", "brand"):
             t = (hit[0], hit[1], {"entity": "registry", "concept": "concept", "brand": "brand"}[hit[0]])
+        elif _fold(key) in fold_target:
+            t = fold_target[_fold(key)] + ("spelling",)
         else:
             t = by_suffix(key) or ("observed", key, "edge")
         targets[key] = t
@@ -476,6 +560,15 @@ def resolve_site(raw_nodes: List[KGNode], raw_edges: List[KGEdge], domain: str,
             name = forms_ranked[0] if forms_ranked else tid
             etype = b["labels"].most_common(1)[0][0] if b["labels"] else "Entity"
 
+        # A role is only labelled where a page stated it (page_graph._apply_role_evidence),
+        # so one page naming Zuora as the alternative outweighs five that just list it. A
+        # role is relative to this site, so it also shows over a registry entity's kind.
+        if kind in ("entity", "observed", "mention"):
+            for role in ("Competitor", "Customer"):
+                if b["labels"].get(role):
+                    etype = role
+                    break
+
         node = KGNode(
             id=node_id(kind, tid),
             canonical_name=name,
@@ -511,6 +604,12 @@ def resolve_site(raw_nodes: List[KGNode], raw_edges: List[KGEdge], domain: str,
         tn = by_ident.get("%s|%s" % (t[0], t[1]))
         if sn is None or tn is None or sn.id == tn.id:
             continue
+        # A node nothing typed ("Overage Pricing" as ENTITY) takes the type the relation
+        # names for its object, so "hasFeature -> Entity" is not induced beside
+        # "hasFeature -> Feature".
+        for node, implied in ((sn, e.source_type), (tn, e.target_type)):
+            if node.entity_type in ("Entity", "Concept") and implied:
+                node.entity_type = canonical_class(implied)
         k = (sn.id, e.predicate, tn.id)
         existing = unique.get(k)
         if existing is None:

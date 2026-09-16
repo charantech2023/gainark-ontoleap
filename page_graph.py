@@ -19,13 +19,14 @@ import trafilatura
 import extruct
 
 from models import PageKnowledgeGraph, KGNode, KGEdge
-from scraper import smart_fetch, validate_url_for_fetch
+from scraper import repair_glued_words, smart_fetch, validate_url_for_fetch
 from constants import (
     WIKIDATA_KB, KNOWN_INTEGRATIONS, KNOWN_COMPLIANCE,
     KNOWN_PRICING, KNOWN_AUTOMATION, KNOWN_FEATURES,
     resolve_surface_forms
 )
 from entity_grounding import wikidata_uri
+from ontology_schema import canonical_class
 from industry_ontology import load_industry_ontology
 from pipeline import _load_shared_gliner
 
@@ -50,7 +51,7 @@ def _extract_text_and_title(html: str) -> Tuple[str, str]:
         # Fallback to BeautifulSoup get_text
         clean_text = soup.get_text(separator=" ", strip=True)
 
-    return clean_text, title
+    return repair_glued_words(clean_text), title
 
 
 def _extract_embedded_schemas(html: str, url: str) -> List[str]:
@@ -74,6 +75,45 @@ def _extract_embedded_schemas(html: str, url: str) -> List[str]:
     except Exception as e:
         logger.debug("Schema extraction error for %s: %s", url, e)
         return []
+
+
+# Spans GLiNER tags that name nothing. On the 14 Sep 2026 ordwaylabs.com run: "Customer A",
+# "customer B", "Customer ABC", "tier A" and "Acme Corp" from worked examples, "A100" to
+# "A400" from a pricing table, and "Search", "Filters", "More" from page controls.
+# These are shapes, not a word list, so they do not grow with every site read.
+_PLACEHOLDER = re.compile(
+    r"^(?:(?:customer|client|company|tenant|vendor|user|account|tier|plan|org|organi[sz]ation)"
+    r"\s+(?:[a-z]{1,3}|\d{1,3})|acme(?:\s+\w+)?)$",
+    re.IGNORECASE,
+)
+_BARE_CODE = re.compile(r"^[A-Z]\d{2,4}$")
+
+
+def _prose_words(text: str) -> set:
+    """Lowercase words the page uses mid-sentence, after another lowercase word."""
+    return set(re.findall(r"(?<=[a-z,] )([a-z][a-z-]+)\b", text or ""))
+
+
+def _is_not_a_name(span: str, prose_words: set, concept_keys: set) -> bool:
+    """True for a placeholder, a bare code, or a common word GLiNER took for a name.
+
+    A single capitalised word the same page also writes in lowercase mid-sentence is an
+    ordinary word in a heading or a button ("Search", "More", "Support"), not a name:
+    Stripe and Zuora are not written "stripe" and "zuora". The vertical's own terms
+    ("Dunning", "Invoicing") are kept however the page writes them.
+    """
+    if span.lower() in concept_keys:
+        return False
+    if _PLACEHOLDER.match(span) or _BARE_CODE.match(span):
+        return True
+    if re.fullmatch(r"[A-Z][a-z]+", span):
+        word = span.lower()
+        # "Qu": a fragment. Three letters is left alone - Wix, Box and Olo are names.
+        if len(word) <= 2:
+            return True
+        singular = word[:-1] if word.endswith("s") else word
+        return bool({word, singular, word + "s"} & prose_words)
+    return False
 
 
 def _extract_entities_gliner(text: str, vertical_id: str = "b2b_saas_fintech") -> List[KGNode]:
@@ -100,12 +140,15 @@ def _extract_entities_gliner(text: str, vertical_id: str = "b2b_saas_fintech") -
             break
 
     seen_entities: Dict[str, KGNode] = {}
+    concept_keys = {label.lower() for c in (onto.concepts or [])
+                    for label in [c.pref_label] + list(c.alt_labels or [])}
+    prose_words = _prose_words(text)
 
     for chunk in chunks:
         preds = model.predict_entities(chunk, gliner_labels, threshold=0.50)
         for p in preds:
             raw_text = p["text"].strip()
-            if len(raw_text) < 2:
+            if len(raw_text) < 2 or _is_not_a_name(raw_text, prose_words, concept_keys):
                 continue
 
             canonical = raw_text
@@ -130,7 +173,7 @@ def _extract_entities_gliner(text: str, vertical_id: str = "b2b_saas_fintech") -
                 seen_entities[clean_key] = KGNode(
                     id=node_id,
                     canonical_name=canonical,
-                    entity_type=p["label"],
+                    entity_type=canonical_class(p["label"]),
                     aliases=[raw_text],
                     wikidata_id=wiki_qid,
                     mentions_count=1,
@@ -138,6 +181,195 @@ def _extract_entities_gliner(text: str, vertical_id: str = "b2b_saas_fintech") -
                 )
 
     return list(seen_entities.values())
+
+
+# Page chrome that trafilatura keeps: a search overlay, skip links, form field labels. On
+# the 14 Sep 2026 ordwaylabs.com run "Hit enter to search or ESC to close" opened about a
+# dozen proofs, and one proof for Hybrid Pricing was a lead form's field list.
+_CHROME_LINE = re.compile(
+    r"^(hit enter to search|skip to (main )?content|search( for)?[:.]?$|close( menu)?$|menu$|"
+    r"(first|last) ?name\**$|e-?mail\**$|stage$|lead source$|last call to action( details)?$|"
+    r"article created .* ago$|number of comments: ?\d+$|recent activity$|promoted articles$)",
+    re.IGNORECASE,
+)
+_PROOF_MAX = 280
+
+
+def _proof_units(text: str) -> List[str]:
+    """The sentences a relation may be proven by.
+
+    A line is a boundary as well as sentence punctuation: a feature list or a menu has no
+    full stops, so splitting on punctuation alone made one "sentence" of a whole list,
+    which was then cut at 280 characters - mid-word, and often before the very name the
+    relation was about.
+    """
+    units = []
+    heading = ""
+    for line in (text or "").splitlines():
+        line = line.strip().lstrip("-*• ").strip()
+        if not line or _CHROME_LINE.match(line):
+            continue
+        # A short line with no closing full stop heads the lines under it: "General Ledger
+        # Integration" over "Post to QuickBooks, NetSuite, Sage Intacct". The item keeps
+        # its heading, or the cue that makes it an integration is lost.
+        if len(line) <= 60 and not line.endswith((".", "!", "?")):
+            heading = line.rstrip(":")
+            if len(line) > 15:
+                units.append(line)
+            continue
+        for s in re.split(r'(?<=[.!?])\s+', line):
+            s = s.strip()
+            if len(s) > 15:
+                units.append("%s — %s" % (heading, s) if heading else s)
+    return units
+
+
+def _proof_window(sentence: str, match: str) -> str:
+    """At most _PROOF_MAX characters of a sentence, cut on word boundaries around `match`."""
+    if len(sentence) <= _PROOF_MAX:
+        return sentence
+    found = re.search(re.escape(match), sentence, re.IGNORECASE) if match else None
+    centre = found.start() if found else 0
+    start = max(0, centre - _PROOF_MAX // 3)
+    end = min(len(sentence), start + _PROOF_MAX)
+    start = max(0, end - _PROOF_MAX)
+    # Pull both cuts in to the nearest space, so no word is split.
+    if start > 0:
+        space = sentence.find(" ", start)
+        start = space + 1 if 0 <= space < centre else start
+    if end < len(sentence):
+        space = sentence.rfind(" ", centre, end)
+        end = space if space > centre else end
+    return ("…" if start > 0 else "") + sentence[start:end].strip() + ("…" if end < len(sentence) else "")
+
+
+# Competitor and Customer are roles a company plays toward the site, not kinds of thing,
+# and GLiNER guesses them from loose context. On the 14 Sep 2026 ordwaylabs.com run Visa,
+# Mastercard, FedEx and State Farm were competitors (a payments page and a pricing blog
+# named them), while Zuora - on "The Best Zuora Alternative" - and Chargebee were software
+# platforms, and Claude was a customer. A role now needs the page to state it, and a
+# page that states it assigns it whatever GLiNER said.
+_ROLE_FALLBACK = "Organization"
+_COMPETITOR_BEFORE = r"(?:alternatives?\s+to|vs\.?|versus|compar(?:e|es|ed|ing)\s+(?:to|with|against)|switch(?:ed|ing)?\s+from|migrat\w*\s+(?:away\s+)?from|mov(?:e|ed|ing)\s+(?:away\s+)?from|replac\w*|instead\s+of|leaving)"
+_COMPETITOR_AFTER = r"(?:alternatives?|vs\.?|versus|competitors?|comparison|migration)"
+_CUSTOMER_AFTER = r"(?:automates|scales|uses|used|chose|selected|switched|saved|cut|reduced|grew|case\s+study|customer\s+story)"
+
+
+def _apply_role_evidence(nodes: List[KGNode], text: str, url: str, brand: str = "") -> None:
+    """Keep Competitor and Customer only where the page says so; assign them where it does."""
+    try:
+        from industry_profiler import _evidence_group
+        group = _evidence_group(url)
+    except Exception:
+        group = None
+    brand_key = re.sub(r"[^a-z0-9]", "", brand.lower())
+    for node in nodes:
+        key = re.sub(r"[^a-z0-9]", "", node.canonical_name.lower())
+        # The site's own name: "Ordway automates billing" does not make Ordway a customer.
+        if brand_key and key and (key in brand_key or brand_key in key):
+            continue
+        name = re.escape(node.canonical_name)
+        competitor = bool(
+            re.search(r"%s\s+(?:the\s+)?%s\b" % (_COMPETITOR_BEFORE, name), text, re.IGNORECASE)
+            or re.search(r"\b%s\s+%s\b" % (name, _COMPETITOR_AFTER), text, re.IGNORECASE))
+        customer = bool(re.search(r"\b%s\s+%s\b" % (name, _CUSTOMER_AFTER), text, re.IGNORECASE))
+        if node.entity_type in ("Organization", "SoftwarePlatform", "Competitor", "Customer", "Entity"):
+            if competitor:
+                node.entity_type = "Competitor"
+                continue
+            if customer and node.entity_type != "Competitor":
+                node.entity_type = "Customer"
+                continue
+        if node.entity_type == "Competitor" and not (competitor or group == "comparison"):
+            node.entity_type = _ROLE_FALLBACK
+        elif node.entity_type == "Customer" and not (customer or group == "customer"):
+            node.entity_type = _ROLE_FALLBACK
+
+
+def _concept_pattern(form: str) -> Optional["re.Pattern"]:
+    """A vertical term as the page may write it: any case, hyphen or space between its
+    words, a plural. An acronym ("MRR", "VAT") only in capitals, so "vat" in prose is not
+    value-added tax."""
+    words = re.findall(r"[A-Za-z0-9]+", form or "")
+    if not words:
+        return None
+    if len(words) == 1 and re.fullmatch(r"[A-Z0-9]{2,6}", words[0]):
+        return re.compile(r"(?<![A-Za-z0-9])%s(?![A-Za-z0-9])" % re.escape(words[0]))
+    # A label already plural ("Accounting Standards") still matches its singular.
+    if len(words[-1]) > 4 and words[-1].lower().endswith("s") and not words[-1].lower().endswith("ss"):
+        words[-1] = words[-1][:-1]
+    body = r"[\s-]+".join(re.escape(w) for w in words)
+    return re.compile(r"(?<![A-Za-z0-9])%s(?:s|es)?(?![A-Za-z0-9])" % body, re.IGNORECASE)
+
+
+def _concept_occurrences(text: str, vertical_id: str) -> List[KGNode]:
+    """The vertical's own terms this page writes, one node each.
+
+    GLiNER tags spans it judges to be names, so a term the page states plainly -
+    "performance obligations (POBs)", "MRR/ARR" - could be on a page that was read and
+    still be reported as unclaimed whitespace, as both were on the 14 Sep 2026
+    ordwaylabs.com run. The resolver identifies these nodes as the vertical's concepts.
+    """
+    try:
+        onto = load_industry_ontology(vertical_id)
+    except Exception:
+        return []
+    hits = []
+    for c in onto.concepts or []:
+        for form in [c.pref_label] + list(c.alt_labels or []):
+            pattern = _concept_pattern(form)
+            found = pattern.search(text or "") if pattern else None
+            if found:
+                hits.append(KGNode(
+                    id="concept:%s" % re.sub(r"[^a-z0-9]+", "_", c.pref_label.lower()),
+                    canonical_name=c.pref_label,
+                    entity_type="Concept",
+                    aliases=[found.group(0)],
+                    mentions_count=1,
+                    confidence=1.0,
+                ))
+                break
+    return hits
+
+
+def _brand_forms(subject_name: str) -> List[str]:
+    """How a site writes its own name: "Ordwaylabs" is written "Ordway" as well."""
+    low = (subject_name or "").lower()
+    forms = {low} if low else set()
+    short = re.sub(r"(labs|lab|hq|app|inc|software|tech|io)$", "", low)
+    if len(short) >= 4:
+        forms.add(short)
+    return sorted(forms)
+
+
+def _speaks_for_subject(unit: str, subject_name: str, nodes: List[KGNode], url: str) -> bool:
+    """Whether a sentence can prove something about the site's own product.
+
+    A relation is written as "<site> predicate <target>", so its proof has to be about
+    the site. On the 14 Sep 2026 ordwaylabs.com run it often was not: a Paubox testimonial
+    proved five integrations, a blog list of SaaS companies proved that Ordway has
+    contract management because Docusign does, and a buyer's evaluation table proved SOC 2
+    Type II. Without naming the site, none of these may prove anything:
+      - a sentence naming a customer or a competitor, which is about that company;
+      - a table row, which on these sites is a comparison or evaluation grid;
+      - any sentence on a blog, glossary or guide page, which is about the industry.
+    """
+    low = unit.lower()
+    if any(re.search(r"\b%s" % re.escape(f), low) for f in _brand_forms(subject_name)):
+        return True
+    others = [n.canonical_name.lower() for n in nodes if n.entity_type in ("Customer", "Competitor")]
+    if any(re.search(r"\b%s\b" % re.escape(o), low) for o in others if o):
+        return False
+    if unit.count("|") >= 3:
+        return False
+    try:
+        from constants import ICP_EDITORIAL_PATHS
+        from industry_profiler import _path_matches
+        if _path_matches(urlparse(url).path.rstrip("/").lower(), ICP_EDITORIAL_PATHS):
+            return False
+    except Exception:
+        pass
+    return True
 
 
 def _extract_semantic_edges(
@@ -156,14 +388,13 @@ def _extract_semantic_edges(
     vocab_features = KNOWN_FEATURES
     forms_features = resolve_surface_forms(None, 'known_features', KNOWN_FEATURES)
 
-    # Split into clean sentences
-    raw_sentences = re.split(r'(?<=[.!?])\s+', text)
-    sentences = [s.strip() for s in raw_sentences if len(s.strip()) > 15]
+    sentences = [s for s in _proof_units(text) if _speaks_for_subject(s, subject_name, nodes, url)]
 
     edges: List[KGEdge] = []
     seen_edges = set()
 
-    def add_edge(predicate: str, target: str, conf: float, sentence: str, target_type: str = "Entity"):
+    def add_edge(predicate: str, target: str, conf: float, sentence: str, target_type: str = "Entity",
+                 match: Optional[str] = None):
         edge_key = (subject_name.lower(), predicate.lower(), target.lower())
         if edge_key in seen_edges:
             return
@@ -181,7 +412,7 @@ def _extract_semantic_edges(
             source_type="SoftwarePlatform",
             target_type=target_type,
             confidence=conf,
-            provenance_sentence=sentence[:280],
+            provenance_sentence=_proof_window(sentence, match or target),
             source_url=url
         ))
 
@@ -204,8 +435,14 @@ def _extract_semantic_edges(
                     add_edge("integratesWith", partner, 0.92, sent, target_type="IntegrationPartner")
 
     # 3. compliesWith
+    # Naming a standard is not complying with it. With no cue, a case study headline for a
+    # HIPAA-regulated customer read as "Ordway compliesWith HIPAA" on 14 Sep 2026.
+    compliance_cues = ["complian", "complies", "comply", "certif", "audit", "attest", "accordance",
+                       "conform", "adhere", "meets", "support", "report available", "aligned with"]
     for sent in sentences:
         s_lower = sent.lower()
+        if not any(cue in s_lower for cue in compliance_cues):
+            continue
         for std in vocab_compliance:
             if re.search(rf'\b{re.escape(std.lower())}\b', s_lower):
                 add_edge("compliesWith", std, 0.95, sent, target_type="Standard")
@@ -225,7 +462,7 @@ def _extract_semantic_edges(
         for canonical, surface_forms in forms_features:
             for form in surface_forms:
                 if re.search(rf'\b{re.escape(form.lower())}\b', s_lower):
-                    add_edge("hasFeature", canonical, 0.85, sent, target_type="Feature")
+                    add_edge("hasFeature", canonical, 0.85, sent, target_type="Feature", match=form)
                     break
 
     return edges
@@ -312,6 +549,30 @@ def _build_turtle_graph(url: str, subject_name: str, edges: List[KGEdge], nodes:
     return "\n".join(lines)
 
 
+_HOSTED_PLATFORMS = {
+    "stoplight.io", "readme.io", "gitbook.io", "mintlify.app", "zendesk.com", "freshdesk.com",
+    "helpscoutdocs.com", "intercom.help", "notion.site", "github.io", "document360.io",
+}
+
+
+def _domain_brand(url: str) -> str:
+    """The brand label of a host: the registered name, never a subdomain.
+
+    Taking the first label made support.ordwaylabs.com's subject "Support", which then
+    stood beside Ordway as a platform that integrates with Salesforce and Stripe.
+    """
+    labels = [p for p in (urlparse(url).hostname or "").lower().split(".") if p]
+    # On a hosted docs or help platform the tenant is the subdomain: ordwaylabs.stoplight.io.
+    if len(labels) >= 3 and ".".join(labels[-2:]) in _HOSTED_PLATFORMS:
+        return labels[-3].capitalize()
+    if len(labels) < 2:
+        return (labels[0] if labels else "").capitalize()
+    # "acme.co.uk": a two-letter country code under a generic second level.
+    if len(labels) >= 3 and len(labels[-1]) == 2 and labels[-2] in ("co", "com", "org", "net", "ac", "gov", "edu"):
+        return labels[-3].capitalize()
+    return labels[-2].capitalize()
+
+
 def build_page_kg(
     url_or_html: str,
     url: Optional[str] = None,
@@ -333,7 +594,7 @@ def build_page_kg(
     clean_text, title = _extract_text_and_title(html_content)
 
     # Determine subject name (brand)
-    domain_brand = urlparse(actual_url).netloc.replace("www.", "").split(".")[0].capitalize()
+    domain_brand = _domain_brand(actual_url)
     if not domain_brand or domain_brand == "Example":
         domain_brand = title.split("|")[0].split("-")[0].strip() if title else "Subject"
 
@@ -344,6 +605,15 @@ def build_page_kg(
     nodes = _extract_entities_gliner(clean_text, vertical_id=vertical_id)
     for n in nodes:
         n.source_urls = [actual_url]
+
+    _apply_role_evidence(nodes, clean_text, actual_url, brand=domain_brand)
+
+    seen = {n.canonical_name.lower() for n in nodes}
+    for hit in _concept_occurrences(clean_text, vertical_id):
+        if hit.canonical_name.lower() not in seen:
+            hit.source_urls = [actual_url]
+            nodes.append(hit)
+            seen.add(hit.canonical_name.lower())
 
     # Ensure subject node exists
     subject_id = f"entity:{domain_brand.lower()}"

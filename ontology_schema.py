@@ -109,6 +109,41 @@ OBJECT_TYPES = [
 ]
 
 
+# Class names reach a graph from three places: the vertical's GLiNER labels, written as
+# phrases ("Pricing Model"), the relation extractor's target types ("PricingModel"), and
+# the registry and concept kinds ("Standard", "Place"). The 14 Sep 2026 ordwaylabs.com
+# run showed PRICINGMODEL and PRICING MODEL side by side, induced "Organization ->
+# supportsPricingModel -> PricingModel" and "-> Topic" as separate rules, and listed
+# "Pricing Model Concepts" and "PricingModel Concepts" as separate clusters. Every class
+# name is spelled one way, and labels that name the same class land on it.
+_CLASS_SYNONYMS = {
+    "BillingFeature": FEATURE,
+    "ProductFeature": FEATURE,
+    "AccountingStandard": "Standard",
+    "SecurityStandard": "Standard",
+    "FinancialStandard": "Standard",
+    "ComplianceStandard": "Standard",
+    "BillingModel": PRICING_MODEL,
+    "PricingStructure": PRICING_MODEL,
+    "CustomerSegment": SEGMENT,
+    "IndustryVertical": INDUSTRY,
+    "GeographicMarket": "Place",
+    "SLACommitment": SLA,
+    "TrustCertification": CERTIFICATION,
+}
+
+
+def canonical_class(label: str) -> str:
+    """One spelling for a class name: "Pricing Model", "pricing_model" and "PricingModel"
+    all give "PricingModel"; synonyms such as "Billing Feature" give the class they name."""
+    words = re.split(r"[\s_\-]+", (label or "").strip())
+    # A word already capitalised keeps its inner capitals ("API", "SoftwarePlatform").
+    name = "".join(w if w[:1].isupper() else w[:1].upper() + w[1:] for w in words if w)
+    if not name:
+        return "Entity"
+    return _CLASS_SYNONYMS.get(name, name)
+
+
 @dataclass(frozen=True)
 class RelationSpec:
     """One relation in the schema, and everything the extractor needs to find it.

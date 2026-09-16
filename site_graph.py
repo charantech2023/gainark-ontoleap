@@ -30,7 +30,7 @@ from models import (
 from rdflib import Graph as RdfGraph, Literal, Namespace, RDF, URIRef
 from rdflib.namespace import SKOS
 
-from scraper import smart_fetch, validate_url_for_fetch
+from scraper import repair_glued_words, smart_fetch, validate_url_for_fetch
 from entity_grounding import wikidata_uri
 import crawl_planner
 from entity_registry import Registry, default_store
@@ -597,7 +597,7 @@ def _page_text(html: str) -> str:
     """Readable prose from a page, falling back to the raw markup."""
     try:
         import trafilatura
-        return trafilatura.extract(html) or html or ""
+        return repair_glued_words(trafilatura.extract(html) or html or "")
     except Exception:
         return html or ""
 

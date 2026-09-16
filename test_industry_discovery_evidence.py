@@ -1531,10 +1531,17 @@ def test_discovery_end_to_end_verifies_claims_against_the_pages_it_read():
         assert len(res.evidence_urls) == 4
         assert res.confidence_score != 0.96, "no longer a constant"
 
+        # The buyer half is stored against the site, not the shared vertical: written onto
+        # the vertical, it became every other site's Who Buys (ordwaylabs.com showed
+        # Chargebee's on 14 Sep 2026).
         with open(res.config_file, encoding="utf-8") as fh:
             saved = json.load(fh)
-        assert saved["known_competitors"] == ["Zuora"]
-        assert saved["icp_evidence"]["known_replaces"]["revenue schedules in Excel"]["source_url"]
+        assert not saved.get("known_competitors"), saved.get("known_competitors")
+        assert not saved.get("icp_evidence"), "buyer evidence must not land on the vertical"
+        import buyer_profiles
+        profile = buyer_profiles.load("acme.com", root=tmpdir)
+        assert profile["known_competitors"] == ["Zuora"]
+        assert profile["icp_evidence"]["known_replaces"]["revenue schedules in Excel"]["source_url"]
 
         print("  Segments proposed: %s" % res.known_segments)
         print("  Segments evidenced: %s" % list(res.icp_evidence.get("known_segments", {})))

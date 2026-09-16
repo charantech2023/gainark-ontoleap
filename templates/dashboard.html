@@ -704,7 +704,7 @@
 
                 document.getElementById('routing-help').classList.add('hidden');
                 renderUnifiedDashboard(currentGraphData, currentAlignmentData);
-                loadBuyerProfile(currentGraphData.vertical_id);
+                loadBuyerProfile(currentGraphData);
                 renderVerticalBanner(currentGraphData);
                 renderCrawlBanner(currentGraphData);
 
@@ -847,7 +847,7 @@
 
                 document.getElementById('documents-panel').classList.add('hidden');
                 renderUnifiedDashboard(currentGraphData, currentAlignmentData);
-                loadBuyerProfile(currentGraphData.vertical_id);
+                loadBuyerProfile(currentGraphData);
                 renderVerticalBanner(currentGraphData);
 
             } catch (err) {
@@ -900,7 +900,7 @@
 
                 document.getElementById('documents-panel').classList.add('hidden');
                 renderUnifiedDashboard(currentGraphData, currentAlignmentData);
-                loadBuyerProfile(currentGraphData.vertical_id);
+                loadBuyerProfile(currentGraphData);
                 renderVerticalBanner(currentGraphData);
 
             } catch (err) {
@@ -948,7 +948,7 @@
                 card.innerHTML = `
                     <div class="min-w-0 pr-2">
                         <div class="font-bold text-slate-900 truncate">${escapeHtml(n.canonical_name)}</div>
-                        <span class="text-[10px] text-slate-500 uppercase tracking-wider">${escapeHtml(n.entity_type)}</span>
+                        <span class="text-[10px] text-slate-500 uppercase tracking-wider">${escapeHtml((n.entity_type || '').replace(/([a-z])([A-Z])/g, '$1 $2'))}</span>
                     </div>
                     <div>${wikiHtml}</div>
                 `;
@@ -1061,9 +1061,10 @@
         }
 
         // --- TAB 4: WHO BUYS ------------------------------------------------
-        // The buyer half is stored on the vertical, so it is shown from there rather than
-        // re-read on every run: discovery costs eight fetches and an LLM call, and the
-        // answer does not change between two crawls of the same site.
+        // The buyer half is stored per site, so it is shown from there rather than re-read
+        // on every run: discovery costs eight fetches and an LLM call, and the answer does
+        // not change between two crawls of the same site. Never from the vertical: every
+        // site routed to one shared it, and ordwaylabs.com showed Chargebee's buyers.
 
         const ICP_FIELDS = [
             ['known_segments',    '🏢 Segments',   'The kinds of organisation this is sold to'],
@@ -1072,33 +1073,33 @@
             ['known_replaces',    '📉 Replaces',   'What customers are described as leaving behind']
         ];
 
-        async function loadBuyerProfile(verticalId) {
+        async function loadBuyerProfile(graph) {
             const empty = document.getElementById('icp-empty');
             const fields = document.getElementById('icp-fields');
             const provenance = document.getElementById('icp-provenance');
             document.getElementById('icp-status').innerText = '';
 
-            if (!verticalId) {
-                // No vertical means no profile to store one against, and discovery would
-                // have nothing to attach its answer to.
+            const site = graph && (graph.domain || graph.url);
+            if (!site) {
                 empty.classList.remove('hidden');
                 document.getElementById('icp-discover-btn').classList.add('hidden');
                 document.getElementById('icp-status').innerText =
-                    'This run was not routed to a vertical, so there is nowhere to store a buyer profile.';
+                    'This run names no site, so there is no buyer profile to show.';
                 fields.classList.add('hidden');
                 provenance.classList.add('hidden');
                 return;
             }
 
-            let industry = null;
+            let profile = null;
             try {
-                const r = await fetch('/api/kg/industry/' + encodeURIComponent(verticalId));
-                if (r.ok) industry = await r.json();
+                const r = await fetch('/api/buyer-profile?domain=' + encodeURIComponent(site));
+                if (r.ok) profile = await r.json();
             } catch (err) {
-                industry = null;
+                profile = null;
             }
 
-            renderBuyerProfile(industry);
+            renderBuyerProfile(profile);
+            if (profile) renderBuyerProvenance(profile);
         }
 
         function renderBuyerProfile(industry) {
@@ -1196,8 +1197,10 @@
             provenance.classList.remove('hidden');
 
             document.getElementById('icp-claim-counts').innerText =
-                discovery.buyer_claims_evidenced + ' of ' + discovery.buyer_claims_proposed +
-                ' claims proven · confidence ' + Math.round((discovery.confidence_score || 0) * 100) + '%';
+                discovery.buyer_claims_evidenced + ' of ' + discovery.buyer_claims_proposed + ' claims proven' +
+                (discovery.confidence_score != null
+                    ? ' · confidence ' + Math.round(discovery.confidence_score * 100) + '%' : '') +
+                (discovery.discovered_at ? ' · read ' + discovery.discovered_at.slice(0, 10) : '');
 
             const urls = document.getElementById('icp-evidence-urls');
             urls.innerHTML = '';

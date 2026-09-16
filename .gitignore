@@ -38,3 +38,6 @@ truth_ledger/jobs/
 
 # Entity registry events and run observations when no archive is configured.
 truth_ledger/registry_archive/
+
+# Per-site buyer profiles written by discovery. Runtime data, mirrored under buyers/.
+verticals/buyers/

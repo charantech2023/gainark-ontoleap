@@ -104,7 +104,9 @@ def sync_down(force: bool = False) -> List[str]:
     target = verticals_dir()
     pulled: List[str] = []
     try:
-        keys = [k for k in store.list() if k.endswith(".json")]
+        # Top-level keys only: buyer profiles share the mirror under buyers/ and are not
+        # verticals (see buyer_profiles.py).
+        keys = [k for k in store.list() if k.endswith(".json") and "/" not in k]
     except Exception as err:
         logger.error("Could not list vertical mirror %s: %s", MIRROR_URI, err)
         return []

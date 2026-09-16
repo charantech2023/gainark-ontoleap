@@ -16,6 +16,7 @@ import json
 import logging
 from typing import Optional, List, Dict, Union, Any
 
+from ontology_schema import canonical_class
 from security import verticals_dir
 from models import (
     IndustryOntologyModel, IndustryConcept, GraphAlignmentResult,
@@ -570,6 +571,12 @@ def match_existing_vertical(text: str, discovered_terms: Optional[List[str]] = N
     }
 
 
+# Classes a proprietary concept can be. Places, organisations, customers, competitors,
+# standards and platforms are things a site names, not concepts it defines.
+_PROPRIETARY_TYPES = {"Feature", "Process", "PricingModel", "Domain", "LegacyWorkflow",
+                      "AutomationCapability", "Concept", "Entity"}
+
+
 def align_graph_with_industry(
     kg: Union[PageKnowledgeGraph, SiteKnowledgeGraph],
     industry: Optional[IndustryOntologyModel] = None,
@@ -644,12 +651,29 @@ def align_graph_with_industry(
     industry_lower_set = set()
     for known in all_industry_concepts + industry.known_compliance + industry.known_integrations:
         industry_lower_set.update(_surface_forms(known, alias_index))
-    proprietary = []
+    # A proprietary concept is a capability or model the site names that the taxonomy does
+    # not: not a place, a company, a customer or a standard, and not something the
+    # registry or the vertical already identified. The 14 Sep 2026 ordwaylabs.com run
+    # listed Europe, Canada, SpaceX, Paubox and the brand itself here.
+    brand_key = (getattr(kg, "domain", "") or "").lower()
+    candidates = []
     for node in kg.nodes:
         name_lower = node.canonical_name.lower()
-        if not any(name_lower in std or std in name_lower for std in industry_lower_set):
-            if node.canonical_name not in proprietary and len(node.canonical_name) > 3:
-                proprietary.append(node.canonical_name)
+        if canonical_class(node.entity_type) not in _PROPRIETARY_TYPES or node.wikidata_id:
+            continue
+        if node.resolution in ("registry", "concept", "brand") or len(node.canonical_name) <= 3:
+            continue
+        if brand_key and name_lower.replace(" ", "") in brand_key.replace(".", ""):
+            continue
+        if any(name_lower in std or std in name_lower for std in industry_lower_set):
+            continue
+        candidates.append(node)
+    # Named on more pages, or more often, first.
+    candidates.sort(key=lambda n: (-len(n.source_urls or []), -(n.mentions_count or 0)))
+    proprietary = []
+    for node in candidates:
+        if node.canonical_name not in proprietary:
+            proprietary.append(node.canonical_name)
 
     # Coverage is the share of the reference ontology the graph actually claims, so it
     # agrees with the covered/whitespace lists returned beside it. Scoring the ten seed

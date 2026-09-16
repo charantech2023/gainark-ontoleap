@@ -20,6 +20,7 @@ Combines:
 """
 
 import os
+import re
 import json
 import time
 import socket
@@ -228,6 +229,34 @@ def _markdown_page(data: Dict[str, Any]) -> str:
     return ('<html><head><title>%s</title><meta name="description" content="%s"></head>'
             '<body><main>%s</main><nav>%s</nav></body></html>'
             % (title, description, body, "".join(anchors)))
+
+
+# Blog cards and author bylines lay out "By", the author, the date and the category as
+# separate elements with no whitespace between them, so their text arrives joined. The
+# 14 Sep 2026 ordwaylabs.com run extracted "Ordway LabsDecember", "Sameer GulatiCEO" and
+# "Steve KeiferMay" as entities, and quoted "BySteve KeiferJanuary 29, 2022 ... 2025Real
+# Estate" as proof. Only these joins are split: a general lower-to-upper split would break
+# HubSpot, QuickBooks, ChurnZero and every other camel-cased product name.
+_MONTHS = "January|February|March|April|May|June|July|August|September|October|November|December"
+_GLUE_REPAIRS = (
+    # "LabsDecember 2, 2025" - a month only counts when a day follows it.
+    (re.compile(r"(?<=[a-z])(?=(?:%s)\s+\d)" % _MONTHS), " "),
+    # "GulatiCEO", "VenkiteswaranSVP"
+    (re.compile(r"(?<=[a-z])(?=(?:CEO|CFO|CTO|COO|CRO|CMO|SVP|EVP|VP|Founder|Co-Founder)\b)"), " "),
+    # "2025Real Estate", "2026Healthcare"
+    (re.compile(r"(?<![\d])((?:19|20)\d\d)(?=[A-Z][a-z])"), r"\1 "),
+    # "BySteve", "ByOrdway", "BlogUsage-Based"
+    (re.compile(r"\b(By|Blog)(?=[A-Z][a-z])"), r"\1 "),
+)
+
+
+def repair_glued_words(text: str) -> str:
+    """Put back the spaces a byline or blog card layout drops between its parts."""
+    if not text:
+        return text or ""
+    for pattern, replacement in _GLUE_REPAIRS:
+        text = pattern.sub(replacement, text)
+    return text
 
 
 def _ip_is_forbidden(ip: Any) -> bool:
