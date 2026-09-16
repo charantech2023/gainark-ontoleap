@@ -53,6 +53,7 @@ COLD = {
 
 PROFILE = {
     "domain": "acme.com",
+    "vertical_id": "billing",
     "known_replaces": ["Spreadsheets", "QuickBooks invoicing"],
     "known_competitors": ["Zuora", "Recurly"],
     "known_segments": ["Vertical SaaS", "An equipment lifecycle software company serving construction"],
@@ -69,7 +70,9 @@ PROFILE = {
 }
 
 
-class PromptGeneratorTest(unittest.TestCase):
+class _WithVerticals(unittest.TestCase):
+    """A verticals directory holding one curated vertical, one cold one, one profile."""
+
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         os.makedirs(os.path.join(self.tmp, "buyers"), exist_ok=True)
@@ -98,6 +101,8 @@ class PromptGeneratorTest(unittest.TestCase):
     def texts(self, ps):
         return [p.text for p in ps.prompts]
 
+
+class PromptGeneratorTest(_WithVerticals):
     # -- provenance ---------------------------------------------------------
 
     def test_every_prompt_names_the_thing_it_came_from(self):
@@ -249,6 +254,72 @@ class PromptGeneratorTest(unittest.TestCase):
     def test_nothing_is_generated_twice(self):
         texts = self.texts(self.generate())
         self.assertEqual(len(texts), len(set(t.lower() for t in texts)))
+
+
+class BuyerPromptsRouteTest(_WithVerticals):
+    """The same generator over HTTP, against the same fixtures.
+
+    The route is mounted on a bare app rather than on api.app: this is about the endpoint,
+    not about the middleware stack, and api.app would drag a GLiNER load in with it.
+    """
+
+    def client(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from routers.system_routes import router
+        app = FastAPI()
+        app.include_router(router)
+        return TestClient(app)
+
+    def test_a_domain_alone_is_enough(self):
+        """The profile records the vertical, so a caller need not know it."""
+        r = self.client().get("/api/buyer-prompts", params={"domain": "https://www.acme.com/pricing"})
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertEqual(body["domain"], "acme.com")
+        self.assertEqual(body["vertical_id"], "billing")
+        self.assertTrue(body["prompts"])
+
+    def test_a_vertical_alone_answers_without_the_buyer_half(self):
+        r = self.client().get("/api/buyer-prompts", params={"vertical_id": "cold", "limit": 5})
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertEqual(body["domain"], "")
+        self.assertTrue(body["prompts"])
+        self.assertTrue(body["coverage"]["missing"])
+
+    def test_one_stage_returns_a_full_limit_of_that_stage(self):
+        r = self.client().get("/api/buyer-prompts",
+                              params={"domain": "acme.com", "stage": "comparison", "limit": 4})
+        self.assertEqual(r.status_code, 200)
+        prompts = r.json()["prompts"]
+        self.assertEqual(len(prompts), 4, "a stage filter must not cost three quarters of the limit")
+        self.assertTrue(all(p["stage"] == "comparison" for p in prompts))
+        # Still spread, so the stage opens on different competitors rather than four
+        # wordings of the first one.
+        self.assertGreater(len({p["source_value"] for p in prompts}), 1)
+
+    def test_a_prompt_arrives_with_its_evidence(self):
+        r = self.client().get("/api/buyer-prompts", params={"domain": "acme.com", "stage": "problem"})
+        proven = next(p for p in r.json()["prompts"] if p["grounding"] == "evidenced")
+        self.assertTrue(proven["source_url"])
+        self.assertTrue(proven["quote"])
+        self.assertTrue(proven["source_field"])
+
+    def test_the_arguments_it_refuses(self):
+        client = self.client()
+        for label, params in (
+            ("neither a domain nor a vertical", {}),
+            ("a stage that does not exist", {"domain": "acme.com", "stage": "nonsense"}),
+            ("a vertical that does not exist", {"vertical_id": "no_such_vertical"}),
+            ("a vertical_id reaching out of the directory", {"vertical_id": "../../etc/passwd"}),
+            ("a domain with no host", {"domain": "http://"}),
+            ("a site with no profile to name a vertical", {"domain": "never-seen.example"}),
+        ):
+            self.assertEqual(client.get("/api/buyer-prompts", params=params).status_code, 400, label)
+        # Out of the declared range, so the model layer refuses it before the route runs.
+        self.assertEqual(client.get("/api/buyer-prompts",
+                                    params={"vertical_id": "billing", "limit": 9999}).status_code, 422)
 
 
 if __name__ == "__main__":

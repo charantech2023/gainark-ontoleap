@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse
 import buyer_profiles
 import google_kg_client
 import industry_profiler
+import prompt_generator
 from pipeline import validate_url_for_fetch
 from models import (
     GoogleKgRequest,
@@ -160,6 +161,57 @@ def api_buyer_profile(domain: str = Query(..., description="The site's domain or
     if profile is None:
         raise HTTPException(status_code=404, detail="No buyer profile has been discovered for %s." % key)
     return profile
+
+
+@router.get(
+    "/api/buyer-prompts",
+    summary="The queries an ICP buyer of this site would type",
+    tags=["Industry Ontology"]
+)
+def api_buyer_prompts(
+    domain: str = Query("", description="The site's domain or any URL on it. Its stored buyer profile supplies the problem and comparison stages, and names the vertical when one is not given."),
+    vertical_id: str = Query("", description="Vertical whose vocabulary to use. Defaults to the one the site's buyer profile was discovered against."),
+    limit: int = Query(60, ge=1, le=500, description="How many prompts to return, spread across the four stages."),
+    stage: str = Query("", description="Return one stage only: problem, comparison, validation or solution."),
+):
+    """Prompts a buyer would type, each carrying the piece of the ontology it came from.
+
+    Reads what is already stored - the vertical and, when a domain is given, that site's
+    buyer profile - so it costs no fetches and no model call. Answering for a site whose
+    discovery has never run is not an error: the buyer half is simply absent, and
+    `coverage.missing` says which stages are empty and why.
+    """
+    if not domain and not vertical_id:
+        raise HTTPException(status_code=400, detail="Give a domain, a vertical_id, or both.")
+    if stage and stage not in prompt_generator.STAGES:
+        raise HTTPException(
+            status_code=400,
+            detail="No stage named %r. Stages: %s." % (stage, ", ".join(prompt_generator.STAGES)))
+
+    key = buyer_profiles.domain_key(domain) if domain else ""
+    if domain and not key:
+        raise HTTPException(status_code=400, detail="Not a usable domain.")
+
+    if not vertical_id:
+        # The profile records the vertical discovery routed the site to, so a caller with
+        # a domain does not have to know it - and cannot pair a site with the wrong one.
+        profile = buyer_profiles.load(key) if key else None
+        vertical_id = (profile or {}).get("vertical_id") or ""
+        if not vertical_id:
+            raise HTTPException(
+                status_code=400,
+                detail="No buyer profile for %s to take a vertical from. Pass vertical_id, "
+                       "or run discovery on the site first." % key)
+    if not is_valid_vertical_id(vertical_id):
+        raise HTTPException(status_code=400, detail="Not a usable vertical_id.")
+
+    try:
+        prompts = prompt_generator.generate_prompts(
+            vertical_id, domain=key or None, limit=limit, stage=stage or None)
+    except ValueError as err:
+        # An unknown vertical is the caller naming one that does not exist, not a fault.
+        raise HTTPException(status_code=400, detail=str(err))
+    return prompts.to_dict()
 
 
 @router.post(

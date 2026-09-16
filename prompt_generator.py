@@ -351,8 +351,10 @@ def _spread(prompts: List[Prompt], limit: int) -> List[Prompt]:
     still leads with the most committed prompt, and a stage that runs out gives its turns
     back to the others.
     """
-    if not limit or limit <= 0:
-        return prompts
+    # No limit means every prompt, still spread. Ordering is a property of the set, not
+    # of whether a caller asked for a slice of it, and returning an unspread list when
+    # limit was 0 made a single-stage request open with four wordings of one competitor.
+    limit = limit if limit and limit > 0 else len(prompts)
     queues = {s: _by_subject(p for p in prompts if p.stage == s) for s in STAGES}
     kept: List[Prompt] = []
     while len(kept) < limit and any(queues.values()):
@@ -386,12 +388,16 @@ def _by_subject(prompts) -> List[Prompt]:
 
 
 def generate_prompts(vertical_id: str, domain: Optional[str] = None, limit: int = 60,
-                     root: Optional[str] = None) -> PromptSet:
+                     root: Optional[str] = None, stage: Optional[str] = None) -> PromptSet:
     """Prompts an ICP buyer of this vertical would type, ranked by intent then by proof.
 
     `domain` names a site whose buyer profile has been discovered; without one the buyer
     half is simply absent and the set is built from the vertical's vocabulary alone, which
     coverage["missing"] says out loud. Reads local files only.
+
+    `stage` narrows to one stage of the search. It is applied before the limit, and
+    before the subjects are spread, so asking for one stage returns as many prompts as
+    were asked for and they are still about different things.
     """
     onto = load_industry_ontology(vertical_id)
     tree = _Tree(onto.concepts or [])
@@ -483,6 +489,8 @@ def generate_prompts(vertical_id: str, domain: Optional[str] = None, limit: int 
     # so every process concept surfaced through "{x} takes too long" purely because it
     # starts with a capital letter, while "how to automate {x}" never appeared.
     prompts = sorted(_dedupe(out), key=_rank)
+    if stage:
+        prompts = [p for p in prompts if p.stage == stage]
     kept = _spread(prompts, limit)
 
     return PromptSet(
