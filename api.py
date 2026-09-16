@@ -11,6 +11,7 @@ Cross-cutting controls applied here, outermost first:
 """
 
 import os
+import re
 import time
 import logging
 import threading
@@ -78,6 +79,31 @@ if "*" in allowed_origins:
         "Set an explicit origin list to allow credentials."
     )
     allow_credentials = False
+
+# A browser extension calls from the origin chrome-extension://<its id>, and allowing
+# that scheme by pattern allows every extension the user has installed, not ours: any of
+# them could then read this API's responses with the browser's credentials attached. The
+# ids are listed instead. Set ALLOWED_EXTENSION_IDS to the ids that may call this
+# deployment, comma separated; chrome://extensions shows the id under each extension, and
+# an unpacked build is given a different one on every machine it is loaded on.
+extension_origins = []
+for ext_id in os.environ.get("ALLOWED_EXTENSION_IDS", "").split(","):
+    # The whole origin is what chrome://extensions puts on the clipboard, so accept it.
+    ext_id = ext_id.strip().removeprefix("chrome-extension://").strip("/")
+    if not ext_id:
+        continue
+    # A Chrome extension id is 32 letters from a to p - the hex of its key, re-alphabeted.
+    if re.fullmatch(r"[a-p]{32}", ext_id):
+        extension_origins.append("chrome-extension://%s" % ext_id)
+    else:
+        logger.warning("Ignoring ALLOWED_EXTENSION_IDS entry %r: not a 32-letter extension id.", ext_id)
+if extension_origins:
+    allowed_origins = allowed_origins + extension_origins
+else:
+    logger.info(
+        "No ALLOWED_EXTENSION_IDS set; the browser extension cannot call this API in "
+        "backend mode until its extension id is listed there."
+    )
 
 app.add_middleware(
     CORSMiddleware,

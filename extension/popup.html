@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GainARK OntoLeap — Standalone</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="logo-icon">⚡</div>
+        <div>
+          <h1 class="brand-title">OntoLeap</h1>
+          <span class="brand-subtitle">Schema & Knowledge Graph</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <span id="mode-badge" class="mode-badge standalone" title="Current Engine Mode">⚡ Standalone</span>
+        <button id="btn-settings" class="icon-btn" title="Settings">⚙️</button>
+      </div>
+    </header>
+
+    <!-- Key Warning Banner (if Standalone and no key) -->
+    <div id="key-hint-banner" class="hint-banner hidden">
+      <div class="hint-text">
+        <strong>No API Key set:</strong> Running in client-side heuristic mode. Add a <strong>free Gemini key</strong> in ⚙️ Settings for full AI reasoning!
+      </div>
+      <button id="btn-banner-settings" class="banner-btn">Set Key</button>
+    </div>
+
+    <!-- Page Context Card -->
+    <div class="page-context">
+      <div class="context-header">
+        <div class="context-label">CURRENT TAB</div>
+        <div id="cached-indicator" class="cached-indicator hidden">💾 Restored from memory</div>
+      </div>
+      <div id="page-title" class="page-title" title="Loading page title...">Detecting active tab...</div>
+      <div id="page-url" class="page-url">--</div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-card">
+      <div class="form-row">
+        <label for="schema-type-hint" class="field-label">Target Type:</label>
+        <select id="schema-type-hint" class="select-input">
+          <option value="auto" selected>✨ Auto-Detect Best Schema</option>
+          <option value="SoftwareApplication">SoftwareApplication (SaaS/App)</option>
+          <option value="Product">Product / Offer (E-commerce/B2B)</option>
+          <option value="FAQPage">FAQPage (Help & Questions)</option>
+          <option value="Article">Article / BlogPosting</option>
+          <option value="Organization">Organization / About</option>
+          <option value="LocalBusiness">LocalBusiness / Service</option>
+        </select>
+      </div>
+      <button id="btn-generate" class="primary-btn">
+        <span class="btn-icon">✨</span> <span id="btn-generate-text">Generate Schema & Graph</span>
+      </button>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading-container" class="loading-container hidden">
+      <div class="spinner"></div>
+      <div id="loading-status" class="loading-status">Extracting rendered DOM & visible text...</div>
+      <div id="loading-sub" class="loading-sub">Generating Schema.org JSON-LD & grounding entities</div>
+    </div>
+
+    <!-- Error State -->
+    <div id="error-container" class="error-container hidden">
+      <div class="error-icon">⚠️</div>
+      <div id="error-message" class="error-message">Error message here</div>
+      <button id="btn-retry" class="secondary-btn">Retry</button>
+    </div>
+
+    <!-- Results Section -->
+    <div id="results-container" class="results-container hidden">
+      <!-- Summary Badges -->
+      <div class="metrics-bar">
+        <div class="metric-chip">
+          <span class="metric-value highlight" id="badge-type">WebPage</span>
+          <span class="metric-label">Schema Type</span>
+        </div>
+        <div class="metric-chip">
+          <span class="metric-value" id="badge-entities">0</span>
+          <span class="metric-label">Entities</span>
+        </div>
+        <div class="metric-chip">
+          <span class="metric-value" id="badge-triples">0</span>
+          <span class="metric-label">Relations</span>
+        </div>
+      </div>
+
+      <!-- Tab Navigation -->
+      <nav class="tabs-nav">
+        <button class="tab-btn active" data-tab="tab-jsonld">Generated Schema</button>
+        <button class="tab-btn" data-tab="tab-existing">Existing Schema <span id="badge-existing-count" class="tab-count-pill hidden">0</span></button>
+        <button class="tab-btn" data-tab="tab-entities">Entities & Grounding</button>
+        <button class="tab-btn" data-tab="tab-triples">Triples & Capabilities</button>
+        <button class="tab-btn" data-tab="tab-turtle">RDF Turtle</button>
+      </nav>
+
+      <!-- Tab Content: JSON-LD -->
+      <section id="tab-jsonld" class="tab-pane active">
+        <div class="pane-actions">
+          <button id="btn-copy-jsonld" class="action-btn" title="Copy to clipboard">
+            <span>📋</span> Copy &lt;script&gt;
+          </button>
+          <button id="btn-google-test" class="action-btn secondary" title="Open Google Rich Results Test">
+            <span>🔍</span> Google Rich Test
+          </button>
+          <button id="btn-download-jsonld" class="action-btn icon-only" title="Download .jsonld">💾</button>
+        </div>
+        <pre class="code-viewer"><code id="code-jsonld">// Schema.org JSON-LD will appear here</code></pre>
+      </section>
+
+      <!-- Tab Content: Existing Schema -->
+      <section id="tab-existing" class="tab-pane">
+        <div class="pane-actions">
+          <button id="btn-copy-existing" class="action-btn" title="Copy existing schema">
+            <span>📋</span> Copy Existing Schema
+          </button>
+          <span id="existing-schema-summary" class="summary-label">Scanning page...</span>
+        </div>
+        <pre class="code-viewer"><code id="code-existing">// Existing page Schema.org JSON-LD will appear here</code></pre>
+      </section>
+
+      <!-- Tab Content: Entities -->
+      <section id="tab-entities" class="tab-pane">
+        <div class="list-header">Grounded Entities & Verified Wikidata Identifiers</div>
+        <div id="entities-list" class="items-list">
+          <!-- Entities injected dynamically -->
+        </div>
+      </section>
+
+      <!-- Tab Content: Triples -->
+      <section id="tab-triples" class="tab-pane">
+        <div class="list-header">Mined Relations & Capabilities</div>
+        <div id="triples-list" class="items-list">
+          <!-- Triples injected dynamically -->
+        </div>
+      </section>
+
+      <!-- Tab Content: Turtle -->
+      <section id="tab-turtle" class="tab-pane">
+        <div class="pane-actions">
+          <button id="btn-copy-turtle" class="action-btn">
+            <span>📋</span> Copy Turtle (.ttl)
+          </button>
+          <button id="btn-download-turtle" class="action-btn icon-only" title="Download .ttl">💾</button>
+        </div>
+        <pre class="code-viewer"><code id="code-turtle"># W3C RDF Turtle will appear here</code></pre>
+      </section>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Extension Configuration</h2>
+          <button id="btn-close-settings" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <label class="field-label" for="setting-engine-mode">Engine Mode:</label>
+          <select id="setting-engine-mode" class="select-input">
+            <option value="gemini_standalone" selected>⚡ Standalone Gemini AI (No Server Required)</option>
+            <option value="heuristic_standalone">🧩 Standalone Heuristics (Zero Key, Fast)</option>
+            <option value="ontoleap_backend">🖥️ OntoLeap Engine (Localhost / Cloud Run)</option>
+          </select>
+
+          <!-- Standalone Gemini Settings -->
+          <div id="section-gemini-settings" class="settings-section">
+            <label class="field-label" for="setting-gemini-key">Gemini API Key:</label>
+            <input type="password" id="setting-gemini-key" class="text-input" placeholder="AIzaSy...">
+            <span class="field-hint">
+              Stored safely in Chrome storage. 
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" class="link">Get a free Gemini API key ↗</a>
+            </span>
+
+            <label class="field-label" for="setting-gemini-model" style="margin-top: 8px;">Gemini Model:</label>
+            <select id="setting-gemini-model" class="select-input">
+              <option value="gemini-3.6-flash" selected>Gemini 3.6 Flash (Recommended / Default)</option>
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+              <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+              <option value="custom">✏️ Custom Model Name...</option>
+            </select>
+            <input type="text" id="setting-custom-model" class="text-input hidden" style="margin-top: 5px;" placeholder="e.g. gemini-3.6-flash">
+          </div>
+
+          <!-- OntoLeap Backend Settings -->
+          <div id="section-backend-settings" class="settings-section hidden">
+            <label class="field-label" for="setting-backend-url">OntoLeap Server URL:</label>
+            <input type="text" id="setting-backend-url" class="text-input" placeholder="http://localhost:8080">
+            
+            <div class="preset-buttons">
+              <button id="btn-preset-local" class="chip-btn">Localhost (:8080)</button>
+              <button id="btn-preset-cloud" class="chip-btn">Cloud Run Live</button>
+            </div>
+
+            <label class="field-label" for="setting-api-key" style="margin-top: 8px;">OntoLeap API Key (Optional):</label>
+            <input type="password" id="setting-api-key" class="text-input" placeholder="ONTOLEAP_API_KEY">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-save-settings" class="primary-btn">Save Configuration</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden">Copied to clipboard!</div>
+  </div>
+
+  <script src="wikidata_kb.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

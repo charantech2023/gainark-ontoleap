@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "GainARK OntoLeap — Schema & Knowledge Graph Generator",
+  "version": "1.2.1",
+  "description": "Standalone Schema.org JSON-LD structured data and Knowledge Graph generator for any web page.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://generativelanguage.googleapis.com/*",
+    "https://www.wikidata.org/*",
+    "http://localhost:8080/*",
+    "http://127.0.0.1:8080/*",
+    "https://gainark-ontoleap-35509275124.asia-south1.run.app/*"
+  ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
