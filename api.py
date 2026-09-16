@@ -121,10 +121,11 @@ class ApiKeyAuthMiddleware(BaseHTTPMiddleware):
     """
     Enforces a shared API key on every non-public endpoint when ONTOLEAP_API_KEY is set.
 
-    Auth is opt-in so an existing deployment keeps working after upgrade, but the
-    absence of a key is logged loudly at startup: without it, anyone on the internet can
-    make this service crawl arbitrary URLs and spend the operator's Gemini and Google
-    Knowledge Graph quota.
+    A service with no key set refuses to start (TODO.md D2): without one, anyone who can
+    reach it can make it crawl arbitrary URLs and spend the operator's Gemini and Google
+    Knowledge Graph quota, and a warning in the log did not stop that from being the
+    state of the deployed service. Running open is still possible, for a local dev box
+    or a test, but it has to be asked for by name.
     """
 
     async def dispatch(self, request: Request, call_next):
@@ -312,16 +313,36 @@ app.add_middleware(RequestSizeLimitMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 
 
+def _open_mode_requested() -> bool:
+    """Whether the operator has asked, by name, to run with no authentication."""
+    return os.environ.get("ONTOLEAP_ALLOW_UNAUTHENTICATED", "").strip().lower() in ("1", "true", "yes")
+
+
 @app.on_event("startup")
-async def _warn_if_unauthenticated() -> None:
-    """Make an open deployment impossible to miss in the logs."""
-    if not configured_api_key():
+async def _refuse_to_serve_unauthenticated() -> None:
+    """Fail closed: a service with no key does not come up.
+
+    Raising here fails the container's startup, so on Cloud Run the new revision never
+    takes traffic and the last good one keeps serving - the deploy fails, the service
+    does not. Set ONTOLEAP_API_KEY, or ONTOLEAP_ALLOW_UNAUTHENTICATED=1 to run open.
+    """
+    if configured_api_key():
+        return
+    if _open_mode_requested():
         logger.warning(
-            "ONTOLEAP_API_KEY is not set: every endpoint is reachable without "
+            "ONTOLEAP_ALLOW_UNAUTHENTICATED is set: every endpoint is reachable without "
             "credentials. Anyone who can reach this service can make it crawl arbitrary "
-            "URLs and consume metered Gemini / Google Knowledge Graph quota. Set "
-            "ONTOLEAP_API_KEY before exposing this service publicly."
+            "URLs and consume metered Gemini / Google Knowledge Graph quota. This is for "
+            "a local dev box, never for a deployment reachable from the internet."
         )
+        return
+    raise RuntimeError(
+        "ONTOLEAP_API_KEY is not set, so this service will not start. Without a key every "
+        "endpoint is reachable without credentials and anyone who can reach the service "
+        "can spend metered Gemini / Google Knowledge Graph quota. Generate one with "
+        "`python -c \"import secrets; print(secrets.token_urlsafe(32))\"`, or set "
+        "ONTOLEAP_ALLOW_UNAUTHENTICATED=1 to run open deliberately."
+    )
 
 
 @app.on_event("startup")

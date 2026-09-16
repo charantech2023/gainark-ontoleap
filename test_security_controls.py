@@ -181,11 +181,13 @@ def test_vertical_id_validation():
 # ---------------------------------------------------------------------------
 def test_http_surface():
     print("\n[6] HTTP surface")
+    # The service fails closed, and the checks below are of open mode: ask for it.
+    os.environ["ONTOLEAP_ALLOW_UNAUTHENTICATED"] = "1"
     import api
 
     client = TestClient(api.app)
 
-    # Open mode (no key configured in this process).
+    # Open mode (asked for above, no key configured in this process).
     check("health is public", client.get("/api/health").status_code, 200)
     check(
         "security headers applied",
