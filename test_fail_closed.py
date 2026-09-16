@@ -55,6 +55,22 @@ class FailClosedTest(unittest.TestCase):
             self.assertEqual(client.get("/api/health").status_code, 200)
             self.assertNotEqual(client.get("/api/verticals").status_code, 401)
 
+    def test_an_empty_key_is_refused_and_named_as_empty(self):
+        """What actually broke four revisions: the variable was there, its value was not."""
+        for blank in ("", "   "):
+            os.environ["ONTOLEAP_API_KEY"] = blank
+            with self.assertRaises(RuntimeError) as caught:
+                with TestClient(self._app()):
+                    pass
+            self.assertIn("set but empty", str(caught.exception), repr(blank))
+
+    def test_an_absent_key_is_named_as_absent(self):
+        with self.assertRaises(RuntimeError) as caught:
+            with TestClient(self._app()):
+                pass
+        self.assertIn("is not set", str(caught.exception))
+        self.assertNotIn("empty", str(caught.exception))
+
     def test_a_value_that_is_not_a_yes_is_not_consent(self):
         os.environ["ONTOLEAP_ALLOW_UNAUTHENTICATED"] = "0"
         with self.assertRaises(RuntimeError):
