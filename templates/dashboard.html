@@ -86,6 +86,14 @@
                         <span id="btn-icon">⚡</span>
                         <span id="btn-text">Build Graph</span>
                     </button>
+
+                    <!-- API Key Button -->
+                    <button type="button" id="api-key-btn" onclick="openApiKeyModal()"
+                        title="Configure ONTOLEAP_API_KEY"
+                        class="px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 transition flex items-center gap-1.5 shadow-xs cursor-pointer shrink-0">
+                        <span id="api-key-icon">🔑</span>
+                        <span id="api-key-label">API Key</span>
+                    </button>
                 </form>
             </div>
         </div>
@@ -391,6 +399,146 @@
 
     <!-- Client-Side Script -->
     <script>
+        // ---------------------------------------------------------------------------
+        // API Key Management & Global Fetch Interceptor (Fail-Closed Auth)
+        // ---------------------------------------------------------------------------
+        const API_KEY_STORAGE_KEY = 'ontoleap_api_key';
+
+        function getStoredApiKey() {
+            try {
+                return localStorage.getItem(API_KEY_STORAGE_KEY) || '';
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function setStoredApiKey(key) {
+            try {
+                if (key) {
+                    localStorage.setItem(API_KEY_STORAGE_KEY, key);
+                } else {
+                    localStorage.removeItem(API_KEY_STORAGE_KEY);
+                }
+            } catch (e) {}
+        }
+
+        function updateApiKeyButtonState() {
+            const btn = document.getElementById('api-key-btn');
+            const label = document.getElementById('api-key-label');
+            const icon = document.getElementById('api-key-icon');
+            if (!btn) return;
+            const key = getStoredApiKey();
+            if (key) {
+                btn.classList.remove('border-slate-200', 'text-slate-600', 'hover:text-slate-900', 'bg-white', 'hover:bg-slate-50');
+                btn.classList.add('border-emerald-300', 'bg-emerald-50', 'text-emerald-700', 'hover:bg-emerald-100');
+                if (label) label.innerText = 'Key Set';
+                if (icon) icon.innerText = '🔒';
+            } else {
+                btn.classList.remove('border-emerald-300', 'bg-emerald-50', 'text-emerald-700', 'hover:bg-emerald-100');
+                btn.classList.add('border-slate-200', 'text-slate-600', 'hover:text-slate-900', 'bg-white', 'hover:bg-slate-50');
+                if (label) label.innerText = 'API Key';
+                if (icon) icon.innerText = '🔑';
+            }
+        }
+
+        function openApiKeyModal(warningMessage) {
+            const modal = document.getElementById('api-key-modal');
+            const input = document.getElementById('api-key-input');
+            const eye = document.getElementById('api-key-eye');
+            const banner = document.getElementById('api-key-status-banner');
+            if (!modal) return;
+            if (input) {
+                input.value = getStoredApiKey();
+                input.type = 'password';
+            }
+            if (eye) eye.innerText = '👁️';
+            if (banner) {
+                if (warningMessage) {
+                    banner.className = 'p-3 rounded-lg text-xs bg-rose-50 text-rose-700 border border-rose-200 block';
+                    banner.innerHTML = '<strong>Unauthorized (401):</strong> ' + escapeHtml(warningMessage);
+                } else {
+                    banner.className = 'hidden';
+                    banner.innerHTML = '';
+                }
+            }
+            modal.classList.remove('hidden');
+            if (input) {
+                setTimeout(() => input.focus(), 50);
+            }
+        }
+
+        function closeApiKeyModal() {
+            const modal = document.getElementById('api-key-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            const input = document.getElementById('api-key-input');
+            const key = input ? input.value.trim() : '';
+            setStoredApiKey(key);
+            updateApiKeyButtonState();
+            closeApiKeyModal();
+        }
+
+        function clearApiKey() {
+            setStoredApiKey('');
+            const input = document.getElementById('api-key-input');
+            if (input) input.value = '';
+            updateApiKeyButtonState();
+            closeApiKeyModal();
+        }
+
+        function toggleApiKeyVisibility() {
+            const input = document.getElementById('api-key-input');
+            const eye = document.getElementById('api-key-eye');
+            if (!input || !eye) return;
+            if (input.type === 'password') {
+                input.type = 'text';
+                eye.innerText = '🙈';
+            } else {
+                input.type = 'password';
+                eye.innerText = '👁️';
+            }
+        }
+
+        // Global fetch interceptor: injects x-api-key header and catches 401s to prompt user
+        (function() {
+            const originalFetch = window.fetch;
+            window.fetch = async function(resource, init) {
+                const options = init ? { ...init } : {};
+                const key = getStoredApiKey();
+
+                if (key) {
+                    let h;
+                    if (options.headers) {
+                        h = new Headers(options.headers);
+                    } else if (resource instanceof Request) {
+                        h = new Headers(resource.headers);
+                    } else {
+                        h = new Headers();
+                    }
+                    if (!h.has('x-api-key')) {
+                        h.set('x-api-key', key);
+                    }
+                    options.headers = h;
+                }
+
+                const response = await originalFetch.call(this, resource, options);
+
+                if (response.status === 401) {
+                    const urlStr = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : '');
+                    if (!urlStr.includes('/api/health') && !urlStr.includes('/api/info') && !urlStr.includes('/api/v1/mcp-info')) {
+                        const msg = key
+                            ? 'The configured API key was rejected by the server. Please verify your ONTOLEAP_API_KEY.'
+                            : 'This endpoint requires authentication. Please enter your ONTOLEAP_API_KEY to proceed.';
+                        openApiKeyModal(msg);
+                    }
+                }
+
+                return response;
+            };
+        })();
+
         let currentScope = 'page';
         let currentGraphData = null;
         let currentAlignmentData = null;
@@ -1286,6 +1434,58 @@
             div.innerText = text;
             return div.innerHTML;
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateApiKeyButtonState();
+        });
     </script>
+
+    <!-- API Key Authentication Modal -->
+    <div id="api-key-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4" onclick="if(event.target === this) closeApiKeyModal()">
+        <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+            <!-- Header -->
+            <div class="px-6 py-4 bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">🔑</span>
+                    <div>
+                        <h3 class="text-base font-bold flex items-center gap-2">API Key Authentication</h3>
+                        <p class="text-xs text-indigo-200/80">Configure access key for protected OntoLeap API endpoints</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeApiKeyModal()" class="text-slate-400 hover:text-white text-xl font-bold p-1 leading-none cursor-pointer">
+                    &times;
+                </button>
+            </div>
+            <!-- Body -->
+            <div class="p-6 space-y-4 text-xs">
+                <p class="text-slate-600 leading-relaxed">
+                    When <code>ONTOLEAP_API_KEY</code> is enabled on the server, all non-public endpoints require an authorized key sent in the <code>x-api-key</code> header. Your key is stored locally in your browser.
+                </p>
+                <div id="api-key-status-banner" class="hidden p-3 rounded-lg text-xs"></div>
+                <div>
+                    <label for="api-key-input" class="block font-semibold text-slate-700 mb-1.5">OntoLeap API Key:</label>
+                    <div class="relative">
+                        <input type="password" id="api-key-input" placeholder="Enter your ONTOLEAP_API_KEY..." onkeydown="if(event.key === 'Enter') saveApiKey()" class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-10" />
+                        <button type="button" onclick="toggleApiKeyVisibility()" class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer text-xs">
+                            <span id="api-key-eye">👁️</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between pt-2">
+                    <button type="button" onclick="clearApiKey()" class="px-3 py-1.5 rounded-lg text-xs font-medium text-rose-700 hover:bg-rose-50 border border-rose-200 transition cursor-pointer">
+                        Clear Key
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="closeApiKeyModal()" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition cursor-pointer">
+                            Cancel
+                        </button>
+                        <button type="button" onclick="saveApiKey()" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-sm cursor-pointer">
+                            Save Key
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
