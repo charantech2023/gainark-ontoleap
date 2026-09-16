@@ -90,12 +90,51 @@ overridden by a fetched answer; live resolution sits behind them.
   negative caching, the budget, an unreachable resolver, the disabled path, prefetch
   under a running event loop, and an end-to-end graph carrying a live-resolved `sameAs`.
 
-### T5 — Sentence Transformers for semantic matching
+### [DONE] T5 — Sentence Transformers for semantic matching
 
-The principled fix behind T1: replaces token-overlap heuristics with embedding
-similarity. `torch` is already a dependency so the install is cheap, but it adds
-another model to memory — weigh against the shared-GLiNER work in
-`pipeline.py:_load_shared_gliner`.
+Filed as "replace token-overlap heuristics with embedding similarity", as the principled
+fix behind T1. Both halves of that turned out wrong. T1's code (`product_truth.py`) was
+deleted in `b7a9174`, and current matching is exact label/alt-label containment, not
+token overlap. And measured, embedding similarity cannot *decide* a match here.
+
+Scored across the 111 defined concepts of `b2b_saas_fintech` with all-MiniLM-L6-v2:
+
+| pair | similarity |
+|---|---|
+| Dunning ↔ "failed payment retries" (true) | 0.603 |
+| Cash Application ↔ "matching payments to invoices" (true) | 0.791 |
+| **SOC 1 Type II ↔ SOC 2 Type II** (distinct) | **0.946** |
+| MRR ↔ ARR (distinct) | 0.876 |
+| Subscription Upgrades ↔ Downgrades (opposites) | 0.803 |
+
+True matches and distinct-concept confusions overlap completely; 34 distinct pairs still
+score above 0.70. Used as a coverage signal, a page mentioning SOC 1 would be reported as
+covering SOC 2. **That variant is rejected** - see below.
+
+Built instead as a proposer (`semantic_match.py`), on the path `propose_alt_labels`
+already set when generated synonyms were demoted for agreeing with curation on 1 of 114:
+* Unplaced terms (an alignment's `proprietary_concepts`) are matched to defined concepts
+  and written to the review queue with score, runner-up and margin. A reviewer approves
+  through `/api/ontology/approve-synonym`, the form becomes an alt label, and exact
+  matching finds it from then on with no model involved. **Coverage is never touched.**
+* Concepts are embedded **with their definitions**. As bare labels Dunning scored -0.014
+  against "failed payment retries"; with its definition, 0.603. A concept with no
+  definition is not searched, so a cold vertical proposes nothing and says so.
+* A candidate must lead the runner-up by 0.05, computed against **every** defined concept.
+  "SOC audit report" scores SOC 1 at 0.775 with SOC 2 0.035 behind, and is refused.
+  Searching only whitespace concepts would hide the runner-up and defeat this.
+* `closes_gap` marks a candidate whose concept alignment reported as whitespace - the
+  difference between "the site lacks this" and "the ontology lacks this word". Those sort
+  first.
+* Runs on a thread after `/api/kg/align` returns, so an audit neither waits on a cold
+  model load nor fails because a suggestion could not be made.
+* No new dependency: `transformers` is already pinned, and sentence-transformers is a
+  wrapper over the same mean pooling. The Dockerfile pre-downloads the 23M-parameter
+  model beside GLiNER. `ONTOLEAP_SEMANTIC_MATCH=0` switches it off.
+* Verified with `test_semantic_match.py` - fixed-vector tests for the logic, plus a test
+  that runs the real model against the real vertical, since the thresholds are claims
+  about that model. Each guard (score floor, margin, definitions) was removed in turn and
+  each removal fails the suite.
 
 ### [DONE] T6 — Durable truth ledger
 
@@ -125,6 +164,13 @@ deployment cannot end up half-durable.
 ---
 
 ## Evaluated and rejected
+
+### Embedding similarity as a coverage signal (T5, 16 Sep 2026)
+
+Distinct concepts score as high as true synonyms - SOC 1 and SOC 2 Type II at 0.946 - so
+no threshold separates them, and a coverage figure built on it would claim audits a site
+never mentioned. Embeddings propose alt labels for review instead (`semantic_match.py`).
+Revisit only with a model that separates those pairs, measured the same way.
 
 Recorded so they are not re-litigated.
 

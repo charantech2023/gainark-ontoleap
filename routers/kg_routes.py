@@ -3,6 +3,7 @@ GainARK OntoLeap — Knowledge Graph Operations, SPARQL, OWL 2 DL, and Link Pred
 """
 
 import logging
+import threading
 from typing import List, Dict, Optional, Any
 from urllib.parse import urlparse
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form
@@ -686,6 +687,30 @@ def api_kg_diff(earlier: str, later: str, claims_only: bool = True):
         raise HTTPException(status_code=503, detail="Run history is unavailable.")
 
 
+def _queue_semantic_proposals(alignment: GraphAlignmentResult, kg: Any) -> None:
+    """Hand an alignment's unplaced terms to the synonym proposer, off the request path.
+
+    The proposer only ever writes review candidates - coverage is already decided by the
+    time it runs, and nothing it finds changes this response. So it runs on a thread: a
+    cold model load costs seconds, and an audit should not wait on a suggestion, or fail
+    because one could not be made.
+    """
+    import semantic_match
+    if not semantic_match.enabled() or not alignment.proprietary_concepts:
+        return
+
+    brand = (getattr(kg, "domain", "") or alignment.subject_identifier or "").strip()
+
+    def work():
+        try:
+            industry = load_industry_ontology(alignment.vertical_id)
+            semantic_match.propose_from_alignment(alignment, industry, brand=brand)
+        except Exception as err:
+            logger.warning("[API KGAlign] Semantic proposals skipped for %s: %s", brand, err)
+
+    threading.Thread(target=work, name="semantic-proposals", daemon=True).start()
+
+
 @router.post("/api/kg/align", response_model=GraphAlignmentResult, summary="Align Knowledge Graph Against Industry Ontology")
 async def api_align_kg(req: KGAlignmentRequest):
     """
@@ -726,6 +751,7 @@ async def api_align_kg(req: KGAlignmentRequest):
             raise HTTPException(status_code=400, detail="Either 'domain_or_url', 'page_kg', or 'site_kg' must be provided.")
 
         alignment = align_graph_with_industry(kg, vertical_id=vertical_id)
+        _queue_semantic_proposals(alignment, kg)
         return alignment
     except HTTPException:
         raise
