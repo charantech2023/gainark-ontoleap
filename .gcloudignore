@@ -18,3 +18,11 @@ verify_*.py
 .test_cache/
 # Development-only: the evaluation harness never runs in the deployed image.
 eval/
+# Local run state. The service reads truth_ledger/graph.sqlite as its graph index, so
+# shipping it put laptop test runs into production (revision 00070). Production state
+# comes from ONTOLEAP_GRAPH_ARCHIVE and ONTOLEAP_VERTICALS_MIRROR at startup.
+truth_ledger/graph.sqlite
+truth_ledger/jobs/
+truth_ledger/registry_archive/
+# Claude Code worktrees and settings: full copies of the repo, some stale.
+.claude/
