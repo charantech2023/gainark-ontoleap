@@ -19,15 +19,23 @@ So a crawl is planned rather than walked:
   kinds       each candidate is classified by its path (product, pricing, integrations,
               security, comparison, docs, customers, resources, company, editorial) and
               read in that order, each kind within a share of the page budget
+  scent       within a kind, what a page looks to be about before it is read - its URL,
+              a help centre's title and labels, the text of links to it - matched to the
+              vertical's vocabulary. Pages naming a concept the graph lacks come first,
+              then the section read least, so a kind is judged on a spread of its pages
+              rather than the first few its sitemap lists
   yield       each page read is scored by what it added to the graph that nothing before
               it had: a registry entity, a vertical concept, a claim. A kind whose last
-              pages added nothing is set aside, and the crawl ends when no kind is still
-              yielding, even with budget left
+              pages added nothing is set aside - later the more of its pages have added
+              something - and then reads only pages that name something the graph lacks.
+              The crawl ends when no kind has a page left worth reading, even with budget
+              left
 
 Everything here is pure: the plan is data in the crawl state, so a job can stop after any
 page and resume on another instance. Fetching and extraction stay in site_graph.
 """
 
+import math
 import re
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 from urllib.parse import urlparse
@@ -97,8 +105,22 @@ KIND_ORDER: List[Tuple[str, float]] = [
 ]
 KIND_RANK = {kind: i for i, (kind, _) in enumerate(KIND_ORDER)}
 
-# A kind is set aside once this many consecutive pages of it added nothing new.
+# A kind is set aside once this many consecutive pages of it added nothing new, scaled up
+# by how often its pages have added something: 6 at a hit rate of 0, 18 at a rate of 1.
+# A flat 6 closed ordwaylabs.com's help centre (17 Sep 2026) after 18 of 830 articles,
+# although those 18 had added 7 things the graph lacked.
 YIELD_PATIENCE = 6
+PATIENCE_HIT_RATE_WEIGHT = 2.0
+# A set-aside kind still reads pages whose scent names something the graph lacks, until
+# this many of those in a row add nothing - a title can name a concept a page only mentions.
+SCENT_PATIENCE = 3
+
+
+def patience(ks: Dict[str, Any]) -> int:
+    """How many pages of a kind in a row may add nothing before it is set aside."""
+    rate = ks.get("hits", 0) / ks["read"] if ks.get("read") else 0.0
+    return int(round(YIELD_PATIENCE * (1 + PATIENCE_HIT_RATE_WEIGHT * rate)))
+
 
 # Hosts other than the site itself that still speak for the brand: its documentation and
 # help centre. support.ordwaylabs.com carries 981 articles, and it is where the product's
@@ -237,6 +259,91 @@ def clean_url(url: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Scent
+# ---------------------------------------------------------------------------
+
+# Before scent, a kind was read in sitemap order. On the 17 Sep 2026 ordwaylabs.com crawl
+# the help centre was judged on 12 of 962 articles, and in its API's order the first
+# picks were release notes and a maintenance notice.
+SCENT_MAX_WORDS = 5
+# A page naming more missing concepts than this is not worth more for it.
+SCENT_MISSING_CAP = 3
+SCENT_KNOWN_CAP = 5
+ANCHOR_MAX_CHARS = 300
+
+# One score within a kind, so no single signal is a wall. A missing concept is worth most.
+# A hub the site links to from everywhere earns up to INLINK_CAP (log2 of its inlinks);
+# each page already read from a section costs the next one from it a point. Ranking by
+# section first read one page from each of a dozen one-page sections on ordwaylabs.com
+# (17 Sep 2026) and never reached the subscription billing guide, the only page naming
+# TaxJar.
+MISSING_WEIGHT = 3.0
+INLINK_CAP = 3.0
+SECTION_PENALTY = 1.0
+
+_WORD = re.compile(r"[a-z0-9]+")
+
+
+def set_vocabulary(plan: Dict[str, Any], forms: Dict[str, str]) -> None:
+    """Give the plan the vertical's vocabulary: surface form -> identity ("concept:<id>"),
+    the identity page scoring records when a page covers it. Candidates already in the
+    plan are matched against it."""
+    vocab: Dict[str, str] = {}
+    for form, identity in forms.items():
+        words = _WORD.findall((form or "").lower())
+        phrase = " ".join(words)
+        if len(phrase) >= 3 and len(words) <= SCENT_MAX_WORDS:
+            vocab[phrase] = identity
+    plan["vocabulary"] = vocab
+    for cand in plan["candidates"].values():
+        _match_terms(plan, cand)
+
+
+def _candidate_text(cand: Dict[str, Any]) -> str:
+    path = urlparse(cand["url"]).path
+    # In "53579365031572-Associate-Custom-Objects" the id says nothing; the 606 in
+    # "asc-606" and the 27001 in "iso-27001" do.
+    words = [w for w in re.split(r"[^A-Za-z0-9]+", path) if w and not (w.isdigit() and len(w) > 5)]
+    return " ".join(words + [cand.get("title") or "", cand.get("labels") or "", cand.get("anchor") or ""])
+
+
+def _match_terms(plan: Dict[str, Any], cand: Dict[str, Any]) -> None:
+    vocab = plan.get("vocabulary")
+    if not vocab:
+        return
+    words = _WORD.findall(_candidate_text(cand).lower())
+    found = set()
+    for n in range(1, SCENT_MAX_WORDS + 1):
+        for i in range(len(words) - n + 1):
+            identity = vocab.get(" ".join(words[i:i + n]))
+            if identity:
+                found.add(identity)
+    if found:
+        cand["terms"] = sorted(found)
+    else:
+        cand.pop("terms", None)
+
+
+def section_of(cand: Dict[str, Any]) -> str:
+    """The part of a site a page belongs to: its help centre section when the API gave
+    one, otherwise its host and up to two leading path segments ("acme.com/blog",
+    "acme.com/resources/guides")."""
+    if cand.get("section"):
+        return "section:" + cand["section"]
+    parsed = urlparse(cand["url"])
+    host = parsed.netloc.lower()
+    host = host[4:] if host.startswith("www.") else host
+    return "/".join([host] + _segments(parsed.path)[:-1][:2])
+
+
+def _scent(cand: Dict[str, Any], known: Set[str]) -> Tuple[int, int]:
+    """(concepts it names the graph lacks, concepts it names the graph has), capped."""
+    terms = cand.get("terms") or []
+    missing = sum(1 for t in terms if t not in known)
+    return min(missing, SCENT_MISSING_CAP), min(len(terms) - missing, SCENT_KNOWN_CAP)
+
+
+# ---------------------------------------------------------------------------
 # The plan, as JSON-safe state
 # ---------------------------------------------------------------------------
 
@@ -249,13 +356,19 @@ def new_plan(start_url: str) -> Dict[str, Any]:
         "sitemaps": [],            # hosts whose sitemap has been read
         "yield_log": [],           # [{url, kind, new}] in read order
         "order": 0,
+        "vocabulary": {},          # surface form -> identity, for scent
+        "sections_read": {},       # section -> pages picked, for spreading reads
     }
 
 
 def add_candidates(plan: Dict[str, Any], urls: Iterable[str], source: str,
-                   seen: Set[str]) -> List[str]:
+                   seen: Set[str], meta: Optional[Dict[str, Dict[str, str]]] = None) -> List[str]:
     """Add URLs to the plan. Returns docs hosts seen for the first time, whose sitemaps
-    the caller may want to read. A URL already a candidate gains an inlink instead."""
+    the caller may want to read. A URL already a candidate gains an inlink instead.
+
+    `meta` maps a URL to what a source already knows of the page without reading it - a
+    help centre API gives each article's title, section and labels, a link its anchor
+    text - and is kept on the candidate, merged into one that exists."""
     new_doc_hosts: List[str] = []
     candidates = plan["candidates"]
     for url in urls:
@@ -265,9 +378,16 @@ def add_candidates(plan: Dict[str, Any], urls: Iterable[str], source: str,
         key = page_key(url)
         if key in seen:
             continue
+        known = (meta or {}).get(url)
         existing = candidates.get(key)
         if existing is not None:
-            existing["inlinks"] += 1
+            # Only a link is a vote. A sitemap or an API naming a page it already listed
+            # counted as one too, until 17 Sep 2026.
+            if source == "link":
+                existing["inlinks"] += 1
+            if known:
+                _merge_meta(existing, known)
+                _match_terms(plan, existing)
             continue
         if len(candidates) >= MAX_CANDIDATES:
             break
@@ -279,7 +399,23 @@ def add_candidates(plan: Dict[str, Any], urls: Iterable[str], source: str,
         plan["order"] += 1
         candidates[key] = {"url": clean_url(url), "kind": kind, "source": source,
                            "inlinks": 1 if source == "link" else 0, "order": plan["order"]}
+        if known:
+            _merge_meta(candidates[key], known)
+        _match_terms(plan, candidates[key])
     return new_doc_hosts
+
+
+def _merge_meta(cand: Dict[str, Any], known: Dict[str, str]) -> None:
+    for field, value in known.items():
+        if field == "url" or not value:
+            continue
+        if field == "anchor":
+            # Every page linking here may word it differently; each wording is evidence.
+            current = cand.get("anchor") or ""
+            if value.lower() not in current.lower() and len(current) < ANCHOR_MAX_CHARS:
+                cand["anchor"] = (current + " | " + value if current else value)[:ANCHOR_MAX_CHARS]
+        else:
+            cand[field] = value
 
 
 def _kind_state(plan: Dict[str, Any], kind: str) -> Dict[str, Any]:
@@ -291,16 +427,26 @@ def kind_open(plan: Dict[str, Any], kind: str) -> bool:
     return not _kind_state(plan, kind)["set_aside"]
 
 
+def _worth_reading(plan: Dict[str, Any], cand: Dict[str, Any], known: Set[str]) -> bool:
+    """An open kind's pages all are; a set-aside kind's only while they name something
+    the graph lacks and its scent reads have not stopped paying."""
+    ks = _kind_state(plan, cand["kind"])
+    if not ks["set_aside"]:
+        return True
+    return not ks.get("scent_closed") and _scent(cand, known)[0] > 0
+
+
 def next_batch(plan: Dict[str, Any], max_pages: int, attempts: int, size: int) -> List[Dict[str, Any]]:
     """The next pages to read, best first, removed from the candidates.
 
-    Within a kind, pages more of the site links to come first, then the order they were
-    found - the sitemap's order, or the order links appeared.
+    Within a kind, by one score: concepts the page names that the graph lacks, concepts it
+    names that the graph has, how many of the site's pages link to it, less the pages
+    already read from its section (counting this batch). Ties go to the order found.
 
     Ceilings are shares, not walls: they stop one kind crowding out the others, so a kind
     at its ceiling waits while any other open kind still has pages. When none does, it
     reads on - a small site's last pricing page is worth more than stopping with budget
-    left. A kind set aside for yield reads nothing more either way.
+    left. A kind set aside for yield reads only pages that name something the graph lacks.
     """
     remaining = max_pages - attempts
     if remaining <= 0:
@@ -312,26 +458,42 @@ def next_batch(plan: Dict[str, Any], max_pages: int, attempts: int, size: int) -
         ceiling = max(1, int(round(max_pages * share)))
         room[kind] = max(ceiling - ks["read"], 0)
 
-    ranked = [(key, cand) for key, cand in
-              sorted(plan["candidates"].items(),
-                     key=lambda kv: (KIND_RANK.get(kv[1]["kind"], 99), -kv[1]["inlinks"], kv[1]["order"]))
-              if kind_open(plan, cand["kind"])]
-    batch, taken = [], set()
-    for key, cand in ranked:
-        if len(batch) >= size:
-            break
-        if room.get(cand["kind"], 0) <= 0:
-            continue
-        room[cand["kind"]] -= 1
-        batch.append(dict(cand, key=key))
-        taken.add(key)
+    known = set(plan["identities"])
+    sections = plan.setdefault("sections_read", {})
+    pool = []
+    for key, cand in plan["candidates"].items():
+        if _worth_reading(plan, cand, known):
+            missing, have = _scent(cand, known)
+            merit = (MISSING_WEIGHT * missing + have
+                     + min(math.log2(1 + cand["inlinks"]), INLINK_CAP))
+            pool.append({"rank": KIND_RANK.get(cand["kind"], 99), "merit": merit,
+                         "order": cand["order"], "key": key, "cand": cand, "section": section_of(cand)})
+
+    def pick(respect_room: bool) -> List[Dict[str, Any]]:
+        chosen = []
+        while len(chosen) < size and pool:
+            best, best_at = None, None
+            for i, p in enumerate(pool):
+                if respect_room and room.get(p["cand"]["kind"], 0) <= 0:
+                    continue
+                score = (p["rank"], SECTION_PENALTY * sections.get(p["section"], 0) - p["merit"],
+                         p["order"])
+                if best is None or score < best:
+                    best, best_at = score, i
+            if best_at is None:
+                break
+            p = pool.pop(best_at)
+            room[p["cand"]["kind"]] = room.get(p["cand"]["kind"], 0) - 1
+            sections[p["section"]] = sections.get(p["section"], 0) + 1
+            chosen.append(dict(p["cand"], key=p["key"]))
+        return chosen
+
+    batch = pick(respect_room=True)
     if not batch:
         # Every open kind is at its ceiling: fill in rank order regardless.
-        for key, cand in ranked[:size]:
-            batch.append(dict(cand, key=key))
-            taken.add(key)
-    for key in taken:
-        plan["candidates"].pop(key, None)
+        batch = pick(respect_room=False)
+    for cand in batch:
+        plan["candidates"].pop(cand["key"], None)
     return batch
 
 
@@ -344,10 +506,17 @@ def record_yield(plan: Dict[str, Any], url: str, kind: str, identities: Iterable
     ks = _kind_state(plan, kind)
     ks["read"] += 1
     ks["yield"] += len(new)
+    ks["hits"] = ks.get("hits", 0) + (1 if new else 0)
     ks["streak"] = 0 if new else ks["streak"] + 1
     # The homepage is one page; it is never "set aside", it is simply read.
-    if kind != "home" and ks["streak"] >= YIELD_PATIENCE:
-        ks["set_aside"] = True
+    if kind != "home":
+        if ks["set_aside"]:
+            # Only scent reads happen now; they get their own, shorter, patience.
+            ks["scent_streak"] = 0 if new else ks.get("scent_streak", 0) + 1
+            if ks["scent_streak"] >= SCENT_PATIENCE:
+                ks["scent_closed"] = True
+        elif ks["streak"] >= patience(ks):
+            ks["set_aside"] = True
     plan["yield_log"].append({"url": url, "kind": kind, "new": len(new)})
     return len(new)
 
@@ -358,8 +527,9 @@ def record_failure(plan: Dict[str, Any], kind: str) -> None:
 
 
 def exhausted(plan: Dict[str, Any]) -> bool:
-    """No candidate left in any kind that is still yielding."""
-    return not any(kind_open(plan, c["kind"]) for c in plan["candidates"].values())
+    """No candidate left worth reading."""
+    known = set(plan["identities"])
+    return not any(_worth_reading(plan, c, known) for c in plan["candidates"].values())
 
 
 def summary(plan: Dict[str, Any]) -> Dict[str, Any]:
