@@ -30,9 +30,10 @@ from models import (
 from rdflib import Graph as RdfGraph, Literal, Namespace, RDF, URIRef
 from rdflib.namespace import SKOS
 
-from scraper import repair_glued_words, smart_fetch, validate_url_for_fetch
+from scraper import drop_lite_blocks, lite_blocks, repair_glued_words, smart_fetch, validate_url_for_fetch
 from entity_grounding import wikidata_uri
 import crawl_planner
+from help_center import read_zendesk, zendesk_locale
 from entity_registry import Registry, default_store
 from entity_resolver import normalise_key, resolve_site
 from industry_ontology import _alias_index, _label_matches, classify_vertical, load_industry_ontology
@@ -49,6 +50,12 @@ _MAX_EXPORT_NODES = 1000
 # Pages fetched at once. Fetching is waiting, so this is where a crawl gets faster; the
 # scraper's Jina rate limit keeps it within what the reader allows.
 FETCH_CONCURRENCY = int(os.environ.get("ONTOLEAP_FETCH_CONCURRENCY", "6") or 6)
+
+# A prose block found on this many of a site's pages is the site's own boilerplate - a
+# call to action, a review badge, a byline, a "Schedule a 30-minute call" - rather than
+# anything the page says. Markup does not mark these (scraper._strip_noise catches what it
+# does), so the crawl learns them from the site itself.
+REPEATED_BLOCK_PAGES = int(os.environ.get("ONTOLEAP_REPEATED_BLOCK_PAGES", "3") or 3)
 
 _ASSET_SUFFIXES = re.compile(r'\.(pdf|png|jpg|jpeg|svg|css|js|webp|gif|zip|xml|ico|mp4|woff2?)$')
 
@@ -140,7 +147,37 @@ def new_crawl_state(start_url: str) -> Dict[str, Any]:
         "nodes": [],
         "edges": [],
         "attempts": 0,
+        "block_counts": {},
+        "repeated_blocks_removed": 0,
     }
+
+
+def _batch_block_keys(batch: List[Dict[str, Any]], fetched: Dict[str, Tuple[Optional[str], Optional[str]]]) -> Dict[str, List[str]]:
+    """Each fetched page's prose-block keys, one entry per distinct block."""
+    keys = {}
+    for cand in batch:
+        html, error = fetched[cand["url"]]
+        if error is None and html:
+            keys[cand["url"]] = list(dict.fromkeys(lite_blocks(html)))
+    return keys
+
+
+def _without_repeated_blocks(html: str, keys: List[str], counts: Dict[str, int],
+                             known: Dict[str, int]) -> Tuple[str, int]:
+    """The page for extraction, less the blocks this site repeats; counts the page in.
+
+    `counts` is how many pages read so far had each block, and is updated. `known` is how
+    many pages are known to have it: those before this batch plus every page in it, so a
+    block repeated within one batch is caught on its second page, not the next batch's.
+    The first page with a block keeps it, so whatever it says still reaches the graph once.
+    """
+    drop = set()
+    for key in keys:
+        seen = counts.get(key, 0)
+        if seen and known.get(key, 0) >= REPEATED_BLOCK_PAGES:
+            drop.add(key)
+        counts[key] = seen + 1
+    return drop_lite_blocks(html, drop)
 
 
 def _plan_for(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -164,16 +201,56 @@ def crawl_is_complete(state: Dict[str, Any], max_pages: int) -> bool:
     return crawl_planner.exhausted(_plan_for(state))
 
 
-def _page_links(page_url: str, html: str) -> List[str]:
-    """Every link on a page, absolute. Which of them are worth reading is the planner's call."""
+def _page_links(page_url: str, html: str) -> Tuple[List[str], Dict[str, Dict[str, str]]]:
+    """Every link on a page, absolute, and the words each is linked with.
+
+    Which of them are worth reading is the planner's call; the anchor text is part of what
+    it decides on - "Revenue Recognition" in a menu says more than "/products/rr".
+    """
     soup = BeautifulSoup(html, "html.parser")
-    links = []
+    links, anchors = [], {}
     for a in soup.find_all("a", href=True):
         href = a["href"].strip()
         if not href or href.startswith(("#", "mailto:", "tel:", "javascript:")):
             continue
-        links.append(urljoin(page_url, href))
-    return links
+        url = urljoin(page_url, href)
+        links.append(url)
+        text = " ".join(a.get_text(" ").split())
+        if text and url not in anchors:
+            anchors[url] = {"anchor": text[:120]}
+    return links, anchors
+
+
+# The crawl state carries the vocabulary between slices; a registry that has grown large
+# is cut here rather than let every slice write it out.
+SCENT_MAX_FORMS = 5000
+
+
+def _scent_forms(industry, registry: Optional[Registry]) -> Dict[str, str]:
+    """Every surface form the crawl can recognise before reading a page, to the identity
+    page scoring records for it: the vertical's concepts, then the registry's entities.
+
+    Entities matter for the pages concepts do not name: on the 17 Sep 2026 ordwaylabs.com
+    crawl, ranking by concepts alone stopped reading the pages Slack and TaxJar came from.
+    A concept keeps a form both share.
+    """
+    forms: Dict[str, str] = {}
+    for concept in (industry.concepts or []) if industry is not None else []:
+        for form in [concept.pref_label] + list(concept.alt_labels or []):
+            if form:
+                forms.setdefault(form, "concept:" + concept.id)
+    if registry is not None:
+        for entity in registry.entities.values():
+            if entity.status != "active":
+                continue
+            for form in entity.forms():
+                if len(forms) >= SCENT_MAX_FORMS:
+                    return forms
+                # The identity page_identities records: the entity its form looks up to.
+                hits = registry.lookup(normalise_key(form))
+                if len(hits) == 1:
+                    forms.setdefault(form, "entity:" + hits[0].id)
+    return forms
 
 
 def _read_sitemap(origin: str) -> List[str]:
@@ -272,15 +349,25 @@ def crawl_slice(
     plan = _plan_for(state)
     done = {_page_key(u) for u in state["crawled"]} | {_page_key(f["url"]) for f in state["failed"]}
     registry, industry = _resolution_context(vertical_id)
+    if not plan.get("vocabulary"):
+        crawl_planner.set_vocabulary(plan, _scent_forms(industry, registry))
     started = time.monotonic()
     pages_this_slice = 0
 
-    def add(urls: List[str], source: str) -> None:
-        for host in crawl_planner.add_candidates(plan, urls, source, done):
+    def add(urls: List[str], source: str, meta: Optional[Dict[str, Dict[str, str]]] = None) -> None:
+        for host in crawl_planner.add_candidates(plan, urls, source, done, meta):
             # A docs or help host the site links to: its sitemap is where its articles are
-            # listed, and it is read once.
+            # listed, and it is read once. A Zendesk help centre is also read whole
+            # through its API, which caches every article for the pages chosen below.
             plan["sitemaps"].append(host)
-            add(_read_sitemap("https://%s" % host), "sitemap")
+            sitemap = _read_sitemap("https://%s" % host)
+            known = sitemap + [c["url"] for c in plan["candidates"].values()]
+            articles = read_zendesk(host, zendesk_locale(known, host),
+                                    fetch=lambda url, **kw: smart_fetch(url, **kw))
+            if articles:
+                plan.setdefault("help_centers", {})[host] = len(articles)
+                add([a["url"] for a in articles], "help-center-api", {a["url"]: a for a in articles})
+            add(sitemap, "sitemap")
 
     if plan["site_host"] not in plan["sitemaps"]:
         plan["sitemaps"].append(plan["site_host"])
@@ -314,6 +401,12 @@ def crawl_slice(
         done.update(cand["key"] for cand in batch)
         state["attempts"] += len(batch)
         fetched = _fetch_batch(batch, state["start_url"])
+        block_keys = _batch_block_keys(batch, fetched)
+        block_counts = state.setdefault("block_counts", {})
+        known = {}
+        for keys in block_keys.values():
+            for key in keys:
+                known[key] = known.get(key, block_counts.get(key, 0)) + 1
 
         for cand in batch:
             page_url, kind = cand["url"], cand["kind"]
@@ -331,9 +424,11 @@ def crawl_slice(
             try:
                 # Hand over the HTML we already hold. Passing the URL would make
                 # build_page_kg fetch it a second time, doubling every crawl.
-                payload = html
+                payload, repeated = _without_repeated_blocks(
+                    html, block_keys.get(page_url, []), block_counts, known)
+                state["repeated_blocks_removed"] = state.get("repeated_blocks_removed", 0) + repeated
                 if payload.lstrip()[:8].lower().startswith(("http://", "https://")):
-                    payload = "<html><body>%s</body></html>" % html
+                    payload = "<html><body>%s</body></html>" % payload
                 pkg = build_page_kg(payload, url=page_url, vertical_id=vertical_id)
             except Exception as err:
                 logger.warning("[SiteKG] Could not extract %s: %s", page_url, err)
@@ -349,7 +444,8 @@ def crawl_slice(
 
             added = crawl_planner.record_yield(plan, page_url, kind, page_identities(pkg, registry, industry))
             logger.debug("[SiteKG] %s (%s) added %d", page_url, kind, added)
-            add(_page_links(page_url, html), "link")
+            links, anchors = _page_links(page_url, html)
+            add(links, "link", anchors)
 
     state["seen"] = sorted(done | set(plan["candidates"]) | set(state.get("seen") or []))
     return state
@@ -385,8 +481,9 @@ def assemble_site_kg(
     all_raw_edges = [KGEdge(**e) for e in state["edges"]]
     failed_pages = [PageFailure(**f) for f in state["failed"]]
 
-    logger.info("[SiteKG] %s: read %d of %d pages found (limit %d), %d failed",
-                domain, len(crawled_urls), len(state["seen"]), max_pages, len(failed_pages))
+    logger.info("[SiteKG] %s: read %d of %d pages found (limit %d), %d failed, %d repeated blocks dropped",
+                domain, len(crawled_urls), len(state["seen"]), max_pages, len(failed_pages),
+                state.get("repeated_blocks_removed", 0))
 
     store = None
     if registry is None:

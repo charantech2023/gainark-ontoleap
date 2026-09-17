@@ -3,17 +3,17 @@ GainARK OntoLeap — Smart Anti-Bot Scraper Engine
 Combines:
 1. Level 1 (Fast & Free): curl_cffi with Chrome 124 TLS (JA3/JA4) fingerprint impersonation
    and realistic browser navigation headers.
-2. Anti-Bot Challenge Detection: Automatically identifies Cloudflare Turnstile, WAF 403/503,
-   and captcha challenge pages.
+2. Anti-Bot Challenge Detection: recognises challenge and block pages from Cloudflare,
+   AWS WAF, Akamai, DataDome, HUMAN, Imperva and DDoS-Guard, plus 403/429/503. When every
+   level gets one, the fetch fails naming the service (BotProtectionBlocked).
 3. Fallbacks, tried in order and skipped when unavailable. The sync and async cascades
    differ, so the level numbers are not interchangeable:
-     sync   0 Jina Reader -> 1 curl_cffi -> 2 Crawl4AI -> 3 Firecrawl -> 4 standard requests
-     async  0 Jina Reader -> 1 curl_cffi -> 2 Firecrawl -> 3 httpx
+     sync   0 Jina Reader -> 1 curl_cffi -> 2 Crawl4AI -> 3 standard requests
+     async  0 Jina Reader -> 1 curl_cffi -> 2 httpx
    Level 0 runs only when ONTOLEAP_JINA_READER is set. It returns the rendered DOM, so
    callers keep parsing HTML, and it is never used for robots.txt, sitemaps or specs.
    Crawl4AI is an optional import and is NOT in requirements.txt, so it is absent from
-   the deployed image; Firecrawl runs only when FIRECRAWL_API_KEY is set. A deployment
-   with neither goes straight from level 1 to plain HTTP.
+   the deployed image, which goes straight from level 1 to plain HTTP.
 5. Strict SSRF Protection: Blocks private IPs, localhost, and cloud metadata endpoints —
    on the initial URL *and on every redirect hop*, since a public host may redirect inward.
 6. Response size ceiling: a single fetch cannot exhaust process memory.
@@ -50,36 +50,59 @@ except ImportError:
 from constants import BLOCKED_HOSTNAMES, BLOCKED_IP_PREFIXES
 
 
-def _next_sync_fallback(has_firecrawl_key: bool) -> str:
+def _next_sync_fallback() -> str:
     """Name the fallback the sync cascade will actually reach next.
 
-    Crawl4AI is an optional import absent from requirements.txt, and Firecrawl needs a
-    key, so which level comes next depends on the deployment rather than on the code.
-    Announcing a fixed "Level 2" sends a reader looking for a browser fetch that never
-    ran.
+    Crawl4AI is an optional import absent from requirements.txt, so which level comes next
+    depends on the deployment rather than on the code. Announcing a fixed "Level 2" sends
+    a reader looking for a browser fetch that never ran.
     """
     if CRAWL4AI_AVAILABLE:
         return "level 2 Crawl4AI"
-    if has_firecrawl_key:
-        return "level 3 Firecrawl (Crawl4AI not installed)"
-    return "level 4 standard requests (Crawl4AI not installed, no Firecrawl key)"
+    return "level 3 standard requests (Crawl4AI not installed)"
 
 logger = logging.getLogger("gainark.scraper")
 
-# Signatures indicating an anti-bot challenge page rather than real website content
-CHALLENGE_SIGNATURES = [
-    "cf-browser-verification",
-    "cf-turnstile",
-    "challenges.cloudflare.com",
-    "Just a moment...",
-    "Attention Required! | Cloudflare",
-    "Checking your browser before accessing",
-    "Verifying you are human",
-    "Please wait while we verify your browser",
-    "ddos-guard",
-    "<title>Access Denied</title>",
-    "<title>Security Challenge</title>",
-]
+# Markers of a bot-protection challenge or block page, by the service that served it.
+# Several also appear on ordinary pages - a contact form with a Turnstile box, a site
+# loading the AWS WAF or DataDome script - so they only count on a page small enough to
+# be a challenge (CHALLENGE_PAGE_MAX_BYTES). Challenge pages are a few KB; a real page
+# carrying the vendor's script is far larger.
+CHALLENGE_SIGNATURES = {
+    "Cloudflare": [
+        "cf-browser-verification",
+        "cf-turnstile",
+        "challenges.cloudflare.com",
+        "_cf_chl_opt",
+        "Just a moment...",
+        "Attention Required! | Cloudflare",
+        "Checking your browser before accessing",
+    ],
+    # The challenge page defines gokuProps and loads challenge.js from token.awswaf.com;
+    # the CAPTCHA page loads from captcha.awswaf.com. Served with 202 and 405.
+    "AWS WAF": ["gokuProps", "token.awswaf.com", "captcha.awswaf.com"],
+    "Akamai": ["errors.edgesuite.net", "sec-if-cpt-container"],
+    "DataDome": ["captcha-delivery.com"],
+    "HUMAN (PerimeterX)": ["px-captcha", "Press & Hold"],
+    "Imperva": ["_Incapsula_Resource", "Incapsula incident ID"],
+    "DDoS-Guard": ["ddos-guard"],
+    "bot protection": [
+        "Verifying you are human",
+        "Please wait while we verify your browser",
+        "<title>Access Denied</title>",
+        "<title>Security Challenge</title>",
+    ],
+}
+CHALLENGE_PAGE_MAX_BYTES = 64 * 1024
+_CHALLENGE_MARKERS = [(vendor, sig.lower()) for vendor, sigs in CHALLENGE_SIGNATURES.items() for sig in sigs]
+
+
+class BotProtectionBlocked(requests.HTTPError):
+    """Every fetch level got a bot-protection page instead of the page itself."""
+
+    def __init__(self, vendor: str, status_code: int, url: str):
+        self.vendor = vendor
+        super().__init__(f"Blocked by {vendor} (HTTP {status_code}) for url: {url}")
 
 
 def _env_int(name: str, default: int, minimum: int = 1) -> int:
@@ -210,7 +233,7 @@ class _RateLimiter:
 def _markdown_page(data: Dict[str, Any]) -> str:
     """A Jina markdown read, as the minimal HTML every caller already parses.
 
-    The page's own prose goes in <main>, rendered by markdown-it with raw HTML disabled so
+    The page's own prose goes in <main data-lite>, rendered by markdown-it with raw HTML disabled so
     nothing in a page can inject markup. The links summary goes in a <nav>: link
     extraction reads every <a>, while trafilatura discards navigation, so the links reach
     the crawl frontier without reaching the text extraction reads.
@@ -227,8 +250,170 @@ def _markdown_page(data: Dict[str, Any]) -> str:
             anchors.append('<a href="%s">%s</a>' % (html_lib.escape(link[1], quote=True),
                                                     html_lib.escape(link[0] or "")))
     return ('<html><head><title>%s</title><meta name="description" content="%s"></head>'
-            '<body><main>%s</main><nav>%s</nav></body></html>'
-            % (title, description, body, "".join(anchors)))
+            '<body>%s%s</main><nav>%s</nav></body></html>'
+            % (title, description, LITE_MAIN, body, "".join(anchors)))
+
+
+def lite_cache_key(url: str, lite: str) -> str:
+    """Where a lite read of `url` is cached, apart from the full page."""
+    return "%s#jina-%s" % (url, lite)
+
+
+def source_cache_key(url: str) -> str:
+    """Where a page's text is cached when it came from somewhere other than the page - a
+    help centre's API. A lite read converts it; a full read never sees it, because it
+    lacks the page's own markup."""
+    return "%s#source" % url
+
+
+# Marks a page written by _markdown_page, whose <main> holds nothing but the page's prose
+# as plain blocks - the only shape lite_blocks and drop_lite_blocks read.
+LITE_MAIN = '<main data-lite="1">'
+_LITE_BLOCK_TAGS = ("p", "li", "h1", "h2", "h3", "h4", "h5", "h6", "pre", "blockquote")
+# Shorter blocks are not tracked: "-", "Blog", "Read More" say nothing, and every block
+# tracked is a hash the crawl state carries between slices.
+LITE_BLOCK_MIN_CHARS = 8
+
+
+def _lite_block_elements(soup):
+    main = soup.find("main", attrs={"data-lite": True})
+    if main is None:
+        return []
+    # Innermost blocks only: a loose list item holds a <p>, and counting both would let the
+    # item's removal take a paragraph that is not itself repeated.
+    return [el for el in main.find_all(_LITE_BLOCK_TAGS) if el.find(_LITE_BLOCK_TAGS) is None]
+
+
+def _block_key(el) -> Optional[str]:
+    import hashlib
+    text = " ".join(el.get_text(" ").split()).lower()
+    if len(text) < LITE_BLOCK_MIN_CHARS:
+        return None
+    # A hash rather than the text: the crawl state holds a client's site, and needs only
+    # to recognise a block, not to read it back.
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()[:12]
+
+
+def lite_blocks(html: str) -> list:
+    """Keys of the prose blocks of a lite page, in order; empty for any other page."""
+    if LITE_MAIN not in (html or ""):
+        return []
+    from bs4 import BeautifulSoup
+    keys = (_block_key(el) for el in _lite_block_elements(BeautifulSoup(html, "lxml")))
+    return [k for k in keys if k]
+
+
+def drop_lite_blocks(html: str, drop: set) -> Tuple[str, int]:
+    """The lite page without the blocks whose keys are in `drop`, and how many went."""
+    if not drop or LITE_MAIN not in (html or ""):
+        return html, 0
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html, "lxml")
+    removed = 0
+    for el in _lite_block_elements(soup):
+        if _block_key(el) in drop:
+            el.decompose()
+            removed += 1
+    return (str(soup), removed) if removed else (html, 0)
+
+
+# Never page text: markdownify would otherwise write script bodies and SVG paths out as prose.
+_LITE_DROP = "script, style, noscript, template, svg, canvas, iframe, img, picture, video, audio"
+
+# Page furniture that is not header, nav or footer, found by what the markup says it is.
+# On 73 ordwaylabs.com pages (17 Sep 2026) the slide-out menu (role=dialog) put the office
+# address on every page, the search overlay (role=search) put "Hit enter to search", and
+# related-post blocks, skip links, screen-reader labels and comment prompts filled the
+# rest: lines repeated on five or more pages fell from 38 to 14, with GDPR and SOC 1 kept.
+# Jina keeps all of this too, so a direct read is now the cleaner of the two.
+_NOISE_SELECTOR = ("form, dialog, aside, [role=dialog], [role=alertdialog], [role=search], "
+                   "[role=complementary], [aria-modal=true], [hidden]")
+# A class or id counts when one of its hyphen/underscore parts is one of these. "social",
+# "widget" and "sidebar" are left out: social-proof blocks carry customer logos, Elementor
+# calls every content block a widget, and "has-sidebar" wraps whole pages.
+_NOISE_NAME_PARTS = frozenset({
+    "skip", "search", "modal", "popup", "cookie", "cookies", "consent", "newsletter",
+    "subscribe", "share", "sharing", "breadcrumb", "breadcrumbs", "comment", "comments",
+    "related", "offcanvas",
+})
+_NOISE_NAMES = frozenset({"screen-reader-text", "sr-only", "visually-hidden", "off-canvas"})
+# Nothing holding this share of the page's text is removed, whatever it is called: some
+# sites wrap the whole page in a <form> or a class like "search-page".
+_NOISE_MAX_SHARE = 0.4
+_NAME_PARTS = re.compile(r"[-_\s]+")
+
+
+def _named_as_noise(el) -> bool:
+    names = list(el.get("class") or [])
+    if el.get("id"):
+        names.append(el["id"])
+    for name in names:
+        low = name.lower()
+        if low in _NOISE_NAMES or _NOISE_NAME_PARTS.intersection(_NAME_PARTS.split(low)):
+            return True
+    return False
+
+
+def _strip_noise(soup) -> None:
+    """Remove menus, overlays, forms and related-post blocks that header/nav/footer miss."""
+    body = soup.body or soup
+    total = len(body.get_text(" ", strip=True)) or 1
+    candidates = soup.select(_NOISE_SELECTOR) + [el for el in soup.find_all(True) if _named_as_noise(el)]
+    for el in candidates:
+        if el.decomposed or el.name in ("html", "body", "main", "article"):
+            continue
+        if el.find(["main", "article"]) or el.select_one("[role=main]"):
+            continue
+        if len(el.get_text(" ", strip=True)) > _NOISE_MAX_SHARE * total:
+            continue
+        el.decompose()
+
+
+def lite_page(html: str, url: str, lite: str) -> str:
+    """A directly fetched page as Jina's lite read would return it.
+
+    trafilatura picks one block of a page as its main content. On page-builder layouts it
+    picks wrong: on 17 Sep 2026 it kept the FAQ of ordwaylabs.com/ai-llm/ - 9,132 of
+    49,243 characters - and dropped the security section naming GDPR, CCPA and SOC 1.
+    The same page through Jina's markdown kept 47,647, because markdown has no layout
+    left to choose between. Across 63 pages direct reads extracted 27% less text.
+
+    So a lite read converts locally the way Jina does: every link on the page kept for the
+    crawl frontier, the chrome and page furniture (_strip_noise) removed, images dropped,
+    and the rest written as markdown into the same minimal HTML (_markdown_page) a Jina
+    read produces.
+
+    `lite` is accepted for symmetry with Jina and changes nothing here. The start page is
+    read "full" because a trimmed Jina read returns only the links outside the chrome - 21
+    of ordwaylabs.com's 132 on 17 Sep 2026 - and its menu is the crawl's map of the site.
+    The links here are collected before anything is removed, so a trimmed page keeps all
+    of them, and a full page would only put the menu and footer text into extraction.
+    """
+    from bs4 import BeautifulSoup
+    from markdownify import markdownify
+
+    soup = BeautifulSoup(html, "lxml")
+    links = []
+    for a in soup.find_all("a", href=True):
+        href = a["href"].strip()
+        if href and not href.startswith(("#", "mailto:", "tel:", "javascript:")):
+            links.append([a.get_text(" ", strip=True), urljoin(url, href)])
+
+    title = soup.title.get_text(" ", strip=True) if soup.title else ""
+    meta = soup.find("meta", attrs={"name": "description"})
+    description = (meta.get("content") or "") if meta else ""
+
+    for el in soup.select(_LITE_DROP):
+        el.decompose()
+    for el in soup.select(_JINA_LITE_REMOVE):
+        el.decompose()
+    _strip_noise(soup)
+
+    body = soup.body or soup
+    content = markdownify(str(body), heading_style="ATX", bullets="-")
+    content = re.sub(r"\n{3,}", "\n\n", content).strip()
+    return _markdown_page({"title": title, "description": description,
+                           "content": content, "links": links})
 
 
 # Blog cards and author bylines lay out "By", the author, the date and the category as
@@ -425,21 +610,34 @@ def _content_length_exceeds_cap(headers: Any) -> bool:
     return declared > MAX_RESPONSE_BYTES
 
 
+def challenge_vendor(html_text: str) -> Optional[str]:
+    """The service whose challenge or block page this is, or None for a real page."""
+    if not html_text or len(html_text) > CHALLENGE_PAGE_MAX_BYTES:
+        return None
+    lower_text = html_text.lower()
+    for vendor, sig in _CHALLENGE_MARKERS:
+        if sig in lower_text:
+            return vendor
+    return None
+
+
+def _raise_if_blocked(status_code: int, html_text: str, url: str) -> None:
+    """Fail the fetch, naming the service, when the last level also got a challenge page.
+
+    Without this the last level kept whatever came back: a challenge served with 200 or
+    202 became the page's content, and one served with 403 failed as a bare "403 Client
+    Error" that reads like a missing page rather than a site that refuses crawlers.
+    """
+    vendor = challenge_vendor(html_text)
+    if vendor:
+        raise BotProtectionBlocked(vendor, status_code, url)
+
+
 def is_challenge_page(status_code: int, html_text: str) -> bool:
     """Checks whether a response indicates an anti-bot challenge or block."""
     if status_code in (403, 429, 503):
         return True
-
-    if not html_text:
-        return False
-
-    # Check for challenge signatures
-    lower_text = html_text.lower()
-    for sig in CHALLENGE_SIGNATURES:
-        if sig.lower() in lower_text:
-            return True
-
-    return False
+    return challenge_vendor(html_text) is not None
 
 
 class SmartScraper:
@@ -447,8 +645,7 @@ class SmartScraper:
     Enterprise-grade scraper with Chrome TLS fingerprinting and anti-bot mitigation.
     """
 
-    def __init__(self, firecrawl_api_key: Optional[str] = None, jina_reader: Optional[bool] = None):
-        self.firecrawl_api_key = firecrawl_api_key or os.environ.get("FIRECRAWL_API_KEY")
+    def __init__(self, jina_reader: Optional[bool] = None):
         if jina_reader is None:
             jina_reader = os.environ.get("ONTOLEAP_JINA_READER", "").strip().lower() in ("1", "true", "yes")
         self.jina_reader = jina_reader
@@ -695,76 +892,6 @@ class SmartScraper:
             logger.warning("Crawl4AI failed for %s: %s", url, e)
             return None
 
-    def _fetch_firecrawl(self, url: str, timeout: int = 25) -> Optional[str]:
-        """Routes scrape through Firecrawl API to bypass advanced bot protection / JS."""
-        if not self.firecrawl_api_key:
-            return None
-
-        logger.info("Routing URL %s through Firecrawl anti-bot API...", url)
-        try:
-            fc_headers = {
-                "Authorization": f"Bearer {self.firecrawl_api_key}",
-                "Content-Type": "application/json"
-            }
-            payload = {
-                "url": url,
-                "formats": ["html"]
-            }
-            resp = requests.post(
-                "https://api.firecrawl.dev/v1/scrape",
-                json=payload,
-                headers=fc_headers,
-                timeout=timeout
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                html = data.get("data", {}).get("html") or data.get("html")
-                if html:
-                    logger.info("Firecrawl successfully bypassed anti-bot for %s (%d bytes)", url, len(html))
-                    return html[:MAX_RESPONSE_BYTES]
-            else:
-                # Log the status only, never the upstream body: an error page can echo
-                # request headers (including our Authorization header) back at us.
-                logger.warning("Firecrawl returned HTTP %d for %s", resp.status_code, url)
-        except Exception as e:
-            logger.error("Firecrawl fallback failed for %s: %s", url, type(e).__name__)
-
-        return None
-
-    async def _fetch_firecrawl_async(self, url: str, timeout: int = 25) -> Optional[str]:
-        """Asynchronous Firecrawl API caller."""
-        if not self.firecrawl_api_key:
-            return None
-
-        logger.info("Routing URL %s through Firecrawl anti-bot API (async)...", url)
-        try:
-            fc_headers = {
-                "Authorization": f"Bearer {self.firecrawl_api_key}",
-                "Content-Type": "application/json"
-            }
-            payload = {
-                "url": url,
-                "formats": ["html"]
-            }
-            async with httpx.AsyncClient(timeout=float(timeout)) as client:
-                resp = await client.post(
-                    "https://api.firecrawl.dev/v1/scrape",
-                    json=payload,
-                    headers=fc_headers
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    html = data.get("data", {}).get("html") or data.get("html")
-                    if html:
-                        logger.info("Firecrawl successfully bypassed anti-bot for %s (async)", url)
-                        return html[:MAX_RESPONSE_BYTES]
-                else:
-                    logger.warning("Firecrawl returned HTTP %d for %s (async)", resp.status_code, url)
-        except Exception as e:
-            logger.error("Firecrawl async fallback failed for %s: %s", url, type(e).__name__)
-
-        return None
-
     def fetch_html(
         self,
         url: str,
@@ -777,13 +904,14 @@ class SmartScraper:
         Synchronously fetches a URL's HTML content.
         Checks in-memory/disk cache first before making network calls.
         Uses Chrome TLS impersonation, checks for anti-bot blocks,
-        and falls back to Firecrawl or standard requests as needed.
+        and falls back to a headless browser or standard requests as needed.
 
         `lite` ("full" or "trimmed") is for callers that need a page's text and links but
         not its markup - the site crawl. Through Jina it reads markdown rendered back into
-        minimal HTML, at a small fraction of the tokens; without Jina it changes nothing,
-        because a direct fetch costs the same either way. A lite read is cached apart from
-        the full page, so a caller that needs meta tags or embedded schema never gets one.
+        minimal HTML, at a small fraction of the tokens; a direct fetch is converted to the
+        same shape locally (lite_page), so extraction sees one format whichever level read
+        the page. A lite read is cached apart from the full page, so a caller that needs
+        meta tags or embedded schema never gets one.
         A page whose docs viewer must render first is always read in full.
 
         Every redirect hop is re-validated against the SSRF policy before it is followed.
@@ -795,13 +923,22 @@ class SmartScraper:
         if lite and _jina_wait_selector(url):
             lite = None
         if lite:
-            lite_key = "%s#jina-%s" % (url, lite)
+            lite_key = lite_cache_key(url, lite)
             cached = content_cache.get(lite_key, max_age=max_age, force_refresh=force_refresh)
             if cached is not None:
                 return cached
+        if lite:
+            source = content_cache.get(source_cache_key(url), max_age=max_age, force_refresh=force_refresh)
+            if source is not None:
+                page = lite_page(source, url, lite)
+                content_cache.set(lite_key, page)
+                return page
         cached = content_cache.get(url, max_age=max_age, force_refresh=force_refresh)
         if cached is not None:
             logger.debug("Cache hit for %s; skipping network fetch.", url)
+            if lite:
+                cached = lite_page(cached, url, lite)
+                content_cache.set(lite_key, cached)
             return cached
 
         # Level 0: Jina Reader. Ahead of redirect resolution, because when it succeeds the
@@ -814,6 +951,7 @@ class SmartScraper:
 
         target = _resolve_redirects(url, self.browser_headers, timeout=timeout)
         html_result = None
+        is_markdown = False
 
         # Level 1: curl_cffi with Chrome 124 TLS impersonation
         if CURL_CFFI_AVAILABLE:
@@ -838,7 +976,7 @@ class SmartScraper:
                         logger.warning(
                             "Level 1 curl_cffi got status %d or challenge for %s. Falling back to %s...",
                             resp.status_code, target,
-                            _next_sync_fallback(bool(self.firecrawl_api_key))
+                            _next_sync_fallback()
                         )
             except Exception as e:
                 logger.warning("Level 1 curl_cffi failed for %s: %s", target, e)
@@ -850,18 +988,12 @@ class SmartScraper:
             c4a_text = self._fetch_crawl4ai(target, timeout=timeout)
             if c4a_text and not is_challenge_page(200, c4a_text):
                 html_result = c4a_text
+                is_markdown = True
                 logger.info("Level 2 Crawl4AI succeeded for %s (%d chars)", target, len(c4a_text))
 
-        # Level 3: Firecrawl fallback (if key is set and levels 1+2 failed)
-        if not html_result and self.firecrawl_api_key:
-            logger.info("Attempting Level 3 Firecrawl for %s...", target)
-            fc_html = self._fetch_firecrawl(target, timeout=timeout + 10)
-            if fc_html:
-                html_result = fc_html
-
-        # Level 4: Resilient standard requests with browser headers, streamed under a cap
+        # Level 3: Resilient standard requests with browser headers, streamed under a cap
         if not html_result:
-            logger.info("Attempting Level 4 standard requests for %s...", target)
+            logger.info("Attempting Level 3 standard requests for %s...", target)
             session = requests.Session()
             with session.get(
                 target,
@@ -871,8 +1003,8 @@ class SmartScraper:
                 allow_redirects=False,
                 stream=True,
             ) as resp:
-                resp.raise_for_status()
                 if _content_length_exceeds_cap(resp.headers):
+                    resp.raise_for_status()
                     raise ValueError(
                         f"Response from {target} exceeds the {MAX_RESPONSE_BYTES} byte ceiling."
                     )
@@ -884,13 +1016,27 @@ class SmartScraper:
                         break
                 encoding = resp.encoding
                 if "charset" not in (resp.headers.get("Content-Type", "") or "").lower():
-                    encoding = resp.apparent_encoding or encoding
-                html_result = _capped_text(bytes(body), encoding)
+                    # Detected from the bytes already read: resp.apparent_encoding reads
+                    # resp.content, which a streamed response no longer has, and raised
+                    # "The content for this response was already consumed".
+                    from requests.compat import chardet
+                    encoding = chardet.detect(bytes(body)).get("encoding") or encoding
+                text = _capped_text(bytes(body), encoding)
+                _raise_if_blocked(resp.status_code, text, target)
+                resp.raise_for_status()
+                html_result = text
 
         # Cache successful fetch under the originally requested URL
-        if html_result:
-            content_cache.set(url, html_result)
-
+        if not html_result:
+            return html_result
+        if is_markdown:
+            # Crawl4AI hands back markdown, not a page; wrap it rather than parse it as HTML.
+            html_result = _markdown_page({"content": html_result})
+        content_cache.set(url, html_result)
+        if lite and not is_markdown:
+            html_result = lite_page(html_result, target, lite)
+        if lite:
+            content_cache.set(lite_key, html_result)
         return html_result
 
     async def _resolve_redirects_async(self, url: str, timeout: int = 15) -> str:
@@ -974,23 +1120,17 @@ class SmartScraper:
             except Exception as e:
                 logger.warning("Async Level 1 curl_cffi failed for %s: %s", target, e)
 
-        # Level 2: Firecrawl async fallback
-        if not html_result and self.firecrawl_api_key:
-            fc_html = await self._fetch_firecrawl_async(target, timeout=timeout + 10)
-            if fc_html:
-                html_result = fc_html
-
-        # Level 3: httpx async fallback, streamed under a cap
+        # Level 2: httpx async fallback, streamed under a cap
         if not html_result:
-            logger.info("Attempting Level 3 async httpx for %s...", target)
+            logger.info("Attempting Level 2 async httpx for %s...", target)
             async with httpx.AsyncClient(
                 timeout=float(timeout),
                 follow_redirects=False,
                 headers=self.browser_headers,
             ) as client:
                 async with client.stream("GET", target) as resp:
-                    resp.raise_for_status()
                     if _content_length_exceeds_cap(resp.headers):
+                        resp.raise_for_status()
                         raise ValueError(
                             f"Response from {target} exceeds the {MAX_RESPONSE_BYTES} byte ceiling."
                         )
@@ -1000,7 +1140,10 @@ class SmartScraper:
                         if len(body) > MAX_RESPONSE_BYTES:
                             logger.warning("Truncating oversized response from %s", target)
                             break
-                    html_result = _capped_text(bytes(body), resp.encoding)
+                    text = _capped_text(bytes(body), resp.encoding)
+                    _raise_if_blocked(resp.status_code, text, target)
+                    resp.raise_for_status()
+                    html_result = text
 
         # Cache successful fetch
         if html_result:

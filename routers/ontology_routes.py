@@ -6,12 +6,13 @@ Provides REST APIs for:
 2. Concept taxonomy querying, hierarchy, definitions, and altLabels
 3. Multi-step compliance frameworks (ASC 606 5 steps, SOC 2 5 criteria)
 4. Synonym candidate review & approval into the curated vertical ontology
+5. Vocabulary a vertical learns from its crawls, proposed for review
 """
 
 import json
 import logging
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
@@ -20,7 +21,8 @@ import compliance_ontology as comp_onto
 import sector_ontology as sector_onto
 from models import  SemanticTriple
 from routers.deps import _vertical_config_path, DEFAULT_VERTICAL_ID
-from security import content_disposition
+from security import content_disposition, is_valid_vertical_id
+from vocabulary_learning import default_vocabulary
 
 logger = logging.getLogger("ontoleap.api.ontology")
 
@@ -35,6 +37,16 @@ class ApproveSynonymRequest(BaseModel):
     surface_form: str = Field(..., min_length=1, max_length=200, description="Marketing phrase / surface form")
     canonical_concept: str = Field(..., min_length=1, max_length=200, description="Canonical concept prefLabel in the ontology")
     vertical_id: str = Field(default=DEFAULT_VERTICAL_ID, description="Target vertical ontology profile")
+
+
+class VocabularyDecisionRequest(BaseModel):
+    vertical_id: str = Field(..., min_length=1, max_length=100, description="Vertical the proposal belongs to")
+    key: str = Field(..., min_length=1, max_length=200, description="Proposal key, as GET /vocabulary/proposals lists it")
+    decision: Literal["approve", "reject", "generic"] = Field(..., description="generic: never propose this term for any vertical")
+    label: Optional[str] = Field(default=None, max_length=200, description="Label to approve under, if not the proposed one")
+    kind: Optional[Literal["concept", "name"]] = Field(default=None, description="Override: a vocabulary concept, or a name for the entity registry")
+    definition: Optional[str] = Field(default=None, max_length=1000, description="One-line definition for an approved concept")
+    entity_kind: str = Field(default="organization", description="For an approved name: organization, product, standard, topic or place")
 
 
 class EvaluateComplianceRequest(BaseModel):
@@ -245,6 +257,46 @@ def post_approve_synonym(req: ApproveSynonymRequest):
 class OntologySparqlRequest(BaseModel):
     query: str = Field(..., min_length=5, max_length=10000, description="W3C SPARQL 1.1 SELECT query")
     vertical_id: str = Field(default=DEFAULT_VERTICAL_ID, description="Target vertical identifier")
+
+
+def _known_vertical(vertical_id: str) -> str:
+    if not is_valid_vertical_id(vertical_id):
+        raise HTTPException(status_code=400, detail="Invalid vertical id.")
+    if not _vertical_config_path(vertical_id):
+        raise HTTPException(status_code=404, detail=f"Vertical '{vertical_id}' not found.")
+    return vertical_id
+
+
+@router.get("/vocabulary/proposals", summary="Terms a Vertical's Crawled Sites Share, Proposed as Vocabulary")
+def get_vocabulary_proposals(vertical_id: str = Query(..., description="Vertical to propose vocabulary for")):
+    """
+    Unresolved terms that several of the vertical's crawled sites write and other verticals'
+    sites do not, with the sites and pages that write them. Computed from stored crawl
+    observations on each call; decided terms are left out.
+    """
+    try:
+        return default_vocabulary().proposals(_known_vertical(vertical_id))
+    except HTTPException:
+        raise
+    except Exception as err:
+        logger.error("Could not build vocabulary proposals for %s: %s", vertical_id, err)
+        raise HTTPException(status_code=503, detail="Crawl observations could not be read.")
+
+
+@router.post("/vocabulary/decide", summary="Approve, Reject or Mark Generic a Proposed Term")
+def post_vocabulary_decision(req: VocabularyDecisionRequest):
+    """
+    Records the decision durably. An approved concept is written into the vertical and
+    mirrored; an approved name becomes a registry entity; a rejected term is not proposed
+    again for this vertical, and a generic one for any vertical.
+    """
+    vertical_id = _known_vertical(req.vertical_id)
+    try:
+        return default_vocabulary().decide(vertical_id, req.key, req.decision, label=req.label,
+                                           kind=req.kind, definition=req.definition,
+                                           entity_kind=req.entity_kind)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err))
 
 
 @router.get("/export", summary="Export Ontology Knowledge Graph in W3C Standards")
