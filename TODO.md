@@ -161,6 +161,16 @@ of configuration - only IAM on a bucket, or a mounted volume.
 this to take effect. One variable now backs both the graph and the ledger, so a
 deployment cannot end up half-durable.
 
+### T7 — Move the alt-label candidate queue into the archive
+
+`truth_ledger/alt_label_candidates.json` (`sector_ontology._candidates_path`, also built
+by hand in `POST /api/ontology/approve-synonym`) is local-disk only. On Cloud Run pending
+proposals, and the "approved" marks `record_reviewer_synonym` sets, vanish when the
+instance is recycled and differ between instances. Approved synonyms themselves are safe:
+since 17 Sep 2026 the approval syncs the vertical from `ONTOLEAP_VERTICALS_MIRROR` first
+and publishes it after. The queue should move into the same archive, as an append-only
+decision log like `vocabulary_learning.VocabularyStore`, rather than a rewritten JSON file.
+
 ---
 
 ## Evaluated and rejected

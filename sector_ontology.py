@@ -238,13 +238,21 @@ def record_reviewer_synonym(
     concept's altLabels, which extraction already matches and always resolves back to
     the canonical.
 
+    On Cloud Run the verticals directory is the container filesystem and sync_down()
+    overwrites it from the mirror, so a local-only write is lost on the next sync or
+    recycle. The approval therefore applies to the latest mirrored profile and is
+    published back, as VocabularyStore._apply_concepts does.
+
     Returns True when the vertical was changed.
     """
+    import vertical_store
+
     surface = (marketing_term or "").strip()
     target = (canonical_label or "").strip()
     if not surface or not target:
         return False
 
+    vertical_store.sync_down(force=True)
     with open(vertical_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
@@ -272,10 +280,15 @@ def record_reviewer_synonym(
     alts.append(surface)
     data.setdefault("alt_labels", {})[concept["prefLabel"]] = list(alts)
 
-    with open(vertical_path, "w", encoding="utf-8") as f:
+    tmp = vertical_path + ".partial"
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
         f.write("\n")
+    os.replace(tmp, vertical_path)
+    vertical_id = os.path.splitext(os.path.basename(vertical_path))[0]
+    vertical_store.publish(vertical_id, data)
 
+    # The candidate queue is still local-disk only; see TODO.md.
     queue_path = queue_path or _candidates_path()
     queue = _load_candidates(queue_path)
     changed = False
