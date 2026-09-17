@@ -16,7 +16,7 @@ import json
 import logging
 from typing import Optional, List, Dict, Union, Any
 
-from ontology_schema import canonical_class
+from ontology_schema import canonical_class, concept_uri
 from security import verticals_dir
 from models import (
     IndustryOntologyModel, IndustryConcept, GraphAlignmentResult,
@@ -121,6 +121,13 @@ def _alias_matches(form: str, graph_terms: set) -> bool:
     return any(pattern.search(term) for term in graph_terms)
 
 
+def _join_hyphens(term: str) -> str:
+    """A term with hyphens and runs of spaces made one space: "PCI-DSS" and "PCI DSS" are
+    one standard. On the 17 Sep 2026 ordwaylabs.com crawl the site wrote "PCI DSS", the
+    vertical's label is "PCI-DSS", and coverage reported the standard as whitespace."""
+    return " ".join(term.replace("-", " ").replace("\u2013", " ").split())
+
+
 def _label_matches(
     label: str,
     index: Dict[str, List[str]],
@@ -128,13 +135,14 @@ def _label_matches(
     allow_reverse: bool = True,
 ) -> bool:
     """Whether the graph claims this concept under its own name or any alternate label."""
-    canonical = label.strip().lower()
-    if _canonical_matches(canonical, graph_terms, allow_reverse):
+    terms = {_join_hyphens(t) for t in graph_terms}
+    canonical = _join_hyphens(label.strip().lower())
+    if _canonical_matches(canonical, terms, allow_reverse):
         return True
     return any(
-        _alias_matches(form, graph_terms)
+        _alias_matches(_join_hyphens(form), terms)
         for form in _surface_forms(label, index)
-        if form != canonical
+        if _join_hyphens(form) != canonical
     )
 
 
@@ -617,6 +625,12 @@ def align_graph_with_industry(
 
     alias_index = _alias_index(industry)
 
+    # A node the resolver identified as a concept's equal covers it, whatever the site
+    # called it: the registry's "PCI DSS" carries the link to the vertical's "PCI-DSS".
+    by_uri = {concept_uri(industry.vertical_id, c.id): c.pref_label for c in industry.concepts}
+    linked = {by_uri[n.concept_uri] for n in kg.nodes
+              if getattr(n, "concept_uri", None) in by_uri}
+
     # 1. Covered Concepts
     covered_concepts = []
     category_whitespace = []
@@ -628,7 +642,7 @@ def align_graph_with_industry(
             all_industry_concepts.append(c.pref_label)
 
     for item in all_industry_concepts:
-        matched = _label_matches(item, alias_index, graph_terms)
+        matched = item in linked or _label_matches(item, alias_index, graph_terms)
 
         if matched:
             covered_concepts.append(item)

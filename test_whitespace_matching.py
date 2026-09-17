@@ -57,5 +57,38 @@ class ProprietaryConceptsTest(unittest.TestCase):
         self.assertEqual(result.proprietary_concepts, ["Revenue Sub-Ledger Sync", "Stair-Step Pricing"])
 
 
+class CoverageMatchingTest(unittest.TestCase):
+    """17 Sep 2026: ordwaylabs.com wrote "PCI DSS", the vertical says "PCI-DSS", and the
+    standard was reported as whitespace although the resolver had linked the two."""
+
+    ONTO = IndustryOntologyModel(
+        vertical_id="test_vertical", display_name="Test",
+        concepts=[IndustryConcept(id="pci-dss", pref_label="PCI-DSS"),
+                  IndustryConcept(id="ubp", pref_label="Usage Based Pricing"),
+                  IndustryConcept(id="soc1", pref_label="SOC 1 Type II")])
+
+    def covered(self, *nodes):
+        kg = SiteKnowledgeGraph(domain="acme.com", pages_crawled=1, nodes=list(nodes))
+        return sorted(align_graph_with_industry(kg, industry=self.ONTO).covered_concepts)
+
+    def test_hyphens_and_spaces_are_the_same_term(self):
+        self.assertEqual(self.covered(KGNode(id="a", canonical_name="PCI DSS")), ["PCI-DSS"])
+        self.assertEqual(self.covered(KGNode(id="b", canonical_name="usage-based  pricing")),
+                         ["Usage Based Pricing"])
+
+    def test_a_node_the_resolver_linked_to_a_concept_covers_it(self):
+        from ontology_schema import concept_uri
+        node = KGNode(id="entity:pci", canonical_name="Payment card security",
+                      concept_uri=concept_uri("test_vertical", "pci-dss"))
+        self.assertEqual(self.covered(node), ["PCI-DSS"])
+        # A link into another vertical covers nothing here.
+        stray = KGNode(id="entity:x", canonical_name="Something",
+                       concept_uri=concept_uri("other_vertical", "soc1"))
+        self.assertEqual(self.covered(stray), [])
+
+    def test_joining_hyphens_does_not_join_distinct_terms(self):
+        self.assertEqual(self.covered(KGNode(id="c", canonical_name="SOC 2 Type II")), [])
+
+
 if __name__ == "__main__":
     unittest.main()
