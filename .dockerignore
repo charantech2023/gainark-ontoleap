@@ -16,3 +16,18 @@ ANTIGRAVITY_TASKS.md
 verify_*.py
 .ontoleap_cache/
 .test_cache/
+# The Cloud Build trigger builds from a GitHub checkout, where .gcloudignore does not
+# apply, so this file alone decides what reaches the image. Keep it in step with
+# .gcloudignore.
+.env.*
+.gcloudignore
+.dockerignore
+cloudbuild.yaml
+test_*.py
+eval/
+scratch/
+*.bak
+truth_ledger/graph.sqlite
+truth_ledger/jobs/
+truth_ledger/registry_archive/
+.claude/

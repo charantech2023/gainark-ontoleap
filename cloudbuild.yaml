@@ -1,0 +1,48 @@
+# Build and deploy on every push to main (Cloud Build trigger "deploy-main").
+#
+# Replaces `gcloud run deploy --source .`, which uploaded the local working tree and
+# rebuilt every layer. A trigger builds the pushed commit, so what ships is always what
+# is on GitHub, and the image reuses unchanged layers from the previous build: a
+# code-only change skips reinstalling torch, the requirements and both models.
+#
+# The deploy passes only the image. GEMINI_API_KEY, ONTOLEAP_API_KEY,
+# ONTOLEAP_GRAPH_ARCHIVE, ONTOLEAP_VERTICALS_MIRROR and the rest live on the service and
+# carry over to each revision; never add --set-env-vars here.
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    env: ["DOCKER_BUILDKIT=1"]
+    args:
+      - build
+      - --cache-from=${_IMAGE}:latest
+      - --build-arg=BUILDKIT_INLINE_CACHE=1
+      - --tag=${_IMAGE}:${COMMIT_SHA}
+      - --tag=${_IMAGE}:latest
+      - .
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: ["push", "--all-tags", "${_IMAGE}"]
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_IMAGE}:${COMMIT_SHA}
+      - --region=${_REGION}
+      - --quiet
+
+substitutions:
+  _SERVICE: gainark-ontoleap
+  _REGION: asia-south1
+  _IMAGE: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/${_SERVICE}
+
+options:
+  dynamicSubstitutions: true
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 3600s
