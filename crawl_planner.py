@@ -244,14 +244,37 @@ def classify(url: str, site_host: str) -> Optional[str]:
     return fallback or "other"
 
 
+def _english_locale(segment: str) -> bool:
+    return bool(_LOCALE.match(segment)) and re.split(r"[-_]", segment)[0] == "en"
+
+
+def _locale_rank(url: str) -> int:
+    """Which copy of a page to keep: 0 unprefixed, 1 plain or US English, 2 regional."""
+    for seg in _segments(urlparse(url).path)[:2]:
+        if _english_locale(seg):
+            return 1 if seg in ("en", "en-us", "en_us") else 2
+    return 0
+
+
 def page_key(url: str) -> str:
-    """Identity of a page: host without www, path without trailing slash. Query and
-    fragment dropped - tracking parameters would otherwise make one page many."""
+    """Identity of a page: host without www, path without trailing slash or an English
+    locale in its first two segments. Query and fragment dropped - tracking parameters
+    would otherwise make one page many.
+
+    "/en-AU/blog/x", "/en-CA/blog/x" and "/blog/x" are one page. On the 17 Sep 2026
+    rippling.com crawl, 81 of 127 pages read were Australian, Canadian, British and Irish
+    copies of pages it had, or would have, read once.
+    """
     parsed = urlparse(url)
     host = parsed.netloc.lower()
     if host.startswith("www."):
         host = host[4:]
-    return host + (parsed.path.rstrip("/").lower() or "/")
+    parts = _segments(parsed.path)
+    for i, seg in enumerate(parts[:2]):
+        if _english_locale(seg):
+            del parts[i]
+            break
+    return host + ("/" + "/".join(parts) if parts else "/")
 
 
 def clean_url(url: str) -> str:
@@ -385,6 +408,8 @@ def add_candidates(plan: Dict[str, Any], urls: Iterable[str], source: str,
             # counted as one too, until 17 Sep 2026.
             if source == "link":
                 existing["inlinks"] += 1
+            if _locale_rank(url) < _locale_rank(existing["url"]):
+                existing["url"] = clean_url(url)
             if known:
                 _merge_meta(existing, known)
                 _match_terms(plan, existing)

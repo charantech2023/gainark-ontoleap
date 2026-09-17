@@ -468,6 +468,32 @@ def test_scent_knows_registry_entities_as_well_as_concepts():
     print("  PASS")
 
 
+def test_regional_english_copies_are_one_page():
+    print("\n[19] /en-AU/x, /en-CA/x and /x are one page, kept at its plainest URL ...")
+    same = ["https://www.acme.com/en-AU/blog/global-payroll", "https://acme.com/en-gb/blog/global-payroll/",
+            "https://www.acme.com/blog/global-payroll", "https://www.acme.com/en_IE/blog/global-payroll"]
+    assert len({cp.page_key(u) for u in same}) == 1, [cp.page_key(u) for u in same]
+    # A help centre's locale is its second segment; only English is folded.
+    assert cp.page_key("https://support.acme.com/hc/en-us/articles/1") == "support.acme.com/hc/articles/1"
+    assert cp.page_key("https://www.acme.com/de/blog/x") != cp.page_key("https://www.acme.com/blog/x")
+    assert cp.page_key("https://www.acme.com/engine/x") == "acme.com/engine/x"
+    assert cp.page_key("https://www.acme.com/en-AU/") == "acme.com/"
+
+    plan = plan_with(same[:2])
+    cp.add_candidates(plan, same[2:], "link", set())
+    assert len(plan["candidates"]) == 1
+    cand = next(iter(plan["candidates"].values()))
+    assert cand["url"] == "https://www.acme.com/blog/global-payroll", cand["url"]
+    assert cand["inlinks"] == 2
+
+    # A copy of a page already read is not a candidate.
+    later = cp.new_plan("https://www.acme.com")
+    cp.add_candidates(later, ["https://www.acme.com/en-CA/blog/global-payroll"], "link",
+                      {site_graph._page_key("https://www.acme.com/blog/global-payroll")})
+    assert later["candidates"] == {}
+    print("  PASS")
+
+
 def test_a_state_from_before_planning_resumes():
     print("\n[9] A queue-based state saved by the previous crawler resumes ...")
     site = _Site([], {}, {"acme.com/pricing": "Pricing"})
@@ -506,6 +532,7 @@ if __name__ == "__main__":
     test_a_set_aside_kind_still_reads_pages_naming_what_is_missing()
     test_a_scent_page_that_finds_the_concept_stops_the_rest_looking_promising()
     test_scent_knows_registry_entities_as_well_as_concepts()
+    test_regional_english_copies_are_one_page()
     test_a_state_from_before_planning_resumes()
     print("\n" + "=" * 78)
     print("ALL CRAWL PLANNING TESTS PASSED")

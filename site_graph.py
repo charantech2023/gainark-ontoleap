@@ -61,16 +61,9 @@ _ASSET_SUFFIXES = re.compile(r'\.(pdf|png|jpg|jpeg|svg|css|js|webp|gif|zip|xml|i
 
 
 def _page_key(url: str) -> str:
-    """Identity of a page for crawl purposes: host and path, nothing else.
-
-    Query strings and fragments are dropped deliberately. Tracking parameters and
-    pagination would otherwise present one page as many and let a crawl spend its whole
-    budget going nowhere.
-    """
-    parsed = urlparse(url)
-    netloc = parsed.netloc.replace("www.", "").lower()
-    path = parsed.path.rstrip("/").lower() or "/"
-    return netloc + path
+    """Identity of a page for crawl purposes - the planner's, so what the crawl has read
+    and what the planner may offer are compared on the same terms."""
+    return crawl_planner.page_key(url)
 
 
 def _extract_internal_links(page_url: str, html: str) -> Tuple[List[str], List[str]]:
