@@ -251,6 +251,59 @@ class PromptGeneratorTest(_WithVerticals):
         self.assertIn("missing", payload["coverage"])
         self.assertIn("text", payload["prompts"][0])
 
+    def test_comply_is_heard_in_compliance(self):
+        # "how to comply with HR compliance" came out of the reviewed HR vocabulary.
+        self.assertTrue(pg._collides("how to comply with {x}", "HR compliance"))
+        self.assertTrue(pg._collides("how to comply with {x}", "Payroll Compliance"))
+        self.assertFalse(pg._collides("how to comply with {x}", "ASC 606"))
+
+    def test_an_inflection_is_not_another_way_to_write_the_term(self):
+        learned = {"vertical_id": "hr", "display_name": "HR",
+                   "concepts": [{"id": "payroll", "prefLabel": "Payroll", "kind": "concept",
+                                 "altLabels": ["payroll processing", "payroll processes",
+                                               "Payrolls", "payroll administration"]}]}
+        with open(os.path.join(self.tmp, "hr.json"), "w") as fh:
+            json.dump(learned, fh)
+        subjects = {p.source_value for p in self.generate("hr", domain=None).prompts}
+        self.assertEqual(subjects, {"Payroll", "payroll processing", "payroll administration"})
+
+    def test_a_competitor_filed_as_replaced_is_left_to_the_comparison_stage(self):
+        # bamboohr.com: discovery filed a jab at a competitor as something buyers replace.
+        profile = dict(PROFILE, known_replaces=["Spreadsheets", "2010 software (referring to Zuora)",
+                                                "Zuoranomics"])
+        with open(os.path.join(self.tmp, "buyers", "acme.com.json"), "w") as fh:
+            json.dump(profile, fh)
+        ps = self.generate()
+        problems = {p.source_value for p in ps.by_stage("problem")}
+        self.assertNotIn("2010 software (referring to Zuora)", problems)
+        self.assertIn("Zuoranomics", problems, "Only a whole-word competitor name counts")
+        self.assertIn("Zuora alternatives", self.texts(ps))
+
+    def test_a_compliance_heading_is_never_the_category(self):
+        # The reviewed HR tree: no single root, and the widest one is HR compliance.
+        tree = {"vertical_id": "hr", "display_name": "HR", "concepts": [
+            {"id": "payroll", "prefLabel": "Payroll", "kind": "concept"},
+            {"id": "global-payroll", "prefLabel": "Global Payroll", "broader": "payroll"},
+            {"id": "hr-compliance", "prefLabel": "HR compliance", "kind": "concept"},
+        ] + [{"id": k, "prefLabel": k.replace("-", " ").upper(), "broader": "hr-compliance"}
+             for k in ("aca", "gdpr", "flsa")]}
+        with open(os.path.join(self.tmp, "hr.json"), "w") as fh:
+            json.dump(tree, fh)
+        texts = self.texts(self.generate("hr", domain=None))
+        self.assertIn("does payroll software need ACA", texts)
+        self.assertFalse([t for t in texts if "HR compliance software" in t])
+
+    def test_a_root_named_for_the_product_is_not_said_twice(self):
+        tree = {"vertical_id": "hr", "display_name": "HR", "concepts": [
+            {"id": "hr-software", "prefLabel": "HR software", "kind": "domain"},
+            {"id": "payroll", "prefLabel": "Payroll", "broader": "hr-software"},
+            {"id": "aca", "prefLabel": "ACA", "kind": "standard", "broader": "hr-software"}]}
+        with open(os.path.join(self.tmp, "hr.json"), "w") as fh:
+            json.dump(tree, fh)
+        texts = self.texts(self.generate("hr", domain=None))
+        self.assertIn("does HR software need ACA", texts)
+        self.assertFalse([t for t in texts if "software software" in t])
+
     def test_nothing_is_generated_twice(self):
         texts = self.texts(self.generate())
         self.assertEqual(len(texts), len(set(t.lower() for t in texts)))

@@ -129,6 +129,42 @@ class BuildProposalsTest(unittest.TestCase):
         self.assertFalse(vl._is_name(["HR compliance"]))
         self.assertFalse(vl._is_name(["401(k)"]))
 
+    def test_a_vendors_product_spelling_is_not_a_form_of_the_term(self):
+        # gusto.com's "Payroll4Free" folds into payroll on its first seven letters.
+        sites = [obs("gusto.com", HR, rec("payroll", ["payroll", "Payroll4Free"], pages=5)),
+                 obs("deel.com", HR, rec("payroll", "payroll", pages=5))]
+        self.assertEqual(proposals(sites)["payroll"]["forms"], ["payroll"])
+        self.assertTrue(vl._clean("B2B payroll"), "An acronym with a digit is not a product")
+        self.assertTrue(vl._clean("W-2 forms"))
+        self.assertFalse(vl._clean("Payroll4Free"))
+
+    def test_a_word_with_the_next_word_glued_on_is_not_a_form(self):
+        sites = [obs("gusto.com", HR, rec("payroll", ["payroll", "payrollin", "payrolls"], pages=5)),
+                 obs("deel.com", HR, rec("compliance", ["compliant", "compliantly"], pages=5),
+                     rec("payroll", "payroll", pages=5)),
+                 obs("rippling.com", HR, rec("compliance", "compliance", pages=5))]
+        got = proposals(sites)
+        self.assertEqual(sorted(got["payroll"]["forms"]), ["payroll", "payrolls"])
+        self.assertEqual(sorted(got[variant_key("compliance")]["forms"]),
+                         ["compliance", "compliant", "compliantly"])
+
+    def test_a_proposal_says_when_it_is_already_a_seed_term(self):
+        seeds = ["Payroll processing", "New hire onboarding", "Time and attendance tracking"]
+        sites = [obs(d, HR, rec("payroll processing", "payroll processing", pages=3),
+                     rec("onboarding", "onboarding", pages=3),
+                     rec("time tracking", "time tracking", pages=3),
+                     rec("background check", "background checks", pages=3))
+                 for d in ("gusto.com", "deel.com")]
+        got = {p["label"]: p for p in build_proposals(sites, HR, seed_terms=seeds)["proposals"]}
+        self.assertEqual(got["payroll processing"]["seed"], "Payroll processing")
+        self.assertEqual(got["onboarding"]["near_seeds"], ["New hire onboarding"])
+        self.assertIsNone(got["onboarding"]["seed"])
+        self.assertEqual(got["time tracking"]["near_seeds"], ["Time and attendance tracking"])
+        self.assertEqual((got["background checks"]["seed"], got["background checks"]["near_seeds"]),
+                         (None, []))
+        # Proposed all the same: approving one is how a seed string becomes a concept.
+        self.assertEqual(len(got), 4)
+
     def test_resolved_forms_are_not_proposed(self):
         self.assertNotIn("stripe", proposals())
 

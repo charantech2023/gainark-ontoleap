@@ -81,6 +81,15 @@ _WORD = re.compile(r"[A-Za-z0-9()&'.-]+")
 # themselves ("SuccessFactors", "QuickBooks"); two in a form is page text glued together
 # ("PayrollBenefits AdministrationHead").
 _INNER_CAPITAL = re.compile(r"[a-z]{2,}[A-Z]")
+# A digit between letters, after a lowercase one: how a vendor spells a product
+# ("Payroll4Free" on gusto.com), never how a category writes a term. B2B and W-2 pass.
+_PRODUCT_DIGIT = re.compile(r"[a-z]\d+[A-Za-z]")
+# What a word may carry and still be the same word. Any other short tail is the next word
+# of the page glued on: "payrollin" is "payroll in".
+_INFLECTIONS = {"s", "es", "ed", "d", "er", "ers", "ing", "ly"}
+_TAIL = 3
+# Words a seed term can carry that say nothing about which term it is.
+_FILLER = {"and", "of", "the", "for", "a", "an", "to", "in", "with"}
 
 
 def variant_key(key: str) -> str:
@@ -130,8 +139,48 @@ def _clean(form: str) -> bool:
     stutter ("Compliance Compliance")."""
     words = _words(form)
     glued = sum(1 for w in words if _INNER_CAPITAL.search(w)) >= 2
+    product = any(_PRODUCT_DIGIT.search(w) for w in words)
     lower = [w.lower() for w in words]
-    return bool(words) and not glued and all(a != b for a, b in zip(lower, lower[1:]))
+    return bool(words) and not glued and not product and all(a != b for a, b in zip(lower, lower[1:]))
+
+
+def _stray_tail(form: str, others: Iterable[str]) -> bool:
+    """Another form of the same term with a fragment stuck on that is not an inflection:
+    "payrollin" beside "payroll". Variant folding puts it in the term's group, since both
+    begin with the same seven letters, and nothing else would take it out."""
+    low = form.lower()
+    for other in others:
+        base = other.lower()
+        if base != low and low.startswith(base) and len(low) - len(base) <= _TAIL                 and low[len(base):] not in _INFLECTIONS:
+            return True
+    return False
+
+
+def _term_words(term: str) -> set:
+    return {w[:_VARIANT_STEM] for w in re.findall(r"[a-z0-9]+", (term or "").lower())
+            if w not in _FILLER}
+
+
+def _seed_overlap(label: str, forms: List[str], seeds: Iterable[str]) -> Tuple[Optional[str], List[str]]:
+    """(the seed term this proposal is, the seed terms it overlaps).
+
+    A vertical's seed terms are strings, not concepts, so the resolver never identifies
+    them and a crawl proposes them back: the held-out HR proposals carried Payroll
+    processing, Benefits administration and Time tracking, all already seeds. The
+    reviewer is told, rather than the proposal hidden - approving it is how a seed becomes
+    a concept, and "Onboarding" beside "New hire onboarding" may be either one term or two.
+    """
+    same, near = None, []
+    keys = [_term_words(f) for f in [label] + list(forms)]
+    for seed in seeds or []:
+        words = _term_words(seed)
+        if not words:
+            continue
+        if any(k == words for k in keys):
+            same = same or seed
+        elif any(k and (k <= words or words <= k) for k in keys):
+            near.append(seed)
+    return same, near
 
 
 def _pick_label(forms: Counter, prefer_spelled: bool) -> str:
@@ -164,8 +213,13 @@ def fold_decisions(events: Iterable[Dict[str, Any]]) -> Tuple[Dict[Tuple[str, st
 
 
 def build_proposals(observations: List[Dict[str, Any]], vertical_id: str,
-                    decisions: Iterable[Dict[str, Any]] = ()) -> Dict[str, Any]:
-    """What a vertical's crawls suggest it is missing, best evidence first. Pure."""
+                    decisions: Iterable[Dict[str, Any]] = (),
+                    seed_terms: Iterable[str] = ()) -> Dict[str, Any]:
+    """What a vertical's crawls suggest it is missing, best evidence first. Pure.
+
+    `seed_terms` are the vertical's own seed strings; a proposal that is or overlaps one
+    says so (see _seed_overlap)."""
+    seed_terms = list(seed_terms or [])
     hosts = _latest_per_site(observations)
     ours = [o for o in hosts if o.get("vertical_id") == vertical_id]
     theirs = [o for o in hosts if o.get("vertical_id") != vertical_id]
@@ -252,6 +306,7 @@ def build_proposals(observations: List[Dict[str, Any]], vertical_id: str,
         # Glued and stuttered forms never become labels or alternates; a term with no
         # other form is page noise.
         clean = Counter({f: c for f, c in g["forms"].items() if _clean(f)})
+        clean = Counter({f: c for f, c in clean.items() if not _stray_tail(f, clean)})
         forms = [f for f, _ in clean.most_common()]
         if not forms:
             skipped["page noise"] += 1
@@ -259,6 +314,7 @@ def build_proposals(observations: List[Dict[str, Any]], vertical_id: str,
         # The expansion names the term; the acronym is one of its forms.
         spelled = any(len(_words(f)) >= 2 for f in forms) and any(_ACRONYM.match(f) for f in forms)
         label = _pick_label(clean, prefer_spelled=spelled)
+        seed, near_seeds = _seed_overlap(label, forms, seed_terms)
         proposals.append({
             "key": gkey,
             "label": label,
@@ -269,6 +325,8 @@ def build_proposals(observations: List[Dict[str, Any]], vertical_id: str,
             "pages": sum(g["sites"].values()),
             "types": [t for t, _ in g["types"].most_common(3)],
             "elsewhere": sorted(elsewhere.get(gkey, ())),
+            "seed": seed,
+            "near_seeds": near_seeds,
         })
     proposals.sort(key=lambda p: (-p["site_count"], -p["pages"], p["key"]))
     return {
@@ -362,7 +420,8 @@ class VocabularyStore:
         return self._load(DECISIONS_PREFIX)
 
     def proposals(self, vertical_id: str) -> Dict[str, Any]:
-        return build_proposals(self.observations(), vertical_id, self.decisions())
+        return build_proposals(self.observations(), vertical_id, self.decisions(),
+                               seed_terms=_seed_terms(vertical_id))
 
     def decide(self, vertical_id: str, key: str, decision: str, label: Optional[str] = None,
                kind: Optional[str] = None, definition: Optional[str] = None,
@@ -442,6 +501,17 @@ class VocabularyStore:
             entity={"id": eid, "kind": entity_kind, "prefLabel": label,
                     "definition": event.get("definition") or "", "aliases": aliases}))
         return {"entity_created": eid}
+
+
+def _seed_terms(vertical_id: str) -> List[str]:
+    """The vertical's seed strings, or none when its profile cannot be read - the
+    proposals are still right without them, only less annotated."""
+    try:
+        from industry_ontology import load_industry_ontology
+        return list(load_industry_ontology(vertical_id).core_seed_concepts or [])
+    except Exception as err:
+        logger.warning("[Vocabulary] No seed terms for %s: %s", vertical_id, err)
+        return []
 
 
 _default: Optional[VocabularyStore] = None
