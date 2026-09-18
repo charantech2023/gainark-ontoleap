@@ -47,6 +47,7 @@ class VocabularyDecisionRequest(BaseModel):
     kind: Optional[Literal["concept", "name"]] = Field(default=None, description="Override: a vocabulary concept, or a name for the entity registry")
     definition: Optional[str] = Field(default=None, max_length=1000, description="One-line definition for an approved concept")
     entity_kind: str = Field(default="organization", description="For an approved name: organization, product, standard, topic or place")
+    broader: Optional[str] = Field(default=None, max_length=200, description="For an approved concept: the label of its parent concept")
 
 
 class EvaluateComplianceRequest(BaseModel):
@@ -294,7 +295,7 @@ def post_vocabulary_decision(req: VocabularyDecisionRequest):
     try:
         return default_vocabulary().decide(vertical_id, req.key, req.decision, label=req.label,
                                            kind=req.kind, definition=req.definition,
-                                           entity_kind=req.entity_kind)
+                                           entity_kind=req.entity_kind, broader=req.broader)
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))
 

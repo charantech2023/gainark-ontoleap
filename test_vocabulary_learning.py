@@ -211,6 +211,25 @@ class AddConceptTest(unittest.TestCase):
         self.assertFalse(add_concept(data, "Employer of Record", ["EORs"]), "Nothing new, nothing changed")
 
 
+class BroaderTest(unittest.TestCase):
+
+    def test_a_parent_is_named_by_any_of_its_labels(self):
+        data = {"concepts": []}
+        add_concept(data, "HR compliance", ["HR Compliance"])
+        self.assertTrue(add_concept(data, "ACA compliance", [], broader="hr compliance"))
+        self.assertEqual(data["concepts"][1]["broader"], "hr-compliance")
+        self.assertFalse(add_concept(data, "ACA compliance", [], broader="HR Compliance"),
+                         "Already there: nothing changed")
+
+    def test_the_tree_never_becomes_a_cycle(self):
+        data = {"concepts": []}
+        add_concept(data, "HR software", [])
+        add_concept(data, "Payroll", [], broader="HR software")
+        self.assertFalse(add_concept(data, "HR software", [], broader="Payroll"))
+        self.assertFalse(add_concept(data, "Payroll", [], broader="Payroll"))
+        self.assertIsNone(data["concepts"][0]["broader"])
+
+
 class _Review(unittest.TestCase):
     """An archive of the sites above, and a vertical with no concepts yet."""
 
@@ -280,6 +299,21 @@ class ReviewTest(_Review):
         self.assertEqual(self.concepts(), {})
         self.assertEqual(self.published, [])
 
+    def test_a_concept_is_approved_under_its_parent(self):
+        self.store.decide(HR, "payroll", "approve", label="Payroll")
+        self.store.decide(HR, variant_key("employer of record"), "approve", broader="payroll")
+        concepts = self.concepts()
+        self.assertEqual(concepts["Employer of Record"]["broader"], concepts["Payroll"]["id"])
+
+    def test_a_child_approved_before_its_parent_finds_it_later(self):
+        result = self.store.decide(HR, variant_key("employer of record"), "approve", broader="Payroll")
+        self.assertIsNone(self.concepts()["Employer of Record"]["broader"], "No parent yet: none invented")
+        self.assertNotIn("Payroll", self.concepts())
+        self.store.decide(HR, "payroll", "approve", label="Payroll")
+        concepts = self.concepts()
+        self.assertEqual(concepts["Employer of Record"]["broader"], concepts["Payroll"]["id"])
+        self.assertEqual(result["applied"]["concepts_written"], ["Employer of Record"])
+
     def test_bad_decisions_are_refused(self):
         with self.assertRaises(ValueError):
             self.store.decide(HR, "payroll", "maybe")
@@ -318,6 +352,15 @@ class RoutesTest(_Review):
             "vertical_id": HR, "key": "payroll", "decision": "approve", "label": "Payroll"})
         self.assertEqual(decided.status_code, 200, decided.text)
         self.assertEqual(decided.json()["applied"]["concepts_written"], ["Payroll"])
+
+    def test_a_parent_can_be_given_over_http(self):
+        body = {"vertical_id": HR, "decision": "approve"}
+        self.client.post("/api/ontology/vocabulary/decide", json=dict(body, key="payroll", label="Payroll"))
+        decided = self.client.post("/api/ontology/vocabulary/decide", json=dict(
+            body, key=variant_key("employer of record"), broader="Payroll"))
+        self.assertEqual(decided.status_code, 200, decided.text)
+        self.assertEqual(decided.json()["decision"]["broader"], "Payroll")
+        self.assertEqual(self.concepts()["Employer of Record"]["broader"], self.concepts()["Payroll"]["id"])
 
     def test_bad_requests_are_refused(self):
         get = self.client.get
