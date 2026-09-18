@@ -223,8 +223,13 @@ class _Tree:
         Taken from the ontology rather than guessed off the display name, which is
         marketing copy: "B2B SaaS & Financial Software" yields no usable noun, while that
         vertical's tree roots at "Revenue Operations".
+
+        A compliance heading is never the category, however many standards sit under it: a
+        learned HR tree with no single root put five under HR compliance, and every
+        standard prompt read "does HR compliance software need payroll compliance".
         """
         roots = [c for c in self.by_id.values() if not c.broader]
+        roots = [c for c in roots if not self.under_compliance(c)] or roots
         if not roots:
             return ""
         roots.sort(key=lambda c: -len(self.children.get(c.id, [])))
@@ -244,11 +249,16 @@ def _role(concept: IndustryConcept, tree: _Tree) -> str:
     return "grouping" if tree.is_grouping(concept) else "capability"
 
 
+_PRODUCT_WORD = re.compile(r"\s+(software|platforms?|tools?|solutions?|systems?)$", re.IGNORECASE)
+
+
 def _category_noun(onto: IndustryOntologyModel, tree: _Tree) -> str:
     """The noun standing for the whole category inside a template."""
     root = tree.root_label()
     if root:
-        return _phrase(root)
+        # Every template that takes the noun says "software" after it, so a root named for
+        # the product ("HR software") read "does HR software software need ...".
+        return _phrase(_PRODUCT_WORD.sub("", root).strip() or root)
     # No concept layer at all, so the display name is all that is left, and its first half
     # is the topic: "Subscription Billing & Revenue Automation" -> "subscription billing".
     # A market marker is not part of the noun.
@@ -288,13 +298,34 @@ def _collides(template: str, subject: str) -> bool:
     Compliance" through "{x} compliant ..." reads "ASC 606 compliance compliant ...", and
     "AR Automation" through "{x} automation software" reads "AR automation automation
     software". Compared on a six-character stem, so compliance/compliant and
-    automate/automation collide without needing a list of word pairs.
+    automate/automation collide without needing a list of word pairs. A final y is read as
+    the i it becomes before a suffix, so comply meets compliance: "how to comply with HR
+    compliance" was the one pair the stem alone let through.
     """
-    subject_stems = {w.lower()[:6] for w in re.findall(r"[A-Za-z]+", subject)}
+    subject_stems = {_stem(w) for w in re.findall(r"[A-Za-z]+", subject)}
     for word in re.findall(r"[a-z]+", re.sub(r"\{\w+\}", " ", template)):
-        if word not in _STOPWORDS and word[:6] in subject_stems:
+        if word not in _STOPWORDS and _stem(word) in subject_stems:
             return True
     return False
+
+
+def _stem(word: str) -> str:
+    word = word.lower()
+    return (word[:-1] + "i" if word.endswith("y") else word)[:6]
+
+
+def _variant(term: str) -> str:
+    """One key for a term's inflections: each word cut to its first seven letters, the
+    same folding vocabulary learning uses. "payroll processing" and "payroll processes"
+    meet; so do "benefits administration" and "benefits administrators"."""
+    return " ".join(w[:7] for w in re.findall(r"[a-z0-9]+", (term or "").lower()))
+
+
+def _names_one_of(value: str, names: List[str]) -> bool:
+    """Whether a value names one of these, as a whole word."""
+    low = (value or "").lower()
+    return any(re.search(r"(?<![a-z0-9])%s(?![a-z0-9])" % re.escape(n.lower()), low)
+               for n in names if n and n.strip())
 
 
 def _emit(out: List[Prompt], role: str, subject: str, source_field: str, grounding: str,
@@ -409,12 +440,18 @@ def generate_prompts(vertical_id: str, domain: Optional[str] = None, limit: int 
     # The buyer half: what this company's customers were doing before, and instead of
     # whom. This is the material worth having - it is specific to one company, and each
     # value either carries the page it was quoted from or is marked unproven.
+    competitors = [c for c in (profile.get("known_competitors") or []) if c]
     for value in profile.get("known_replaces") or []:
+        # A competitor landing here is the comparison stage's subject, not a problem: on
+        # bamboohr.com discovery filed a jab at Hibob as something buyers replace, and it
+        # came out as "how to move off 2010 software disguised as culture (referring to
+        # hibob)" - evidenced, because the jab really is on the page.
+        if _names_one_of(value, competitors):
+            continue
         grounding, url, quote = _evidence_for(profile, "known_replaces", value)
         _emit(out, "replaced", value, "known_replaces", grounding, category,
               source_url=url, quote=quote)
 
-    competitors = [c for c in (profile.get("known_competitors") or []) if c]
     for value in competitors:
         grounding, url, quote = _evidence_for(profile, "known_competitors", value)
         _emit(out, "competitor", value, "known_competitors", grounding, category,
@@ -434,7 +471,15 @@ def generate_prompts(vertical_id: str, domain: Optional[str] = None, limit: int 
         _emit(out, role, concept.pref_label, source_field, "ontology", category)
         # An alt label is how a buyer writes the term when they do not use the house word.
         # Nobody types "ARR" and "Annual Recurring Revenue" interchangeably.
-        for alt in (concept.alt_labels or [])[:2]:
+        # An inflection is not another way of writing the term: learned alt labels keep
+        # every form a site wrote, and "what is payroll processes" is not a query.
+        used = {_variant(concept.pref_label)}
+        for alt in concept.alt_labels or []:
+            if len(used) > 2:
+                break
+            if _variant(alt) in used:
+                continue
+            used.add(_variant(alt))
             _emit(out, role, alt, source_field, "ontology", category)
 
     named = {(c.pref_label or "").lower() for c in (onto.concepts or [])}
