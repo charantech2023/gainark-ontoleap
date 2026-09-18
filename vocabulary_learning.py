@@ -343,9 +343,13 @@ def build_proposals(observations: List[Dict[str, Any]], vertical_id: str,
 # ---------------------------------------------------------------------------
 
 def add_concept(data: Dict[str, Any], label: str, forms: List[str],
-                definition: Optional[str] = None) -> bool:
+                definition: Optional[str] = None, broader: Optional[str] = None) -> bool:
     """Add a concept, or the forms of an existing one, to a vertical profile. Returns True
-    when the profile changed. A form another concept already owns is not taken from it."""
+    when the profile changed. A form another concept already owns is not taken from it.
+
+    `broader` names the parent concept by any of its labels. A parent not in the profile
+    yet is skipped, not invented: the caller applies again once it has been approved.
+    A parent that would make the tree a cycle is refused."""
     concepts = data.setdefault("concepts", [])
     label = label.strip()
     owned: Dict[str, Dict[str, Any]] = {}
@@ -370,6 +374,11 @@ def add_concept(data: Dict[str, Any], label: str, forms: List[str],
         concept["definition"] = definition.strip()
         changed = True
 
+    parent = owned.get((broader or "").strip().lower())
+    if parent is not None and concept.get("broader") != parent.get("id")             and not _descends_from(parent, concept, concepts):
+        concept["broader"] = parent.get("id")
+        changed = True
+
     alts = concept.setdefault("altLabels", [])
     for form in forms:
         low = form.strip().lower()
@@ -382,6 +391,19 @@ def add_concept(data: Dict[str, Any], label: str, forms: List[str],
     if changed:
         data.setdefault("alt_labels", {})[concept["prefLabel"]] = list(alts)
     return changed
+
+
+def _descends_from(node: Dict[str, Any], ancestor: Dict[str, Any],
+                   concepts: List[Dict[str, Any]]) -> bool:
+    """Whether `ancestor` is `node` or sits above it in the tree."""
+    by_id = {c.get("id"): c for c in concepts}
+    seen = set()
+    while node is not None and node.get("id") not in seen:
+        if node is ancestor:
+            return True
+        seen.add(node.get("id"))
+        node = by_id.get(node.get("broader"))
+    return False
 
 
 class VocabularyStore:
@@ -425,7 +447,7 @@ class VocabularyStore:
 
     def decide(self, vertical_id: str, key: str, decision: str, label: Optional[str] = None,
                kind: Optional[str] = None, definition: Optional[str] = None,
-               entity_kind: str = "organization") -> Dict[str, Any]:
+               entity_kind: str = "organization", broader: Optional[str] = None) -> Dict[str, Any]:
         """Record a reviewer's decision on a proposal and apply it. Raises ValueError for a
         decision that cannot be made: an unknown key, verdict or entity kind."""
         from security import is_valid_vertical_id
@@ -447,7 +469,7 @@ class VocabularyStore:
                            key=key, decision=decision, kind=kind,
                            label=(label or proposal["label"]).strip(),
                            forms=proposal["forms"], definition=(definition or "").strip() or None,
-                           sites=proposal["sites"])
+                           broader=(broader or "").strip() or None, sites=proposal["sites"])
         self.archive().put("%s/%s.json" % (DECISIONS_PREFIX, event["event_id"]),
                            json.dumps(event, ensure_ascii=False).encode("utf-8"))
         with self._lock:
@@ -474,10 +496,15 @@ class VocabularyStore:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         latest, _ = fold_decisions(self.decisions())
-        changed = []
-        for (vid, _key), ev in latest.items():
-            if vid == vertical_id and ev.get("decision") == "approve" and ev.get("kind") == "concept":
-                if add_concept(data, ev["label"], ev.get("forms") or [], ev.get("definition")):
+        approved = [ev for (vid, _key), ev in latest.items()
+                    if vid == vertical_id and ev.get("decision") == "approve" and ev.get("kind") == "concept"]
+        changed: List[str] = []
+        # Twice: a child approved before its parent names a concept the first pass has not
+        # written yet. The second pass finds it; nothing else changes on it.
+        for _ in range(2):
+            for ev in approved:
+                if add_concept(data, ev["label"], ev.get("forms") or [], ev.get("definition"),
+                               ev.get("broader")) and ev["label"] not in changed:
                     changed.append(ev["label"])
         if changed:
             tmp = path + ".partial"
