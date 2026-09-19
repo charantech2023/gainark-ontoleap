@@ -12,6 +12,7 @@ Aggregates page-level graphs across a website to construct a unified domain Know
 6. Serializes site-wide W3C JSON-LD and Turtle graphs.
 """
 
+import hashlib
 import os
 import re
 import json
@@ -28,7 +29,7 @@ from models import (
     InducedClassRelation, TopicCluster, PageFailure
 )
 from rdflib import Graph as RdfGraph, Literal, Namespace, RDF, URIRef
-from rdflib.namespace import SKOS
+from rdflib.namespace import PROV, SKOS
 
 from scraper import drop_lite_blocks, lite_blocks, repair_glued_words, smart_fetch, validate_url_for_fetch
 from entity_grounding import wikidata_uri
@@ -650,11 +651,20 @@ def _build_site_turtle(domain: str, brand: KGNode, nodes: List[KGNode], edges: L
 
     Built through rdflib rather than by string formatting, which broke on any name
     containing a quote.
+
+    Each claim also carries its proof: a claim node, reifying the triple, with the
+    sentence as prov:value and the page as prov:wasDerivedFrom. Without it the stored run
+    held "chargebee.com hasFeature Dunning Management" and nothing to show for it; the
+    sentence survived only in the crawl job's JSON, which nothing queries. The node's id is
+    a hash of the triple and the page, so the same claim from the same page is one node in
+    every run. diff_runs leaves rdf: and prov: out of a claims diff, so a reworded sentence
+    is not reported as a changed claim.
     """
     g = RdfGraph()
     g.bind("schema", _SCHEMA)
     g.bind("ex", _EX)
     g.bind("skos", SKOS)
+    g.bind("prov", PROV)
 
     by_id = {n.id: n for n in nodes}
     subject = URIRef(brand.id)
@@ -666,6 +676,16 @@ def _build_site_turtle(domain: str, brand: KGNode, nodes: List[KGNode], edges: L
     for e in edges:
         s, o = URIRef(e.source_id), URIRef(e.target_id)
         g.add((s, _EX[e.predicate], o))
+        if e.provenance_sentence and e.source_url:
+            claim = URIRef("https://%s/claim/%s" % (domain, hashlib.sha1(
+                "|".join((e.source_id, e.predicate, e.target_id, e.source_url)).encode("utf-8")
+            ).hexdigest()[:20]))
+            g.add((claim, RDF.type, RDF.Statement))
+            g.add((claim, RDF.subject, s))
+            g.add((claim, RDF.predicate, _EX[e.predicate]))
+            g.add((claim, RDF.object, o))
+            g.add((claim, PROV.value, Literal(e.provenance_sentence)))
+            g.add((claim, PROV.wasDerivedFrom, URIRef(e.source_url)))
         for node_id, name in ((e.source_id, e.source), (e.target_id, e.target)):
             if node_id in described:
                 continue

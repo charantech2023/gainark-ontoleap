@@ -624,8 +624,11 @@ def resolve_site(raw_nodes: List[KGNode], raw_edges: List[KGEdge], domain: str,
             )
         else:
             existing.confidence = max(existing.confidence, e.confidence)
+            # The sentence and its page travel together. Taking the longer sentence alone
+            # paired it with the first edge's URL, a quote attributed to a page it is not on.
             if e.provenance_sentence and len(e.provenance_sentence) > len(existing.provenance_sentence or ""):
                 existing.provenance_sentence = e.provenance_sentence
+                existing.source_url = e.source_url
 
     # The resolution ladder: how much each rung carried. The learning metric is this
     # shifting toward "registry" and "concept" run over run.
