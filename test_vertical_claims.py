@@ -96,6 +96,13 @@ class VerticalClaimsTest(unittest.TestCase):
         self.assertIn(("compliesWith", "FLSA"),
                       edges("Gusto helps you comply with FLSA overtime rules.", onto))
 
+    def test_a_question_claims_nothing(self):
+        # gusto.com's EOR page FAQ, 19 Sep 2026.
+        onto = hr(concepts=[IndustryConcept(id="peo", pref_label="PEO", broader="hr-software")])
+        self.assertFalse(edges("FAQs – What's the difference between an EOR and PEO?", onto))
+        self.assertIn(("hasFeature", "PEO"),
+                      edges("Get HR, payroll and benefits with Gusto's PEO services.", onto))
+
     def test_a_form_two_concepts_share_proves_neither(self):
         onto = hr(concepts=[
             IndustryConcept(id="benefits-admin", pref_label="Benefits administration",

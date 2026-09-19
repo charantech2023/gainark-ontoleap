@@ -355,7 +355,11 @@ def _speaks_for_subject(unit: str, subject_name: str, nodes: List[KGNode], url: 
       - a sentence naming a customer or a competitor, which is about that company;
       - a table row, which on these sites is a comparison or evaluation grid;
       - any sentence on a blog, glossary or guide page, which is about the industry.
+    A question proves nothing either, whoever it names: on 19 Sep 2026 gusto.com "had" a
+    PEO because its FAQ asks "What's the difference between an EOR and PEO?".
     """
+    if unit.rstrip().endswith("?"):
+        return False
     low = unit.lower()
     if any(re.search(r"\b%s" % re.escape(f), low) for f in _brand_forms(subject_name)):
         return True
