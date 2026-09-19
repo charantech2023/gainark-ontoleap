@@ -304,6 +304,67 @@ class PromptGeneratorTest(_WithVerticals):
         self.assertIn("does HR software need ACA", texts)
         self.assertFalse([t for t in texts if "software software" in t])
 
+    def _hr(self, concepts):
+        tree = {"vertical_id": "hr", "display_name": "HR", "concepts": [
+            {"id": "hr-software", "prefLabel": "HR software", "kind": "concept"},
+            {"id": "hr-compliance", "prefLabel": "HR compliance", "broader": "hr-software"},
+        ] + concepts}
+        with open(os.path.join(self.tmp, "hr.json"), "w") as fh:
+            json.dump(tree, fh)
+        return self.texts(self.generate("hr", domain=None))
+
+    def test_a_curators_kind_wins_over_sitting_under_compliance(self):
+        # cybersecurity files Risk Assessment, a process, under GRC.
+        texts = self._hr([{"id": "risk-assessment", "prefLabel": "Risk Assessment",
+                           "kind": "process", "broader": "hr-compliance"}])
+        self.assertIn("how to automate risk assessment", texts)
+        self.assertFalse([t for t in texts if "comply with risk" in t or "need risk" in t])
+
+    def test_a_risk_under_compliance_is_not_a_rule_to_comply_with(self):
+        texts = self._hr([
+            {"id": "misclassification", "prefLabel": "Worker misclassification",
+             "broader": "hr-compliance"},
+            {"id": "cobra", "prefLabel": "COBRA compliance", "broader": "hr-compliance",
+             "altLabels": ["COBRA", "COBRA administration"]}])
+        self.assertIn("how does HR software handle worker misclassification", texts)
+        self.assertFalse([t for t in texts if "comply with worker" in t or "need worker" in t
+                          or "misclassification compliant" in t])
+        # A label that names the rule still asks about compliance.
+        self.assertIn("how to comply with COBRA", texts)
+        self.assertIn("does HR software need COBRA compliance", texts)
+
+    def test_an_alt_label_for_the_work_is_not_asked_about_as_the_rule(self):
+        texts = self._hr([{"id": "cobra", "prefLabel": "COBRA compliance",
+                           "broader": "hr-compliance",
+                           "altLabels": ["COBRA administration", "COBRA"]}])
+        self.assertFalse([t for t in texts if "COBRA administration" in t])
+        self.assertIn("COBRA compliant HR software", texts)
+
+    def test_the_definition_says_whether_a_concept_is_software_a_service_or_a_term(self):
+        texts = self._hr([
+            {"id": "cor", "prefLabel": "Contractor of Record", "broader": "hr-software",
+             "definition": "A third party that engages contractors on a company's behalf."},
+            {"id": "ui", "prefLabel": "Unemployment insurance", "broader": "hr-software",
+             "definition": "The state and federal tax employers pay to fund benefits for workers."},
+            {"id": "pto", "prefLabel": "PTO management", "broader": "hr-software",
+             "definition": "Setting time-off policies and tracking the time employees take."},
+            {"id": "ats", "prefLabel": "Applicant tracking system", "broader": "hr-software",
+             "definition": "Software that manages job postings and applicants."},
+            {"id": "bare", "prefLabel": "Onboarding", "broader": "hr-software"}])
+        self.assertIn("best contractor of record providers", texts)
+        self.assertIn("how does unemployment insurance work", texts)
+        self.assertFalse([t for t in texts if t.startswith(("best contractor of record software",
+                                                            "best unemployment insurance software"))])
+        # Software, an activity, or nothing to read: shopped for as software, as before.
+        for kept in ("best PTO management software", "best applicant tracking system software",
+                     "best onboarding software"):
+            self.assertIn(kept, texts)
+
+    def test_a_plural_is_not_another_way_to_write_the_term(self):
+        texts = self._hr([{"id": "peo", "prefLabel": "PEO", "broader": "hr-software",
+                           "altLabels": ["PEOs"]}])
+        self.assertFalse([t for t in texts if "PEOs" in t])
+
     def test_nothing_is_generated_twice(self):
         texts = self.texts(self.generate())
         self.assertEqual(len(texts), len(set(t.lower() for t in texts)))
