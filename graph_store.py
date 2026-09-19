@@ -287,10 +287,13 @@ def load_dataset(graph_ids: Optional[Iterable[str]] = None,
 # Predicates that record HOW a run happened rather than WHAT it found. Every one of
 # them differs between any two runs - a fresh timestamp, a fresh activity id - so a raw
 # diff reports a dozen changes for a single changed claim and buries the answer.
+# The whole rdf: namespace, not only rdf:type, because a run graph reifies each claim to
+# hang its proof on (site_graph._build_site_turtle): rdf:subject, rdf:predicate and
+# rdf:object restate a claim the diff already compares directly.
 _PROVENANCE_PREFIXES = (
     "http://www.w3.org/ns/prov#",
     "http://purl.org/dc/terms/",
-    "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+    "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
 )
 
 
