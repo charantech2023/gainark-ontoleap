@@ -157,6 +157,25 @@ _TEMPLATES: Dict[str, List[Tuple[str, str]]] = {
         ("solution", "{x} tools"),
         ("solution", "what is {x}"),
     ],
+    # Bought from a firm, not run in software: "best contractor of record software" is not
+    # a query, "contractor of record services" is.
+    "provider": [
+        ("solution", "best {x} providers"),
+        ("solution", "{x} services"),
+        ("solution", "what is {x}"),
+    ],
+    # A thing the category handles without being sold as one - a plan, a tax, a record:
+    # "best unemployment insurance software" is not a query, "how does ... work" is.
+    "term": [
+        ("solution", "what is {x}"),
+        ("solution", "how does {x} work"),
+    ],
+    # Sits under compliance but names no rule: nobody complies with worker
+    # misclassification, they ask how their software keeps them clear of it.
+    "compliance_topic": [
+        ("validation", "how does {category} software handle {x}"),
+        ("solution", "what is {x}"),
+    ],
     "grouping": [
         ("solution", "what is {x}"),
         ("solution", "{x} explained"),
@@ -237,16 +256,73 @@ class _Tree:
 
 
 def _role(concept: IndustryConcept, tree: _Tree) -> str:
-    """Which family of templates a concept can fill."""
-    if concept.kind == "standard" or tree.under_compliance(concept):
+    """Which family of templates a concept can fill.
+
+    A curator's kind wins over where the concept sits: cybersecurity files Risk Assessment
+    (a process) and Compliance Automation (a feature) under GRC, and "how to comply with
+    risk assessment" is not a query. Ancestry only decides for a concept with no kind of
+    its own, which is every learned one.
+    """
+    if concept.kind == "standard":
         return "standard"
-    if concept.kind == "pricing":
-        return "pricing"
-    if concept.kind == "process":
-        return "process"
-    if concept.kind == "feature":
-        return "feature"
-    return "grouping" if tree.is_grouping(concept) else "capability"
+    if concept.kind in ("pricing", "process", "feature"):
+        return concept.kind
+    if tree.under_compliance(concept):
+        return "standard" if _names_a_rule(concept.pref_label) else "compliance_topic"
+    if tree.is_grouping(concept):
+        return "grouping"
+    return _capability_role(concept.definition)
+
+
+# Words that make a label the name of something to comply with, not an activity or risk.
+_RULE_WORDS = re.compile(r"\b(complian\w*|regulations?|laws?|acts?|standards?|rules?|"
+                         r"frameworks?|principles|certifications?)\b", re.IGNORECASE)
+
+
+def _names_a_rule(label: str) -> bool:
+    """Whether a label names a rule a buyer must comply with.
+
+    Either it says so ("Labor law compliance", "HIPAA Security Rule"), carries a number
+    the way standards do ("SOC 2", "CMMC 2.0"), or is a name and nothing else ("COBRA",
+    "FedRAMP"). "COBRA administration" is none of these: it is the work, not the law, and
+    "how to comply with COBRA administration" is not a query.
+    """
+    words = (label or "").split()
+    if not words:
+        return False
+    if _RULE_WORDS.search(label) or any(re.search(r"\d", w) for w in words):
+        return True
+    return all(_ACRONYMISH.match(w) or _INNER_CAPITAL.search(w) for w in words)
+
+
+# The head of a definition's first phrase says what sort of thing the concept is. Curated
+# and learned definitions alike open that way: "Software that ...", "A third party that
+# ...", "Recording the hours ...". Only the first few words are read, so a noun later in
+# the sentence ("... to fund benefits for workers") cannot decide it.
+_GENUS_WORDS = 6
+_SOFTWARE_GENUS = re.compile(r"\b(software|systems?|platforms?|tools?|applications?|apps?)\b",
+                             re.IGNORECASE)
+_PROVIDER_GENUS = re.compile(r"\b(third[- ]party|organi[sz]ation|company|firm|provider|"
+                             r"agency|service)\b", re.IGNORECASE)
+
+
+def _capability_role(definition: Optional[str]) -> str:
+    """Whether a leaf concept is shopped for as software, hired as a service, or looked up.
+
+    Read off the definition, because the label alone cannot say: "Contractor of Record"
+    and "Applicant tracking system" are both three capitalised words. With no definition
+    there is nothing to go on, and the concept keeps the software templates it always had.
+    """
+    head = re.split(r"[:;,.]|\s(?:that|who|which)\s", (definition or "").strip(), maxsplit=1)[0]
+    words = head.split()[:_GENUS_WORDS]
+    if not words:
+        return "capability"
+    head = " ".join(words)
+    if _SOFTWARE_GENUS.search(head) or words[0].lower().endswith("ing"):
+        return "capability"
+    if _PROVIDER_GENUS.search(head):
+        return "provider"
+    return "term"
 
 
 _PRODUCT_WORD = re.compile(r"\s+(software|platforms?|tools?|solutions?|systems?)$", re.IGNORECASE)
@@ -317,8 +393,11 @@ def _stem(word: str) -> str:
 def _variant(term: str) -> str:
     """One key for a term's inflections: each word cut to its first seven letters, the
     same folding vocabulary learning uses. "payroll processing" and "payroll processes"
-    meet; so do "benefits administration" and "benefits administrators"."""
-    return " ".join(w[:7] for w in re.findall(r"[a-z0-9]+", (term or "").lower()))
+    meet; so do "benefits administration" and "benefits administrators". A plural s is
+    dropped first, which a seven-letter cut never reaches on a short word: "EORs" is
+    "EOR", and "best EORs providers" was a second prompt for one term."""
+    return " ".join((w[:-1] if len(w) > 2 and w.endswith("s") and not w.endswith("ss") else w)[:7]
+                    for w in re.findall(r"[a-z0-9]+", (term or "").lower()))
 
 
 def _names_one_of(value: str, names: List[str]) -> bool:
@@ -478,6 +557,10 @@ def generate_prompts(vertical_id: str, domain: Optional[str] = None, limit: int 
             if len(used) > 2:
                 break
             if _variant(alt) in used:
+                continue
+            # A merged alt label is often the work around a rule rather than another name
+            # for it: COBRA compliance holds "COBRA administration".
+            if role == "standard" and not _names_a_rule(alt):
                 continue
             used.add(_variant(alt))
             _emit(out, role, alt, source_field, "ontology", category)
