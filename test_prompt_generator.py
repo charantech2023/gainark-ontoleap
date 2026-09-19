@@ -304,11 +304,12 @@ class PromptGeneratorTest(_WithVerticals):
         self.assertIn("does HR software need ACA", texts)
         self.assertFalse([t for t in texts if "software software" in t])
 
-    def _hr(self, concepts):
+    def _hr(self, concepts, compliance=(), integrations=()):
         tree = {"vertical_id": "hr", "display_name": "HR", "concepts": [
             {"id": "hr-software", "prefLabel": "HR software", "kind": "concept"},
             {"id": "hr-compliance", "prefLabel": "HR compliance", "broader": "hr-software"},
-        ] + concepts}
+        ] + concepts, "known_compliance": list(compliance),
+            "known_integrations": list(integrations)}
         with open(os.path.join(self.tmp, "hr.json"), "w") as fh:
             json.dump(tree, fh)
         return self.texts(self.generate("hr", domain=None))
@@ -364,6 +365,81 @@ class PromptGeneratorTest(_WithVerticals):
         texts = self._hr([{"id": "peo", "prefLabel": "PEO", "broader": "hr-software",
                            "altLabels": ["PEOs"]}])
         self.assertFalse([t for t in texts if "PEOs" in t])
+
+    # -- seed strings, as discovery wrote them on hr_payroll_benefits -------
+
+    def test_an_expanded_acronym_becomes_the_name_the_buyer_types(self):
+        texts = self._hr([], compliance=[
+            "FLSA (Fair Labor Standards Act)",
+            "HIPAA (Health Insurance Portability and Accountability Act)"])
+        self.assertIn("FLSA compliant HR software", texts)
+        self.assertIn("how to comply with FLSA", texts)
+        # HIPAA skips the "and": an acronym is its expansion's initials in order.
+        self.assertIn("HIPAA compliant HR software", texts)
+        # Nothing else says it, so the long form is kept as a second way to write it.
+        self.assertIn("how to comply with Fair Labor Standards Act", texts)
+        self.assertFalse([t for t in texts if "(" in t])
+
+    def test_an_expansion_the_tree_already_answers_to_is_not_repeated(self):
+        texts = self._hr(
+            [{"id": "ats", "prefLabel": "Applicant tracking system", "broader": "hr-software",
+              "definition": "Software that manages job postings and applicants."},
+             {"id": "aca", "prefLabel": "ACA compliance", "broader": "hr-compliance",
+              "altLabels": ["Affordable Care Act"]}],
+            compliance=["ACA (Affordable Care Act)"],
+            integrations=["Applicant Tracking Systems (ATS)"])
+        self.assertIn("HR software that integrates with your ATS", texts)
+        self.assertIn("ATS integration", texts)
+        self.assertIn("ACA compliant HR software", texts)
+        self.assertFalse([t for t in texts if "integrat" in t and "applicant tracking" in t])
+        self.assertFalse([t for t in texts if "Affordable Care Act" in t])
+
+    def test_an_example_list_is_not_part_of_the_name(self):
+        texts = self._hr([], integrations=[
+            "Accounting Software (e.g., QuickBooks, Xero)",
+            "Time Tracking Software (e.g., When I Work, Homebase)"])
+        self.assertFalse([t for t in texts if "e.g." in t or "(" in t])
+        # The examples are products, and a product is the sharpest integration query.
+        for kept in ("HR software that integrates with QuickBooks", "Xero integration",
+                     "HR software that integrates with When I Work", "Homebase integration"):
+            self.assertIn(kept, texts)
+        # The category they were examples of still stands, as a category.
+        self.assertIn("HR software that integrates with your accounting software", texts)
+
+    def test_a_category_of_software_is_the_one_the_buyer_already_runs(self):
+        texts = self._hr([], integrations=[
+            "HRIS Systems", "Business Banking Platforms", "Expense Management Software",
+            "Learning Management Systems (LMS)", "Xero"])
+        for kept in ("HR software that integrates with your HRIS", "HRIS integration",
+                     "HR software that integrates with your business banking platform",
+                     "HR software that integrates with your expense management software",
+                     "HR software that integrates with your LMS",
+                     # A named product is still integrated with by name.
+                     "HR software that integrates with Xero"):
+            self.assertIn(kept, texts)
+        self.assertFalse([t for t in texts if "Systems" in t or "Platforms" in t
+                          or "integrates with HRIS" in t])
+
+    def test_a_firm_is_worked_with_not_integrated_with(self):
+        # "401(k)" is a bracket, but not an expansion, so the seed is not split on it.
+        texts = self._hr([], integrations=["Benefits Brokers", "401(k) Providers"])
+        self.assertIn("HR software that works with your benefits broker", texts)
+        self.assertIn("HR software that works with your 401(k) provider", texts)
+        self.assertFalse([t for t in texts if "integrates with" in t])
+
+    def test_a_body_of_rules_is_kept_inside_of_not_certified_against(self):
+        texts = self._hr([{"id": "labor-law", "prefLabel": "Labor law compliance",
+                           "broader": "hr-compliance", "altLabels": ["labor laws"]}],
+                         compliance=["IRS Regulations", "State Labor Laws"])
+        for kept in ("how does HR software handle state labor laws",
+                     "how to comply with IRS regulations",
+                     "how does HR software handle labor laws"):
+            self.assertIn(kept, texts)
+        self.assertFalse([t for t in texts if "laws compliant" in t.lower()
+                          or "regulations compliant" in t.lower() or "need state" in t.lower()
+                          or "need labor laws" in t])
+        # One rule, singular, is still certified against.
+        self.assertIn("does HR software need labor law compliance", texts)
 
     def test_nothing_is_generated_twice(self):
         texts = self.texts(self.generate())

@@ -189,8 +189,28 @@ _TEMPLATES: Dict[str, List[Tuple[str, str]]] = {
         ("validation", "billing software that supports {x}"),
         ("validation", "how to charge with {x}"),
     ],
+    # A body of rules rather than one rule: nobody's software is "State Labor Laws
+    # compliant", and "does HR software need IRS Regulations" asks the wrong question. A
+    # buyer asks how the software keeps them inside the rules.
+    "rule_body": [
+        ("validation", "how does {category} software handle {x}"),
+        ("validation", "how to comply with {x}"),
+    ],
     "integration": [
         ("validation", "{category} software that integrates with {x}"),
+        ("validation", "{x} integration"),
+    ],
+    # A kind of software the buyer already runs, not a product with a connector: "HR
+    # software that integrates with HRIS Systems" is not a query, "HR software that
+    # integrates with your HRIS" is.
+    "integration_category": [
+        ("validation", "{category} software that integrates with your {x}"),
+        ("validation", "{x} integration"),
+    ],
+    # A firm the buyer already works with. Nothing integrates with a benefits broker, but
+    # the software has to work with the one they have.
+    "integration_provider": [
+        ("validation", "{category} software that works with your {x}"),
         ("validation", "{x} integration"),
     ],
     "competitor": [
@@ -295,6 +315,22 @@ def _names_a_rule(label: str) -> bool:
     return all(_ACRONYMISH.match(w) or _INNER_CAPITAL.search(w) for w in words)
 
 
+# Only the plural: "Labor law compliance" and "HIPAA Security Rule" name one rule.
+_RULE_BODY = re.compile(r"\b(regulations|laws|rules|standards|requirements|guidelines)$",
+                        re.IGNORECASE)
+
+
+def _is_rule_body(label: str) -> bool:
+    """Whether a label names a body of rules rather than one rule.
+
+    _names_a_rule says yes to "IRS Regulations" and "State Labor Laws", because they are
+    rules, and the standard templates made "State Labor Laws compliant HR software" of
+    them. A plural is a class of rules, which the buyer is kept inside of, not certified
+    against. The learned "labor laws" alt label on Labor law compliance was the same case.
+    """
+    return bool(_RULE_BODY.search((label or "").strip()))
+
+
 # The head of a definition's first phrase says what sort of thing the concept is. Curated
 # and learned definitions alike open that way: "Software that ...", "A third party that
 # ...", "Recording the hours ...". Only the first few words are read, so a noun later in
@@ -377,8 +413,14 @@ def _collides(template: str, subject: str) -> bool:
     automate/automation collide without needing a list of word pairs. A final y is read as
     the i it becomes before a suffix, so comply meets compliance: "how to comply with HR
     compliance" was the one pair the stem alone let through.
+
+    "{category} software" is the category's name, not a word added to the subject, so it
+    is left out: "HR software that integrates with your accounting software" says
+    software twice and means it, and reading it as a collision had dropped every
+    integration prompt for Accounting Software and Expense Management Software.
     """
     subject_stems = {_stem(w) for w in re.findall(r"[A-Za-z]+", subject)}
+    template = template.replace("{category} software", " ")
     for word in re.findall(r"[a-z]+", re.sub(r"\{\w+\}", " ", template)):
         if word not in _STOPWORDS and _stem(word) in subject_stems:
             return True
@@ -407,10 +449,136 @@ def _names_one_of(value: str, names: List[str]) -> bool:
                for n in names if n and n.strip())
 
 
+# ---------------------------------------------------------------------------
+# Seed strings
+# ---------------------------------------------------------------------------
+# Discovery writes known_compliance and known_integrations as descriptions of the thing,
+# not its name. hr_payroll_benefits holds "FLSA (Fair Labor Standards Act)", "Accounting
+# Software (e.g., QuickBooks, Xero)" and "HRIS Systems", and each went straight into a
+# template: "FLSA (Fair Labor Standards Act) compliant HR software". A seed is read into
+# the subjects a buyer would type before any template sees it.
+
+_EXAMPLES = re.compile(r"\s*\(\s*(?:e\.?\s?g\.?|for example|such as|including|like)\s*[,:]?"
+                       r"\s*([^()]*)\)", re.IGNORECASE)
+# A space before the bracket, so "401(k) Providers" is not read as "401" expanded by "k".
+_PAIRED = re.compile(r"^(.*\S)\s+\(([^()]+)\)$")
+_SOFTWARE_CATEGORY = re.compile(r"\s+(software|systems|platforms|tools|applications|apps|"
+                                r"solutions)$", re.IGNORECASE)
+_PROVIDER_CATEGORY = re.compile(r"\s+(providers|brokers|vendors|carriers|partners|agencies|"
+                                r"firms|services)$", re.IGNORECASE)
+
+
+def _abbreviates(short: str, long: str) -> bool:
+    """Whether short is an acronym of long: its letters are long's initials, in order.
+
+    In order rather than equal, because an acronym skips the small words - HIPAA is
+    Health Insurance Portability (and) Accountability Act. Tested on the letters rather
+    than trusted from the brackets, since a bracket can hold anything: "Maxio
+    (SaaSOptics)" is a former name, not an expansion.
+    """
+    if not all(_ACRONYMISH.match(w) for w in short.split()):
+        return False
+    letters = re.sub(r"[^A-Za-z]", "", short).upper()
+    initials = "".join(w[0] for w in re.findall(r"[A-Za-z]+", long)).upper()
+    if len(letters) < 2 or not initials or letters[0] != initials[0]:
+        return False
+    remaining = iter(initials)
+    return all(ch in remaining for ch in letters)
+
+
+def _integration_subject(term: str) -> Tuple[str, str]:
+    """(role, subject) for one integration seed: a named product, or a kind of thing.
+
+    A category is written in the plural - "HRIS Systems", "Benefits Brokers", "401(k)
+    Providers" - or as software, which has no plural; a product is a name in the
+    singular, so "Adobe Experience Platform" stays a product. The category comes back in
+    the singular, as the one the buyer already has ("your applicant tracking system"),
+    and a genus word after an acronym is dropped, since the acronym already says it:
+    "HRIS Systems" is "your HRIS".
+    """
+    for pattern, role in ((_SOFTWARE_CATEGORY, "integration_category"),
+                          (_PROVIDER_CATEGORY, "integration_provider")):
+        m = pattern.search(term)
+        if not m or not term[:m.start()].strip():
+            continue
+        head, genus = term[:m.start()].strip(), m.group(1)
+        if all(_ACRONYMISH.match(w) for w in head.split()):
+            return role, head
+        genus = (genus[:-3] + "y" if genus.lower().endswith("ies")
+                 else genus if genus.lower() == "software" else genus[:-1])
+        return role, "%s %s" % (head, genus)
+    return "integration", term
+
+
+def _looks_like_name(term: str) -> bool:
+    """Every word capitalised, the way a product is written: "When I Work", "Xero"."""
+    words = term.split()
+    return bool(words) and all(w[0].isupper() or w[0].isdigit() for w in words)
+
+
+def _seed_subjects(value: str, field_name: str,
+                   known: set) -> List[Tuple[str, str, bool]]:
+    """(subject, role, keep_case) for each thing a seed string names.
+
+    Three shapes arrive, and each is reduced to what a buyer types:
+
+    "FLSA (Fair Labor Standards Act)" is a name and its expansion. The acronym is what
+    gets typed, so it always leads; the expansion follows only if nothing else already
+    covers it - on the live HR tree "Affordable Care Act" is an alt label of ACA
+    compliance, and "Applicant Tracking Systems" is the Applicant tracking system concept.
+
+    "Accounting Software (e.g., QuickBooks, Xero)" is a category and some members of it.
+    The list is not part of the name. The members that are names become subjects of
+    their own, since "HR software that integrates with QuickBooks" is the sharpest
+    integration query there is.
+
+    "HRIS Systems" is a category, not a product, and takes the category templates.
+    """
+    value = (value or "").strip()
+    examples: List[str] = []
+    for m in _EXAMPLES.finditer(value):
+        examples += [e.strip(" .") for e in re.split(r",|\s+(?:and|or)\s+", m.group(1))]
+    head = _EXAMPLES.sub("", value).strip()
+
+    names, long = [head], head
+    m = _PAIRED.match(head)
+    if m:
+        for short, full in ((m.group(2), m.group(1)), (m.group(1), m.group(2))):
+            if _abbreviates(short.strip(), full.strip()):
+                long = full.strip()
+                names = [short.strip()]
+                if _variant(long) not in known | {_variant(short)}:
+                    names.append(long)
+                break
+
+    out: List[Tuple[str, str, bool]] = []
+    if field_name == "known_integrations":
+        # The acronym is the same kind of thing as what it stands for: ATS is a category
+        # because Applicant Tracking Systems is.
+        role, _ = _integration_subject(long)
+        for name in names:
+            kind, subject = _integration_subject(name)
+            role_for = kind if kind != "integration" else role
+            out.append((subject, role_for, role_for == "integration"))
+        for example in examples:
+            kind, subject = _integration_subject(example)
+            if kind != "integration" or _looks_like_name(example):
+                out.append((subject, kind, kind == "integration"))
+    else:
+        out += [(name, "standard", True) for name in names]
+        out += [(e, "standard", True) for e in examples if _names_a_rule(e)]
+    return [s for s in out if s[0]]
+
+
 def _emit(out: List[Prompt], role: str, subject: str, source_field: str, grounding: str,
           category: str, keep_case: bool = False, source_url: str = "",
-          quote: str = "") -> None:
+          quote: str = "", source_value: str = "") -> None:
     """Fill every template for a role with one subject."""
+    if role == "standard" and _is_rule_body(subject):
+        # Decided here rather than per caller, because a seed string and a learned alt
+        # label reach it alike. A class of rules is a common noun, so it is lowered too:
+        # "state labor laws", but still "IRS regulations".
+        role, keep_case = "rule_body", False
     text_subject = _phrase(subject, keep_case=keep_case)
     if not text_subject:
         return
@@ -423,7 +591,7 @@ def _emit(out: List[Prompt], role: str, subject: str, source_field: str, groundi
             text=template.format(x=text_subject, category=category),
             stage=stage,
             source_field=source_field,
-            source_value=subject,
+            source_value=source_value or subject,
             grounding=grounding,
             source_url=source_url,
             quote=quote,
@@ -566,16 +734,23 @@ def generate_prompts(vertical_id: str, domain: Optional[str] = None, limit: int 
             _emit(out, role, alt, source_field, "ontology", category)
 
     named = {(c.pref_label or "").lower() for c in (onto.concepts or [])}
-    for role, values, source_field, keep_case in (
-        ("capability", onto.core_seed_concepts, "core_seed_concepts", False),
-        ("standard", onto.known_compliance, "known_compliance", True),
-        ("integration", onto.known_integrations, "known_integrations", True),
-    ):
+    # Every label the concept layer answers to, for telling whether a seed's expansion
+    # would only repeat it.
+    known = {_variant(label) for c in (onto.concepts or [])
+             for label in [c.pref_label] + list(c.alt_labels or []) if label}
+    for value in onto.core_seed_concepts or []:
+        # A seed term the concept layer already defines is covered above, with a kind.
+        if (value or "").lower() in named:
+            continue
+        _emit(out, "capability", value, "core_seed_concepts", "ontology", category)
+    for source_field, values in (("known_compliance", onto.known_compliance),
+                                 ("known_integrations", onto.known_integrations)):
         for value in values or []:
-            # A seed term the concept layer already defines is covered above, with a kind.
             if (value or "").lower() in named:
                 continue
-            _emit(out, role, value, source_field, "ontology", category, keep_case=keep_case)
+            for subject, role, keep_case in _seed_subjects(value, source_field, known):
+                _emit(out, role, subject, source_field, "ontology", category,
+                      keep_case=keep_case, source_value=value)
 
     # Qualify the strongest prompts by who is buying. "billing software" is a category;
     # "billing software for equipment rental companies" is a buyer.
