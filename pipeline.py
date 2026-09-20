@@ -46,7 +46,7 @@ from constants import (
     KNOWN_INDUSTRIES, KNOWN_DEPLOYMENT, KNOWN_CERTIFICATIONS, KNOWN_API_TYPES,
     KNOWN_LOCALES, KNOWN_SLA, KNOWN_REPLACES, KNOWN_COMPETITORS, KNOWN_CUSTOMERS,
     DEEP_CRAWL_PATHS, DEEP_CRAWL_MAX,
-      resolve_vocabulary, resolve_surface_forms
+      resolve_vocabulary, resolve_surface_forms, resolve_matching_vocabulary
 )
 
 # ---------------------------------------------------------------------------
@@ -450,15 +450,15 @@ class OntologyPipeline:
         vocab_compliance = resolve_vocabulary(self.config, 'known_compliance', KNOWN_COMPLIANCE)
         vocab_pricing = resolve_vocabulary(self.config, 'known_pricing', KNOWN_PRICING)
         vocab_features = resolve_vocabulary(self.config, 'known_features', KNOWN_FEATURES)
-        vocab_segments = resolve_vocabulary(self.config, 'known_segments', KNOWN_SEGMENTS)
-        vocab_industries = resolve_vocabulary(self.config, 'known_industries', KNOWN_INDUSTRIES)
+        vocab_segments = resolve_matching_vocabulary(self.config, 'known_segments', KNOWN_SEGMENTS, logger)
+        vocab_industries = resolve_matching_vocabulary(self.config, 'known_industries', KNOWN_INDUSTRIES, logger)
         vocab_deployment = resolve_vocabulary(self.config, 'known_deployment', KNOWN_DEPLOYMENT)
         vocab_certifications = resolve_vocabulary(self.config, 'known_certifications', KNOWN_CERTIFICATIONS)
         vocab_api_types = resolve_vocabulary(self.config, 'known_api_types', KNOWN_API_TYPES)
         vocab_locales = resolve_vocabulary(self.config, 'known_locales', KNOWN_LOCALES)
         vocab_sla = resolve_vocabulary(self.config, 'known_sla', KNOWN_SLA)
-        vocab_replaces = resolve_vocabulary(self.config, 'known_replaces', KNOWN_REPLACES)
-        vocab_competitors = resolve_vocabulary(self.config, 'known_competitors', KNOWN_COMPETITORS)
+        vocab_replaces = resolve_matching_vocabulary(self.config, 'known_replaces', KNOWN_REPLACES, logger)
+        vocab_competitors = resolve_matching_vocabulary(self.config, 'known_competitors', KNOWN_COMPETITORS, logger)
         vocab_customers = resolve_vocabulary(self.config, 'known_customers', KNOWN_CUSTOMERS)
 
         # 1. automates

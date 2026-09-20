@@ -20,7 +20,8 @@ import json
 
 from constants import (
     KNOWN_AUTOMATION, KNOWN_COMPLIANCE, KNOWN_INTEGRATIONS, KNOWN_PRICING,
-    resolve_vocabulary,
+    KNOWN_SEGMENTS, KNOWN_COMPETITORS,
+    resolve_vocabulary, resolve_matching_vocabulary,
 )
 from models import VerticalConfig
 
@@ -136,6 +137,88 @@ def test_same_text_extracts_differently_per_vertical():
     print("  PASS - Epic only in healthcare, NetSuite and ASC 606 only in fintech.")
 
 
+def test_icp_findings_do_not_become_matching_vocabulary():
+    """A discovered segment is evidence about one site, not vocabulary for every site.
+
+    ICP discovery writes known_segments, and its honest answer generalises over one
+    customer: b2b_saas_fintech holds six descriptions like "Equipment lifecycle software
+    company in the construction industry", each quoted from a single case study. A filled
+    field overrides the global taxonomy, so those six replaced KNOWN_SEGMENTS - and none
+    of them appears verbatim on any other page. targetsSegment silently stopped firing
+    for the whole vertical.
+    """
+    print("\n[4] ICP findings are not matching vocabulary ...")
+    fin = load(FINTECH)
+    discovered = set((fin.icp_evidence.get("known_segments") or {}).keys())
+    assert discovered, (
+        "This test needs a vertical whose known_segments came from ICP discovery; "
+        "b2b_saas_fintech no longer has icp_evidence for that field."
+    )
+
+    raw = resolve_vocabulary(fin, "known_segments", KNOWN_SEGMENTS)
+    matching = resolve_matching_vocabulary(fin, "known_segments", KNOWN_SEGMENTS)
+    print("  stored    -> %d entries, %d of them ICP findings" % (len(raw), len(discovered)))
+    print("  matching  -> %d entries" % len(matching))
+
+    assert not (discovered & set(matching)), (
+        "An ICP finding is being used as matching vocabulary. It cannot match: the value "
+        "is not expected to appear even in its own proving quote."
+    )
+    assert set(KNOWN_SEGMENTS) <= set(matching), (
+        "Dropping the findings left the vertical with less than the global taxonomy, so "
+        "targetsSegment still cannot fire."
+    )
+
+    # The findings themselves are untouched - prompt_generator still reads them.
+    assert discovered <= set(fin.known_segments), (
+        "The findings were removed from the profile rather than merely excluded from "
+        "matching."
+    )
+    print("  PASS - findings stay in the profile, out of the matcher.")
+
+
+def test_curated_vertical_keeps_its_override():
+    """The fix must not leak into verticals a human wrote.
+
+    cybersecurity.json carries a hand-written segment taxonomy and no icp_evidence, so it
+    must resolve exactly as before - narrowing it to the global list would undo the whole
+    point of per-vertical vocabulary.
+    """
+    print("\n[5] Curated verticals keep their override ...")
+    cyber = VerticalConfig(**json.load(open("verticals/cybersecurity.json", encoding="utf-8")))
+    assert not cyber.icp_evidence, "cybersecurity.json unexpectedly carries icp_evidence."
+
+    for field, default in (("known_segments", KNOWN_SEGMENTS),
+                           ("known_competitors", KNOWN_COMPETITORS)):
+        before = resolve_vocabulary(cyber, field, default)
+        after = resolve_matching_vocabulary(cyber, field, default)
+        assert before == after, (
+            "%s changed for a curated vertical; the override contract only bends for "
+            "fields ICP discovery has written into." % field
+        )
+    print("  PASS - MSSP and Public Sector still override the global list.")
+
+
+def test_targets_segment_fires_under_a_discovered_vertical():
+    """The behaviour, not the plumbing: the predicate comes back."""
+    print("\n[6] targetsSegment fires under b2b_saas_fintech ...")
+    from pipeline import OntologyPipeline
+    copy = (
+        "Acme Platform offers Automated Invoicing and Subscription Management. "
+        "Built for Enterprise and High-Growth SaaS finance teams. "
+        "Leading solution for SaaS and FinTech companies."
+    )
+    result = OntologyPipeline(config=load(FINTECH)).process(text=copy)
+    segments = {t.object for t in result.triples if t.predicate == "targetsSegment"}
+    print("  targetsSegment -> %s" % sorted(segments))
+    assert "Enterprise" in segments, (
+        "targetsSegment found nothing under the vertical whose known_segments ICP "
+        "discovery overwrote."
+    )
+    print("  PASS")
+
+
+
 if __name__ == "__main__":
     print("=" * 78)
     print("PER-VERTICAL EXTRACTION VOCABULARY")
@@ -143,6 +226,9 @@ if __name__ == "__main__":
     test_vertical_fields_survive_loading()
     test_resolver_prefers_vertical_then_falls_back()
     test_same_text_extracts_differently_per_vertical()
+    test_icp_findings_do_not_become_matching_vocabulary()
+    test_curated_vertical_keeps_its_override()
+    test_targets_segment_fires_under_a_discovered_vertical()
     print("\n" + "=" * 78)
     print("ALL VERTICAL VOCABULARY TESTS PASSED")
     print("The industry ontology now drives what every site is read for.")

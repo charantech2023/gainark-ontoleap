@@ -387,6 +387,64 @@ def resolve_vocabulary(config, field: str, default: list) -> list:
     return default
 
 
+# Buyer fields whose discovered value is a generalisation rather than a name.
+#
+# Four fields are written by ICP discovery as well as by hand. For three of them the
+# discovered value is something the page itself names - a competitor, an industry, a
+# displaced practice - so it is lexically present in the sentence that proves it and
+# works as matching vocabulary like any curated label.
+#
+# known_segments is the exception, and the exception is structural. A segment is a
+# deliberate generalisation over one customer's description: "Equipment lifecycle software
+# company in the construction industry", quoted from a single case study. industry_profiler
+# relaxes its entailment check to 0.0 for this field for exactly that reason - the value is
+# not expected to appear even in its own proving quote, let alone on the next vendor's
+# pricing page. Used as a matcher it matches nothing, and because a filled field overrides
+# the global taxonomy it also displaces the labels that would have matched: six discovered
+# descriptions replaced KNOWN_SEGMENTS in b2b_saas_fintech and targetsSegment went silent
+# for the whole vertical, with nothing logged to say so.
+#
+# icp_evidence tells discovered from curated without guessing at shape or length, so the
+# findings keep their place in the profile and in icp_evidence, where prompt_generator
+# reads them. They simply stop being asked to match text.
+GENERALISED_BUYER_FIELDS = frozenset({"known_segments"})
+
+
+def resolve_matching_vocabulary(config, field: str, default: list, logger=None) -> list:
+    """Return `field` as lexical matching vocabulary, minus values that are evidence.
+
+    Identical to resolve_vocabulary except for the fields in GENERALISED_BUYER_FIELDS,
+    where values carrying icp_evidence are ICP findings rather than vocabulary and are
+    dropped from matching.
+    """
+    values = resolve_vocabulary(config, field, default)
+    if field not in GENERALISED_BUYER_FIELDS or values is default:
+        return values
+
+    evidence = getattr(config, "icp_evidence", None) or {}
+    discovered = set((evidence.get(field) or {}).keys())
+    if not discovered:
+        return values
+
+    curated = [v for v in values if v not in discovered]
+
+    # Union rather than override, and only here. A field discovery has written into is no
+    # longer an authored taxonomy: what is left after dropping the findings may be one
+    # stray label, and honouring the override contract on that remnant would narrow the
+    # vertical to it. A vertical with no icp_evidence returned above, override intact.
+    merged = list(curated)
+    merged.extend(v for v in default if v not in set(curated))
+
+    if logger is not None:
+        logger.info(
+            "%s: %d of %d entries are ICP findings rather than vocabulary and cannot match "
+            "page text; matching on %d curated label(s) plus the global taxonomy.",
+            field, len(values) - len(curated), len(values), len(curated),
+        )
+
+    return merged
+
+
 def resolve_surface_forms(config, field: str, default: list) -> list:
     """Return [(canonical, [surface forms])] for a vocabulary field.
 

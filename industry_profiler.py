@@ -27,7 +27,7 @@ from models import (
 )
 from constants import (ICP_EVIDENCE_PATHS, ICP_EVIDENCE_GROUPS, ICP_EVIDENCE_RESERVE,
                        ICP_EDITORIAL_PATHS, ICP_HUB_PATHS, ICP_MAX_USEFUL_DEPTH,
-                       ICP_LOCALE_SEGMENTS)
+                       ICP_LOCALE_SEGMENTS, GENERALISED_BUYER_FIELDS)
 from industry_ontology import (match_existing_vertical, vocabulary_agreement,
                                load_industry_ontology, MIN_VOCABULARY_AGREEMENT)
 from profiler_guard import guard_discovered_vertical_profile
@@ -814,13 +814,18 @@ _QUOTE_MATCH_CHARS = 60
 _ENTAILMENT_PREFIX = 5
 _ENTAILMENT_MIN_RATIO = 0.5
 
-# known_segments is the exception, and the exception is structural rather than a loosened
-# standard. Every other buyer field names something the page names - a competitor, an
-# industry, a displaced practice - so the value should be lexically present in the sentence
-# that proves it. A segment is a deliberate generalisation over one customer's description,
-# so requiring it to appear in its own quote would reject exactly the answers worth having.
-# What still holds for it: the quote is real, and it is on the page cited.
-_FIELD_SUPPORT_RATIO = {"known_segments": 0.0}
+# The generalised fields are the exception, and the exception is structural rather than a
+# loosened standard. Every other buyer field names something the page names - a competitor,
+# an industry, a displaced practice - so the value should be lexically present in the
+# sentence that proves it. A segment is a deliberate generalisation over one customer's
+# description, so requiring it to appear in its own quote would reject exactly the answers
+# worth having. What still holds for it: the quote is real, and it is on the page cited.
+#
+# Not expected to be lexically present is also what makes such a value unusable as matching
+# vocabulary, so the set is defined once in constants.GENERALISED_BUYER_FIELDS and read by
+# both. Adding a field there relaxes the check here and excludes it from matching there, in
+# one edit rather than two that can drift apart.
+_FIELD_SUPPORT_RATIO = {field: 0.0 for field in GENERALISED_BUYER_FIELDS}
 
 
 def _quote_supports_value(value: str, quote: str, min_ratio: float = _ENTAILMENT_MIN_RATIO) -> bool:
