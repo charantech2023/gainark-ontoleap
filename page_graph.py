@@ -26,6 +26,7 @@ from constants import (
     resolve_surface_forms
 )
 from entity_grounding import wikidata_uri
+from concept_roles import claim_vocabulary
 from ontology_schema import canonical_class
 from industry_ontology import load_industry_ontology
 from pipeline import _load_shared_gliner
@@ -298,7 +299,8 @@ def _concept_pattern(form: str) -> Optional["re.Pattern"]:
     # A label already plural ("Accounting Standards") still matches its singular.
     if len(words[-1]) > 4 and words[-1].lower().endswith("s") and not words[-1].lower().endswith("ss"):
         words[-1] = words[-1][:-1]
-    body = r"[\s-]+".join(re.escape(w) for w in words)
+    # A bracket separates words as a space does: "401(k) providers".
+    body = r"[\s()-]+".join(re.escape(w) for w in words)
     return re.compile(r"(?<![A-Za-z0-9])%s(?:s|es)?(?![A-Za-z0-9])" % body, re.IGNORECASE)
 
 
@@ -353,7 +355,11 @@ def _speaks_for_subject(unit: str, subject_name: str, nodes: List[KGNode], url: 
       - a sentence naming a customer or a competitor, which is about that company;
       - a table row, which on these sites is a comparison or evaluation grid;
       - any sentence on a blog, glossary or guide page, which is about the industry.
+    A question proves nothing either, whoever it names: on 19 Sep 2026 gusto.com "had" a
+    PEO because its FAQ asks "What's the difference between an EOR and PEO?".
     """
+    if unit.rstrip().endswith("?"):
+        return False
     low = unit.lower()
     if any(re.search(r"\b%s" % re.escape(f), low) for f in _brand_forms(subject_name)):
         return True
@@ -379,13 +385,23 @@ def _extract_semantic_edges(
     url: str,
     vertical_id: str = "b2b_saas_fintech"
 ) -> List[KGEdge]:
-    """Extract relational semantic edges with exact sentence provenance."""
+    """Extract relational semantic edges with exact sentence provenance.
+
+    What a sentence can claim comes from the vertical's concept layer
+    (concept_roles.claim_vocabulary), so a claim's target is a concept and resolves to its
+    URI. The billing lists in constants.py are only the fallback for a vertical with no
+    concepts, which is where they came from: every vertical used to be read for them, and
+    the 18 Sep 2026 HR crawls found "Overage Pricing" on gusto.com and nothing about
+    payroll.
+    """
     onto = load_industry_ontology(vertical_id)
+    claims = {predicate: [(target, [(form, _concept_pattern(form)) for form in forms])
+                          for target, forms in pairs]
+              for predicate, pairs in claim_vocabulary(onto).items()}
     vocab_integrations = onto.known_integrations or KNOWN_INTEGRATIONS
     vocab_compliance = onto.known_compliance or KNOWN_COMPLIANCE
     vocab_pricing = KNOWN_PRICING
     vocab_automation = KNOWN_AUTOMATION
-    vocab_features = KNOWN_FEATURES
     forms_features = resolve_surface_forms(None, 'known_features', KNOWN_FEATURES)
 
     sentences = [s for s in _proof_units(text) if _speaks_for_subject(s, subject_name, nodes, url)]
@@ -416,8 +432,46 @@ def _extract_semantic_edges(
             source_url=url
         ))
 
-    # 1. automates
+    def claimed(predicate: str, sentence: str, cues: Optional[List[str]] = None) -> None:
+        """Every target of one predicate that a sentence writes, in any of its forms."""
+        low = sentence.lower()
+        if cues is not None and not any(cue in low for cue in cues):
+            return
+        for target, forms in claims.get(predicate, []):
+            for form, pattern in forms:
+                found = pattern.search(sentence) if pattern else None
+                if found:
+                    add_edge(predicate, target, _CLAIM_CONFIDENCE[predicate], sentence,
+                             target_type=_CLAIM_TYPES[predicate], match=found.group(0))
+                    break
+
     auto_cues = ["automate", "automates", "automated", "streamline", "streamlines", "orchestrate", "auto-", "elimina"]
+    int_cues = ["integrat", "connect", "sync", "export to", "import from", "native connector", "api for"]
+    # Naming a standard is not complying with it. With no cue, a case study headline for a
+    # HIPAA-regulated customer read as "Ordway compliesWith HIPAA" on 14 Sep 2026.
+    compliance_cues = ["complian", "complies", "comply", "certif", "audit", "attest", "accordance",
+                       "conform", "adhere", "meets", "support", "report available", "aligned with"]
+
+    if claims:
+        for sent in sentences:
+            claimed("automates", sent, auto_cues)
+            claimed("integratesWith", sent, int_cues)
+            claimed("compliesWith", sent, compliance_cues)
+            claimed("supportsPricingModel", sent)
+            claimed("hasFeature", sent)
+        # A concept layer with no integrations or rules of its own still has the seed
+        # lists the vertical was discovered with, or the general ones.
+        if "integratesWith" not in claims or "compliesWith" not in claims:
+            _named_claims(sentences, add_edge, int_cues, compliance_cues,
+                          [] if "integratesWith" in claims else vocab_integrations,
+                          [] if "compliesWith" in claims else vocab_compliance)
+        return edges
+
+    # No concept layer: the name lists, and the billing lists for the rest.
+    _named_claims(sentences, add_edge, int_cues, compliance_cues, vocab_integrations,
+                  vocab_compliance)
+
+    # automates
     for sent in sentences:
         s_lower = sent.lower()
         if any(cue in s_lower for cue in auto_cues):
@@ -425,29 +479,7 @@ def _extract_semantic_edges(
                 if re.search(rf'\b{re.escape(cap.lower())}\b', s_lower):
                     add_edge("automates", cap, 0.90, sent, target_type="Process")
 
-    # 2. integratesWith
-    int_cues = ["integrat", "connect", "sync", "export to", "import from", "native connector", "api for"]
-    for sent in sentences:
-        s_lower = sent.lower()
-        if any(cue in s_lower for cue in int_cues):
-            for partner in vocab_integrations:
-                if re.search(rf'\b{re.escape(partner.lower())}\b', s_lower):
-                    add_edge("integratesWith", partner, 0.92, sent, target_type="IntegrationPartner")
-
-    # 3. compliesWith
-    # Naming a standard is not complying with it. With no cue, a case study headline for a
-    # HIPAA-regulated customer read as "Ordway compliesWith HIPAA" on 14 Sep 2026.
-    compliance_cues = ["complian", "complies", "comply", "certif", "audit", "attest", "accordance",
-                       "conform", "adhere", "meets", "support", "report available", "aligned with"]
-    for sent in sentences:
-        s_lower = sent.lower()
-        if not any(cue in s_lower for cue in compliance_cues):
-            continue
-        for std in vocab_compliance:
-            if re.search(rf'\b{re.escape(std.lower())}\b', s_lower):
-                add_edge("compliesWith", std, 0.95, sent, target_type="Standard")
-
-    # 4. supportsPricingModel
+    # supportsPricingModel
     pricing_cues = ["pricing", "bill", "billing", "model", "monetiz", "plans", "tier"]
     for sent in sentences:
         s_lower = sent.lower()
@@ -456,7 +488,7 @@ def _extract_semantic_edges(
             if pm.lower() in s_lower or (pm_simple in s_lower and any(cue in s_lower for cue in pricing_cues)):
                 add_edge("supportsPricingModel", pm, 0.90, sent, target_type="PricingModel")
 
-    # 5. hasFeature
+    # hasFeature
     for sent in sentences:
         s_lower = sent.lower()
         for canonical, surface_forms in forms_features:
@@ -466,6 +498,30 @@ def _extract_semantic_edges(
                     break
 
     return edges
+
+
+# How sure each kind of claim is, and the class its object takes.
+_CLAIM_CONFIDENCE = {"automates": 0.90, "integratesWith": 0.92, "compliesWith": 0.95,
+                     "supportsPricingModel": 0.90, "hasFeature": 0.85}
+_CLAIM_TYPES = {"automates": "Process", "integratesWith": "IntegrationPartner",
+                "compliesWith": "Standard", "supportsPricingModel": "PricingModel",
+                "hasFeature": "Feature"}
+
+
+def _named_claims(sentences: List[str], add_edge, int_cues: List[str],
+                  compliance_cues: List[str], integrations: List[str],
+                  compliance: List[str]) -> None:
+    """integratesWith and compliesWith against plain name lists, as before concepts."""
+    for sent in sentences:
+        s_lower = sent.lower()
+        if any(cue in s_lower for cue in int_cues):
+            for partner in integrations:
+                if re.search(rf'\b{re.escape(partner.lower())}\b', s_lower):
+                    add_edge("integratesWith", partner, 0.92, sent, target_type="IntegrationPartner")
+        if any(cue in s_lower for cue in compliance_cues):
+            for std in compliance:
+                if re.search(rf'\b{re.escape(std.lower())}\b', s_lower):
+                    add_edge("compliesWith", std, 0.95, sent, target_type="Standard")
 
 
 def _build_jsonld_graph(url: str, title: str, subject_name: str, nodes: List[KGNode], edges: List[KGEdge]) -> Dict[str, Any]:
