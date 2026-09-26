@@ -338,6 +338,56 @@ def test_duplicate_claims_are_collapsed():
     assert stats["proposed"] == 1
 
 
+def rebrand_pages():
+    return sample_pages() + [
+        {"url": "https://acme.com/compare/vs-maxio",
+         "title": "Acme vs Maxio", "meta_description": "", "headings": [],
+         "body_snippet": "Teams leaving Maxio (formerly SaaSOptics) choose Acme for usage billing."},
+    ]
+
+
+def test_a_rebranded_competitor_written_two_ways_is_one_company():
+    # Live ordwaylabs.com discovery, 26 Sep 2026: both spellings came back as competitors.
+    assert ip.company_names("SaaSOptics (Maxio)") == {"saasoptics", "maxio"}
+    assert ip.company_names("Maxio (SaaSOptics)") == ip.company_names("SaaSOptics (Maxio)")
+    assert ip.company_names("Maxio (formerly SaaSOptics)") == {"maxio", "saasoptics"}
+    assert ip.company_names("SaaSOptics / Maxio") == {"saasoptics", "maxio"}
+
+
+def test_company_suffixes_do_not_merge_different_companies():
+    assert not ip.company_names("Zuora, Inc.") & ip.company_names("Acme, Inc.")
+    assert not ip.company_names("Chargebee") & ip.company_names("Recurly")
+
+
+def test_duplicate_competitors_collapse_to_the_first_spelling():
+    values, evidence, stats = ip.split_evidence_claims(
+        ["SaaSOptics (Maxio)", "Maxio (SaaSOptics)", "Zuora"], rebrand_pages(),
+        identity=ip.company_names)
+    assert values == ["SaaSOptics (Maxio)", "Zuora"], values
+    assert stats["proposed"] == 2, stats
+
+
+def test_a_later_duplicate_that_proves_the_company_lends_its_quote_to_the_kept_value():
+    values, evidence, stats = ip.split_evidence_claims([
+        "SaaSOptics (Maxio)",
+        {"value": "Maxio (SaaSOptics)", "source_url": "https://acme.com/compare/vs-maxio",
+         "quote": "Teams leaving Maxio (formerly SaaSOptics) choose Acme for usage billing."},
+    ], rebrand_pages(), identity=ip.company_names)
+    assert values == ["SaaSOptics (Maxio)"], values
+    assert evidence["SaaSOptics (Maxio)"]["source_url"].endswith("vs-maxio"), evidence
+    assert stats["proposed"] == 1 and stats["evidenced"] == 1, stats
+
+
+def test_only_competitors_are_collapsed_by_company_name():
+    values, _, _ = ip.resolve_buyer_fields({
+        "known_competitors": ["SaaSOptics (Maxio)", "Maxio (SaaSOptics)"],
+        "known_replaces": ["SaaSOptics (Maxio)", "Maxio (SaaSOptics)"],
+    }, rebrand_pages())
+    assert values["known_competitors"] == ["SaaSOptics (Maxio)"], values
+    # What customers replace is a practice, not a company name: left as written.
+    assert len(values["known_replaces"]) == 2, values
+
+
 def test_malformed_items_are_ignored():
     values, evidence, stats = ip.split_evidence_claims(
         [None, 42, {}, {"value": ""}, {"source_url": "x"}], sample_pages())
@@ -1541,6 +1591,9 @@ def test_discovery_end_to_end_verifies_claims_against_the_pages_it_read():
         import buyer_profiles
         profile = buyer_profiles.load("acme.com", root=tmpdir)
         assert profile["known_competitors"] == ["Zuora"]
+        # The brand travels with the stored profile, so readers that never saw this
+        # response (RankTracker's prompt import) can still recognise the company in text.
+        assert profile["brand_name"] == res.brand_name and res.brand_name, profile.get("brand_name")
         assert profile["icp_evidence"]["known_replaces"]["revenue schedules in Excel"]["source_url"]
 
         print("  Segments proposed: %s" % res.known_segments)
@@ -1569,6 +1622,11 @@ TESTS = [
     test_quote_matching_survives_whitespace_and_curly_quotes,
     test_bare_strings_are_kept_as_unevidenced_values,
     test_duplicate_claims_are_collapsed,
+    test_a_rebranded_competitor_written_two_ways_is_one_company,
+    test_company_suffixes_do_not_merge_different_companies,
+    test_duplicate_competitors_collapse_to_the_first_spelling,
+    test_a_later_duplicate_that_proves_the_company_lends_its_quote_to_the_kept_value,
+    test_only_competitors_are_collapsed_by_company_name,
     test_malformed_items_are_ignored,
     test_resolve_buyer_fields_totals_across_every_field,
     test_a_real_quote_that_does_not_support_the_claim_is_rejected,

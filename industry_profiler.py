@@ -13,7 +13,7 @@ import json
 import re
 import asyncio
 import logging
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Callable, Dict, Any, List, Optional, Tuple
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
 import trafilatura
@@ -865,10 +865,30 @@ def _normalize_for_match(text: Optional[str]) -> str:
     return " ".join(flattened.lower().split())
 
 
+# Words that join a company's current and former names inside one competitor value:
+# "Maxio (formerly SaaSOptics)", "SaaSOptics / Maxio", "Maxio aka SaaSOptics". Commas are
+# not separators: "Zuora, Inc." and "Acme, Inc." would share the name "inc".
+_COMPANY_NAME_SPLIT = re.compile(r"\s*(?:[()/]|\b(?:formerly|previously|aka)\b)\s*")
+
+
+def company_names(value: str) -> frozenset:
+    """Every name one competitor value goes by.
+
+    A live ordwaylabs.com run returned both "SaaSOptics (Maxio)" and "Maxio (SaaSOptics)"
+    as competitors - one company after a rebrand, written two ways. Lowercased they are
+    different strings, so each became its own comparison prompt. Split into their names,
+    both are {"saasoptics", "maxio"}, and two values that share any name are the same
+    company.
+    """
+    parts = _COMPANY_NAME_SPLIT.split(_normalize_for_match(value))
+    return frozenset(" ".join(re.findall(r"[a-z0-9&.+-]+", p)) for p in parts if p.strip()) - {""}
+
+
 def split_evidence_claims(
     raw_items: Any,
     pages: List[Dict[str, Any]],
-    min_support_ratio: float = _ENTAILMENT_MIN_RATIO
+    min_support_ratio: float = _ENTAILMENT_MIN_RATIO,
+    identity: Optional[Callable[[str], frozenset]] = None
 ) -> Tuple[List[str], Dict[str, Dict[str, str]], Dict[str, Any]]:
     """Separate buyer claims into values and verified evidence.
 
@@ -877,6 +897,10 @@ def split_evidence_claims(
     was composed, not read, and composed ICP data is the exact failure this change exists
     to stop. Such a claim is not discarded - it is kept as an unevidenced value, so the
     caller can see what was proposed and what was proven, and tell them apart.
+
+    `identity` maps a value to the names it goes by; values sharing a name are one value,
+    kept as first written. A later duplicate is still verified, and if it holds up while
+    the first did not, its quote proves the kept value - it is the same company.
 
     Returns (values, evidence, stats).
     """
@@ -896,6 +920,7 @@ def split_evidence_claims(
     values: List[str] = []
     evidence: Dict[str, Dict[str, str]] = {}
     seen = set()
+    identities: List[Tuple[frozenset, str]] = []
     stats = {"proposed": 0, "evidenced": 0, "bad_url": 0, "quote_not_found": 0, "unsupported": 0}
 
     for item in raw_items or []:
@@ -915,8 +940,17 @@ def split_evidence_claims(
         if key in seen:
             continue
         seen.add(key)
-        values.append(value)
-        stats["proposed"] += 1
+
+        names = identity(value) if identity else frozenset()
+        kept = next((v for n, v in identities if names & n), None) if names else None
+        if kept is not None:
+            if kept in evidence:
+                continue
+        else:
+            values.append(value)
+            stats["proposed"] += 1
+            if names:
+                identities.append((names, value))
 
         if not source_url or not quote:
             continue
@@ -938,7 +972,7 @@ def split_evidence_claims(
             stats["unsupported"] += 1
             continue
 
-        evidence[value] = {"source_url": source_url, "quote": quote[:300]}
+        evidence[kept if kept is not None else value] = {"source_url": source_url, "quote": quote[:300]}
         stats["evidenced"] += 1
 
     return values, evidence, stats
@@ -960,7 +994,8 @@ def resolve_buyer_fields(
     for field in ICP_FIELDS:
         values, evidence, stats = split_evidence_claims(
             discovered.get(field), pages,
-            min_support_ratio=_FIELD_SUPPORT_RATIO.get(field, _ENTAILMENT_MIN_RATIO))
+            min_support_ratio=_FIELD_SUPPORT_RATIO.get(field, _ENTAILMENT_MIN_RATIO),
+            identity=company_names if field == "known_competitors" else None)
         values_by_field[field] = values
         if evidence:
             evidence_by_field[field] = evidence
@@ -1426,6 +1461,9 @@ async def discover_industry_profile_async(
         )
         buyer_profiles.save(evidence.get("domain") or url, {
             "url": evidence["url"],
+            # Who the site is, so readers of the stored profile (prompt importers, mention
+            # tracking) can recognise the brand in text without a second discovery run.
+            "brand_name": brand_name,
             "vertical_id": vertical_id,
             "known_segments": known_segments,
             "known_industries": known_industries,
