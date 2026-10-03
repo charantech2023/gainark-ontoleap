@@ -2,6 +2,7 @@
 End-to-end API tests for the Pure Knowledge Graph & Ontology Engine (api.py).
 """
 
+import threading
 from unittest.mock import patch
 from fastapi.testclient import TestClient
 from api import app
@@ -169,6 +170,15 @@ def test_api():
     assert r_health.status_code == 200
     assert r_health.json()["status"] in ("healthy", "ok")
     print("  Health Status   : 200 OK")
+
+    # /api/kg/align hands its unplaced terms to a "semantic-proposals" daemon thread,
+    # which loads the encoder and runs torch. Exiting while it is inside torch aborts the
+    # process on Linux ("terminate called without an active exception") after every
+    # assertion has passed - which is how the Cloud Build test gate first failed.
+    for thread in threading.enumerate():
+        if thread.name == "semantic-proposals":
+            thread.join(timeout=300)
+            assert not thread.is_alive(), "semantic proposals still running after 300s"
 
     print("\n=======================================================")
     print("ALL API ENDPOINT INTEGRATION TESTS PASSED SUCCESSFULLY!")
