@@ -168,8 +168,10 @@ def persist_graph(
     duplicate, which is what lets the shared ontology graph be written on every audit
     without the store growing.
     """
-    if kind not in ("ontology", "run"):
-        raise ValueError("kind must be 'ontology' or 'run', got %r" % kind)
+    # "situations": buyer situations read from case studies (buyer_situations.py). Kept
+    # out of "run" so list_runs and diff_runs still mean crawls and nothing else.
+    if kind not in ("ontology", "run", "situations"):
+        raise ValueError("kind must be 'ontology', 'run' or 'situations', got %r" % kind)
 
     rows = []
     for s, p, o in graph:
