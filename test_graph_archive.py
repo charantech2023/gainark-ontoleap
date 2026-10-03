@@ -329,6 +329,29 @@ def test_gcs_conditional_write_maps_a_412_to_a_refusal():
         assert not archive.put_if("v.json", b"x", 6)
         assert not archive.put_if("v.json", b"x", None)
     assert calls == [7, 6, 0], calls
+
+    # A read racing a write: the real bucket answers the superseded generation with 404
+    # (found against gs://, 3 Oct 2026), and the read must go round again, not fail.
+    class NotFound(Exception):
+        pass
+
+    exceptions.NotFound = NotFound
+    downloads = []
+
+    class Listed:
+        def __init__(self, generation): self.generation = generation
+        def download_as_bytes(self, if_generation_match=None):
+            downloads.append(if_generation_match)
+            if if_generation_match == 1:
+                raise NotFound("404 superseded")
+            return b"new"
+
+    listed = iter([Listed(1), Listed(2)])
+    archive._bucket = types.SimpleNamespace(blob=Blob, get_blob=lambda name: next(listed))
+    with mock.patch.dict(sys.modules, {"google.api_core": api_core,
+                                       "google.api_core.exceptions": exceptions}):
+        assert archive.get_versioned("v.json") == (b"new", 2)
+    assert downloads == [1, 2], downloads
     print("  PASS")
 
 

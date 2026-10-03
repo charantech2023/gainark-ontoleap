@@ -182,9 +182,9 @@ class GcsArchive:
 
     def get_versioned(self, key: str) -> Tuple[Optional[bytes], Optional[int]]:
         """The object and its generation, for put_if(). (None, None) when there is none."""
-        from google.api_core.exceptions import PreconditionFailed
+        from google.api_core.exceptions import NotFound, PreconditionFailed
         name = self._blob(key).name
-        for _ in range(3):
+        for _ in range(10):
             blob = self._bucket.get_blob(name)
             if blob is None:
                 return None, None
@@ -192,8 +192,11 @@ class GcsArchive:
                 # Pinned to the generation just read: a write landing between the two
                 # calls would otherwise pair new bytes with the old generation.
                 return blob.download_as_bytes(if_generation_match=blob.generation), blob.generation
-            except PreconditionFailed:
-                continue                        # it changed underneath us; read again
+            except (NotFound, PreconditionFailed):
+                # It changed underneath us; read again. GCS answers a superseded
+                # generation with 404, not 412 - the blob carries its generation, so
+                # the download asks for that exact version, which no longer exists.
+                continue
         raise RuntimeError("archive object %r kept changing while being read" % key)
 
     def put_if(self, key: str, payload: bytes, version: Optional[int]) -> bool:
