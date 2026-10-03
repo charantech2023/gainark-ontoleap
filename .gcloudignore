@@ -8,7 +8,6 @@ __pycache__/
 .pytest_cache/
 *.log
 scratch/
-test_*.py
 verify_*.py
 *.bak
 # Never upload local secrets to the Cloud Build staging bucket.
@@ -16,8 +15,8 @@ verify_*.py
 .env.*
 .ontoleap_cache/
 .test_cache/
-# Development-only: the evaluation harness never runs in the deployed image.
-eval/
+# test_*.py and eval/ are uploaded: cloudbuild.yaml runs the tests before it pushes.
+# .dockerignore is what keeps them out of the image.
 # Local run state. The service reads truth_ledger/graph.sqlite as its graph index, so
 # shipping it put laptop test runs into production (revision 00070). Production state
 # comes from ONTOLEAP_GRAPH_ARCHIVE and ONTOLEAP_VERTICALS_MIRROR at startup.

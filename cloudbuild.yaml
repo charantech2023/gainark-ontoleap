@@ -5,6 +5,11 @@
 # is on GitHub, and the image reuses unchanged layers from the previous build: a
 # code-only change skips reinstalling torch, the requirements and both models.
 #
+# Tests gate the push: they run inside the image just built - its Python, its packages,
+# its models - against the checked-out commit in /workspace (the image itself leaves the
+# tests out, see .dockerignore). A failing file stops the build before anything is pushed
+# or deployed, so `latest` only ever names an image that passed.
+#
 # The deploy passes only the image. GEMINI_API_KEY, ONTOLEAP_API_KEY,
 # ONTOLEAP_GRAPH_ARCHIVE, ONTOLEAP_VERTICALS_MIRROR and the rest live on the service and
 # carry over to each revision; never add --set-env-vars here.
@@ -20,6 +25,19 @@ steps:
       - --tag=${_IMAGE}:${COMMIT_SHA}
       - --tag=${_IMAGE}:latest
       - .
+
+  # The image runs as appuser and the checkout belongs to root; some tests write beside
+  # themselves.
+  - id: workspace-writable
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: chmod
+    args: ["-R", "a+rwX", "/workspace"]
+
+  - id: test
+    name: ${_IMAGE}:${COMMIT_SHA}
+    entrypoint: python
+    args: ["scripts/run_tests.py"]
+    timeout: 1800s
 
   - id: push
     name: gcr.io/cloud-builders/docker
