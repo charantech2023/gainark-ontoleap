@@ -274,3 +274,58 @@ Agreed 3 Oct 2026, as recommended.
    Asking Ordway for discovery or demo data is Sree's call, as it means asking a client.
 7. **`buyer_stories.py` is merged as the phase 0 extractor and renderer**, behind the
    graph, not as a separate prompt path.
+
+## 13. Phase 0 as built
+
+`buyer_situations.py` (situations into the graph) on top of `buyer_stories.py` (the
+reader and the prompt writer). Read on Ordway's 8 evidence pages on 3 Oct 2026 and stored
+in the **dev** shared brain (`gs://gainark-ontoleap-graph/dev/ontoleap/situations/`), not
+production's.
+
+### Where it departs from the proposal, and why
+
+- **Situations are their own graph kind, `situations`, not part of a crawl's run graph**
+  (§4.3). The reader fetches the case-study pages itself, so writing what it found into
+  an earlier crawl's run would change that crawl's record. A separate kind keeps
+  `list_runs`, `diff_runs` and `vendors_covering` meaning crawls, and is still mirrored
+  and restored by the archive sync like every other graph (`graph_store.persist_graph`
+  now accepts the kind).
+- **Names are found inside phrases, by exact key.** A part is a phrase ("could not
+  automatically perform proration calculations"), so word runs of up to six are looked
+  up with the resolver's `normalise_key` against the vertical's concepts and the
+  registry, longest first, without overlap. A key two concepts share names neither.
+- **A name counts only when the quote says it too, and a trigger is read from the
+  quote.** The first read linked Yardstik's need to Metered Billing on "usage-based
+  billing", a phrase the model added and the quote did not contain.
+- **Two more checks on each part (`buyer_stories.read_story`):** half of the part's
+  content words must be in its quote ("text says more than its quote"), and a trigger,
+  pain or need whose quote names the vendor is an outcome, not the situation before.
+- **Unresolved pains and needs are reported, not yet proposed.** §3 says they become
+  vocabulary proposals; phase 0 lists them for review instead of writing to the
+  production queue. Tools the registry does not know (Recurly, SaaSOptics, Zuora) are
+  listed as registry candidates, never added.
+- **No customer entity yet.** The reader keeps the customer's name out of the parts, so
+  `customer` (§4.1) is empty and a situation is identified by its page.
+- **LegacyWorkflow values are a cue list** (spreadsheets, manual process), matched in the
+  part and its quote.
+
+### Measured (§10.1, read by hand)
+
+| | First read | With the checks above |
+|---|---|---|
+| Situations / parts | 8 / 43 | 8 / 36 |
+| Parts whose quote states the part | ~36 of 43 (84%) | ~33 of 36 (92%) |
+| Parts dropped, with a reason | 1 | 7 |
+| Concept links | 9, of which 1 on words the quote lacked | 8, all correct |
+| Roles classified | 7 of 7 | 6 of 6 |
+
+Still wrong after the checks: an outcome that does not name the vendor ("The result is a
+flexible billing foundation", Paytient, filed as a need), a need filed as a pain
+(Paytient), and a vague company ("a company with complex needs", the Zuora page). The
+support check also drops some fair paraphrases ("fitting into the solution" for "fit into
+their solution").
+
+Concept coverage is the open problem: 2 of 7 pains and 1 of 5 needs reach a concept,
+because exact keys miss "parent-child account hierarchies" (Parent Customer's alt label is
+"parent-child billing"). That is the review queue's job, not similarity's; it is the
+first thing phase 2 needs.
