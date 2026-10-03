@@ -23,9 +23,11 @@ in entity_resolver, which reads a Registry and never writes one.
 
 Why events and not a document
 -----------------------------
-The registry changes - reviewers approve aliases, reject merges, promote candidates - and
-the archive has no compare-and-set. A single rewritten document would be last-writer-
-wins, which silently drops a reviewer's decision when two instances write at once. That
+The registry changes - reviewers approve aliases, reject merges, promote candidates. A
+single rewritten document would be last-writer-wins, which silently drops a reviewer's
+decision when two instances write at once; the archive's compare-and-set (put_if) could
+guard it, but every write would then contend for one object and the history would be
+overwritten as it went. That
 is the one failure a learning registry cannot afford, so the registry takes the shape
 that already made run history safe: every change is its own immutable object, under its
 own key, and the current state is a fold over them. Concurrent writers cannot collide.

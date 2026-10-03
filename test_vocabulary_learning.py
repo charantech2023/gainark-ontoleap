@@ -247,7 +247,16 @@ class _Review(unittest.TestCase):
         env.start()
         self.addCleanup(env.stop)
         self.published = []
-        pub = patch("vertical_store.publish", side_effect=lambda vid, data: self.published.append((vid, data)))
+        import vertical_store
+        real_update = vertical_store.update
+
+        def update(vid, mutate, path=None):
+            written = real_update(vid, mutate, path=path)
+            if written is not None:
+                self.published.append((vid, written))
+            return written
+
+        pub = patch("vertical_store.update", side_effect=update)
         pub.start()
         self.addCleanup(pub.stop)
         self.registry = RegistryStore(archive=archive)

@@ -30,4 +30,7 @@ scratch/
 truth_ledger/graph.sqlite
 truth_ledger/jobs/
 truth_ledger/registry_archive/
+# The pre-archive synonym queue. synonym_queue imports it on first read, so an image that
+# carried it would import it again in every new container, re-appending its approvals.
+truth_ledger/alt_label_candidates.json*
 .claude/

@@ -46,6 +46,8 @@ import json
 import logging
 from typing import Dict, List, Optional, Any
 
+from synonym_queue import entry_key
+
 logger = logging.getLogger("gainark.sector_ontology")
 
 # ---------------------------------------------------------------------------
@@ -225,7 +227,7 @@ def record_reviewer_synonym(
     marketing_term: str,
     canonical_label: str,
     vertical_path: str,
-    queue_path: Optional[str] = None
+    queue: Any = None
 ) -> bool:
     """Approve a surface form into the vertical's curated alt_labels.
 
@@ -239,9 +241,11 @@ def record_reviewer_synonym(
     the canonical.
 
     On Cloud Run the verticals directory is the container filesystem and sync_down()
-    overwrites it from the mirror, so a local-only write is lost on the next sync or
-    recycle. The approval therefore applies to the latest mirrored profile and is
-    published back, as VocabularyStore._apply_concepts does.
+    overwrites it from the mirror, so the approval is applied through
+    vertical_store.update(): to the mirror's latest copy, and re-applied if another writer
+    got there first. If the mirror cannot take it, MirrorWriteError propagates and the
+    approval has not happened - reporting success for a change the next sync would undo
+    is how an approval used to vanish while the queue said "approved".
 
     Returns True when the vertical was changed.
     """
@@ -251,58 +255,118 @@ def record_reviewer_synonym(
     target = (canonical_label or "").strip()
     if not surface or not target:
         return False
-
-    vertical_store.sync_down(force=True)
-    with open(vertical_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    concepts = data.get("concepts") or []
-    concept = next((c for c in concepts
-                    if c.get("prefLabel", "").strip().lower() == target.lower()), None)
-    if concept is None:
-        logger.warning("Cannot record synonym: %r is not a concept in %s",
-                       target, os.path.basename(vertical_path))
-        return False
-
-    # Never let one surface form mean two concepts - the emitted canonical would then
-    # depend on iteration order.
-    for other in concepts:
-        if other is concept:
-            continue
-        if any(a.strip().lower() == surface.lower() for a in other.get("altLabels") or []):
-            logger.warning("Cannot record synonym: %r is already an alternate of %r",
-                           surface, other.get("prefLabel"))
-            return False
-
-    alts = concept.setdefault("altLabels", [])
-    if any(a.strip().lower() == surface.lower() for a in alts):
-        return False
-    alts.append(surface)
-    data.setdefault("alt_labels", {})[concept["prefLabel"]] = list(alts)
-
-    tmp = vertical_path + ".partial"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-        f.write("\n")
-    os.replace(tmp, vertical_path)
     vertical_id = os.path.splitext(os.path.basename(vertical_path))[0]
-    vertical_store.publish(vertical_id, data)
+    applied: Dict[str, str] = {}
 
-    # The candidate queue is still local-disk only; see TODO.md.
-    queue_path = queue_path or _candidates_path()
-    queue = _load_candidates(queue_path)
-    changed = False
-    for key, entry in queue.items():
-        if entry.get("surface_form", "").strip().lower() == surface.lower():
-            entry["status"] = "approved"
-            entry["approved_as"] = concept["prefLabel"]
-            changed = True
-    if changed:
-        _save_candidates(queue_path, queue)
+    def add_alternate(data: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        if data is None:
+            logger.warning("Cannot record synonym: vertical %s has no profile", vertical_id)
+            return None
+        concepts = data.get("concepts") or []
+        concept = next((c for c in concepts
+                        if c.get("prefLabel", "").strip().lower() == target.lower()), None)
+        if concept is None:
+            logger.warning("Cannot record synonym: %r is not a concept in %s",
+                           target, vertical_id)
+            return None
 
-    logger.info("Recorded alternate %r -> %r in %s",
-                surface, concept["prefLabel"], os.path.basename(vertical_path))
+        # Never let one surface form mean two concepts - the emitted canonical would then
+        # depend on iteration order.
+        for other in concepts:
+            if other is concept:
+                continue
+            if any(a.strip().lower() == surface.lower() for a in other.get("altLabels") or []):
+                logger.warning("Cannot record synonym: %r is already an alternate of %r",
+                               surface, other.get("prefLabel"))
+                return None
+
+        alts = concept.setdefault("altLabels", [])
+        if any(a.strip().lower() == surface.lower() for a in alts):
+            return None
+        alts.append(surface)
+        data.setdefault("alt_labels", {})[concept["prefLabel"]] = list(alts)
+        applied["prefLabel"] = concept["prefLabel"]
+        return data
+
+    if vertical_store.update(vertical_id, add_alternate, path=vertical_path) is None:
+        return False
+
+    # Settles every queued candidate with this surface form in this vertical, on every
+    # instance.
+    try:
+        (queue or _default_queue()).approve(surface, applied["prefLabel"], vertical_id)
+    except Exception as err:
+        # The vertical is already changed and mirrored; only the queue's mark is missing,
+        # and the candidate would merely show as pending again.
+        logger.error("Could not record approval of %r in the review queue: %s", surface, err)
+
+    logger.info("Recorded alternate %r -> %r in %s", surface, applied["prefLabel"], vertical_id)
     return True
+
+
+def withdraw_reviewer_synonym(marketing_term: str, canonical_label: str,
+                              vertical_path: str) -> bool:
+    """Take an approved surface form back off the concept's altLabels.
+
+    The reverse of record_reviewer_synonym, through the same vertical_store.update(), so
+    MirrorWriteError propagates the same way. Returns True when the vertical changed.
+    """
+    import vertical_store
+
+    surface = (marketing_term or "").strip().lower()
+    target = (canonical_label or "").strip().lower()
+    vertical_id = os.path.splitext(os.path.basename(vertical_path))[0]
+
+    def remove_alternate(data: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        concept = next((c for c in (data or {}).get("concepts") or []
+                        if c.get("prefLabel", "").strip().lower() == target), None)
+        if concept is None:
+            return None
+        alts = concept.get("altLabels") or []
+        kept = [a for a in alts if a.strip().lower() != surface]
+        if len(kept) == len(alts):
+            return None
+        concept["altLabels"] = kept
+        data.setdefault("alt_labels", {})[concept["prefLabel"]] = list(kept)
+        return data
+
+    changed = vertical_store.update(vertical_id, remove_alternate, path=vertical_path) is not None
+    if changed:
+        logger.info("Withdrew alternate %r from %r in %s", marketing_term, canonical_label,
+                    vertical_id)
+    return changed
+
+
+def reject_synonym_candidate(key: str, vertical_path_for: Any, queue: Any = None) -> Dict[str, Any]:
+    """Reject one queued pairing, and undo it in the vertical if it had been approved.
+
+    A rejection after an approval is a reviewer changing their mind. Recording it only in
+    the queue left the alternate in the vertical, where extraction kept applying it while
+    the queue said "rejected". So the alternate comes out first - if that fails, nothing
+    is recorded - and the rejection then withdraws the approval for the surface form's
+    other pairings as well.
+
+    An approval of the surface form as a different concept is left alone: rejecting
+    "variable pricing" as Transaction Pricing says nothing about it meaning Dynamic Pricing.
+
+    `vertical_path_for(vertical_id)` resolves a vertical to its profile, or None.
+    Raises ValueError for an unknown key, MirrorWriteError when the vertical could not be
+    changed.
+    """
+    queue = queue or _default_queue()
+    entry = queue.get(key)
+    if entry is None:
+        raise ValueError("No candidate %r in the queue." % key)
+
+    withdraws = False
+    approved_as = (entry.get("approved_as") or "").strip()
+    if (entry.get("status") == "approved" and entry.get("vertical_id")
+            and approved_as.lower() == (entry.get("generated_canonical") or "").strip().lower()):
+        path = vertical_path_for(entry["vertical_id"])
+        if path:
+            withdraw_reviewer_synonym(entry.get("surface_form", ""), approved_as, path)
+            withdraws = True
+    return queue.reject(key, withdraws_approval=withdraws)
 
 
 # ---------------------------------------------------------------------------
@@ -313,7 +377,7 @@ def propose_alt_labels(
     synonym_map: Dict[str, List[str]],
     config: Any,
     brand: str,
-    queue_path: Optional[str] = None
+    queue: Any = None
 ) -> Dict[str, int]:
     """Turn a generated synonym map into candidate alt_labels awaiting human approval.
 
@@ -347,8 +411,9 @@ def propose_alt_labels(
         for alt in alts:
             known[alt.strip().lower()] = canonical
 
-    queue_path = queue_path or _candidates_path()
-    queue = _load_candidates(queue_path)
+    queue = queue or _default_queue()
+    vertical_id = getattr(config, "vertical_id", None)
+    proposals: Dict[str, Dict[str, Any]] = {}
     stats = {"proposed": 0, "already_known": 0, "conflicting": 0}
 
     for generated_canonical, synonyms in synonym_map.items():
@@ -364,19 +429,15 @@ def propose_alt_labels(
                 stats["conflicting" if owner.strip().lower()
                       != generated_canonical.strip().lower() else "already_known"] += 1
                 continue
-            entry_key = "%s|%s" % (generated_canonical.strip().lower(), key)
-            if entry_key in queue:
-                continue
-            queue[entry_key] = {
+            proposals.setdefault(entry_key(generated_canonical, key, vertical_id), {
                 "surface_form": synonym.strip(),
                 "generated_canonical": generated_canonical.strip(),
                 "brand": brand,
-                "status": "pending",
-            }
-            stats["proposed"] += 1
+                "vertical_id": vertical_id,
+            })
 
-    if stats["proposed"]:
-        _save_candidates(queue_path, queue)
+    if proposals:
+        stats["proposed"] = len(queue.propose(proposals))
     logger.info(
         "Synonym proposals for %s: %d new candidates, %d already known, %d conflict "
         "with curated alt_labels (curated wins).",
@@ -384,27 +445,6 @@ def propose_alt_labels(
     return stats
 
 
-def _candidates_path() -> str:
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "truth_ledger", "alt_label_candidates.json")
-
-
-def _load_candidates(path: str) -> Dict[str, Any]:
-    try:
-        if os.path.exists(path):
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            if isinstance(data, dict):
-                return data
-    except Exception as e:
-        logger.debug("Candidate queue unreadable: %s", e)
-    return {}
-
-
-def _save_candidates(path: str, queue: Dict[str, Any]) -> None:
-    try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(queue, f, indent=2, ensure_ascii=False, sort_keys=True)
-    except Exception as e:
-        logger.warning("Could not write candidate queue: %s", e)
+def _default_queue():
+    from synonym_queue import default_queue
+    return default_queue()

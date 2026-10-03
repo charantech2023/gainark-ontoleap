@@ -485,34 +485,33 @@ class VocabularyStore:
     def _apply_concepts(self, vertical_id: str) -> Dict[str, Any]:
         """Write every approved concept of the vertical into its profile and mirror it.
 
-        All of them, not only the newest: the mirror is last-writer-wins, and a concept a
-        concurrent write dropped comes back on the next approval.
+        All of them, not only the newest, so a concept a failed write left out comes back
+        on the next approval. Goes through vertical_store.update(), which re-applies them
+        if another writer changed the profile meanwhile and raises MirrorWriteError if the
+        mirror cannot take the write.
         """
         import vertical_store
-        from security import verticals_dir
 
-        vertical_store.sync_down(force=True)
-        path = os.path.join(verticals_dir(), "%s.json" % vertical_id)
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
         latest, _ = fold_decisions(self.decisions())
         approved = [ev for (vid, _key), ev in latest.items()
                     if vid == vertical_id and ev.get("decision") == "approve" and ev.get("kind") == "concept"]
         changed: List[str] = []
-        # Twice: a child approved before its parent names a concept the first pass has not
-        # written yet. The second pass finds it; nothing else changes on it.
-        for _ in range(2):
-            for ev in approved:
-                if add_concept(data, ev["label"], ev.get("forms") or [], ev.get("definition"),
-                               ev.get("broader")) and ev["label"] not in changed:
-                    changed.append(ev["label"])
-        if changed:
-            tmp = path + ".partial"
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-                f.write("\n")
-            os.replace(tmp, path)
-        mirrored = vertical_store.publish(vertical_id, data) if changed else None
+
+        def add_approved(data: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+            if data is None:
+                raise ValueError("Vertical %r has no profile." % vertical_id)
+            changed.clear()                      # a retry starts from a fresh read
+            # Twice: a child approved before its parent names a concept the first pass has
+            # not written yet. The second pass finds it; nothing else changes on it.
+            for _ in range(2):
+                for ev in approved:
+                    if add_concept(data, ev["label"], ev.get("forms") or [], ev.get("definition"),
+                                   ev.get("broader")) and ev["label"] not in changed:
+                        changed.append(ev["label"])
+            return data if changed else None
+
+        written = vertical_store.update(vertical_id, add_approved)
+        mirrored = vertical_store.describe_key(vertical_id) if written is not None else None
         return {"concepts_written": changed, "mirrored_to": mirrored}
 
     def _create_entity(self, event: Dict[str, Any], entity_kind: str) -> Dict[str, Any]:
