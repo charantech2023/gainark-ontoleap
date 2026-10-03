@@ -76,6 +76,84 @@ class ClassifyTest(unittest.TestCase):
         self.assertEqual(bs.classify_trigger("adding more customers and revenue"), "growth-in-volume")
 
 
+class PainTypeTest(unittest.TestCase):
+    """Quotes from Ordway's case studies, 3 Oct 2026."""
+
+    def test_pains_by_what_they_cost(self):
+        cases = {
+            "We were tracking everything in Excel, which became unwieldy as we grew.":
+                ["cannot-scale", "manual-effort"],
+            "Imagine no longer needing two to three weeks to complete the monthly bill run.":
+                ["slow-cycle"],
+            "With Zuora, we found that it was hard to get support from them.":
+                ["vendor-support-fit"],
+            "The previous billing system was not able to automatically perform proration "
+            "calculations for mid-period changes, resulting in lost revenue.":
+                ["revenue-leakage", "missing-capability"],
+            "Billing was slow and error-prone because so much of it was manual.":
+                ["errors-accuracy", "slow-cycle", "manual-effort"],
+            "Processes such as subscription management, monthly billing, and revenue "
+            "recognition became more complicated in a B2B environment.":
+                ["cannot-scale"],
+        }
+        for quote, expected in cases.items():
+            self.assertEqual(bs.classify_pain(quote), expected, quote)
+
+    def test_a_pain_facet_carries_its_types_from_the_quote(self):
+        s = bs.from_story(story(pain="manual effort for billing",
+                                quotes={"pain": "The process required a lot of manual effort."}),
+                          "ordway.example", vocab())
+        self.assertEqual([(n.kind, n.id) for n in s.facets[0].names],
+                         [("pain", "manual-effort"), ("legacy", "manual-process")])
+        self.assertEqual(bs.report([s])["pains_unclassified"], [])
+
+
+class ProposalTest(unittest.TestCase):
+
+    def test_spans_are_terms_not_fragments(self):
+        spans = bs.term_spans("a flexible billing foundation that can handle evolving pricing models",
+                              "a flexible billing foundation that can handle evolving pricing models")
+        self.assertIn("billing foundation", spans)
+        self.assertIn("evolving pricing models", spans)
+        self.assertNotIn("billing foundation that can", spans)
+        self.assertFalse([s for s in spans if " " not in s], "single words are not terms")
+
+    def test_a_span_must_be_in_the_quote(self):
+        self.assertEqual(bs.term_spans("usage-based billing engine", "a system for current needs"), [])
+
+    def test_proposals_go_to_the_queue_with_their_proof(self):
+        from graph_archive import DirectoryArchive
+        from synonym_queue import SynonymQueue
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, True)
+        queue = SynonymQueue(DirectoryArchive(tmp))
+        s = bs.from_story(story(need="a system to support evolving pricing models",
+                                pain="tracking everything in Excel"), "ordway.example", vocab())
+        calls = []
+
+        def find(spans, concepts):
+            calls.append(list(spans))
+            hits = [SimpleNamespace(surface_form=sp, concept="Monetization Model", score=0.73,
+                                    margin=0.098, runner_up="Dynamic Pricing")
+                    for sp in spans if sp == "pricing models"]
+            return hits
+
+        proposals = bs.propose_concepts([s], "b2b_saas_fintech", CONCEPTS, queue=queue, find=find)
+        self.assertEqual([(p["surface_form"], p["generated_canonical"]) for p in proposals],
+                         [("pricing models", "Monetization Model")])
+        queued = queue.load(force=True)
+        self.assertEqual(len(queued), 1)
+        entry = next(iter(queued.values()))
+        self.assertEqual((entry["status"], entry["vertical_id"], entry["method"]),
+                         ("pending", "b2b_saas_fintech", "situation"))
+        self.assertEqual(entry["quote"], "We said: a system to support evolving pricing models.")
+
+    def test_a_facet_already_naming_a_concept_is_not_proposed(self):
+        s = bs.from_story(story(need="rev rec automation"), "ordway.example", vocab())
+        self.assertEqual(bs.propose_concepts([s], "b2b_saas_fintech", CONCEPTS,
+                                             find=lambda spans, c: 1 / 0), [])
+
+
 class NamesTest(unittest.TestCase):
 
     def test_names_inside_a_phrase(self):
@@ -119,7 +197,8 @@ class FromStoryTest(unittest.TestCase):
         self.assertEqual([n.id for n in by["buyerRole"].names], ["controller"])
         self.assertEqual({n.id for n in by["usedBefore"].names}, {"quickbooks", "spreadsheets"})
         self.assertEqual([n.id for n in by["triggeredBy"].names], ["new-business-model"])
-        self.assertEqual([n.id for n in by["sufferedFrom"].names], ["spreadsheets"])
+        self.assertEqual({(n.kind, n.id) for n in by["sufferedFrom"].names},
+                         {("pain", "cannot-scale"), ("pain", "manual-effort"), ("legacy", "spreadsheets")})
         self.assertEqual([n.id for n in by["needed"].names], ["metered-billing"])
         self.assertEqual(by["needed"].quote, "We said: a flexible billing system for usage-based billing.")
 
