@@ -161,15 +161,36 @@ of configuration - only IAM on a bucket, or a mounted volume.
 this to take effect. One variable now backs both the graph and the ledger, so a
 deployment cannot end up half-durable.
 
-### T7 — Move the alt-label candidate queue into the archive
+### T7 — Move the alt-label candidate queue into the archive — done 2 Oct 2026
 
-`truth_ledger/alt_label_candidates.json` (`sector_ontology._candidates_path`, also built
-by hand in `POST /api/ontology/approve-synonym`) is local-disk only. On Cloud Run pending
-proposals, and the "approved" marks `record_reviewer_synonym` sets, vanish when the
-instance is recycled and differ between instances. Approved synonyms themselves are safe:
-since 17 Sep 2026 the approval syncs the vertical from `ONTOLEAP_VERTICALS_MIRROR` first
-and publishes it after. The queue should move into the same archive, as an append-only
-decision log like `vocabulary_learning.VocabularyStore`, rather than a rewritten JSON file.
+The queue was `truth_ledger/alt_label_candidates.json`, rewritten on each instance's own
+disk, so on Cloud Run pending proposals and "approved" marks vanished on recycle and
+differed between instances. It is now `synonym_queue.py`: an append-only log in the
+archive (`review/alt_labels/proposed/` and `review/alt_labels/decided/`, one object per
+event) folded on read, like `vocabulary_learning.VocabularyStore`. No shared file, so no
+lost writes between instances.
+
+* An approval settles every candidate with that surface form in its vertical, including
+  later proposals. Candidates are keyed `vertical|concept|surface form`; another vertical's
+  candidate with the same surface form stays pending.
+* `POST /api/ontology/reject-synonym` rejects one pairing; the pair is kept as negative
+  knowledge and never proposed again. Rejecting a pairing that had been approved takes the
+  alternate back out of the vertical and withdraws the approval.
+* A leftover `alt_label_candidates.json` is imported into the log on first read and
+  renamed `.imported`. The import is idempotent, and the file is kept out of the image.
+
+Hardened 3 Oct 2026 against the shared-brain edge cases:
+
+* Every vertical write (synonym approval and withdrawal, vocabulary concepts, discovery)
+  goes through `vertical_store.update()`: a compare-and-swap on the mirror object
+  (`put_if`, GCS generation preconditions), re-applied when another writer got there first.
+  `publish()` - last-writer-wins - is gone.
+* A write the mirror cannot take raises `MirrorWriteError`; the synonym and vocabulary
+  routes answer 503 rather than reporting a change the next sync would undo. Discovery
+  still completes but logs that the profile was not made durable.
+* `scripts/dev_shared_brain.ps1` clears the archive variables from the terminal on exit.
+* Verified with `test_synonym_queue.py` - two instances, concurrent proposals, approval
+  and rejection scope, latest decision wins, legacy import.
 
 ---
 

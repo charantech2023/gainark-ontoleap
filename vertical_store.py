@@ -16,17 +16,25 @@ by the same archive used for graph history: a local directory, or a gs:// bucket
 Unset means local-only, which is correct for development and a data-loss bug in a
 container - `warn_if_ephemeral` says so plainly rather than letting it look like it works.
 
-Consistency is last-writer-wins. Two instances discovering into the same vertical at the
-same moment will keep one contribution and lose the other; the profile stays valid, it is
-just missing one site's vocabulary. That race exists on a single instance too and is not
-introduced here.
+Every change to a profile goes through update(): read the mirror's copy, apply the change,
+write it back only if nobody wrote in between, and otherwise re-read and apply it again.
+A profile accumulates - discovery adds a site's vocabulary, a reviewer adds a synonym - so
+last-writer-wins would quietly drop one of two concurrent contributions.
+
+update() raises MirrorWriteError when the mirror cannot take the write, rather than
+keeping the change locally: sync_down() treats the mirror as the truth and would replace
+that local copy within a minute, so a change that only reached the local disk is one that
+has not happened. The caller decides whether that fails the request.
 """
 
+import copy
 import json
 import logging
 import os
+import random
+import threading
 import time
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 import graph_archive
 from security import verticals_dir
@@ -60,26 +68,103 @@ def _key(vertical_id: str) -> str:
     return "%s.json" % vertical_id
 
 
-def publish(vertical_id: str, payload: Dict) -> Optional[str]:
-    """Copy one profile to the mirror. Never raises.
+def describe_key(vertical_id: str) -> Optional[str]:
+    """Where a profile lives in the mirror, or None when there is no mirror."""
+    return "%s/%s" % (MIRROR_URI.rstrip("/"), _key(vertical_id)) if MIRROR_URI else None
 
-    Returns where it landed, or None when there is no mirror or the write failed. The
-    caller has already written the local copy, so a failure here costs durability rather
-    than the profile.
-    """
-    store = mirror()
-    if store is None:
-        return None
 
+class MirrorWriteError(RuntimeError):
+    """The mirror could not take a profile change, so the change was not made."""
+
+
+# How many times update() re-reads and re-applies after losing a race before giving up.
+UPDATE_ATTEMPTS = 5
+
+# Serialises updates within one process when there is no mirror to arbitrate.
+_local_lock = threading.Lock()
+
+
+def read_local(path: str) -> Optional[Dict]:
+    """The profile on local disk, or None when it is missing or unreadable."""
     try:
-        store.put(_key(vertical_id),
-                  json.dumps(payload, indent=2, ensure_ascii=False).encode("utf-8"))
-    except Exception as err:
-        logger.error("Could not mirror vertical %r to %s: %s", vertical_id, MIRROR_URI, err)
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError:
         return None
+    except ValueError as err:
+        # Treated as absent, but never silently: a profile that cannot be parsed is also
+        # one whose curated content cannot be protected.
+        logger.warning("Local profile %s is unreadable (%s); treating it as absent.", path, err)
+        return None
+    if not isinstance(data, dict):
+        logger.warning("Local profile %s is not an object; treating it as absent.", path)
+        return None
+    return data
 
-    logger.info("Mirrored vertical %r to %s", vertical_id, MIRROR_URI)
-    return "%s/%s" % (MIRROR_URI.rstrip("/"), _key(vertical_id))
+
+def write_local(path: str, data: Dict) -> None:
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    tmp = path + ".partial"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+    os.replace(tmp, path)
+
+
+def update(vertical_id: str, mutate: Callable[[Optional[Dict]], Optional[Dict]],
+           path: Optional[str] = None) -> Optional[Dict]:
+    """Change one profile without losing a concurrent change to it.
+
+    `mutate` gets the current profile (None if there is none yet) as a private copy and
+    returns the new one, or None to leave it as it is. It may be called more than once -
+    once per lost race - so it must work from what it is given and nothing it saw before.
+
+    Returns the profile as written, or None when `mutate` declined. Raises
+    MirrorWriteError when a mirror is configured and the write could not be made there.
+    """
+    path = path or os.path.join(verticals_dir(), _key(vertical_id))
+    store = mirror()
+
+    if store is None:
+        with _local_lock:
+            new = mutate(read_local(path))
+            if new is not None:
+                write_local(path, new)
+            return new
+
+    key = _key(vertical_id)
+    for attempt in range(UPDATE_ATTEMPTS):
+        try:
+            payload, version = store.get_versioned(key)
+            # A profile the mirror does not have yet - one shipped in the image - starts
+            # from the local copy, and the write then publishes it.
+            current = json.loads(payload.decode("utf-8")) if payload else read_local(path)
+        except Exception as err:
+            raise MirrorWriteError("Could not read vertical %r from %s: %s"
+                                   % (vertical_id, MIRROR_URI, err)) from err
+
+        new = mutate(copy.deepcopy(current))
+        if new is None:
+            if payload and current is not None:
+                write_local(path, current)   # the read was free; keep the cache current
+            return None
+
+        body = json.dumps(new, indent=2, ensure_ascii=False).encode("utf-8")
+        try:
+            landed = store.put_if(key, body, version)
+        except Exception as err:
+            raise MirrorWriteError("Could not write vertical %r to %s: %s"
+                                   % (vertical_id, MIRROR_URI, err)) from err
+        if landed:
+            write_local(path, new)
+            logger.info("Mirrored vertical %r to %s", vertical_id, MIRROR_URI)
+            return new
+        logger.info("Vertical %r changed under us on %s; re-applying (attempt %d).",
+                    vertical_id, MIRROR_URI, attempt + 1)
+        time.sleep(random.uniform(0.05, 0.2) * (attempt + 1))
+
+    raise MirrorWriteError("Vertical %r kept changing on %s; gave up after %d attempts."
+                           % (vertical_id, MIRROR_URI, UPDATE_ATTEMPTS))
 
 
 def sync_down(force: bool = False) -> List[str]:

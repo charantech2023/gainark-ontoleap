@@ -17,6 +17,7 @@ No network calls, no GCS, no GLiNER.
 
 import json
 import os
+import shutil
 import tempfile
 from datetime import datetime, timezone
 
@@ -270,6 +271,90 @@ def test_unreachable_archive_does_not_fail_the_sync():
     print("  PASS")
 
 
+def test_a_conditional_write_refuses_a_stale_version():
+    """put_if is a compare-and-swap: it lands only if nobody wrote since the read."""
+    print("\n[9] A conditional write refuses a stale version ...")
+    root = tempfile.mkdtemp()
+    try:
+        archive = ga.DirectoryArchive(root)
+        assert archive.get_versioned("v.json") == (None, None)
+        assert archive.put_if("v.json", b"one", None), "a create was refused"
+        assert not archive.put_if("v.json", b"two", None), "created over an existing object"
+
+        payload, version = archive.get_versioned("v.json")
+        assert payload == b"one"
+        archive.put("v.json", b"someone else")
+        assert not archive.put_if("v.json", b"mine", version), "overwrote a newer write"
+        assert archive.get("v.json") == b"someone else"
+
+        payload, version = archive.get_versioned("v.json")
+        assert archive.put_if("v.json", b"mine", version)
+        assert archive.get("v.json") == b"mine"
+        assert archive.list() == ["v.json"], "the lock file leaked into listings"
+        print("  PASS")
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def test_gcs_conditional_write_maps_a_412_to_a_refusal():
+    """No bucket here: a fake client checks that put_if asks GCS for the precondition
+    and turns its 412 into False rather than an error."""
+    print("\n[10] GCS put_if uses generation preconditions ...")
+    import sys
+    import types
+    from unittest import mock
+
+    class PreconditionFailed(Exception):
+        pass
+
+    exceptions = types.ModuleType("google.api_core.exceptions")
+    exceptions.PreconditionFailed = PreconditionFailed
+    api_core = types.ModuleType("google.api_core")
+    api_core.exceptions = exceptions
+    calls = []
+
+    class Blob:
+        def __init__(self, name): self.name = name
+        def upload_from_string(self, payload, if_generation_match=None):
+            calls.append(if_generation_match)
+            if if_generation_match != 7:
+                raise PreconditionFailed("412")
+
+    archive = ga.GcsArchive.__new__(ga.GcsArchive)
+    archive.prefix = "dev/verticals"
+    archive._bucket = types.SimpleNamespace(blob=Blob)
+    with mock.patch.dict(sys.modules, {"google.api_core": api_core,
+                                       "google.api_core.exceptions": exceptions}):
+        assert archive.put_if("v.json", b"x", 7)
+        assert not archive.put_if("v.json", b"x", 6)
+        assert not archive.put_if("v.json", b"x", None)
+    assert calls == [7, 6, 0], calls
+
+    # A read racing a write: the real bucket answers the superseded generation with 404
+    # (found against gs://, 3 Oct 2026), and the read must go round again, not fail.
+    class NotFound(Exception):
+        pass
+
+    exceptions.NotFound = NotFound
+    downloads = []
+
+    class Listed:
+        def __init__(self, generation): self.generation = generation
+        def download_as_bytes(self, if_generation_match=None):
+            downloads.append(if_generation_match)
+            if if_generation_match == 1:
+                raise NotFound("404 superseded")
+            return b"new"
+
+    listed = iter([Listed(1), Listed(2)])
+    archive._bucket = types.SimpleNamespace(blob=Blob, get_blob=lambda name: next(listed))
+    with mock.patch.dict(sys.modules, {"google.api_core": api_core,
+                                       "google.api_core.exceptions": exceptions}):
+        assert archive.get_versioned("v.json") == (b"new", 2)
+    assert downloads == [1, 2], downloads
+    print("  PASS")
+
+
 if __name__ == "__main__":
     print("=" * 78)
     print("DURABLE ARCHIVE")
@@ -282,6 +367,8 @@ if __name__ == "__main__":
     test_archive_key_cannot_escape_the_root()
     test_ephemeral_deployment_is_reported()
     test_unreachable_archive_does_not_fail_the_sync()
+    test_a_conditional_write_refuses_a_stale_version()
+    test_gcs_conditional_write_maps_a_412_to_a_refusal()
     print("\n" + "=" * 78)
     print("ALL ARCHIVE TESTS PASSED")
     print("=" * 78)

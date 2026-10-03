@@ -19,9 +19,11 @@ from pydantic import BaseModel, Field
 import ontology_schema as schema
 import compliance_ontology as comp_onto
 import sector_ontology as sector_onto
+import vertical_store
 from models import  SemanticTriple
 from routers.deps import _vertical_config_path, DEFAULT_VERTICAL_ID
 from security import content_disposition, is_valid_vertical_id
+from synonym_queue import default_queue
 from vocabulary_learning import default_vocabulary
 
 logger = logging.getLogger("ontoleap.api.ontology")
@@ -189,31 +191,44 @@ def get_synonym_candidates():
     """
     Returns the queue of candidate alt_labels / surface forms proposed by audits,
     awaiting reviewer approval into the curated vertical ontology.
-    """
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    candidates_path = os.path.join(base_dir, "truth_ledger", "alt_label_candidates.json")
-    if not os.path.isfile(candidates_path):
-        return {"total_candidates": 0, "pending_count": 0, "candidates": []}
 
+    The queue is shared: it is read from the archive every instance writes to, so it
+    shows what any instance proposed and what any reviewer decided.
+    """
     try:
-        with open(candidates_path, "r", encoding="utf-8") as f:
-            queue = json.load(f)
+        queue = default_queue().load(force=True)
     except Exception as e:
         logger.warning("Could not read candidate queue: %s", e)
-        return {"total_candidates": 0, "pending_count": 0, "candidates": []}
+        raise HTTPException(status_code=503, detail="The review queue is unreachable.")
 
-    items = []
-    pending_count = 0
-    for key, entry in queue.items():
-        if entry.get("status") == "pending":
-            pending_count += 1
-        items.append({"key": key, **entry})
-
+    items = [{"key": key, **entry} for key, entry in sorted(queue.items())]
     return {
         "total_candidates": len(items),
-        "pending_count": pending_count,
+        "pending_count": sum(1 for i in items if i.get("status") == "pending"),
         "candidates": items,
     }
+
+
+class RejectSynonymRequest(BaseModel):
+    key: str = Field(..., min_length=3, max_length=420, description="Candidate key, 'vertical|concept|surface form' as the candidates list gives it")
+
+
+@router.post("/reject-synonym", summary="Reject a Candidate Synonym")
+def post_reject_synonym(req: RejectSynonymRequest):
+    """
+    Records that one proposed pairing is wrong. The pair is kept as negative knowledge:
+    it is never proposed for review again. Other pairings of the same surface form are
+    unaffected - unless this pairing had been approved, in which case the alternate is
+    taken back out of the vertical and the approval no longer settles them.
+    """
+    try:
+        entry = sector_onto.reject_synonym_candidate(req.key, _vertical_config_path)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except vertical_store.MirrorWriteError as e:
+        logger.error("Could not withdraw %r from its vertical: %s", req.key, e)
+        raise HTTPException(status_code=503, detail="The vertical could not be updated; nothing was recorded.")
+    return {"key": req.key, **entry}
 
 
 @router.post("/approve-synonym", summary="Approve a Candidate Synonym into the Curated Vertical Ontology")
@@ -227,15 +242,15 @@ def post_approve_synonym(req: ApproveSynonymRequest):
     if not config_path or not os.path.isfile(config_path):
         raise HTTPException(status_code=404, detail=f"Vertical '{req.vertical_id}' not found.")
 
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    queue_path = os.path.join(base_dir, "truth_ledger", "alt_label_candidates.json")
-
-    success = sector_onto.record_reviewer_synonym(
-        marketing_term=req.surface_form,
-        canonical_label=req.canonical_concept,
-        vertical_path=config_path,
-        queue_path=queue_path
-    )
+    try:
+        success = sector_onto.record_reviewer_synonym(
+            marketing_term=req.surface_form,
+            canonical_label=req.canonical_concept,
+            vertical_path=config_path,
+        )
+    except vertical_store.MirrorWriteError as e:
+        logger.error("Could not approve %r into %s: %s", req.surface_form, req.vertical_id, e)
+        raise HTTPException(status_code=503, detail="The vertical could not be updated; nothing was approved.")
 
     if not success:
         raise HTTPException(
@@ -298,6 +313,10 @@ def post_vocabulary_decision(req: VocabularyDecisionRequest):
                                            entity_kind=req.entity_kind, broader=req.broader)
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))
+    except vertical_store.MirrorWriteError as err:
+        # The decision is recorded; the next approval in this vertical writes it again.
+        logger.error("Decision recorded but %s could not be updated: %s", vertical_id, err)
+        raise HTTPException(status_code=503, detail="Decision recorded, but the vertical could not be updated. Approving again retries it.")
 
 
 @router.get("/export", summary="Export Ontology Knowledge Graph in W3C Standards")

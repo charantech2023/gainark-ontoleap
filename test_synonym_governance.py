@@ -25,6 +25,8 @@ import shutil
 import tempfile
 
 import sector_ontology as so
+from graph_archive import DirectoryArchive
+from synonym_queue import SynonymQueue
 from models import VerticalConfig
 from pipeline import DEFAULT_VERTICAL_PROFILE
 
@@ -32,9 +34,11 @@ from pipeline import DEFAULT_VERTICAL_PROFILE
 def sandbox():
     """A throwaway copy of the real vertical, plus an empty candidate queue."""
     d = tempfile.mkdtemp()
-    vertical = os.path.join(d, "vertical.json")
+    # Named as the verticals directory names it: the file name is the vertical's id, and
+    # candidates and approvals are scoped by it.
+    vertical = os.path.join(d, os.path.basename(DEFAULT_VERTICAL_PROFILE))
     shutil.copy(DEFAULT_VERTICAL_PROFILE, vertical)
-    return vertical, os.path.join(d, "candidates.json")
+    return vertical, SynonymQueue(DirectoryArchive(os.path.join(d, "queue")))
 
 
 def load(path):
@@ -61,7 +65,7 @@ def test_proposals_are_queued_not_applied():
 
     stats = so.propose_alt_labels(
         {"invoicing": ["Touchless Billing", "Effortless Invoicing"]},
-        load(vertical), "TestBrand", queue_path=queue)
+        load(vertical), "TestBrand", queue=queue)
     after = open(vertical, encoding="utf-8").read()
 
     print("    %s" % stats)
@@ -70,7 +74,7 @@ def test_proposals_are_queued_not_applied():
         "Proposing changed the vertical. A generated pair must not enter the ontology "
         "until a person approves it."
     )
-    q = json.load(open(queue, encoding="utf-8"))
+    q = queue.load(force=True)
     assert all(e["status"] == "pending" for e in q.values())
     print("    queue holds %d pending, vertical unchanged" % len(q))
     print("  PASS")
@@ -86,7 +90,7 @@ def test_curated_mapping_wins_a_disagreement():
     # means something else must not be able to move it.
     stats = so.propose_alt_labels(
         {"subscription lifecycle": ["Renewal Management"]}, cfg, "TestBrand",
-        queue_path=queue)
+        queue=queue)
     print("    %s" % stats)
     assert stats["conflicting"] == 1 and stats["proposed"] == 0, (
         "A proposal contradicting the curated mapping was queued as if it were new."
@@ -103,11 +107,11 @@ def test_approval_writes_into_the_ontology():
     print("\n[4] Approval reaches the vertical ...")
     vertical, queue = sandbox()
     so.propose_alt_labels({"payment collection": ["Smart Collections"]},
-                          load(vertical), "TestBrand", queue_path=queue)
+                          load(vertical), "TestBrand", queue=queue)
     assert load(vertical).concept_by_label("Smart Collections") is None
 
     wrote = so.record_reviewer_synonym("Smart Collections", "Payment Collection",
-                                       vertical, queue_path=queue)
+                                       vertical, queue=queue)
     resolved = load(vertical).concept_by_label("Smart Collections")
     print("    written=%s  resolves to %s" % (wrote, resolved.prefLabel))
 
@@ -115,7 +119,7 @@ def test_approval_writes_into_the_ontology():
         "An approved synonym did not reach the concept. Recorded anywhere else it is "
         "invisible to extraction, which reads alt_labels."
     )
-    statuses = {e["status"] for e in json.load(open(queue, encoding="utf-8")).values()}
+    statuses = {e["status"] for e in queue.load(force=True).values()}
     assert "approved" in statuses, "The queue entry was not marked approved."
     print("  PASS")
 
@@ -124,11 +128,11 @@ def test_approval_refuses_to_create_ambiguity():
     print("\n[5] An approval cannot make one phrase mean two concepts ...")
     vertical, queue = sandbox()
     so.record_reviewer_synonym("Smart Collections", "Payment Collection", vertical,
-                               queue_path=queue)
+                               queue=queue)
     clash = so.record_reviewer_synonym("Smart Collections", "Renewal", vertical,
-                                       queue_path=queue)
+                                       queue=queue)
     unknown = so.record_reviewer_synonym("Anything", "No Such Concept", vertical,
-                                         queue_path=queue)
+                                         queue=queue)
     print("    second concept refused=%s | unknown concept refused=%s"
           % (not clash, not unknown))
     assert not clash, (

@@ -19,6 +19,11 @@ import industry_profiler as ip
 import vertical_store
 
 
+def mirrored(remote, vertical_id="billing_ops"):
+    payload = graph_archive.open_archive(remote).get(vertical_id + ".json")
+    return json.loads(payload.decode("utf-8")) if payload else None
+
+
 @contextlib.contextmanager
 def patched(*swaps):
     saved = [(mod, name, getattr(mod, name)) for mod, name, _ in swaps]
@@ -67,10 +72,70 @@ def a_profile(vertical_id="billing_ops", **extra):
 
 def test_a_written_profile_reaches_the_mirror():
     with store() as (local, remote):
-        location = vertical_store.publish("billing_ops", a_profile())
-        assert location, "publish reported no destination"
-        mirrored = graph_archive.open_archive(remote).get("billing_ops.json")
-        assert json.loads(mirrored.decode("utf-8"))["display_name"] == "Billing Operations"
+        written = vertical_store.update("billing_ops", lambda current: a_profile())
+        assert written["display_name"] == "Billing Operations"
+        assert mirrored(remote)["display_name"] == "Billing Operations"
+        with open(os.path.join(local, "billing_ops.json"), encoding="utf-8") as fh:
+            assert json.load(fh) == written, "local copy and mirror disagree"
+
+
+def test_a_concurrent_change_is_reapplied_not_lost():
+    """Two writers, one profile: the one that loses the race re-reads and re-applies,
+    so both contributions survive. Last-writer-wins kept only one."""
+    with store() as (local, remote):
+        archive = graph_archive.open_archive(remote)
+        archive.put("billing_ops.json", json.dumps(a_profile(known_integrations=["NetSuite"])).encode())
+        calls = []
+
+        def add_stripe(current):
+            calls.append(list(current["known_integrations"]))
+            if len(calls) == 1:
+                # Another instance writes between our read and our write.
+                archive.put("billing_ops.json",
+                            json.dumps(a_profile(known_integrations=["NetSuite", "Xero"])).encode())
+            current["known_integrations"].append("Stripe")
+            return current
+
+        vertical_store.update("billing_ops", add_stripe)
+
+        assert calls == [["NetSuite"], ["NetSuite", "Xero"]], calls
+        assert mirrored(remote)["known_integrations"] == ["NetSuite", "Xero", "Stripe"]
+
+
+def test_a_mirror_that_keeps_changing_fails_loudly():
+    with store() as (local, remote):
+        archive = graph_archive.open_archive(remote)
+        archive.put("billing_ops.json", json.dumps(a_profile()).encode())
+        n = [0]
+
+        def always_raced(current):
+            n[0] += 1
+            archive.put("billing_ops.json", json.dumps(a_profile(display_name=str(n[0]))).encode())
+            return dict(current, display_name="mine")
+
+        with patched((vertical_store.time, "sleep", lambda s: None)):
+            try:
+                vertical_store.update("billing_ops", always_raced)
+            except vertical_store.MirrorWriteError:
+                pass
+            else:
+                raise AssertionError("a write that never landed reported success")
+        assert n[0] == vertical_store.UPDATE_ATTEMPTS
+        assert mirrored(remote)["display_name"] != "mine"
+
+
+def test_declining_writes_nothing():
+    with store(profiles=[a_profile()]) as (local, remote):
+        assert vertical_store.update("billing_ops", lambda current: None) is None
+        assert mirrored(remote) is None
+
+
+def test_a_profile_only_local_is_published_by_its_first_update():
+    """A profile shipped in the image is the starting point when the mirror lacks it."""
+    with store(profiles=[a_profile()]) as (local, remote):
+        vertical_store.update("billing_ops", lambda current: dict(current, display_name="Billing"))
+        assert mirrored(remote)["known_integrations"] == ["NetSuite"]
+        assert mirrored(remote)["display_name"] == "Billing"
 
 
 def test_a_profile_only_the_mirror_has_is_pulled_down():
@@ -118,20 +183,36 @@ def test_no_mirror_configured_is_not_an_error():
     """Local-only is the correct configuration for development."""
     with patched((vertical_store, "MIRROR_URI", "")):
         assert vertical_store.mirror() is None
-        assert vertical_store.publish("billing_ops", a_profile()) is None
         assert vertical_store.sync_down(force=True) == []
+        local = tempfile.mkdtemp(prefix="ontoleap_local_")
+        try:
+            path = os.path.join(local, "billing_ops.json")
+            assert vertical_store.update("billing_ops", lambda c: a_profile(), path=path)
+            assert vertical_store.read_local(path)["vertical_id"] == "billing_ops"
+        finally:
+            shutil.rmtree(local, ignore_errors=True)
 
 
-def test_an_unreachable_mirror_costs_durability_not_the_service():
+def test_an_unreachable_mirror_fails_the_write_not_the_service():
+    """Reads degrade to the local copy. A write does not: kept only locally, the next
+    sync would replace it with the mirror's copy, so it is refused out loud instead."""
     class Broken:
         def list(self): raise RuntimeError("network gone")
-        def put(self, key, payload): raise RuntimeError("network gone")
+        def get_versioned(self, key): raise RuntimeError("network gone")
+        def put_if(self, key, payload, version): raise RuntimeError("network gone")
         def describe(self): return "broken"
 
-    with store():
+    with store(profiles=[a_profile()]) as (local, remote):
         with patched((vertical_store, "mirror", lambda: Broken())):
-            assert vertical_store.publish("billing_ops", a_profile()) is None
             assert vertical_store.sync_down(force=True) == []
+            try:
+                vertical_store.update("billing_ops", lambda c: dict(c, display_name="changed"))
+            except vertical_store.MirrorWriteError:
+                pass
+            else:
+                raise AssertionError("an unmirrored write reported success")
+        with open(os.path.join(local, "billing_ops.json"), encoding="utf-8") as fh:
+            assert json.load(fh)["display_name"] == "Billing Operations", "changed locally anyway"
 
 
 def test_a_container_without_a_mirror_says_so():
@@ -183,12 +264,16 @@ def test_discovery_writes_survive_for_the_next_instance():
 
 TESTS = [
     test_a_written_profile_reaches_the_mirror,
+    test_a_concurrent_change_is_reapplied_not_lost,
+    test_a_mirror_that_keeps_changing_fails_loudly,
+    test_declining_writes_nothing,
+    test_a_profile_only_local_is_published_by_its_first_update,
     test_a_profile_only_the_mirror_has_is_pulled_down,
     test_a_local_only_profile_is_left_alone,
     test_a_corrupt_mirrored_object_does_not_replace_a_working_profile,
     test_syncing_is_rate_limited,
     test_no_mirror_configured_is_not_an_error,
-    test_an_unreachable_mirror_costs_durability_not_the_service,
+    test_an_unreachable_mirror_fails_the_write_not_the_service,
     test_a_container_without_a_mirror_says_so,
     test_outside_a_container_silence_is_correct,
     test_discovery_writes_survive_for_the_next_instance,

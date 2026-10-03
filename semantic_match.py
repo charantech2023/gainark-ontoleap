@@ -225,7 +225,7 @@ def find_candidates(terms: Sequence[str], concepts: Sequence[Any],
 
 
 def propose_from_alignment(alignment: Any, industry: Any, brand: str,
-                           queue_path: Optional[str] = None) -> Dict[str, Any]:
+                           queue: Any = None) -> Dict[str, Any]:
     """Queue candidates from one alignment for review. Never raises.
 
     The inputs are the alignment's own lists: proprietary concepts are the site's words
@@ -254,21 +254,23 @@ def propose_from_alignment(alignment: Any, industry: Any, brand: str,
         if not candidates:
             return stats
 
-        import sector_ontology
-        queue_path = queue_path or sector_ontology._candidates_path()
-        queue = sector_ontology._load_candidates(queue_path)
+        from synonym_queue import default_queue, entry_key
+        queue = queue or default_queue()
+        current = queue.load(force=True)
+        vertical_id = getattr(industry, "vertical_id", None)
+        proposals: Dict[str, Dict[str, Any]] = {}
         for cand in candidates:
             # Keyed as propose_alt_labels keys its own, so an approval through
             # record_reviewer_synonym - which matches on surface_form - closes either.
-            key = "%s|%s" % (cand.concept.strip().lower(), cand.surface_form.strip().lower())
-            if key in queue:
+            key = entry_key(cand.concept, cand.surface_form, vertical_id)
+            if key in current or key in proposals:
                 stats["already_queued"] += 1
                 continue
-            queue[key] = {
+            proposals[key] = {
                 "surface_form": cand.surface_form,
                 "generated_canonical": cand.concept,
                 "brand": brand,
-                "status": "pending",
+                "vertical_id": vertical_id,
                 "method": "embedding",
                 "model": model_name(),
                 "score": cand.score,
@@ -276,10 +278,9 @@ def propose_from_alignment(alignment: Any, industry: Any, brand: str,
                 "margin": cand.margin,
                 "closes_gap": cand.closes_gap,
             }
-            stats["proposed"] += 1
-            stats["closes_gap"] += int(cand.closes_gap)
-        if stats["proposed"]:
-            sector_ontology._save_candidates(queue_path, queue)
+        written = set(queue.propose(proposals)) if proposals else set()
+        stats["proposed"] = len(written)
+        stats["closes_gap"] = sum(int(proposals[k]["closes_gap"]) for k in written)
         logger.info("Semantic proposals for %s: %d new (%d would close a reported gap), "
                     "%d already queued, from %d unplaced terms.",
                     brand, stats["proposed"], stats["closes_gap"],

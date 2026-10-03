@@ -1252,40 +1252,28 @@ def save_vertical_configuration(
     }
 
     # Another instance may hold a newer copy of this profile, and merging onto a stale
-    # local one silently drops whatever it contributed.
-    try:
-        import vertical_store
-        vertical_store.sync_down()
-    except Exception as err:
-        logger.warning("Could not refresh verticals before writing: %s", err)
+    # one silently drops whatever it contributed - so the merge runs inside
+    # vertical_store.update(), against the mirror's copy, and again if it loses a race.
+    import vertical_store
+    modes: List[str] = []
 
-    existing: Optional[Dict[str, Any]] = None
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, encoding="utf-8") as f:
-                loaded = json.load(f)
-            if isinstance(loaded, dict):
-                existing = loaded
-            else:
-                logger.warning("Existing profile %s is not an object; replacing it.", config_path)
-        except Exception as err:
-            # Unreadable is treated as absent, but never silently: a profile that cannot be
-            # parsed is also a profile whose curated content cannot be protected.
-            logger.warning("Could not read existing profile %s (%s); replacing it.", config_path, err)
-
-    config_data, write_mode = merge_profile(existing, config_data, matched_existing=matched_existing)
-
-    with open(config_path, "w", encoding="utf-8") as f:
-        json.dump(config_data, f, indent=2)
+    def merge(existing: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        merged, mode = merge_profile(existing, config_data, matched_existing=matched_existing)
+        modes.append(mode)
+        return merged
 
     try:
-        import vertical_store
-        mirrored = vertical_store.publish(clean_id, config_data)
-        if mirrored:
-            logger.info("Vertical %r is durable at %s", clean_id, mirrored)
-    except Exception as err:
-        # Durability is not worth failing a write that already succeeded on disk.
-        logger.error("Could not mirror vertical %r: %s", clean_id, err)
+        vertical_store.update(clean_id, merge, path=config_path)
+    except vertical_store.MirrorWriteError as err:
+        # Discovery is not failed for it: the run is archived and can be repeated. But a
+        # local-only profile is replaced by the mirror's on the next sync, so say so.
+        logger.error("Vertical %r was NOT made durable and will revert on the next sync: %s",
+                     clean_id, err)
+        merged, mode = merge_profile(vertical_store.read_local(config_path), config_data,
+                                     matched_existing=matched_existing)
+        modes.append(mode)
+        vertical_store.write_local(config_path, merged)
+    write_mode = modes[-1]
 
     logger.info("Saved dynamic vertical config to %s (%s)", config_path, write_mode)
     if write_mode == "merged-into-curated":

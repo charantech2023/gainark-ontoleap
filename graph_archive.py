@@ -19,6 +19,11 @@ by construction - no locking, no leader, no transactions across instances. Only 
 ontology object is rewritten, and it is derived from the vertical profile, so
 last-write-wins is the correct resolution rather than a compromise.
 
+An object that accumulates - a vertical profile - is different: last-write-wins there
+drops whatever the losing writer contributed. For those, get_versioned() and put_if()
+are a compare-and-swap: the write lands only if nobody has written since the read, and
+the caller re-reads and retries otherwise.
+
 Backends
 --------
 DirectoryArchive  a filesystem path. Use for local runs, and on Cloud Run for a
@@ -32,11 +37,13 @@ right behaviour locally and the wrong one in a container, so warn_if_ephemeral()
 to say so out loud rather than let it pass unnoticed.
 """
 
+import hashlib
 import io
 import json
 import logging
 import os
 import re
+import time
 from typing import Dict, List, Optional, Tuple
 
 from rdflib import Graph
@@ -88,12 +95,54 @@ class DirectoryArchive:
         except FileNotFoundError:
             return None
 
+    # A file has no generation number, so its version is a digest of what it holds, and
+    # the check-then-write is made atomic by a lock file beside it. The lock only has to
+    # hold for one write, so one older than LOCK_STALE_SECONDS is a crashed writer's.
+    LOCK_STALE_SECONDS = 30
+
+    def get_versioned(self, key: str) -> Tuple[Optional[bytes], Optional[str]]:
+        """The object and a version for put_if(). (None, None) when there is none."""
+        payload = self.get(key)
+        return payload, (hashlib.sha256(payload).hexdigest() if payload is not None else None)
+
+    def put_if(self, key: str, payload: bytes, version: Optional[str]) -> bool:
+        """Write only if the object is still at `version` (None: still absent).
+        False when someone wrote in between."""
+        path = self._path(key)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        lock = path + ".lock"
+        deadline = time.monotonic() + 5
+        while True:
+            try:
+                os.close(os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+                break
+            except FileExistsError:
+                try:
+                    if time.time() - os.path.getmtime(lock) > self.LOCK_STALE_SECONDS:
+                        os.remove(lock)
+                        continue
+                except FileNotFoundError:
+                    continue
+                if time.monotonic() > deadline:
+                    raise TimeoutError("archive object %r is locked" % key)
+                time.sleep(0.01)
+        try:
+            if self.get_versioned(key)[1] != version:
+                return False
+            self.put(key, payload)
+            return True
+        finally:
+            try:
+                os.remove(lock)
+            except FileNotFoundError:
+                pass
+
     def list(self, prefix: str = "") -> List[str]:
         base = self.root
         found = []
         for dirpath, _dirs, files in os.walk(base):
             for name in files:
-                if name.endswith(".partial"):
+                if name.endswith((".partial", ".lock")):
                     continue
                 rel = os.path.relpath(os.path.join(dirpath, name), base).replace(os.sep, "/")
                 if rel.startswith(prefix):
@@ -130,6 +179,36 @@ class GcsArchive:
     def get(self, key: str) -> Optional[bytes]:
         blob = self._blob(key)
         return blob.download_as_bytes() if blob.exists() else None
+
+    def get_versioned(self, key: str) -> Tuple[Optional[bytes], Optional[int]]:
+        """The object and its generation, for put_if(). (None, None) when there is none."""
+        from google.api_core.exceptions import NotFound, PreconditionFailed
+        name = self._blob(key).name
+        for _ in range(10):
+            blob = self._bucket.get_blob(name)
+            if blob is None:
+                return None, None
+            try:
+                # Pinned to the generation just read: a write landing between the two
+                # calls would otherwise pair new bytes with the old generation.
+                return blob.download_as_bytes(if_generation_match=blob.generation), blob.generation
+            except (NotFound, PreconditionFailed):
+                # It changed underneath us; read again. GCS answers a superseded
+                # generation with 404, not 412 - the blob carries its generation, so
+                # the download asks for that exact version, which no longer exists.
+                continue
+        raise RuntimeError("archive object %r kept changing while being read" % key)
+
+    def put_if(self, key: str, payload: bytes, version: Optional[int]) -> bool:
+        """Write only if the object is still at generation `version` (None: still
+        absent). False when someone wrote in between."""
+        from google.api_core.exceptions import PreconditionFailed
+        try:
+            # Generation 0 is GCS's "must not exist yet".
+            self._blob(key).upload_from_string(payload, if_generation_match=version or 0)
+            return True
+        except PreconditionFailed:
+            return False
 
     def list(self, prefix: str = "") -> List[str]:
         full = "%s/%s" % (self.prefix, prefix) if self.prefix else prefix

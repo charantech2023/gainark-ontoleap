@@ -19,6 +19,8 @@ from types import SimpleNamespace
 import torch
 
 import semantic_match as sm
+from graph_archive import DirectoryArchive
+from synonym_queue import SynonymQueue
 from models import IndustryConcept
 
 
@@ -72,7 +74,7 @@ class WithFakeEncoder(unittest.TestCase):
         sm.encode = fake_encode
         self.saved_switch = os.environ.pop("ONTOLEAP_SEMANTIC_MATCH", None)
         self.tmp = tempfile.mkdtemp()
-        self.queue = os.path.join(self.tmp, "alt_label_candidates.json")
+        self.queue = SynonymQueue(DirectoryArchive(self.tmp))
 
     def tearDown(self):
         sm.encode = self.real_encode
@@ -83,10 +85,7 @@ class WithFakeEncoder(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def queued(self):
-        if not os.path.exists(self.queue):
-            return {}
-        with open(self.queue, encoding="utf-8") as fh:
-            return json.load(fh)
+        return self.queue.load(force=True)
 
 
 class FindCandidatesTest(WithFakeEncoder):
@@ -162,7 +161,7 @@ class ProposeFromAlignmentTest(WithFakeEncoder):
     def test_a_candidate_lands_in_the_review_queue_with_its_reasons(self):
         stats = sm.propose_from_alignment(
             self.alignment(["failed payment retries", "SOC audit report"], whitespace=["Dunning"]),
-            self.industry(), brand="acme.com", queue_path=self.queue)
+            self.industry(), brand="acme.com", queue=self.queue)
         self.assertEqual(stats["proposed"], 1)
         self.assertEqual(stats["closes_gap"], 1)
         entry = self.queued()["dunning|failed payment retries"]
@@ -176,50 +175,50 @@ class ProposeFromAlignmentTest(WithFakeEncoder):
 
     def test_nothing_is_queued_twice(self):
         args = (self.alignment(["failed payment retries"]), self.industry())
-        sm.propose_from_alignment(*args, brand="acme.com", queue_path=self.queue)
-        stats = sm.propose_from_alignment(*args, brand="acme.com", queue_path=self.queue)
+        sm.propose_from_alignment(*args, brand="acme.com", queue=self.queue)
+        stats = sm.propose_from_alignment(*args, brand="acme.com", queue=self.queue)
         self.assertEqual(stats["proposed"], 0)
         self.assertEqual(stats["already_queued"], 1)
         self.assertEqual(len(self.queued()), 1)
 
     def test_an_existing_queue_entry_is_kept(self):
-        with open(self.queue, "w", encoding="utf-8") as fh:
-            json.dump({"other|x": {"surface_form": "x", "status": "approved"}}, fh)
+        self.queue.propose({"other|x": {"surface_form": "x"}})
+        self.queue.approve("x", "Other")
         sm.propose_from_alignment(self.alignment(["failed payment retries"]), self.industry(),
-                                  brand="acme.com", queue_path=self.queue)
+                                  brand="acme.com", queue=self.queue)
         self.assertEqual(self.queued()["other|x"]["status"], "approved")
         self.assertEqual(len(self.queued()), 2)
 
     def test_a_cold_vertical_says_why_it_proposed_nothing(self):
         stats = sm.propose_from_alignment(self.alignment(["failed payment retries"]),
                                           self.industry(concepts=[]),
-                                          brand="acme.com", queue_path=self.queue)
+                                          brand="acme.com", queue=self.queue)
         self.assertEqual(stats["proposed"], 0)
         self.assertIn("no concept layer", stats["skipped"])
         stats = sm.propose_from_alignment(self.alignment(["failed payment retries"]),
                                           self.industry(concepts=[concept("Dunning")]),
-                                          brand="acme.com", queue_path=self.queue)
+                                          brand="acme.com", queue=self.queue)
         self.assertIn("definition", stats["skipped"])
-        self.assertFalse(os.path.exists(self.queue))
+        self.assertEqual(self.queued(), {})
 
     def test_it_never_raises(self):
         def broken(texts):
             raise RuntimeError("encoder exploded")
         sm.encode = broken
         stats = sm.propose_from_alignment(self.alignment(["failed payment retries"]),
-                                          self.industry(), brand="acme.com", queue_path=self.queue)
+                                          self.industry(), brand="acme.com", queue=self.queue)
         self.assertIn("encoder exploded", stats["error"])
 
     def test_an_approval_closes_the_candidate(self):
         """The reviewer's path: record_reviewer_synonym matches on surface_form."""
         import sector_ontology
         sm.propose_from_alignment(self.alignment(["failed payment retries"]), self.industry(),
-                                  brand="acme.com", queue_path=self.queue)
+                                  brand="acme.com", queue=self.queue)
         vertical = os.path.join(self.tmp, "billing.json")
         with open(vertical, "w", encoding="utf-8") as fh:
             json.dump({"concepts": [{"id": "dunning", "prefLabel": "Dunning", "altLabels": []}]}, fh)
         self.assertTrue(sector_ontology.record_reviewer_synonym(
-            "failed payment retries", "Dunning", vertical, queue_path=self.queue))
+            "failed payment retries", "Dunning", vertical, queue=self.queue))
         self.assertEqual(self.queued()["dunning|failed payment retries"]["status"], "approved")
         with open(vertical, encoding="utf-8") as fh:
             self.assertIn("failed payment retries", json.load(fh)["concepts"][0]["altLabels"])
