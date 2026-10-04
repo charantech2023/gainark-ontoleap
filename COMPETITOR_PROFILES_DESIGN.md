@@ -286,3 +286,32 @@ they become the competitor's buyer situations (BUYER_SITUATIONS_DESIGN.md phase 
   `not_read`, never `not_found`. Recurly needs an approved source, not a way past the block.
 - **Maxio's customer stories were barely found** (2 URLs): its stories do not sit under a
   path the planner classifies as `customers`. To check before Maxio's buyer side is used.
+
+## 14. Phase 3 as built
+
+`competitor_matrix.py` and `GET /api/competitor-matrix?domain=…[&vertical_id=…][&concept=…]`,
+4 Oct 2026. Computed on request from the latest stored run of each domain; nothing is
+stored or crawled. The domain is required, as on `/api/kg/history`.
+
+A claim is a reified statement in the run whose subject is the company's brand node and
+whose object is a concept URI, so `claimed` carries its predicate, sentence and page.
+`mentioned` is a concept URI present in the run graph that no claim of the brand names.
+The run graph does not keep unresolved mentions (site_graph leaves them out of the
+export), so `mentioned` is a floor.
+
+First reading, ordwaylabs.com against Maxio, Zuora and Recurly, each read for 25 pages in
+the dev brain with the same crawler:
+
+| | Ordway | Maxio | Zuora | Recurly |
+|---|---|---|---|---|
+| claimed | 71 | 58 | 56 | — |
+| mentioned | 10 | 12 | 7 | — |
+| not_found | 30 | 41 | 48 | — |
+| not_read | 0 | 0 | 0 | 111 |
+| determinate share (§9.2) | 73% | 63% | 57% | 0% |
+
+Verdicts over 111 concepts: customer_only 7, competitor_only 6, both 64, neither 34.
+
+Seen while reading the cells, before the §9.1 review: a negated sentence counted as a claim
+("Unlike traditional software with fixed per-seat pricing" -> Per-Seat Pricing), and a row
+of an integrations table read as a feature (Single Sign-On from "Okta, LastPass").

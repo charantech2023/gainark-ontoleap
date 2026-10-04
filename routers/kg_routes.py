@@ -20,6 +20,7 @@ from link_prediction import predict_kg_links
 from graph_export import generate_standalone_graph_html
 from scraper import validate_url_for_fetch
 from routers.deps import get_pipeline
+from security import is_valid_vertical_id
 from models import (
     SemanticTriple,
     SparqlQueryRequest,
@@ -622,6 +623,38 @@ async def api_build_site_kg(req: SiteKGRequest):
     except Exception as e:
         logger.error("[API SiteKG] Failed to synthesize site graph: %s", e)
         raise HTTPException(status_code=500, detail=f"Site knowledge graph synthesis failed: {str(e)}")
+
+
+@router.get("/api/competitor-matrix", summary="What A Site And Its Competitors Claim, Concept By Concept")
+def api_competitor_matrix(
+    domain: str = Query(..., min_length=1, max_length=253),
+    vertical_id: Optional[str] = Query(None, description="Defaults to the vertical of the site's buyer profile"),
+    concept: Optional[str] = Query(None, max_length=200, description="One concept, by label or id"),
+):
+    """
+    One row per concept of the vertical, one cell per company: the site, then every
+    competitor in its competitor set. A cell is claimed (with the sentence and the page),
+    mentioned, not_found in the pages read, or not_read when the company has no usable run.
+    Read from stored runs; nothing is crawled.
+    """
+    import buyer_profiles
+    import competitor_matrix
+    target = buyer_profiles.domain_key(domain)
+    if not target:
+        raise HTTPException(status_code=422, detail="domain must be a site's host name.")
+    if not vertical_id:
+        vertical_id = (buyer_profiles.load(target) or {}).get("vertical_id")
+    if not vertical_id or not is_valid_vertical_id(vertical_id):
+        raise HTTPException(status_code=422, detail=(
+            "No vertical for %s: run discovery on it, or pass vertical_id." % target))
+    try:
+        return competitor_matrix.matrix(target, vertical_id, concept=concept)
+    except ValueError:
+        # load_industry_ontology's answer for a vertical it has no profile for.
+        raise HTTPException(status_code=404, detail="Vertical %r not found." % vertical_id)
+    except Exception as e:
+        logger.error("[API Competitor Matrix] %s: %s", target, e)
+        raise HTTPException(status_code=503, detail="The competitor matrix is unavailable.")
 
 
 @router.get("/api/kg/history", summary="List Stored Audit Runs For A Domain")
