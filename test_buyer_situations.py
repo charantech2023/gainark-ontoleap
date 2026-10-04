@@ -125,6 +125,28 @@ class PainTypeTest(unittest.TestCase):
         for quote, expected in cases.items():
             self.assertEqual(bs.classify_pain(quote), expected, quote)
 
+    def test_competitor_stories_in_enterprise_wording(self):
+        # Customer stories on zuora.com, hibob.com and maxio.com, read 4 Oct 2026.
+        cases = {
+            "It simply wasn't sustainable. We couldn't hire finance staff fast enough and our "
+            "customers demanded a better way.": ["cannot-scale"],
+            "These are effective for one-time charges but are not capable of managing recurring "
+            "revenue models.": ["missing-capability"],
+            "With their old legacy billing system, it was a challenge to access customer info.":
+                ["missing-capability"],
+            "CTS's finance team needed to manage high-volume, repetitive billing work.":
+                ["manual-effort"],
+            "VaynerMedia managed their performance reviews using Google Docs, which was neither "
+            "efficient nor effective.": ["manual-effort"],
+            "Auror's People Team hadn't had positive experiences with HRIS in the past, finding "
+            "them clunky and not user-friendly.": ["vendor-support-fit"],
+            "Sendspark's 180 degree flip from not being able to charge customers to immediate "
+            "revenue.": ["missing-capability"],
+            "The existing system was unscalable.": ["cannot-scale"],
+        }
+        for quote, expected in cases.items():
+            self.assertEqual(bs.classify_pain(quote), expected, quote)
+
     def test_a_pain_facet_carries_its_types_from_the_quote(self):
         s = bs.from_story(story(pain="manual effort for billing",
                                 quotes={"pain": "The process required a lot of manual effort."}),
@@ -238,6 +260,7 @@ class NamesTest(unittest.TestCase):
     def test_a_function_acronym_is_not_a_company(self):
         text = "spreadsheets and paper for HR processes, then ADP for payroll"
         self.assertEqual(bs.unresolved_names(text, []), ["ADP"])
+        self.assertEqual(bs.unresolved_names("a PLG motion and MS Word templates", []), ["MS Word"])
         s = bs.from_story(story(before="paper files and HR spreadsheets"), "acme.example", vocab())
         self.assertEqual({n.id for n in s.facets[0].names}, {"paper", "spreadsheets"})
 
