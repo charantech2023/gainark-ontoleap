@@ -829,6 +829,10 @@ def persist_site_kg(site_kg: SiteKnowledgeGraph, vertical_id: str) -> Optional[D
             domain=site_kg.domain, vertical_id=vertical_id,
             metadata=json.dumps({
                 "pages_crawled": site_kg.pages_crawled,
+                # The budget the crawl was given, beside what it read: the competitor
+                # matrix compares runs made at the same budget, and a 25-page crawl that
+                # found only 22 readable pages is still a 25-page crawl.
+                "pages_requested": site_kg.pages_requested,
                 "nodes": len(site_kg.nodes),
                 "edges": len(site_kg.edges),
             }),
