@@ -98,7 +98,10 @@ PAIN_TYPES: List[Tuple[str, str]] = [
     ("revenue-leakage", r"lost revenue|losing revenue|revenue (?:loss|leak)|leakage|under-?bill|"
                         r"missed (?:billing|charges|revenue)"),
     ("vendor-support-fit", r"support from|hard to get support|get support|fit into (?:their|the)|"
-                           r"didn'?t want to deal|not (?:flexible|responsive)|rigid"),
+                           r"didn'?t want to deal|not (?:flexible|responsive)|rigid|"
+                           # How a buyer says a tool did not fit them: "HRIS were clunky, not
+                           # user-friendly" (hibob.com, 4 Oct 2026).
+                           r"clunky|not user[- ]friendly|hard to use|difficult to use|cumbersome"),
     ("errors-accuracy", r"\berrors?\b|error-prone|mistakes?|inaccura|\bwrong\b"),
     ("slow-cycle", r"\b\d+\s*(?:days?|weeks?)\b|\b(?:two|three|four|several) (?:days|weeks)\b|"
                    r"weeks to|days to|took (?:too )?long|delay|\bslow\b|close the books|"
@@ -107,14 +110,26 @@ PAIN_TYPES: List[Tuple[str, str]] = [
                    # day a month sorting HR documents" (crbr, bamboohr.com, 4 Oct 2026).
                    r"(?:entire|whole|full) (?:whole )?(?:day|week)|"
                    r"\bhours? (?:a|each|every|per) (?:day|week|month)"),
-    ("cannot-scale", r"\bscal|unwieldy|outgr|keep up|not powerful enough|"
+    # "scal" anywhere in a word: "unscalable" and "scalability" are the same complaint as
+    # "doesn't scale" (zuora.com's customer stories, 4 Oct 2026).
+    ("cannot-scale", r"scal(?:e|ing|able|ability)|unwieldy|outgr|keep up|not powerful enough|"
+                     r"unsustainable|(?:not|n'?t|n’t) sustainable|out of control|fast enough|keep pace|"
                      r"(?:became|become|becoming|got|gotten|getting|grew) (?:all )?"
                      r"(?:more |increasingly )?(?:complicated|complex)|"
                      r"(?:could not|couldn'?t|not able to) handle|as (?:the company |we )?gr[eo]w"),
     ("manual-effort", r"\bmanual|by hand|time-consuming|re-?key|spreadsheet|\bexcel\b|"
-                      r"\bpaper|sorting|data entry|re-?enter"),
-    ("missing-capability", r"not able to|was not able|could not|couldn'?t|did not support|"
-                           r"lacked|no way to|not the best platform|not suitable"),
+                      r"\bpaper|sorting|data entry|re-?enter|repetitive|"
+                      r"consumed (?:\w+ )?(?:time|hours)|inefficient|(?:neither|not) efficient"),
+    # "Could not" only before something a system does: "we couldn't hire finance staff fast
+    # enough" (zuora.com) is a growth pain, not a missing capability.
+    ("missing-capability", r"not able to|was not able|did not support|"
+                           r"(?:could not|couldn'?t|couldn’t) (?:\w+ly )?(?:handle|support|do|automate|"
+                           r"calculate|manage|integrate|track|bill|charge|perform|process|invoice|"
+                           r"report|connect|accommodate)|"
+                           r"lacked|no way to|not the best platform|not suitable|"
+                           r"not capable|incapable|unable to|no support for|not being able to|"
+                           r"not supporting|(?:challenge|difficult|difficulty|hard) (?:to )?access|"
+                           r"no visibility"),
 ]
 
 # Ways of working a buyer leaves behind, as LegacyWorkflow values.
@@ -258,7 +273,7 @@ def unresolved_names(text: str, named: List[Named]) -> List[str]:
         # Category and function acronyms are not companies: "HR" was a registry candidate
         # on bamboohr.com. A vendor written in capitals (ADP, SAP) is not in this list.
         if not re.fullmatch(r"(?:B2B2?C?|SaaS|ERP|CRM|AR|AP|HR|HRIS|HCM|IT|ATS|LMS|PTO|PEO|EOR|"
-                            r"CEO|CFO|COO|CTO|CIO|CHRO|API|AI)", name):
+                            r"CEO|CFO|COO|CTO|CIO|CHRO|API|AI|PLG|SLG|GTM|SMB|SME)", name):
             out.append(name)
     return out
 
