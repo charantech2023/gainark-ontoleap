@@ -62,18 +62,37 @@ def story(quotes=None, **parts):
 
 class ClassifyTest(unittest.TestCase):
 
-    def test_roles(self):
-        self.assertEqual(bs.classify_role("fractional CFO"), "fractional-cfo")
-        self.assertEqual(bs.classify_role("CFO"), "cfo")
-        self.assertEqual(bs.classify_role("Director of Accounting"), "director-of-accounting")
-        self.assertEqual(bs.classify_role("Controller"), "controller")
-        self.assertIsNone(bs.classify_role("billing specialist"))
+    def test_roles_are_function_and_level(self):
+        # Ordway's buyers (3 Oct 2026) and bamboohr.com's (4 Oct), one vocabulary for both.
+        cases = {
+            "David Sheen, CFO, Vestwell": "finance/c-level",
+            "Fractional CFO for CaliberMind": "finance/c-level",
+            "Liz Hanson, CMA Director of Accounting at HappyCo": "accounting/director",
+            "Kari Lemke Controller, Yardstik": "accounting/director",
+            "Conor O'Donoghue Head of Finance at Ocrolus": "finance/head",
+            "Revenue Operations Specialist": "revops/staff",
+            "Lisa Scian, VP of People and Culture at ProntoForms": "people/vp",
+            "Josie Keucke, People and Culture Manager at Civtec": "people/manager",
+            "an HR leader": "people/unspecified",
+            "billing specialist": "unspecified/staff",
+        }
+        for text, expected in cases.items():
+            self.assertEqual(bs.classify_role(text), expected, text)
+        self.assertIsNone(bs.classify_role("the team"))
+
+    def test_the_sign_off_beats_a_shortened_summary(self):
+        s = bs.from_story(story(role="people", quotes={
+            "role": "Josie Keucke, People and Culture Manager at Civtec"}), "acme.example", vocab())
+        self.assertEqual([n.id for n in s.facets[0].names], ["people/manager"])
 
     def test_triggers(self):
         self.assertEqual(bs.classify_trigger("expanded into B2B and B2B2C"), "new-business-model")
         self.assertEqual(bs.classify_trigger("was migrating to NetSuite"), "erp-change")
         self.assertEqual(bs.classify_trigger("volume of changes to customer contracts"), "new-deal-types")
         self.assertEqual(bs.classify_trigger("adding more customers and revenue"), "growth-in-volume")
+        self.assertEqual(bs.classify_trigger(
+            "Today, Civtec has more than quadrupled its workforce and added branches."),
+            "growth-in-volume")
 
 
 class PainTypeTest(unittest.TestCase):
@@ -95,6 +114,13 @@ class PainTypeTest(unittest.TestCase):
             "Processes such as subscription management, monthly billing, and revenue "
             "recognition became more complicated in a B2B environment.":
                 ["cannot-scale"],
+            "Processes such as subscription management, monthly billing, and revenue "
+            "recognition have all gotten more complicated in a B2B environment.":
+                ["cannot-scale"],
+            # bamboohr.com, 4 Oct 2026: an HR team's pain, in an HR team's words.
+            "That was something I had to spend an entire whole day a month on, sorting "
+            "through paper files.":
+                ["slow-cycle", "manual-effort"],
         }
         for quote, expected in cases.items():
             self.assertEqual(bs.classify_pain(quote), expected, quote)
@@ -148,6 +174,32 @@ class ProposalTest(unittest.TestCase):
                          ("pending", "b2b_saas_fintech", "situation"))
         self.assertEqual(entry["quote"], "We said: a system to support evolving pricing models.")
 
+    def test_only_a_missing_capability_pain_is_proposed(self):
+        grew = bs.from_story(story(pain="growth made billing hard", quotes={
+            "pain": "As the company grew and added customers, billing was hard to scale."}),
+            "acme.example", vocab())
+        lacked = bs.from_story(story(pain="could not handle parent accounts", quotes={
+            "pain": "The old system could not handle parent accounts."}), "acme.example", vocab())
+        tried = []
+        bs.propose_concepts([grew, lacked], "b2b_saas_fintech", CONCEPTS,
+                            find=lambda spans, c: tried.extend(spans) or [])
+        self.assertIn("parent accounts", tried)
+        self.assertFalse([t for t in tried if "customers" in t], "a growth pain proposed a concept")
+
+    def test_terms_come_from_the_quote_too(self):
+        # Civtec, bamboohr.com, 4 Oct 2026: the summary said "time tracking", the quote
+        # said "clock in and clock out".
+        s = bs.from_story(story(
+            need="a system for leave and time tracking",
+            quotes={"need": "She wanted a system staff could use to apply for leave and "
+                            "clock in and clock out from a single portal."}),
+            "acme.example", vocab())
+        tried = []
+        bs.propose_concepts([s], "hr_payroll_benefits", CONCEPTS,
+                            find=lambda spans, c: tried.extend(spans) or [])
+        self.assertIn("clock out", tried)
+        self.assertNotIn("time tracking", tried, "the quote never says it")
+
     def test_a_facet_already_naming_a_concept_is_not_proposed(self):
         s = bs.from_story(story(need="rev rec automation"), "ordway.example", vocab())
         self.assertEqual(bs.propose_concepts([s], "b2b_saas_fintech", CONCEPTS,
@@ -183,6 +235,12 @@ class NamesTest(unittest.TestCase):
         text = "used QuickBooks Online and Recurly"
         self.assertEqual(bs.unresolved_names(text, v.names_in(text)), ["Recurly"])
 
+    def test_a_function_acronym_is_not_a_company(self):
+        text = "spreadsheets and paper for HR processes, then ADP for payroll"
+        self.assertEqual(bs.unresolved_names(text, []), ["ADP"])
+        s = bs.from_story(story(before="paper files and HR spreadsheets"), "acme.example", vocab())
+        self.assertEqual({n.id for n in s.facets[0].names}, {"paper", "spreadsheets"})
+
 
 class FromStoryTest(unittest.TestCase):
 
@@ -194,7 +252,7 @@ class FromStoryTest(unittest.TestCase):
             need="a flexible billing system for usage-based billing"), "ordway.example", vocab())
         by = {f.predicate: f for f in s.facets}
         self.assertEqual(set(by), {"buyerIs", "buyerRole", "usedBefore", "triggeredBy", "sufferedFrom", "needed"})
-        self.assertEqual([n.id for n in by["buyerRole"].names], ["controller"])
+        self.assertEqual([n.id for n in by["buyerRole"].names], ["accounting/director"])
         self.assertEqual({n.id for n in by["usedBefore"].names}, {"quickbooks", "spreadsheets"})
         self.assertEqual([n.id for n in by["triggeredBy"].names], ["new-business-model"])
         self.assertEqual({(n.kind, n.id) for n in by["sufferedFrom"].names},
