@@ -117,6 +117,51 @@ class MatrixTest(unittest.TestCase):
         self.assertEqual(cm.read_run(g)["mentioned"], {BASE + "dunning"})
 
 
+class RunChoiceTest(unittest.TestCase):
+    """Production, 4 Oct 2026: a 5-page alignment run newer than Ordway's full crawl became
+    the matrix's Ordway column, and the coverage date was the instance's startup."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        self.db = os.path.join(self.tmp, "g.sqlite")
+
+    def store(self, stamp, pages, claims):
+        graph_store.persist_graph(
+            run_graph("ordway.example", claims), "https://ordway.example/audit/%s" % stamp,
+            kind="run", domain="ordway.example", vertical_id=V, path=self.db, archive_write=False,
+            metadata=json.dumps({"pages_crawled": pages}))
+
+    def test_a_newer_small_run_does_not_replace_a_full_crawl(self):
+        self.store("20261002T090000Z", 25, [("dunning", "automates", "Full crawl.")])
+        self.store("20261003T143203Z", 5, [("proration", "hasFeature", "Small run.")])
+        run = cm.usable_run("ordway.example", path=self.db)
+        self.assertEqual((run["graph_id"].rsplit("/", 1)[-1], run["below_budget"]),
+                         ("20261002T090000Z", False))
+
+    def test_with_only_small_runs_the_newest_is_used_and_marked(self):
+        self.store("20261002T090000Z", 4, [("dunning", "automates", "Older.")])
+        self.store("20261003T143203Z", 5, [("proration", "hasFeature", "Newer.")])
+        run = cm.usable_run("ordway.example", path=self.db)
+        self.assertEqual((run["graph_id"].rsplit("/", 1)[-1], run["below_budget"]),
+                         ("20261003T143203Z", True))
+
+    def test_coverage_reports_when_the_run_was_crawled(self):
+        self.store("20261003T143203Z", 25, [("dunning", "automates", "Crawl.")])
+        with mock.patch("industry_ontology.load_industry_ontology",
+                        return_value=SimpleNamespace(concepts=CONCEPTS)), \
+                mock.patch.object(cm, "_company_columns", return_value=[
+                    {"name": "ordway.example", "domain": "ordway.example", "role": "customer"}]):
+            cov = cm.matrix("ordway.example", V, path=self.db)["coverage"]["ordway.example"]
+        self.assertEqual(cov["crawled_at"], "2026-10-03T14:32:03Z")
+        self.assertEqual((cov["pages_read"], cov["below_budget"]), (25, False))
+        self.assertNotIn("created_at", cov)
+
+    def test_crawled_at(self):
+        self.assertEqual(cm.crawled_at("https://maxio.com/audit/20261004T115523Z"), "2026-10-04T11:55:23Z")
+        self.assertIsNone(cm.crawled_at("https://maxio.com/situations/x"))
+
+
 class RouteTest(unittest.TestCase):
 
     def test_a_site_with_no_vertical_is_told_so(self):

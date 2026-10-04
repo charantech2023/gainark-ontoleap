@@ -3,7 +3,7 @@ competitor_matrix.py - what each company claims about each concept, beside each 
 
 Phase 3 of COMPETITOR_PROFILES_DESIGN.md. For a customer site, one row per concept of its
 vertical and one cell per company - the customer and every competitor in its set - read
-from the latest stored run of each domain. Computed on request, never stored: it is a pure
+from the newest stored run of each domain that read the page budget (usable_run). Computed on request, never stored: it is a pure
 function of the runs (design §6.4).
 
 A cell is one of four states, strongest first (§4):
@@ -24,6 +24,7 @@ make a row competitor_only or both, so the verdicts only say what the pages show
 
 import json
 import logging
+import re
 from typing import Any, Dict, List, Optional
 
 from rdflib import RDF, URIRef
@@ -35,13 +36,41 @@ _SOFTWARE = URIRef("http://schema.org/SoftwareApplication")
 STATES = ("claimed", "mentioned", "not_found", "not_read")
 
 
-def latest_run(domain: str, path: Optional[str] = None) -> Optional[Dict[str, Any]]:
-    """The newest stored run of a domain that holds anything."""
+# A run that read fewer pages than this is not a fair column beside the others: on 4 Oct
+# 2026 production's newest Ordway run was a 5-page alignment that followed a full crawl,
+# and the matrix read 41 concepts claimed where the 25-page crawl had 71. Matches the
+# competitor crawl's budget (competitor_crawl.CLAIM_PAGES, design §11.2).
+MIN_PAGES = 25
+
+_RUN_TIME = re.compile(r"/audit/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$")
+
+
+def crawled_at(graph_id: str) -> Optional[str]:
+    """When a run was crawled, from its id (graph_store.run_graph_id). The store's own
+    created_at is when this instance indexed it - on a fresh instance, its startup time."""
+    m = _RUN_TIME.search(graph_id or "")
+    return "%s-%s-%sT%s:%s:%sZ" % m.groups() if m else None
+
+
+def _pages(run: Dict[str, Any]) -> int:
+    try:
+        return int(json.loads(run.get("metadata") or "{}").get("pages_crawled") or 0)
+    except (ValueError, TypeError):
+        return 0
+
+
+def usable_run(domain: str, min_pages: int = MIN_PAGES,
+               path: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """The run a column is read from: the newest that read at least `min_pages`, or, when
+    none did, the newest that holds anything, marked `below_budget` so the reader sees the
+    column rests on a small read."""
     import graph_store
-    for run in graph_store.list_runs(domain=domain, limit=20, path=path):
-        if run.get("quads"):
-            return run
-    return None
+    runs = [r for r in graph_store.list_runs(domain=domain, limit=50, path=path) if r.get("quads")]
+    runs.sort(key=lambda r: crawled_at(r["graph_id"]) or "", reverse=True)
+    for run in runs:
+        if _pages(run) >= min_pages:
+            return dict(run, below_budget=False)
+    return dict(runs[0], below_budget=True) if runs else None
 
 
 def read_run(graph) -> Dict[str, Any]:
@@ -76,7 +105,7 @@ def _company_columns(site: str) -> List[Dict[str, Any]]:
 
 
 def matrix(site: str, vertical_id: str, concept: Optional[str] = None,
-           path: Optional[str] = None) -> Dict[str, Any]:
+           path: Optional[str] = None, min_pages: int = MIN_PAGES) -> Dict[str, Any]:
     """The matrix for a customer site, optionally for one concept (label or id)."""
     import graph_store
     from industry_ontology import load_industry_ontology
@@ -91,16 +120,16 @@ def matrix(site: str, vertical_id: str, concept: Optional[str] = None,
     read: Dict[str, Optional[Dict[str, Any]]] = {}
     coverage = {}
     for col in columns:
-        run = latest_run(col["domain"], path=path)
+        run = usable_run(col["domain"], min_pages=min_pages, path=path)
         if run is None:
             read[col["domain"]] = None
             coverage[col["domain"]] = {"run": None, "pages_read": 0}
             continue
-        meta = json.loads(run.get("metadata") or "{}")
+        pages = _pages(run)
         read[col["domain"]] = dict(read_run(graph_store.load_graph(run["graph_id"], path=path)),
-                                   run=run["graph_id"], pages=meta.get("pages_crawled"))
-        coverage[col["domain"]] = {"run": run["graph_id"], "created_at": run.get("created_at"),
-                                   "pages_read": meta.get("pages_crawled")}
+                                   run=run["graph_id"], pages=pages)
+        coverage[col["domain"]] = {"run": run["graph_id"], "crawled_at": crawled_at(run["graph_id"]),
+                                   "pages_read": pages, "below_budget": run["below_budget"]}
 
     rows = []
     for c in concepts:
