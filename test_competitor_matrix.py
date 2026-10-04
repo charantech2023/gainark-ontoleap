@@ -118,43 +118,60 @@ class MatrixTest(unittest.TestCase):
 
 
 class RunChoiceTest(unittest.TestCase):
-    """Production, 4 Oct 2026: a 5-page alignment run newer than Ordway's full crawl became
-    the matrix's Ordway column, and the coverage date was the instance's startup."""
+    """Every column is read from a crawl at the shared budget (agreed 4 Oct 2026). Shaped on
+    production's Ordway runs that day: a 120-page crawl, then a newer 5-page alignment."""
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.tmp, True)
         self.db = os.path.join(self.tmp, "g.sqlite")
 
-    def store(self, stamp, pages, claims):
+    def store(self, stamp, pages, claims=(), requested=None):
+        meta = {"pages_crawled": pages}
+        if requested is not None:
+            meta["pages_requested"] = requested
         graph_store.persist_graph(
-            run_graph("ordway.example", claims), "https://ordway.example/audit/%s" % stamp,
-            kind="run", domain="ordway.example", vertical_id=V, path=self.db, archive_write=False,
-            metadata=json.dumps({"pages_crawled": pages}))
+            run_graph("ordway.example", list(claims) or [("dunning", "automates", "x")]),
+            "https://ordway.example/audit/%s" % stamp, kind="run", domain="ordway.example",
+            vertical_id=V, path=self.db, archive_write=False, metadata=json.dumps(meta))
 
-    def test_a_newer_small_run_does_not_replace_a_full_crawl(self):
-        self.store("20261002T090000Z", 25, [("dunning", "automates", "Full crawl.")])
-        self.store("20261003T143203Z", 5, [("proration", "hasFeature", "Small run.")])
-        run = cm.usable_run("ordway.example", path=self.db)
-        self.assertEqual((run["graph_id"].rsplit("/", 1)[-1], run["below_budget"]),
-                         ("20261002T090000Z", False))
+    def chosen(self):
+        run, others = cm.usable_run("ordway.example", path=self.db)
+        return (run["graph_id"].rsplit("/", 1)[-1] if run else None), others
 
-    def test_with_only_small_runs_the_newest_is_used_and_marked(self):
-        self.store("20261002T090000Z", 4, [("dunning", "automates", "Older.")])
-        self.store("20261003T143203Z", 5, [("proration", "hasFeature", "Newer.")])
-        run = cm.usable_run("ordway.example", path=self.db)
-        self.assertEqual((run["graph_id"].rsplit("/", 1)[-1], run["below_budget"]),
-                         ("20261003T143203Z", True))
+    def test_only_a_run_at_the_budget_is_used(self):
+        self.store("20261001T090000Z", 25)
+        self.store("20261003T105813Z", 120)
+        self.store("20261003T143203Z", 5)
+        self.assertEqual(self.chosen(), ("20261001T090000Z", 2))
+
+    def test_a_recorded_budget_counts_even_when_fewer_pages_were_read(self):
+        self.store("20261004T090000Z", 22, requested=25)
+        self.store("20261004T100000Z", 25, requested=100)
+        self.assertEqual(self.chosen(), ("20261004T090000Z", 1))
+
+    def test_no_run_at_the_budget_is_not_read_and_says_why(self):
+        self.store("20261003T105813Z", 120)
+        self.store("20261003T143203Z", 5)
+        self.assertEqual(self.chosen(), (None, 2))
+        with mock.patch("industry_ontology.load_industry_ontology",
+                        return_value=SimpleNamespace(concepts=CONCEPTS)), \
+                mock.patch.object(cm, "_company_columns", return_value=[
+                    {"name": "ordway.example", "domain": "ordway.example", "role": "customer"}]):
+            m = cm.matrix("ordway.example", V, path=self.db)
+        cov = m["coverage"]["ordway.example"]
+        self.assertEqual(cov["reason"], "no crawl at the 25-page budget yet; 2 run(s) at other budgets")
+        self.assertEqual({r["cells"]["ordway.example"]["state"] for r in m["rows"]}, {"not_read"})
 
     def test_coverage_reports_when_the_run_was_crawled(self):
-        self.store("20261003T143203Z", 25, [("dunning", "automates", "Crawl.")])
+        self.store("20261003T143203Z", 25)
         with mock.patch("industry_ontology.load_industry_ontology",
                         return_value=SimpleNamespace(concepts=CONCEPTS)), \
                 mock.patch.object(cm, "_company_columns", return_value=[
                     {"name": "ordway.example", "domain": "ordway.example", "role": "customer"}]):
             cov = cm.matrix("ordway.example", V, path=self.db)["coverage"]["ordway.example"]
         self.assertEqual(cov["crawled_at"], "2026-10-03T14:32:03Z")
-        self.assertEqual((cov["pages_read"], cov["below_budget"]), (25, False))
+        self.assertEqual((cov["pages_read"], cov["budget"]), (25, 25))
         self.assertNotIn("created_at", cov)
 
     def test_crawled_at(self):

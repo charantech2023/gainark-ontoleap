@@ -3,7 +3,7 @@ competitor_matrix.py - what each company claims about each concept, beside each 
 
 Phase 3 of COMPETITOR_PROFILES_DESIGN.md. For a customer site, one row per concept of its
 vertical and one cell per company - the customer and every competitor in its set - read
-from the newest stored run of each domain that read the page budget (usable_run). Computed on request, never stored: it is a pure
+from the newest stored run of each domain crawled at the shared page budget (usable_run). Computed on request, never stored: it is a pure
 function of the runs (design §6.4).
 
 A cell is one of four states, strongest first (§4):
@@ -25,7 +25,7 @@ make a row competitor_only or both, so the verdicts only say what the pages show
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from rdflib import RDF, URIRef
 from rdflib.namespace import PROV
@@ -36,11 +36,12 @@ _SOFTWARE = URIRef("http://schema.org/SoftwareApplication")
 STATES = ("claimed", "mentioned", "not_found", "not_read")
 
 
-# A run that read fewer pages than this is not a fair column beside the others: on 4 Oct
-# 2026 production's newest Ordway run was a 5-page alignment that followed a full crawl,
-# and the matrix read 41 concepts claimed where the 25-page crawl had 71. Matches the
-# competitor crawl's budget (competitor_crawl.CLAIM_PAGES, design §11.2).
-MIN_PAGES = 25
+# Every column is read from a crawl made at this budget, so the companies are compared on
+# equal reads (agreed 4 Oct 2026). A smaller run under-reads a company - production's
+# 5-page Ordway alignment showed 41 concepts claimed where a 25-page crawl showed 71 - and
+# a larger one over-reads it beside competitors crawled at 25. Matches the competitor
+# crawl's budget (competitor_crawl.CLAIM_PAGES, design §11.2).
+BUDGET = 25
 
 _RUN_TIME = re.compile(r"/audit/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$")
 
@@ -52,25 +53,39 @@ def crawled_at(graph_id: str) -> Optional[str]:
     return "%s-%s-%sT%s:%s:%sZ" % m.groups() if m else None
 
 
-def _pages(run: Dict[str, Any]) -> int:
+def _meta(run: Dict[str, Any]) -> Dict[str, Any]:
     try:
-        return int(json.loads(run.get("metadata") or "{}").get("pages_crawled") or 0)
+        return json.loads(run.get("metadata") or "{}") or {}
     except (ValueError, TypeError):
-        return 0
+        return {}
 
 
-def usable_run(domain: str, min_pages: int = MIN_PAGES,
-               path: Optional[str] = None) -> Optional[Dict[str, Any]]:
-    """The run a column is read from: the newest that read at least `min_pages`, or, when
-    none did, the newest that holds anything, marked `below_budget` so the reader sees the
-    column rests on a small read."""
+def _pages(run: Dict[str, Any]) -> int:
+    return int(_meta(run).get("pages_crawled") or 0)
+
+
+def run_budget(run: Dict[str, Any]) -> Optional[int]:
+    """The budget a run was crawled at. Runs since 4 Oct 2026 record it; for an older run
+    it is known only when the crawl read exactly its budget, and otherwise is None rather
+    than a guess - a 22-page read could be a 25-page crawl or a 22-page one."""
+    meta = _meta(run)
+    if meta.get("pages_requested"):
+        return int(meta["pages_requested"])
+    return None
+
+
+def usable_run(domain: str, budget: int = BUDGET,
+               path: Optional[str] = None) -> Tuple[Optional[Dict[str, Any]], int]:
+    """(the newest run crawled at `budget`, how many other runs the domain has). An older
+    run without a recorded budget counts when it read exactly `budget` pages."""
     import graph_store
     runs = [r for r in graph_store.list_runs(domain=domain, limit=50, path=path) if r.get("quads")]
     runs.sort(key=lambda r: crawled_at(r["graph_id"]) or "", reverse=True)
     for run in runs:
-        if _pages(run) >= min_pages:
-            return dict(run, below_budget=False)
-    return dict(runs[0], below_budget=True) if runs else None
+        recorded = run_budget(run)
+        if recorded == budget or (recorded is None and _pages(run) == budget):
+            return run, len(runs) - 1
+    return None, len(runs)
 
 
 def read_run(graph) -> Dict[str, Any]:
@@ -105,7 +120,7 @@ def _company_columns(site: str) -> List[Dict[str, Any]]:
 
 
 def matrix(site: str, vertical_id: str, concept: Optional[str] = None,
-           path: Optional[str] = None, min_pages: int = MIN_PAGES) -> Dict[str, Any]:
+           path: Optional[str] = None, budget: int = BUDGET) -> Dict[str, Any]:
     """The matrix for a customer site, optionally for one concept (label or id)."""
     import graph_store
     from industry_ontology import load_industry_ontology
@@ -120,16 +135,21 @@ def matrix(site: str, vertical_id: str, concept: Optional[str] = None,
     read: Dict[str, Optional[Dict[str, Any]]] = {}
     coverage = {}
     for col in columns:
-        run = usable_run(col["domain"], min_pages=min_pages, path=path)
+        run, others = usable_run(col["domain"], budget=budget, path=path)
         if run is None:
+            # Not read at this budget. Runs at other budgets exist or not, but a column
+            # read at another depth would not compare: say what is missing instead.
             read[col["domain"]] = None
-            coverage[col["domain"]] = {"run": None, "pages_read": 0}
+            coverage[col["domain"]] = {
+                "run": None, "pages_read": 0, "budget": budget, "other_runs": others,
+                "reason": ("no crawl at the %d-page budget yet; %d run(s) at other budgets"
+                           % (budget, others)) if others else "never crawled"}
             continue
         pages = _pages(run)
         read[col["domain"]] = dict(read_run(graph_store.load_graph(run["graph_id"], path=path)),
                                    run=run["graph_id"], pages=pages)
         coverage[col["domain"]] = {"run": run["graph_id"], "crawled_at": crawled_at(run["graph_id"]),
-                                   "pages_read": pages, "below_budget": run["below_budget"]}
+                                   "budget": budget, "pages_read": pages}
 
     rows = []
     for c in concepts:
