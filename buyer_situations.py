@@ -73,6 +73,29 @@ TRIGGERS: List[Tuple[str, str]] = [
     ("growth-in-volume", r"\bgrow|growth|scal|more customers|volume|adding customers|revenue grew"),
 ]
 
+# What a pain cost the buyer. Most pains on a case study are not about a product concept
+# at all - "tracking everything in Excel became unwieldy", "two to three weeks to close
+# the books" - and on 3 Oct 2026 forcing them onto concepts produced proposals like
+# "billing foundation" -> Multi-Entity. So a pain is classified by what it cost, from its
+# quote, and may be several things at once. The concept it is about, when there is one,
+# is kept beside it.
+PAIN_TYPES: List[Tuple[str, str]] = [
+    ("revenue-leakage", r"lost revenue|losing revenue|revenue (?:loss|leak)|leakage|under-?bill|"
+                        r"missed (?:billing|charges|revenue)"),
+    ("vendor-support-fit", r"support from|hard to get support|get support|fit into (?:their|the)|"
+                           r"didn'?t want to deal|not (?:flexible|responsive)|rigid"),
+    ("errors-accuracy", r"\berrors?\b|error-prone|mistakes?|inaccura|\bwrong\b"),
+    ("slow-cycle", r"\b\d+\s*(?:days?|weeks?)\b|\b(?:two|three|four|several) (?:days|weeks)\b|"
+                   r"weeks to|days to|took (?:too )?long|delay|\bslow\b|close the books|"
+                   r"month-end close|\blate\b"),
+    ("cannot-scale", r"\bscal|unwieldy|outgr|keep up|not powerful enough|"
+                     r"(?:became|becoming|got|grew) (?:more |increasingly )?complicated|"
+                     r"(?:could not|couldn'?t|not able to) handle|as (?:the company |we )?gr[eo]w"),
+    ("manual-effort", r"\bmanual|by hand|time-consuming|re-?key|spreadsheet|\bexcel\b"),
+    ("missing-capability", r"not able to|was not able|could not|couldn'?t|did not support|"
+                           r"lacked|no way to|not the best platform|not suitable"),
+]
+
 # Ways of working a buyer leaves behind, as LegacyWorkflow values.
 LEGACY: List[Tuple[str, str]] = [
     ("spreadsheets", r"spreadsheet|excel|google sheets"),
@@ -132,6 +155,12 @@ def classify_role(text: str) -> Optional[str]:
 
 def classify_trigger(text: str) -> Optional[str]:
     return _first(TRIGGERS, text)
+
+
+def classify_pain(text: str) -> List[str]:
+    """Every pain type a phrase states, in PAIN_TYPES order."""
+    low = (text or "").lower()
+    return [value for value, pat in PAIN_TYPES if re.search(pat, low)]
 
 
 class Vocabulary:
@@ -240,6 +269,9 @@ def from_story(story: Dict[str, Any], site: str, vocab: Vocabulary) -> Situation
                 facet.names.append(Named("trigger", trig, text, str(SIT["trigger/" + trig])))
             facet.names += [n for n in vocab.names_in(text) if n.id in in_quote]
         else:
+            if part == "pain":
+                facet.names += [Named("pain", p, p.replace("-", " "), str(SIT["pain/" + p]))
+                                for p in classify_pain(quote)]
             facet.names += [n for n in vocab.names_in(text) if n.id in in_quote]
             # A pain about spreadsheets is about the workflow left behind, the same value
             # "before" holds: "tracking everything in Excel became unwieldy".
@@ -325,7 +357,7 @@ def from_graph(g: Graph) -> List[Situation]:
 def _kind_of(uri: str) -> str:
     if "/concept/" in uri:
         return "concept"
-    for kind in ("role", "trigger", "legacy"):
+    for kind in ("role", "trigger", "pain", "legacy"):
         if "/situation#%s/" % kind in uri:
             return kind
     return "entity"
@@ -368,7 +400,9 @@ def report(situations: List[Situation]) -> Dict[str, Any]:
     return {
         "situations": len(situations),
         "facets": len(facets),
-        "names": {k: count(k) for k in ("concept", "entity", "role", "trigger", "legacy", "unresolved")},
+        "names": {k: count(k) for k in ("concept", "entity", "role", "trigger", "pain", "legacy", "unresolved")},
+        "pains_unclassified": [f.text for f in facets if f.predicate == "sufferedFrom"
+                               and not any(n.kind == "pain" for n in f.names)],
         "pains_without_concept": [f.text for f in facets if f.predicate == "sufferedFrom"
                                   and not any(n.kind == "concept" for n in f.names)],
         "needs_without_concept": [f.text for f in facets if f.predicate == "needed"
@@ -380,12 +414,87 @@ def report(situations: List[Situation]) -> Dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# Concept proposals: what exact keys missed, for a reviewer
+# ---------------------------------------------------------------------------
+
+# Words a term never starts or ends on. A span ending on "can" or "that" is a fragment
+# ("billing foundation that can" was proposed as Multi-Entity on 3 Oct 2026).
+_EDGE_STOP = {
+    "a", "an", "the", "and", "or", "of", "for", "to", "in", "on", "with", "our", "their", "its",
+    "was", "were", "is", "be", "that", "can", "could", "would", "not", "more", "both", "as",
+    "by", "at", "from", "into", "which", "became", "made", "had", "have", "we", "they", "it",
+    "this", "need", "needed", "needs", "used", "use", "using", "support", "able", "lot",
+    "handle", "better", "new", "complex", "unique", "flexible", "powerful", "scalable",
+}
+_MAX_SPAN = 4
+
+
+def term_spans(text: str, quote: str) -> List[str]:
+    """Candidate terms in a phrase: runs of two to four words that neither start nor end
+    on a function word, every content word also in the quote. Single words are left out:
+    an alt label of "contract" or "platform" would match everything."""
+    from buyer_stories import supported
+    words = re.findall(r"[A-Za-z0-9][\w'-]*", text or "")
+    out = []
+    for size in range(2, _MAX_SPAN + 1):
+        for i in range(len(words) - size + 1):
+            run = words[i:i + size]
+            if run[0].lower() in _EDGE_STOP or run[-1].lower() in _EDGE_STOP:
+                continue
+            span = " ".join(run)
+            if supported(span, quote) == 1.0 and span not in out:
+                out.append(span)
+    return out
+
+
+def propose_concepts(situations: List[Situation], vertical_id: str, concepts: List[Any],
+                     queue: Any = None, find: Any = None) -> List[Dict[str, Any]]:
+    """Queue, for review, the strongest concept for each need and pain no concept named.
+
+    semantic_match proposes and a person decides: an approved term becomes an alt label
+    through /api/ontology/approve-synonym, and from the next read exact keys find it with
+    no model involved. Each proposal carries the quote and page it came from. Returns the
+    proposals; `queue` None proposes nothing and only returns them.
+    """
+    if find is None:
+        import semantic_match
+        find = semantic_match.find_candidates
+    proposals = []
+    for s in situations:
+        for f in s.facets:
+            if f.predicate not in ("needed", "sufferedFrom"):
+                continue
+            if any(n.kind == "concept" for n in f.names):
+                continue
+            spans = term_spans(f.text, f.quote)
+            found = find(spans, concepts) if spans else []
+            if not found:
+                continue
+            best = max(found, key=lambda c: c.score)
+            proposals.append({
+                "surface_form": best.surface_form, "generated_canonical": best.concept,
+                "brand": s.site, "vertical_id": vertical_id, "method": "situation",
+                "score": best.score, "margin": best.margin, "runner_up": best.runner_up,
+                "closes_gap": False, "facet": f.predicate, "source_url": f.url, "quote": f.quote,
+            })
+    if queue is not None and proposals:
+        from synonym_queue import entry_key
+        written = queue.propose({entry_key(p["generated_canonical"], p["surface_form"], vertical_id): p
+                                 for p in proposals})
+        logger.info("[Situations] %d concept proposal(s) queued, %d already there",
+                    len(written), len(proposals) - len(written))
+    return proposals
+
+
 def read_site(site: str, vertical_id: str, stories: Optional[List[Dict[str, Any]]] = None,
-              registry: Any = None, store: bool = True, path: Optional[str] = None) -> Dict[str, Any]:
+              registry: Any = None, store: bool = True, path: Optional[str] = None,
+              propose: bool = False, queue: Any = None) -> Dict[str, Any]:
     """Read a site's case studies into situations, store them, and report.
 
     `stories` lets a caller pass buyer_stories output already in hand; otherwise the pages
-    are read now.
+    are read now. `propose` files concept proposals for what exact keys missed, in `queue`
+    or the configured review queue.
     """
     from industry_ontology import load_industry_ontology
     if stories is None:
@@ -394,10 +503,17 @@ def read_site(site: str, vertical_id: str, stories: Optional[List[Dict[str, Any]
     if registry is None:
         from entity_registry import default_store
         registry = default_store().registry()
-    vocab = Vocabulary(vertical_id, load_industry_ontology(vertical_id).concepts, registry)
+    concepts = load_industry_ontology(vertical_id).concepts
+    vocab = Vocabulary(vertical_id, concepts, registry)
     situations = [from_story(s, site, vocab) for s in stories if s.get("parts")]
     gid = persist(situations, site, vertical_id, path=path) if store else None
-    return {"graph_id": gid, "report": report(situations),
+    proposals = []
+    if propose:
+        if queue is None:
+            from synonym_queue import default_queue
+            queue = default_queue()
+        proposals = propose_concepts(situations, vertical_id, concepts, queue=queue)
+    return {"graph_id": gid, "report": report(situations), "proposals": proposals,
             "situations": [s.to_dict() for s in situations]}
 
 

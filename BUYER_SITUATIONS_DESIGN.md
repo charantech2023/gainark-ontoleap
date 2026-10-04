@@ -142,8 +142,11 @@ vertical's concepts. They are situation vocabulary, shared across verticals and 
   Accounting ×2, CFO, fractional CFO, Head of Finance.
 - **Trigger**: growth in volume, new business model or market (B2B, usage-based, global),
   new deal types, ERP change, new entity or country, audit/funding/IPO readiness.
-- **Pain**: free text, always with `painAbout` → concept. A pain without a concept cannot
-  be walked (§6) and stays as evidence only.
+- **Pain type** (added 3 Oct 2026, §13): what the pain cost the buyer — manual effort,
+  slow cycle, cannot scale, errors and accuracy, revenue leakage, vendor support and fit,
+  missing capability. Read from the quote; a pain may be several. Its `painAbout` concept
+  is kept beside it when the pain is about one. Most case-study pains are about cost, not
+  about a product concept, so a pain is walked (§6) by its type.
 
 A trigger that fits no type keeps its text and is proposed as a new type through review.
 
@@ -261,6 +264,8 @@ Agreed 3 Oct 2026, as recommended.
 
 1. **Role and Trigger are controlled types**, small and shared across verticals, each
    value keeping its free text. Free text alone could not be counted or walked.
+   **Pain type was added on the same terms later that day**, after concept proposals for
+   pains came out as noise (§13).
 2. **Situations live in the run graph**, reified like claims (the same answer as the
    competitor design's §11.1), not in a document per run.
 3. **Pattern threshold: at least three situations from at least two vendors.** Lower, and
@@ -300,10 +305,12 @@ production's.
 - **Two more checks on each part (`buyer_stories.read_story`):** half of the part's
   content words must be in its quote ("text says more than its quote"), and a trigger,
   pain or need whose quote names the vendor is an outcome, not the situation before.
-- **Unresolved pains and needs are reported, not yet proposed.** §3 says they become
-  vocabulary proposals; phase 0 lists them for review instead of writing to the
-  production queue. Tools the registry does not know (Recurly, SaaSOptics, Zuora) are
-  listed as registry candidates, never added.
+- **Unresolved needs and pains go to the synonym queue, not the vocabulary queue** (§3
+  said vocabulary proposals). The question is "does this phrase mean an existing concept",
+  which is what the synonym queue decides; the vocabulary queue proposes new concepts.
+  They are filed only when `propose=True`, into whichever queue the archive configuration
+  names (dev on 3 Oct 2026). Tools the registry does not know (Recurly, SaaSOptics, Zuora)
+  are listed as registry candidates, never added.
 - **No customer entity yet.** The reader keeps the customer's name out of the parts, so
   `customer` (§4.1) is empty and a situation is identified by its page.
 - **LegacyWorkflow values are a cue list** (spreadsheets, manual process), matched in the
@@ -325,7 +332,33 @@ flexible billing foundation", Paytient, filed as a need), a need filed as a pain
 support check also drops some fair paraphrases ("fitting into the solution" for "fit into
 their solution").
 
-Concept coverage is the open problem: 2 of 7 pains and 1 of 5 needs reach a concept,
-because exact keys miss "parent-child account hierarchies" (Parent Customer's alt label is
-"parent-child billing"). That is the review queue's job, not similarity's; it is the
-first thing phase 2 needs.
+Concept coverage was the open problem: 2 of 7 pains and 1 of 5 needs reached a concept,
+because exact keys miss paraphrases. That is the review queue's job, not similarity's.
+
+### Concept coverage
+
+Trying the encoder (`semantic_match.find_candidates`, usual thresholds) on every word run
+of the unmatched pains and needs showed two things:
+
+1. **Most unmatched pains are not about a product concept.** "Tracking everything in Excel
+   became unwieldy", "two to three weeks to complete the bill run", "manual effort" are
+   about what the problem cost. Forced onto concepts they gave "billing foundation that
+   can" → Multi-Entity and "contract" → Contract Management. Hence **pain types** (§4.4),
+   classified from the quote: 6 of 7 pains classified on Ordway; the seventh is the need
+   the reader filed as a pain.
+2. **Needs propose well once the terms are clean.** `term_spans` keeps runs of two to four
+   words that do not start or end on a function word and whose words are all in the
+   quote; single words are never candidates. `propose_concepts` files the strongest
+   candidate per unmatched need or pain in the shared synonym queue
+   (`method: "situation"`, with the quote and page), where a person approves it through
+   `/api/ontology/approve-synonym` and exact keys find it from then on.
+
+On Ordway, into the **dev** queue: "pricing models" → Monetization Model (0.73, margin
+0.098), "managing billing and revenue" → Revenue Operations (0.735, margin 0.055),
+"technology platform" → Platform Capabilities (0.685; too generic to approve). Nothing is
+proposed for a facet that already names a concept.
+
+Reviewed the same day in dev (the dev verticals mirror was seeded with a copy of
+production's `b2b_saas_fintech` for it): the first two approved, the third rejected. Read
+again, with no model involved, Ordway's needs reaching a concept went from 1 of 5 to 3 of 5.
+Production's vertical was not changed.
