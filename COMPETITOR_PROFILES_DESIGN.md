@@ -267,3 +267,22 @@ phase 2), pricing extraction, and any dashboard work.
 
 §9.4 ("resolution without lookup") is 0 of 4 so far: no competitor has been confirmed, so
 the registry has learned nothing yet. It should rise from the first confirmation on.
+
+## 13. Phase 2 as built
+
+`competitor_crawl.py`, 4 Oct 2026, run in the dev brain on the four confirmed competitors.
+The claims crawl is site_graph's own, unchanged (§3, one code path). Customer stories are
+read separately, up to 10 per competitor, because the planner gives them 8% of the budget;
+they become the competitor's buyer situations (BUYER_SITUATIONS_DESIGN.md phase 1).
+
+| Competitor | Pages read | Concepts claimed (claims with quote) | Customer stories read → situations |
+|---|---|---|---|
+| recurly.com | 0: Cloudflare block | not read | — |
+| maxio.com | 25 | 58 (80) | 2 found, 1 with parts |
+| zuora.com | 25 | 56 (71) | 10 → 10 |
+| hibob.com | 25 | 14 of the HR vertical's 27 (17) | 10 → 10 |
+
+- **A blocked competitor is `unreadable`, with the reason**, and its matrix cells will be
+  `not_read`, never `not_found`. Recurly needs an approved source, not a way past the block.
+- **Maxio's customer stories were barely found** (2 URLs): its stories do not sit under a
+  path the planner classifies as `customers`. To check before Maxio's buyer side is used.
