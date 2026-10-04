@@ -231,3 +231,39 @@ phase 2), pricing extraction, and any dashboard work.
 5. **Competitor terms as vocabulary proposals (§7).** Recommended: yes, through the
    existing proposal flow, never straight into the vertical.
 
+
+## 12. Phase 1 as built
+
+`competitor_set.py`, 3-4 Oct 2026. Run on two sites in the dev brain.
+
+| Site | Competitor | Domain | Rung | Status |
+|---|---|---|---|---|
+| ordwaylabs.com | SaaSOptics (Maxio) | maxio.com | proposal: saasoptics.com redirects there, titled "SaaSOptics is now Maxio" | pending review |
+| ordwaylabs.com | Zuora | zuora.com | proposal: the homepage title names it | pending review |
+| ordwaylabs.com | Recurly | recurly.com | proposal, **unverified**: the homepage is behind a Cloudflare bot check | pending review |
+| bamboohr.com | Hibob | hibob.com | proposal: the homepage title names it | pending review |
+
+### Where it departs from the proposal, and why
+
+- **Rung 2 needs the domain to be the name.** §5 P3 allowed "a single external domain
+  whose label matches the name". On ordwaylabs.com no evidence page linked to a
+  competitor at all, and the Zuora page's only "Zuora" links went to techcrunch.com and
+  cnbc.com - matching on anchor text would have given Zuora a news site's domain. A link
+  counts only when the domain's first label is the name.
+- **Rung 3 is a deterministic guess, not a model.** `<name>.com` for each form of the name
+  ("SaaSOptics (Maxio)" is SaaSOptics and Maxio), followed through redirects, kept only
+  when the page it lands on names the competitor. A redirect is evidence: it is how the
+  SaaSOptics rebrand was found.
+- **A bot check is reported, never got past.** recurly.com answered with a challenge page,
+  so it is proposed unverified and the reviewer is told why. A competitor behind one is
+  also a crawl risk for phase 2.
+- **Confirming writes the registry.** `domain_added` / `domain_removed` are new registry
+  events; a confirmed competitor the registry lacks becomes an entity named after the form
+  its domain carries (Maxio, with SaaSOptics as an alias), so the next customer resolves it
+  at rung 1.
+- **The set is stored with `vertical_store.update`** at `buyers/<site>.competitors.json`,
+  so concurrent writers cannot drop each other's changes, and a rebuild keeps reviewer
+  decisions (confirmed, removed, added).
+
+§9.4 ("resolution without lookup") is 0 of 4 so far: no competitor has been confirmed, so
+the registry has learned nothing yet. It should rise from the first confirmation on.

@@ -293,6 +293,14 @@ def fold(seed: List[Dict[str, Any]], events: List[Dict[str, Any]], key_fn) -> Re
                     entities[other].distinct_from.append(eid)
             elif kind == "external_linked":
                 ent.external[ev["system"]] = ev["value"]
+            elif kind == "domain_added":
+                # The strongest identity key an organization has: competitor_set resolves a
+                # competitor named on a page to the site that is that company.
+                domain = ev["domain"].strip().lower()
+                if domain and domain not in ent.domains:
+                    ent.domains.append(domain)
+            elif kind == "domain_removed":
+                ent.domains = [d for d in ent.domains if d != ev["domain"].strip().lower()]
             elif kind == "promoted":
                 if ent.status == "candidate":
                     ent.status = "active"
