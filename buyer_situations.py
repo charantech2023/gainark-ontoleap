@@ -48,17 +48,28 @@ logger = logging.getLogger("gainark.buyer_situations")
 SIT = Namespace(ONTOLOGY_BASE + "/situation#")
 KIND = "situations"
 
-# The buyer's role, as a small shared vocabulary. Order matters: the first pattern that
-# matches wins, so "fractional CFO" is read before "CFO" and "VP Finance" before "Head".
-ROLES: List[Tuple[str, str]] = [
-    ("fractional-cfo", r"\bfractional\b.*\bcfo\b"),
-    ("cfo", r"\bcfo\b|chief financial officer"),
-    ("vp-finance", r"\bvp\b.*\bfinance\b|vice president.*financ"),
-    ("controller", r"\bcontroller\b|\bcomptroller\b"),
-    ("director-of-accounting", r"director of accounting|accounting director|head of accounting"),
-    ("head-of-finance", r"head of finance|finance (?:lead|director|manager)|director of finance"),
-    ("revops", r"\brevops\b|revenue operations"),
-    ("founder-ceo", r"\bfounder\b|\bceo\b|chief executive"),
+# The buyer's role, as function x seniority, so a new vertical needs no new list. The
+# first list was finance titles only (CFO, Controller, Director of Accounting) and read
+# none of bamboohr.com's buyers on 4 Oct 2026 ("VP of People", "People and Culture
+# Manager"). A role is "<function>/<level>"; either half may be "unspecified".
+ROLE_FUNCTIONS: List[Tuple[str, str]] = [
+    ("revops", r"\brevops\b|revenue operations|sales operations|\bsales ops\b"),
+    ("accounting", r"accounting|accountant|\bcontroller\b|\bcomptroller\b|bookkeep"),
+    ("finance", r"\bfinanc|\bcfo\b|fp&a|treasur"),
+    ("people", r"\bpeople\b|\bhr\b|human resources|talent|\bculture\b|\bchro\b|\bpayroll\b"),
+    ("it", r"\bit\b|information technology|\bcio\b|\bcto\b|security|engineering"),
+    ("operations", r"operations|\bcoo\b"),
+    ("executive", r"\bceo\b|founder|\bowner\b|\bpresident\b|chief executive"),
+]
+ROLE_LEVELS: List[Tuple[str, str]] = [
+    ("c-level", r"\bchief\b|\bc[a-z]?[a-z]o\b|\bfounder\b|\bowner\b"),
+    ("vp", r"\bvp\b|vice president|\bsvp\b|\bevp\b"),
+    ("head", r"\bhead of\b"),
+    # A controller runs the accounting function: director level in the companies these
+    # case studies describe.
+    ("director", r"\bdirector\b|\bcontroller\b|\bcomptroller\b"),
+    ("manager", r"\bmanager\b|\blead\b"),
+    ("staff", r"specialist|analyst|coordinator|administrator|generalist|accountant"),
 ]
 
 # What made the old way stop working. Checked in order; the first that matches wins.
@@ -70,7 +81,11 @@ TRIGGERS: List[Tuple[str, str]] = [
     ("new-deal-types", r"deal types?|contract (?:types|changes|structures)|mid[- ]contract|"
                        r"changes to (?:customer )?contracts|upgrades?|amendments?|addend"),
     ("audit-or-funding", r"\baudit|\bipo\b|funding|investor|board"),
-    ("growth-in-volume", r"\bgrow|growth|scal|more customers|volume|adding customers|revenue grew"),
+    # Growth in whatever the business counts: customers and revenue for a billing buyer,
+    # people and locations for an HR buyer ("more than quadrupled its workforce").
+    ("growth-in-volume", r"\bgrow|growth|scal|more customers|volume|adding customers|revenue grew|"
+                         r"workforce|headcount|\bhires?\b|hiring|branches|locations|offices|"
+                         r"\b(?:doubled|tripled|quadrupled)\b"),
 ]
 
 # What a pain cost the buyer. Most pains on a case study are not about a product concept
@@ -87,11 +102,17 @@ PAIN_TYPES: List[Tuple[str, str]] = [
     ("errors-accuracy", r"\berrors?\b|error-prone|mistakes?|inaccura|\bwrong\b"),
     ("slow-cycle", r"\b\d+\s*(?:days?|weeks?)\b|\b(?:two|three|four|several) (?:days|weeks)\b|"
                    r"weeks to|days to|took (?:too )?long|delay|\bslow\b|close the books|"
-                   r"month-end close|\blate\b"),
+                   r"month-end close|\blate\b|"
+                   # Time lost on a routine, the way an HR team says it: "an entire whole
+                   # day a month sorting HR documents" (crbr, bamboohr.com, 4 Oct 2026).
+                   r"(?:entire|whole|full) (?:whole )?(?:day|week)|"
+                   r"\bhours? (?:a|each|every|per) (?:day|week|month)"),
     ("cannot-scale", r"\bscal|unwieldy|outgr|keep up|not powerful enough|"
-                     r"(?:became|becoming|got|grew) (?:more |increasingly )?complicated|"
+                     r"(?:became|become|becoming|got|gotten|getting|grew) (?:all )?"
+                     r"(?:more |increasingly )?(?:complicated|complex)|"
                      r"(?:could not|couldn'?t|not able to) handle|as (?:the company |we )?gr[eo]w"),
-    ("manual-effort", r"\bmanual|by hand|time-consuming|re-?key|spreadsheet|\bexcel\b"),
+    ("manual-effort", r"\bmanual|by hand|time-consuming|re-?key|spreadsheet|\bexcel\b|"
+                      r"\bpaper|sorting|data entry|re-?enter"),
     ("missing-capability", r"not able to|was not able|could not|couldn'?t|did not support|"
                            r"lacked|no way to|not the best platform|not suitable"),
 ]
@@ -99,6 +120,7 @@ PAIN_TYPES: List[Tuple[str, str]] = [
 # Ways of working a buyer leaves behind, as LegacyWorkflow values.
 LEGACY: List[Tuple[str, str]] = [
     ("spreadsheets", r"spreadsheet|excel|google sheets"),
+    ("paper", r"\bpaper\b|paper-based|filing cabinet"),
     ("manual-process", r"\bmanual|by hand|semi-automated"),
 ]
 
@@ -150,7 +172,11 @@ def _first(patterns: List[Tuple[str, str]], text: str) -> Optional[str]:
 
 
 def classify_role(text: str) -> Optional[str]:
-    return _first(ROLES, text)
+    """ "<function>/<level>", or None when the phrase names neither."""
+    function, level = _first(ROLE_FUNCTIONS, text), _first(ROLE_LEVELS, text)
+    if not function and not level:
+        return None
+    return "%s/%s" % (function or "unspecified", level or "unspecified")
 
 
 def classify_trigger(text: str) -> Optional[str]:
@@ -229,7 +255,10 @@ def unresolved_names(text: str, named: List[Named]) -> List[str]:
         # "QuickBooks Online" is QuickBooks: a name containing one that resolved is that thing.
         if any(label in name.lower() for label in labels):
             continue
-        if not re.fullmatch(r"(?:B2B2?C?|SaaS|ERP|CRM|AR|AP)", name):
+        # Category and function acronyms are not companies: "HR" was a registry candidate
+        # on bamboohr.com. A vendor written in capitals (ADP, SAP) is not in this list.
+        if not re.fullmatch(r"(?:B2B2?C?|SaaS|ERP|CRM|AR|AP|HR|HRIS|HCM|IT|ATS|LMS|PTO|PEO|EOR|"
+                            r"CEO|CFO|COO|CTO|CIO|CHRO|API|AI)", name):
             out.append(name)
     return out
 
@@ -260,7 +289,11 @@ def from_story(story: Dict[str, Any], site: str, vocab: Vocabulary) -> Situation
         # quote never said, and resolved it to Metered Billing.
         in_quote = {n.id for n in vocab.names_in(quote)}
         if part == "role":
-            role = classify_role(text)
+            # The quote is usually the sign-off ("Josie Keucke, People and Culture Manager
+            # at Civtec"), where the summary had shortened it to "people". Whichever says
+            # more wins.
+            candidates = [r for r in (classify_role(quote), classify_role(text)) if r]
+            role = min(candidates, key=lambda r: r.count("unspecified")) if candidates else None
             if role:
                 facet.names.append(Named("role", role, text, str(SIT["role/" + role])))
         elif part == "trigger":
@@ -276,10 +309,12 @@ def from_story(story: Dict[str, Any], site: str, vocab: Vocabulary) -> Situation
             # A pain about spreadsheets is about the workflow left behind, the same value
             # "before" holds: "tracking everything in Excel became unwieldy".
             if part in ("before", "pain"):
-                legacy = _first(LEGACY, text) if _first(LEGACY, quote) else None
-                if legacy:
-                    facet.names.append(Named("legacy", legacy, legacy.replace("-", " "),
-                                             str(SIT["legacy/" + legacy])))
+                # Every way of working the part and its quote both name: "paper files and
+                # spreadsheets" left both behind.
+                for legacy, pat in LEGACY:
+                    if re.search(pat, text.lower()) and re.search(pat, quote.lower()):
+                        facet.names.append(Named("legacy", legacy, legacy.replace("-", " "),
+                                                 str(SIT["legacy/" + legacy])))
             if part == "before":
                 for name in unresolved_names(text, facet.names):
                     facet.names.append(Named("unresolved", normalise_key(name), name))
@@ -345,8 +380,12 @@ def from_graph(g: Graph) -> List[Situation]:
                           str(g.value(fid, PROV.value) or ""),
                           str(g.value(fid, PROV.wasDerivedFrom) or ""))
                 for target in g.objects(fid, SIT.names):
-                    f.names.append(Named(_kind_of(str(target)), str(target).rsplit("/", 1)[-1],
-                                         str(g.value(target, SKOS.prefLabel) or ""), str(target)))
+                    uri, kind = str(target), _kind_of(str(target))
+                    # A controlled value's id may hold a slash ("finance/c-level"), so it is
+                    # everything after "#role/", not after the last slash.
+                    marker = "/situation#%s/" % kind
+                    nid = uri.split(marker, 1)[1] if marker in uri else uri.rsplit("/", 1)[-1]
+                    f.names.append(Named(kind, nid, str(g.value(target, SKOS.prefLabel) or ""), uri))
                 for label in g.objects(fid, SIT.unresolved):
                     f.names.append(Named("unresolved", normalise_key(str(label)), str(label)))
                 s.facets.append(f)
@@ -467,7 +506,16 @@ def propose_concepts(situations: List[Situation], vertical_id: str, concepts: Li
                 continue
             if any(n.kind == "concept" for n in f.names):
                 continue
-            spans = term_spans(f.text, f.quote)
+            # A pain is about a concept only when it is a capability the old system lacked.
+            # The rest are typed by what they cost, and proposing concepts for them gave
+            # "grew and added customers" -> Cohort Analysis (4 Oct 2026).
+            if f.predicate == "sufferedFrom" and not any(
+                    n.kind == "pain" and n.id == "missing-capability" for n in f.names):
+                continue
+            # From the quote as well as the summary: the summary of Civtec's need said
+            # "time tracking", which the quote does not, while the quote's own "clock in
+            # and clock out" was never tried (bamboohr.com, 4 Oct 2026).
+            spans = list(dict.fromkeys(term_spans(f.text, f.quote) + term_spans(f.quote, f.quote)))
             found = find(spans, concepts) if spans else []
             if not found:
                 continue

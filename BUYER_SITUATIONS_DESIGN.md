@@ -362,3 +362,37 @@ Reviewed the same day in dev (the dev verticals mirror was seeded with a copy of
 production's `b2b_saas_fintech` for it): the first two approved, the third rejected. Read
 again, with no model involved, Ordway's needs reaching a concept went from 1 of 5 to 3 of 5.
 Production's vertical was not changed.
+
+## 14. The first cold run: bamboohr.com
+
+4 Oct 2026, in the dev brain. Discovery routed bamboohr.com to `hr_payroll_benefits`
+(27 reviewed concepts) and found 5 evidence pages: four customer stories and the Hibob
+comparison page, which reads as vendor voice and is kept out of fan-out. The reader, the
+part checks, the prompt writer and the competitor set carried over unchanged. What did not
+carry over was everything tuned on Ordway's pages:
+
+| | Ordway | bamboohr.com, first read | after the fixes below |
+|---|---|---|---|
+| Roles classified | 6 / 6 | **0 / 3** | 3 / 3 |
+| Triggers classified | 3 / 3 | **0 / 1** | 1 / 1 |
+| Pains typed | 6 / 7 | **0 / 1** | 1 / 1 |
+| Needs reaching a concept | 3 / 5 | 0 / 2 | 0 / 2 |
+
+Measured on the same stored stories before and after, so only the code changed.
+
+- **Roles are function × level** (`finance/c-level`, `people/vp`, `accounting/director`),
+  read from the quote first - usually the sign-off line - and then the summary. The first
+  list was finance titles only.
+- **Trigger and pain cues use the buyer's own counts and losses**: workforce, headcount,
+  branches and "quadrupled" are growth; "an entire day a month" is a slow cycle; paper is
+  manual effort and a LegacyWorkflow value. Legacy values may now be several.
+- **Proposal terms come from the quote as well as the summary**, and a pain proposes a
+  concept only when it is a missing capability; growth pains proposed noise ("grew and
+  added customers" -> Cohort Analysis).
+- **Function acronyms are not companies** ("HR" was a registry candidate).
+
+Open: Civtec's need ("apply for and calculate leave, clock in and clock out") ranks the
+right concepts first - Time and attendance tracking, then PTO management - but at 0.35 to
+0.50, under `semantic_match.MIN_SCORE` (0.60), which was set on `b2b_saas_fintech`. The
+encoder's thresholds do not transfer between verticals; they need calibrating per vertical
+rather than lowering for one example.
